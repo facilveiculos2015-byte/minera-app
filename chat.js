@@ -7,13 +7,19 @@ let anexoPendente = null;
 let gravando = false;
 let mediaRecorder = null;
 let audioChunks = [];
+let audioTimerInterval = null;
+let audioSeconds = 0;
 let agendarAtivo = false;
 
-/** Contato ativo: { auth_id, nome, email, papeis, tipo, apelido } */
+/** Contato ativo: { auth_id, nome, papeis, tipo, apelido } — sem email */
 let contatoAtivo = null;
-let contatosCache = []; // enriched list
+let contatosCache = [];
 let diretorioCache = [];
 let lastThreadMsgIds = new Set();
+let lastContactsSig = '';
+let renderedMsgOrder = []; // ids currently in DOM (stable order)
+let renderedMsgSigs = new Map();
+let threadInitialized = false;
 
 const ROLE_GROUPS = [
     { id: 'minerador', title: 'Mineradores/Vendedores', match: ['minerador'] },
@@ -27,6 +33,45 @@ const ROLE_GROUPS = [
 function esc(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function looksLikeEmail(s) {
+    return /@/.test(String(s || ''));
+}
+
+/** Nunca exponha e-mail de terceiros no chat/diretório (anti-golpe). */
+function stripEmailFields(u) {
+    if (!u || typeof u !== 'object') return u;
+    const out = Object.assign({}, u);
+    delete out.email;
+    delete out.Email;
+    delete out.e_mail;
+    // Se nome/apelido forem literalmente um e-mail, não mostre
+    if (looksLikeEmail(out.nome)) out.nome = '';
+    if (looksLikeEmail(out.apelido)) out.apelido = '';
+    return out;
+}
+
+function sanitizeDirList(rows) {
+    return (rows || []).map(stripEmailFields);
+}
+
+function displayNome(u) {
+    if (!u) return 'Contato';
+    const ap = String(u.apelido || '').trim();
+    const no = String(u.nome || '').trim();
+    if (ap && !looksLikeEmail(ap)) return ap;
+    if (no && !looksLikeEmail(no)) return no;
+    return 'Contato';
+}
+
+function meuNomePublico() {
+    return displayNome(perfilAtual) || 'Usuário';
+}
+
+function nomePublicoTexto(valor, fallback) {
+    const s = String(valor || '').trim();
+    return s && !looksLikeEmail(s) ? s : (fallback || 'Contato');
 }
 
 function lerLoteQuery() {
@@ -139,6 +184,9 @@ async function uploadMidia(file, pasta) {
     if (file.type && file.type.startsWith('image/') && file.size <= 400000) {
         return await fileToDataUrl(file);
     }
+    if (file.type && file.type.startsWith('audio/') && file.size <= 500000) {
+        return await fileToDataUrl(file);
+    }
     return null;
 }
 
@@ -173,8 +221,29 @@ async function promoverAgendadas(lista) {
 
 function renderMedia(m) {
     const url = m.midia_url;
-    if (!url) return '';
+    const loading = !!m._loading;
+    const localPreview = m._localPreview || '';
     const tipo = (m.tipo || 'text').toLowerCase();
+
+    if (loading && localPreview) {
+        if (tipo === 'imagem' || localPreview.startsWith('data:image') || localPreview.startsWith('blob:')) {
+            return '<div class="bubble-media bubble-media-loading">' +
+                '<img src="' + esc(localPreview) + '" alt="enviando">' +
+                '<div class="media-upload-overlay">Enviando…</div></div>';
+        }
+        if (tipo === 'video') {
+            return '<div class="bubble-media bubble-media-loading">' +
+                '<video src="' + esc(localPreview) + '" muted playsinline></video>' +
+                '<div class="media-upload-overlay">Enviando…</div></div>';
+        }
+        if (tipo === 'audio') {
+            return '<div class="bubble-media bubble-media-loading">' +
+                '<audio src="' + esc(localPreview) + '" controls></audio>' +
+                '<div class="media-upload-overlay">Enviando…</div></div>';
+        }
+    }
+
+    if (!url) return '';
     if (tipo === 'imagem' || url.startsWith('data:image')) {
         return '<div class="bubble-media"><img src="' + esc(url) + '" alt="imagem" loading="lazy"></div>';
     }
@@ -187,18 +256,56 @@ function renderMedia(m) {
     return '<div class="bubble-media"><a href="' + esc(url) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
 }
 
+function messageSignature(m) {
+    return JSON.stringify([m.id, m.texto || '', m.tipo || '', m.midia_url || '', m.status || '', m.agendado_para || '', m.moderacao || '', m.deleted_at || '']);
+}
+
+function bubbleHtml(m) {
+    const mine = m.de_auth_id && m.de_auth_id === meuAuthId;
+    const when = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : (m._pending ? 'agora' : '');
+    const st = (m.status || 'enviada');
+    const sched = st === 'agendada';
+    const agLabel = sched && m.agendado_para
+        ? ' · agendada p/ ' + new Date(m.agendado_para).toLocaleString('pt-BR')
+        : '';
+    const flag = m.moderacao ? ' · 🚩 ' + esc(m.moderacao) : '';
+    const isAdmin = typeof ehAdmin === 'function' && ehAdmin(perfilAtual);
+    const pendingCls = m._pending || m._loading ? ' pending' : '';
+    const idAttr = m.id != null ? ' data-msg-id="' + esc(String(m.id)) + '"' : (m._tempId ? ' data-temp-id="' + esc(m._tempId) + '"' : '');
+    return `<div class="bubble ${mine ? 'mine' : 'theirs'}${sched ? ' scheduled' : ''}${pendingCls}"${idAttr}>
+        <div class="bubble-meta">${esc(nomePublicoTexto(m.de_nome, 'Alguém'))} · ${when}${agLabel}${flag}</div>
+        ${m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : ''}
+        ${renderMedia(m)}
+        <div class="bubble-status">${esc(m._loading ? 'enviando' : st)}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
+    </div>`;
+}
+
+function isNearBottom(box, threshold) {
+    if (!box) return true;
+    const t = threshold == null ? 80 : threshold;
+    return (box.scrollHeight - box.scrollTop - box.clientHeight) <= t;
+}
+
 async function rpcDiretorio(busca) {
     try {
-        // O diretório usa RPC sem argumentos para atravessar o RLS isolado de
-        // usuarios; a busca é aplicada localmente aos campos públicos.
+        const termo = String(busca || '').trim();
+        // Nunca busque por e-mail no cliente
+        if (looksLikeEmail(termo)) return [];
+        if (termo.length >= 1) {
+            const { data, error } = await supabaseClient.rpc('chat_buscar_nome', { p_nome: termo });
+            if (!error && data) return sanitizeDirList(data);
+        }
         const { data, error } = await supabaseClient.rpc('chat_diretorio');
         if (error) throw error;
-        const termo = String(busca || '').trim().toLowerCase();
-        return (data || []).filter(u => !termo ||
-            String(u.nome || '').toLowerCase().includes(termo) ||
-            String(u.email || '').toLowerCase().includes(termo));
+        const list = sanitizeDirList(data);
+        if (!termo) return list;
+        const t = termo.toLowerCase();
+        return list.filter(u =>
+            String(u.nome || '').toLowerCase().includes(t) ||
+            String(u.apelido || '').toLowerCase().includes(t)
+        );
     } catch (e) {
-        console.warn('chat_diretorio', e);
+        console.warn('chat_diretorio/buscar_nome', e);
         return [];
     }
 }
@@ -208,25 +315,70 @@ async function rpcPerfis(ids) {
     try {
         const { data, error } = await supabaseClient.rpc('chat_perfis_publicos', { p_ids: ids });
         if (error) throw error;
-        return data || [];
+        return sanitizeDirList(data);
     } catch (e) {
         console.warn('chat_perfis_publicos', e);
         return [];
     }
 }
 
-async function rpcBuscarEmail(email) {
-    try {
-        const { data, error } = await supabaseClient.rpc('chat_buscar_email', { p_email: email });
-        if (error) throw error;
-        return (data && data[0]) || null;
-    } catch (e) {
-        console.warn('chat_buscar_email', e);
-        return null;
-    }
+function contactsSignature(list) {
+    return (list || []).map(c =>
+        [c.auth_id, c.nome, c.unread || 0,
+            c.last && c.last.id, c.last && (c.last.texto || '').slice(0, 40), c.last && c.last.tipo].join(':')
+    ).join('|') + '|' + (contatoAtivo && contatoAtivo.auth_id || '');
 }
 
-async function carregarContatos() {
+function renderContatosList(filtered) {
+    const box = document.getElementById('chat-contatos-list');
+    if (!filtered.length) {
+        box.innerHTML = '<div class="chat-contacts-empty">' +
+            '<p><strong>Nenhuma conversa ainda</strong></p>' +
+            '<p class="sub">Toque em <strong>＋ Adicionar contato</strong> para achar por nome ou apelido.</p>' +
+            '</div>';
+        return;
+    }
+
+    const grouped = {};
+    ROLE_GROUPS.forEach(g => { grouped[g.id] = []; });
+    filtered.forEach(c => {
+        const gid = rotuloGrupoPapel(c.papeis, c.tipo);
+        (grouped[gid] || grouped.outros).push(c);
+    });
+
+    let html = '';
+    ROLE_GROUPS.forEach(g => {
+        const list = grouped[g.id] || [];
+        if (!list.length) return;
+        html += '<div class="chat-group"><div class="chat-group-title">' + esc(g.title) + '</div>';
+        list.forEach(c => {
+            const preview = c.last
+                ? ((c.last.de_auth_id === meuAuthId ? 'Você: ' : '') +
+                    (c.last.texto || (c.last.tipo && c.last.tipo !== 'text' ? '[' + c.last.tipo + ']' : ''))).slice(0, 48)
+                : 'Sem mensagens';
+            const on = contatoAtivo && contatoAtivo.auth_id === c.auth_id ? ' on' : '';
+            const badge = c.unread ? '<span class="contact-unread">' + c.unread + '</span>' : '';
+            html += '<button type="button" class="chat-contact-item' + on + '" data-auth="' + esc(c.auth_id) + '">' +
+                '<div class="contact-avatar">' + esc((c.nome || '?').slice(0, 1).toUpperCase()) + '</div>' +
+                '<div class="contact-body">' +
+                '<div class="contact-name">' + esc(c.nome) + badge + '</div>' +
+                '<div class="contact-preview">' + esc(preview) + '</div>' +
+                '<div class="contact-role">' + esc(labelPapelCurto(c.papeis, c.tipo)) + '</div>' +
+                '</div></button>';
+        });
+        html += '</div>';
+    });
+    box.innerHTML = html;
+    box.querySelectorAll('.chat-contact-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-auth');
+            const c = contatosCache.find(x => x.auth_id === id);
+            if (c) abrirThread(c);
+        });
+    });
+}
+
+async function carregarContatos(force) {
     const box = document.getElementById('chat-contatos-list');
     const busca = ((document.getElementById('chat-busca-contatos') || {}).value || '').trim().toLowerCase();
     try {
@@ -243,10 +395,9 @@ async function carregarContatos() {
         const byId = {};
         perfis.forEach(p => { byId[p.auth_id] = p; });
 
-        // Previews: last message per contact (participant filter via RLS)
         const { data: msgs } = await supabaseClient
             .from('chat_mensagens')
-            .select('id,de_auth_id,para_auth_id,texto,tipo,criado_em,status,deleted_at')
+            .select('id,de_auth_id,para_auth_id,texto,tipo,criado_em,status,deleted_at,de_nome')
             .or('de_auth_id.eq.' + meuAuthId + ',para_auth_id.eq.' + meuAuthId)
             .is('deleted_at', null)
             .order('criado_em', { ascending: false })
@@ -254,15 +405,11 @@ async function carregarContatos() {
 
         const lastByPeer = {};
         (msgs || []).forEach(m => {
-            if ((m.status || '') === 'agendada' && m.de_auth_id === meuAuthId) {
-                // still show as preview for me
-            }
             const peer = m.de_auth_id === meuAuthId ? m.para_auth_id : m.de_auth_id;
             if (!peer || lastByPeer[peer]) return;
             lastByPeer[peer] = m;
         });
 
-        // Auto-include peers we messaged but haven't saved as contact
         const known = new Set(ids);
         Object.keys(lastByPeer).forEach(peer => {
             if (!known.has(peer)) {
@@ -285,14 +432,13 @@ async function carregarContatos() {
         contatosCache = (rows || []).map(r => {
             const p = byId[r.contato_auth_id] || {};
             const last = lastByPeer[r.contato_auth_id];
-            const nome = r.apelido || p.nome || (last && last.de_auth_id !== meuAuthId ? last.de_nome : null) || 'Contato';
+            const nome = nomePublicoTexto(r.apelido, displayNome(p));
             return {
                 auth_id: r.contato_auth_id,
                 nome,
-                email: p.email || '',
                 papeis: p.papeis || [],
                 tipo: p.tipo || '',
-                apelido: r.apelido || null,
+                apelido: nomePublicoTexto(r.apelido || p.apelido, '') || null,
                 last,
                 unread: last && last.para_auth_id === meuAuthId && last.de_auth_id === r.contato_auth_id
                     ? (Number(last.id) > getLeituraLocal(r.contato_auth_id) ? 1 : 0)
@@ -300,7 +446,6 @@ async function carregarContatos() {
             };
         });
 
-        // Sort by last message time
         contatosCache.sort((a, b) => {
             const ta = a.last && a.last.criado_em ? new Date(a.last.criado_em).getTime() : 0;
             const tb = b.last && b.last.criado_em ? new Date(b.last.criado_em).getTime() : 0;
@@ -310,59 +455,21 @@ async function carregarContatos() {
         const filtered = contatosCache.filter(c => {
             if (!busca) return true;
             return (c.nome || '').toLowerCase().includes(busca) ||
-                (c.email || '').toLowerCase().includes(busca) ||
+                (c.apelido || '').toLowerCase().includes(busca) ||
                 labelPapelCurto(c.papeis, c.tipo).toLowerCase().includes(busca);
         });
 
-        if (!filtered.length) {
-            box.innerHTML = '<div class="chat-contacts-empty">' +
-                '<p><strong>Nenhuma conversa ainda</strong></p>' +
-                '<p class="sub">Toque em <strong>＋ Adicionar contato</strong> para achar mineradores, compradores, transportadores…</p>' +
-                '</div>';
-            return;
+        const sig = contactsSignature(filtered);
+        if (!force && sig === lastContactsSig && box.children.length) {
+            return; // same data — do not rebuild (no flicker)
         }
-
-        const grouped = {};
-        ROLE_GROUPS.forEach(g => { grouped[g.id] = []; });
-        filtered.forEach(c => {
-            const gid = rotuloGrupoPapel(c.papeis, c.tipo);
-            (grouped[gid] || grouped.outros).push(c);
-        });
-
-        let html = '';
-        ROLE_GROUPS.forEach(g => {
-            const list = grouped[g.id] || [];
-            if (!list.length) return;
-            html += '<div class="chat-group"><div class="chat-group-title">' + esc(g.title) + '</div>';
-            list.forEach(c => {
-                const preview = c.last
-                    ? ((c.last.de_auth_id === meuAuthId ? 'Você: ' : '') +
-                        (c.last.texto || (c.last.tipo && c.last.tipo !== 'text' ? '[' + c.last.tipo + ']' : ''))).slice(0, 48)
-                    : 'Sem mensagens';
-                const on = contatoAtivo && contatoAtivo.auth_id === c.auth_id ? ' on' : '';
-                const badge = c.unread ? '<span class="contact-unread">' + c.unread + '</span>' : '';
-                html += '<button type="button" class="chat-contact-item' + on + '" data-auth="' + esc(c.auth_id) + '">' +
-                    '<div class="contact-avatar">' + esc((c.nome || '?').slice(0, 1).toUpperCase()) + '</div>' +
-                    '<div class="contact-body">' +
-                    '<div class="contact-name">' + esc(c.nome) + badge + '</div>' +
-                    '<div class="contact-preview">' + esc(preview) + '</div>' +
-                    '<div class="contact-role">' + esc(labelPapelCurto(c.papeis, c.tipo)) + '</div>' +
-                    '</div></button>';
-            });
-            html += '</div>';
-        });
-        box.innerHTML = html;
-        box.querySelectorAll('.chat-contact-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-auth');
-                const c = contatosCache.find(x => x.auth_id === id);
-                if (c) abrirThread(c);
-            });
-        });
+        lastContactsSig = sig;
+        renderContatosList(filtered);
     } catch (err) {
         console.error(err);
         box.innerHTML = '<p class="erro">Contatos indisponíveis: ' + esc(err.message) +
-            '. Rode o SQL 18-chat-contatos-dms.sql no Supabase.</p>';
+            '. Rode o SQL 18 + 22 no Supabase.</p>';
+        lastContactsSig = '';
     }
 }
 
@@ -378,22 +485,116 @@ function showThreadUI(show) {
 async function abrirThread(contato) {
     contatoAtivo = contato;
     showThreadUI(true);
-    document.getElementById('chat-com-nome').textContent = contato.nome || 'Contato';
+    document.getElementById('chat-com-nome').textContent = displayNome(contato);
     document.getElementById('chat-com-papel').textContent = labelPapelCurto(contato.papeis, contato.tipo);
     lastThreadMsgIds = new Set();
-    await carregarThread();
-    await carregarContatos();
-    // Ensure saved in chat_contatos
+    renderedMsgOrder = [];
+    renderedMsgSigs = new Map();
+    threadInitialized = false;
+    const box = document.getElementById('chat-msgs');
+    if (box) box.innerHTML = '';
+    await carregarThread(true);
+    await carregarContatos(true);
     try {
         await supabaseClient.from('chat_contatos').upsert([{
             auth_id: meuAuthId,
             contato_auth_id: contato.auth_id,
-            apelido: contato.apelido || contato.nome || null
+            apelido: displayNome(contato)
         }], { onConflict: 'auth_id,contato_auth_id' });
     } catch (e) { /* table may not exist yet */ }
 }
 
-async function carregarThread() {
+function appendOptimisticBubble(m) {
+    const box = document.getElementById('chat-msgs');
+    if (!box) return null;
+    const emptyHint = box.querySelector(':scope > .sub, :scope > .erro');
+    if (emptyHint) emptyHint.remove();
+    const wrap = document.createElement('div');
+    wrap.innerHTML = bubbleHtml(m);
+    const el = wrap.firstElementChild;
+    box.appendChild(el);
+    box.scrollTop = box.scrollHeight;
+    return el;
+}
+
+function applyThreadDiff(box, lista, forceFull) {
+    const stickBottom = isNearBottom(box);
+    const prevScroll = box.scrollTop;
+
+    if (forceFull || !threadInitialized) {
+        if (!lista.length) {
+            box.innerHTML = '<p class="sub">Nenhuma mensagem ainda. Diga oi!</p>';
+            renderedMsgOrder = [];
+            renderedMsgSigs = new Map();
+            threadInitialized = true;
+            return;
+        }
+        // Preserve pending optimistic bubbles (temp)
+        const pendings = Array.from(box.querySelectorAll('[data-temp-id]'));
+        box.innerHTML = lista.map(bubbleHtml).join('');
+        pendings.forEach(p => box.appendChild(p));
+        renderedMsgOrder = lista.map(m => String(m.id));
+        renderedMsgSigs = new Map(lista.map(m => [String(m.id), messageSignature(m)]));
+        threadInitialized = true;
+        box.scrollTop = box.scrollHeight;
+        return;
+    }
+
+    const incomingIds = lista.map(m => String(m.id));
+    const sameSet = incomingIds.length === renderedMsgOrder.length &&
+        incomingIds.every((id, i) => id === renderedMsgOrder[i]);
+
+    if (sameSet) {
+        // Identical data: do absolutely nothing. If one bubble changed, patch only it.
+        lista.forEach(m => {
+            const id = String(m.id);
+            const sig = messageSignature(m);
+            if (renderedMsgSigs.get(id) === sig) return;
+            const current = box.querySelector('[data-msg-id="' + CSS.escape(id) + '"]');
+            if (current) {
+                const wrap = document.createElement('div');
+                wrap.innerHTML = bubbleHtml(m);
+                current.replaceWith(wrap.firstElementChild);
+            }
+            renderedMsgSigs.set(id, sig);
+        });
+        return;
+    }
+
+    // If order diverged a lot (deletes), full rebuild once
+    const onlyAppend = incomingIds.length >= renderedMsgOrder.length &&
+        renderedMsgOrder.every((id, i) => incomingIds[i] === id);
+
+    if (!onlyAppend) {
+        const pendings = Array.from(box.querySelectorAll('[data-temp-id]'));
+        box.innerHTML = lista.map(bubbleHtml).join('');
+        pendings.forEach(p => box.appendChild(p));
+        renderedMsgOrder = incomingIds;
+        renderedMsgSigs = new Map(lista.map(m => [String(m.id), messageSignature(m)]));
+        if (stickBottom) box.scrollTop = box.scrollHeight;
+        else box.scrollTop = prevScroll;
+        return;
+    }
+
+    // Diff-append new messages only
+    const emptyHint = box.querySelector(':scope > .sub');
+    if (emptyHint) emptyHint.remove();
+    const newOnes = lista.slice(renderedMsgOrder.length);
+    newOnes.forEach(m => {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = bubbleHtml(m);
+        box.appendChild(wrap.firstElementChild);
+        renderedMsgOrder.push(String(m.id));
+        renderedMsgSigs.set(String(m.id), messageSignature(m));
+        // Drop matching optimistic temp if present
+        const temp = box.querySelector('[data-temp-id]');
+        if (temp && m.de_auth_id === meuAuthId) temp.remove();
+    });
+    if (stickBottom) box.scrollTop = box.scrollHeight;
+    else box.scrollTop = prevScroll;
+}
+
+async function carregarThread(forceFull) {
     const box = document.getElementById('chat-msgs');
     if (!contatoAtivo || !contatoAtivo.auth_id) {
         showThreadUI(false);
@@ -401,7 +602,6 @@ async function carregarThread() {
     }
     const them = contatoAtivo.auth_id;
     try {
-        // Fetch both directions — filter client-side for exact DM pair
         const { data, error } = await supabaseClient
             .from('chat_mensagens')
             .select('*')
@@ -415,12 +615,10 @@ async function carregarThread() {
             (m.moderacao || '') !== 'removida' &&
             ((m.de_auth_id === meuAuthId && m.para_auth_id === them) ||
              (m.de_auth_id === them && m.para_auth_id === meuAuthId)) &&
-            // Destinatário não vê agendada até promover
             !((m.status || '') === 'agendada' && m.de_auth_id !== meuAuthId)
         );
         await promoverAgendadas(lista);
 
-        // Detect new incoming for toast (within this thread poll)
         const incoming = lista.filter(m =>
             m.para_auth_id === meuAuthId &&
             m.de_auth_id === them &&
@@ -429,41 +627,23 @@ async function carregarThread() {
         );
         lista.forEach(m => lastThreadMsgIds.add(m.id));
 
-        if (!lista.length) {
-            box.innerHTML = '<p class="sub">Nenhuma mensagem ainda. Diga oi!</p>';
-        } else {
-            const isAdmin = typeof ehAdmin === 'function' && ehAdmin(perfilAtual);
-            box.innerHTML = lista.map(m => {
-                const mine = m.de_auth_id && m.de_auth_id === meuAuthId;
-                const when = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : '';
-                const st = (m.status || 'enviada');
-                const sched = st === 'agendada';
-                const agLabel = sched && m.agendado_para
-                    ? ' · agendada p/ ' + new Date(m.agendado_para).toLocaleString('pt-BR')
-                    : '';
-                const flag = m.moderacao ? ' · 🚩 ' + esc(m.moderacao) : '';
-                return `<div class="bubble ${mine ? 'mine' : 'theirs'}${sched ? ' scheduled' : ''}">
-                    <div class="bubble-meta">${esc(m.de_nome || 'Alguém')} · ${when}${agLabel}${flag}</div>
-                    ${m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : ''}
-                    ${renderMedia(m)}
-                    <div class="bubble-status">${esc(st)}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
-                </div>`;
-            }).join('');
-            box.scrollTop = box.scrollHeight;
+        applyThreadDiff(box, lista, !!forceFull);
 
-            const maxIn = lista.filter(m => m.para_auth_id === meuAuthId).reduce((mx, m) => Math.max(mx, Number(m.id) || 0), 0);
-            if (maxIn) await marcarLido(them, maxIn);
-        }
+        const maxIn = lista.filter(m => m.para_auth_id === meuAuthId).reduce((mx, m) => Math.max(mx, Number(m.id) || 0), 0);
+        if (maxIn) await marcarLido(them, maxIn);
 
         incoming.forEach(m => {
             if (typeof toastMsg === 'function') {
-                toastMsg('Nova mensagem de ' + (m.de_nome || contatoAtivo.nome || 'alguém'));
+                toastMsg('Nova mensagem de ' + (nomePublicoTexto(m.de_nome, displayNome(contatoAtivo))));
             }
         });
     } catch (err) {
         console.error(err);
         box.innerHTML = '<p class="erro">Chat indisponível: ' + esc(err.message) +
-            '. Rode o SQL 18-chat-contatos-dms.sql no Supabase.</p>';
+            '. Rode o SQL 18 + 22 no Supabase.</p>';
+        renderedMsgOrder = [];
+        renderedMsgSigs = new Map();
+        threadInitialized = false;
     }
 }
 
@@ -481,10 +661,10 @@ async function enviarMensagem(opts) {
     let tipo = opts.tipo || 'text';
     let midia_url = opts.midia_url || null;
 
-    if (anexoPendente) {
+    if (anexoPendente && !opts.midia_url) {
         tipo = anexoPendente.tipo;
         midia_url = anexoPendente.midia_url;
-    } else if (urlManual) {
+    } else if (urlManual && !midia_url) {
         midia_url = urlManual;
         if (tipo === 'text') {
             if (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(urlManual) || urlManual.startsWith('data:image')) tipo = 'imagem';
@@ -530,7 +710,7 @@ async function enviarMensagem(opts) {
 
     let status = 'enviada';
     let agendado_para = null;
-    if (agendarAtivo) {
+    if (agendarAtivo && !opts.skipAgendar) {
         const dt = document.getElementById('chat-agendar-em').value;
         if (!dt) {
             msgEl.textContent = 'Escolha data/hora para agendar.';
@@ -549,7 +729,7 @@ async function enviarMensagem(opts) {
 
     const row = {
         de_auth_id: meuAuthId,
-        de_nome: (perfilAtual && perfilAtual.nome) || 'Usuário',
+        de_nome: meuNomePublico(),
         texto: texto || '',
         tipo,
         midia_url,
@@ -562,23 +742,312 @@ async function enviarMensagem(opts) {
     if (error) {
         msgEl.textContent = 'Erro: ' + error.message + (/policy|RLS|row-level/i.test(error.message || '') ? ' (rode SQL 18)' : '');
         msgEl.className = 'msg erro';
-        return;
+        return false;
     }
 
     msgEl.textContent = status === 'agendada' ? 'Mensagem agendada!' : '';
     msgEl.className = status === 'agendada' ? 'msg ok' : 'msg';
-    input.value = '';
+    if (!opts.keepInput) input.value = '';
     document.getElementById('chat-url-midia').value = '';
     anexoPendente = null;
     setAnexoInfo('');
+    if (typeof showMediaPreview === 'function') showMediaPreview(null);
+    resetAudioBtn();
     await carregarThread();
-    await carregarContatos();
+    await carregarContatos(true);
+    return true;
+}
+
+/** Preview strip (composer) + optimistic bubble for image/video/audio */
+function showMediaPreview(opts) {
+    const box = document.getElementById('chat-media-preview');
+    if (!box) return;
+    if (!opts) {
+        box.classList.add('oculto');
+        box.innerHTML = '';
+        return;
+    }
+    const uploading = opts.uploading
+        ? '<span class="media-uploading-spin" aria-hidden="true"></span> Enviando…'
+        : '';
+    let body = '';
+    if ((opts.tipo === 'imagem' || opts.tipo === 'video') && opts.localUrl) {
+        const tag = opts.tipo === 'video' ? 'video' : 'img';
+        const extra = opts.tipo === 'video' ? ' muted playsinline' : ' alt="prévia"';
+        body = '<' + tag + ' class="media-preview-thumb" src="' + esc(opts.localUrl) + '"' + extra + '></' + tag + '>';
+    } else if (opts.tipo === 'audio') {
+        body = '<div class="media-preview-audio">🎙️ Áudio ' + esc(opts.duracao || '') + '</div>' +
+            (opts.localUrl ? '<audio src="' + esc(opts.localUrl) + '" controls style="max-width:180px"></audio>' : '');
+    } else {
+        body = '<div class="media-preview-audio">' + esc(opts.nome || 'Mídia') + '</div>';
+    }
+    const sendBtn = opts.readyToSend
+        ? '<button type="button" class="btn-sm btn-ok" id="btn-send-anexo">Enviar</button>'
+        : '';
+    box.innerHTML = body +
+        (uploading ? '<div class="media-preview-status">' + uploading + '</div>' : '') +
+        sendBtn +
+        '<button type="button" class="btn-sm btn-danger" id="btn-cancel-anexo">Cancelar</button>';
+    box.classList.remove('oculto');
+    const cancel = document.getElementById('btn-cancel-anexo');
+    if (cancel) cancel.onclick = () => {
+        if (opts.localUrl && String(opts.localUrl).startsWith('blob:')) {
+            try { URL.revokeObjectURL(opts.localUrl); } catch (e) { /* ignore */ }
+        }
+        anexoPendente = null;
+        showMediaPreview(null);
+        setAnexoInfo('');
+        resetAudioBtn();
+    };
+    const send = document.getElementById('btn-send-anexo');
+    if (send) send.onclick = () => enviarAnexoPendente();
+}
+
+async function enviarAnexoPendente() {
+    if (!anexoPendente) return;
+    const pend = anexoPendente;
+    const localUrl = pend.localUrl || null;
+    const tempId = 'tmp_' + Date.now();
+    appendOptimisticBubble({
+        _tempId: tempId,
+        _pending: true,
+        _loading: true,
+        _localPreview: localUrl,
+        de_auth_id: meuAuthId,
+        de_nome: meuNomePublico(),
+        texto: '',
+        tipo: pend.tipo,
+        status: 'enviando',
+        criado_em: new Date().toISOString()
+    });
+    showMediaPreview({
+        tipo: pend.tipo,
+        localUrl: localUrl,
+        uploading: true,
+        duracao: pend.duracao,
+        nome: pend.nome
+    });
+    setAnexoInfo('Enviando…');
+
+    let url = pend.midia_url || null;
+    if (!url && pend.file) {
+        const pasta = pend.tipo === 'imagem' ? 'imagens' : (pend.tipo === 'video' ? 'videos' : 'audios');
+        url = await uploadMidia(pend.file, pasta);
+        if (!url && pend.file.size <= 500000) {
+            try { url = await fileToDataUrl(pend.file); } catch (e) { /* ignore */ }
+        }
+    }
+    const tempEl = document.querySelector('[data-temp-id="' + tempId + '"]');
+    if (!url) {
+        if (tempEl) tempEl.remove();
+        showMediaPreview(null);
+        setAnexoInfo('Falha no upload. Tente arquivo menor ou cole uma URL.');
+        anexoPendente = null;
+        resetAudioBtn();
+        return;
+    }
+    anexoPendente = null;
+    showMediaPreview(null);
+    setAnexoInfo('');
+    resetAudioBtn();
+    await enviarMensagem({ tipo: pend.tipo, midia_url: url, texto: '', keepInput: true });
+    if (tempEl) tempEl.remove();
+    if (localUrl && String(localUrl).startsWith('blob:')) {
+        try { URL.revokeObjectURL(localUrl); } catch (e) { /* ignore */ }
+    }
+}
+
+/** Image/video: thumbnail preview + spinner until storage/url ready, then bubble */
+async function pickMidiaArquivo(file, tipo) {
+    if (!contatoAtivo || !contatoAtivo.auth_id) {
+        const msgEl = document.getElementById('chat-msg');
+        if (msgEl) {
+            msgEl.textContent = 'Selecione um contato primeiro.';
+            msgEl.className = 'msg erro';
+        }
+        return;
+    }
+    const localUrl = URL.createObjectURL(file);
+    const token = localUrl;
+    anexoPendente = { tipo, file, localUrl, nome: file.name, midia_url: null };
+    showMediaPreview({ tipo, localUrl, uploading: true, nome: file.name });
+
+    const pasta = tipo === 'imagem' ? 'imagens' : (tipo === 'video' ? 'videos' : 'audios');
+    let url = await uploadMidia(file, pasta);
+    if (!url && file.size <= 500000) {
+        try { url = await fileToDataUrl(file); } catch (e) { /* ignore */ }
+    }
+    if (!anexoPendente || anexoPendente.localUrl !== token) {
+        try { URL.revokeObjectURL(localUrl); } catch (e) { /* ignore */ }
+        return;
+    }
+    if (!url) {
+        showMediaPreview({ tipo, localUrl, uploading: false, nome: file.name });
+        setAnexoInfo('Upload falhou. Tente novamente ou cole uma URL.');
+        return;
+    }
+    anexoPendente.midia_url = url;
+    await enviarAnexoPendente();
+}
+
+/* ---- Audio: press-and-hold OR tap → recording bar → Enviar ---- */
+let audioCancelado = false;
+let audioHoldMode = false;
+let audioPointerId = null;
+
+function formatAudioTimer(sec) {
+    const s = Math.max(0, Math.floor(sec));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return m + ':' + String(r).padStart(2, '0');
+}
+
+function showRecBar(show) {
+    const bar = document.getElementById('chat-rec-bar');
+    if (bar) bar.classList.toggle('oculto', !show);
+}
+
+function updateRecTimer() {
+    const t = document.getElementById('chat-rec-timer');
+    const btn = document.getElementById('btn-audio');
+    const label = formatAudioTimer(audioSeconds);
+    if (t) t.textContent = label;
+    if (btn && gravando) {
+        btn.textContent = '⏹️ ' + label;
+        btn.classList.add('recording', 'btn-danger');
+    }
+}
+
+function startAudioTimer() {
+    audioSeconds = 0;
+    updateRecTimer();
+    clearInterval(audioTimerInterval);
+    audioTimerInterval = setInterval(() => {
+        audioSeconds += 1;
+        updateRecTimer();
+    }, 1000);
+}
+
+function stopAudioTimer() {
+    clearInterval(audioTimerInterval);
+    audioTimerInterval = null;
+}
+
+function resetAudioBtn() {
+    const btn = document.getElementById('btn-audio');
+    if (!btn) return;
+    btn.textContent = '🎙️ Áudio';
+    btn.classList.remove('btn-danger', 'recording', 'btn-ok');
+    btn.title = 'Segure para gravar';
+}
+
+function onRecordingReady(blob) {
+    const file = new File([blob], 'audio_' + Date.now() + '.webm', { type: blob.type || 'audio/webm' });
+    const localUrl = URL.createObjectURL(blob);
+    anexoPendente = {
+        tipo: 'audio',
+        file,
+        blob,
+        localUrl,
+        nome: file.name,
+        midia_url: null,
+        duracao: formatAudioTimer(audioSeconds)
+    };
+    showMediaPreview({
+        tipo: 'audio',
+        localUrl,
+        uploading: false,
+        readyToSend: true,
+        duracao: formatAudioTimer(audioSeconds)
+    });
+    const btn = document.getElementById('btn-audio');
+    if (btn) {
+        btn.textContent = '➤ Enviar';
+        btn.classList.remove('btn-danger', 'recording');
+        btn.classList.add('btn-ok');
+        btn.title = 'Enviar áudio';
+    }
+    setAnexoInfo('Áudio pronto — toque Enviar');
+}
+
+async function startRecording(fromHold) {
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+        document.getElementById('chat-audio-file').click();
+        return;
+    }
+    if (!contatoAtivo || !contatoAtivo.auth_id) {
+        const msgEl = document.getElementById('chat-msg');
+        if (msgEl) {
+            msgEl.textContent = 'Selecione um contato primeiro.';
+            msgEl.className = 'msg erro';
+        }
+        return;
+    }
+    audioCancelado = false;
+    audioHoldMode = !!fromHold;
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (ev) => {
+            if (ev.data && ev.data.size) audioChunks.push(ev.data);
+        };
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            stopAudioTimer();
+            showRecBar(false);
+            gravando = false;
+            if (audioCancelado) {
+                audioChunks = [];
+                resetAudioBtn();
+                setAnexoInfo('');
+                return;
+            }
+            const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            if (!blob.size) {
+                resetAudioBtn();
+                setAnexoInfo('Áudio vazio — tente de novo.');
+                return;
+            }
+            onRecordingReady(blob);
+        };
+        mediaRecorder.start();
+        gravando = true;
+        startAudioTimer();
+        showRecBar(true);
+        const btn = document.getElementById('btn-audio');
+        if (btn) {
+            btn.textContent = '⏹️ 0:00';
+            btn.classList.add('btn-danger', 'recording');
+        }
+        setAnexoInfo(fromHold ? 'Gravando… solte para parar' : 'Gravando… toque de novo para parar');
+        showMediaPreview(null);
+    } catch (err) {
+        console.warn(err);
+        document.getElementById('chat-audio-file').click();
+    }
+}
+
+function stopRecording(cancel) {
+    if (cancel) audioCancelado = true;
+    gravando = false;
+    showRecBar(false);
+    stopAudioTimer();
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try { mediaRecorder.stop(); } catch (e) { /* ignore */ }
+    } else if (cancel) {
+        resetAudioBtn();
+    }
 }
 
 /* ---- Adicionar contato modal ---- */
 function abrirModalAdd() {
     const m = document.getElementById('modal-add-contato');
     if (m) m.classList.remove('oculto');
+    const titulo = document.getElementById('modal-add-titulo');
+    if (titulo) titulo.textContent = 'Adicionar por nome';
+    const msg = document.getElementById('add-contato-msg');
+    if (msg) { msg.textContent = ''; msg.className = 'msg'; }
     renderRoleFilters();
     carregarDiretorioAdd('');
 }
@@ -626,21 +1095,40 @@ function renderDiretorioList(lista, roleFilter) {
             });
         }
     }
+    // Group by role for display
     if (!items.length) {
-        box.innerHTML = '<p class="sub">Nenhum usuário encontrado. Tente e-mail exato abaixo.</p>';
+        box.innerHTML = '<p class="sub">Nenhum usuário encontrado. Busque por nome ou apelido.</p>';
         return;
     }
-    box.innerHTML = items.map(u => {
-        const done = ja.has(u.auth_id);
-        return '<div class="chat-dir-item">' +
-            '<div><strong>' + esc(u.nome || u.email) + '</strong>' +
-            '<div class="contact-role">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</div>' +
-            '<div class="hint">' + esc(u.email || '') + '</div></div>' +
-            (done
-                ? '<span class="badge">Já adicionado</span>'
-                : '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Adicionar</button>') +
-            '</div>';
-    }).join('');
+
+    const grouped = {};
+    ROLE_GROUPS.forEach(g => { grouped[g.id] = []; });
+    items.forEach(u => {
+        const gid = rotuloGrupoPapel(u.papeis, u.tipo);
+        (grouped[gid] || grouped.outros).push(u);
+    });
+
+    let html = '';
+    ROLE_GROUPS.forEach(g => {
+        const list = grouped[g.id] || [];
+        if (!list.length) return;
+        html += '<div class="chat-group"><div class="chat-group-title">' + esc(g.title) + '</div>';
+        list.forEach(u => {
+            const done = ja.has(u.auth_id);
+            const nome = displayNome(u);
+            html += '<div class="chat-dir-item">' +
+                '<div><strong>' + esc(nome) + '</strong>' +
+                (u.apelido && u.nome && u.apelido !== u.nome
+                    ? '<div class="hint">' + esc(u.nome) + '</div>' : '') +
+                '<div class="contact-role">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</div></div>' +
+                (done
+                    ? '<span class="badge">Já adicionado</span>'
+                    : '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Adicionar</button>') +
+                '</div>';
+        });
+        html += '</div>';
+    });
+    box.innerHTML = html;
     box.querySelectorAll('.btn-add-dir').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.getAttribute('data-auth');
@@ -661,23 +1149,22 @@ async function adicionarContato(user) {
     const { error } = await supabaseClient.from('chat_contatos').upsert([{
         auth_id: meuAuthId,
         contato_auth_id: user.auth_id,
-        apelido: user.nome || null
+        apelido: displayNome(user)
     }], { onConflict: 'auth_id,contato_auth_id' });
     if (error) {
-        msg.textContent = 'Erro: ' + error.message + ' (SQL 18?)';
+        msg.textContent = 'Erro: ' + error.message + ' (SQL 18/22?)';
         msg.className = 'msg erro';
         return;
     }
     msg.textContent = 'Contato adicionado!';
     msg.className = 'msg ok';
-    await carregarContatos();
+    await carregarContatos(true);
     await abrirThread({
         auth_id: user.auth_id,
-        nome: user.nome || user.email,
-        email: user.email,
+        nome: displayNome(user),
         papeis: user.papeis || [],
         tipo: user.tipo || '',
-        apelido: user.nome || null
+        apelido: displayNome(user)
     });
     fecharModalAdd();
 }
@@ -691,98 +1178,95 @@ document.getElementById('chat-foto').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    setAnexoInfo('Enviando foto...');
-    const url = await uploadMidia(file, 'imagens');
-    if (!url) {
-        setAnexoInfo('Falha no upload. Cole uma URL ou use imagem <400KB.');
-        return;
-    }
-    anexoPendente = { tipo: 'imagem', midia_url: url, nome: file.name };
-    setAnexoInfo('Foto pronta: ' + (file.name || 'imagem') + ' — envie a mensagem.');
+    await pickMidiaArquivo(file, 'imagem');
 });
 
 document.getElementById('chat-video').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    setAnexoInfo('Enviando vídeo...');
-    const url = await uploadMidia(file, 'videos');
-    if (!url) {
-        setAnexoInfo('Vídeo: use Storage chat-midia ou cole URL pública.');
-        return;
-    }
-    anexoPendente = { tipo: 'video', midia_url: url, nome: file.name };
-    setAnexoInfo('Vídeo pronto — envie a mensagem.');
+    await pickMidiaArquivo(file, 'video');
 });
 
 document.getElementById('chat-audio-file').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    setAnexoInfo('Enviando áudio...');
-    const url = await uploadMidia(file, 'audios');
-    if (!url) {
-        if (file.size <= 500000) {
-            try {
-                const dataUrl = await fileToDataUrl(file);
-                anexoPendente = { tipo: 'audio', midia_url: dataUrl, nome: file.name };
-                setAnexoInfo('Áudio pronto (data URL) — envie.');
-                return;
-            } catch (err) { /* fall */ }
-        }
-        setAnexoInfo('Áudio: configure bucket chat-midia ou cole URL.');
-        return;
-    }
-    anexoPendente = { tipo: 'audio', midia_url: url, nome: file.name };
-    setAnexoInfo('Áudio pronto — envie a mensagem.');
+    await pickMidiaArquivo(file, 'audio');
 });
 
-document.getElementById('btn-audio').addEventListener('click', async () => {
+(function bindAudioButton() {
     const btn = document.getElementById('btn-audio');
-    if (!gravando) {
-        if (!navigator.mediaDevices || !window.MediaRecorder) {
-            document.getElementById('chat-audio-file').click();
+    if (!btn || btn._audioBound) return;
+    btn._audioBound = true;
+    let holdTimer = null;
+    let holdStarted = false;
+    let pointerDown = false;
+    let suppressClick = false;
+
+    const clearHold = () => {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    };
+
+    btn.addEventListener('pointerdown', (e) => {
+        if (e.button != null && e.button !== 0) return;
+        if (anexoPendente && anexoPendente.tipo === 'audio' && !gravando) return;
+        if (gravando) return;
+        holdStarted = false;
+        pointerDown = true;
+        audioPointerId = e.pointerId;
+        try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        holdTimer = setTimeout(async () => {
+            holdStarted = true;
+            await startRecording(true);
+            if (!pointerDown && gravando) stopRecording(false);
+        }, 220);
+    });
+
+    const endHold = (e) => {
+        clearHold();
+        if (audioPointerId != null && e.pointerId !== audioPointerId && e.type !== 'pointercancel') return;
+        pointerDown = false;
+        if (holdStarted) {
+            suppressClick = true;
+            if (gravando) stopRecording(false);
+            holdStarted = false;
+            audioPointerId = null;
+            e.preventDefault();
             return;
         }
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioChunks = [];
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = (ev) => {
-                if (ev.data && ev.data.size) audioChunks.push(ev.data);
-            };
-            mediaRecorder.onstop = async () => {
-                stream.getTracks().forEach(t => t.stop());
-                const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-                const file = new File([blob], 'audio_' + Date.now() + '.webm', { type: blob.type });
-                setAnexoInfo('Processando áudio...');
-                let url = await uploadMidia(file, 'audios');
-                if (!url && blob.size <= 500000) {
-                    url = await fileToDataUrl(file);
-                }
-                if (!url) {
-                    setAnexoInfo('Não foi possível salvar o áudio. Use arquivo ou URL.');
-                    return;
-                }
-                anexoPendente = { tipo: 'audio', midia_url: url, nome: file.name };
-                setAnexoInfo('Áudio gravado — envie a mensagem.');
-            };
-            mediaRecorder.start();
-            gravando = true;
-            btn.textContent = '⏹️ Parar';
-            btn.classList.add('btn-danger');
-            setAnexoInfo('Gravando áudio...');
-        } catch (err) {
-            console.warn(err);
-            document.getElementById('chat-audio-file').click();
+        holdStarted = false;
+        audioPointerId = null;
+    };
+
+    btn.addEventListener('pointerup', endHold);
+    btn.addEventListener('pointercancel', () => {
+        clearHold();
+        pointerDown = false;
+        suppressClick = holdStarted;
+        if (gravando && audioHoldMode) stopRecording(true);
+        holdStarted = false;
+        audioPointerId = null;
+    });
+
+    btn.addEventListener('click', async (e) => {
+        if (suppressClick) {
+            e.preventDefault();
+            suppressClick = false;
+            return;
         }
-    } else {
-        gravando = false;
-        btn.textContent = '🎙️ Áudio';
-        btn.classList.remove('btn-danger');
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-    }
-});
+        if (anexoPendente && anexoPendente.tipo === 'audio' && anexoPendente.file && !gravando) {
+            e.preventDefault();
+            await enviarAnexoPendente();
+            return;
+        }
+        if (!gravando) await startRecording(false);
+        else stopRecording(false);
+    });
+})();
+
+const btnCancelRec = document.getElementById('btn-cancel-rec');
+if (btnCancelRec) btnCancelRec.addEventListener('click', () => stopRecording(true));
 
 document.getElementById('btn-toggle-agendar').addEventListener('click', () => {
     agendarAtivo = !agendarAtivo;
@@ -790,7 +1274,7 @@ document.getElementById('btn-toggle-agendar').addEventListener('click', () => {
     const btn = document.getElementById('btn-toggle-agendar');
     box.classList.toggle('oculto', !agendarAtivo);
     btn.classList.toggle('btn-ok', agendarAtivo);
-    btn.textContent = agendarAtivo ? '🗓️ Agendar (ativo)' : '🗓️ Agendar';
+    btn.textContent = agendarAtivo ? '🗓️ Agendar msg (ativo)' : '🗓️ Agendar msg';
 });
 
 document.getElementById('btn-add-contato').addEventListener('click', abrirModalAdd);
@@ -802,7 +1286,7 @@ document.getElementById('modal-add-contato').addEventListener('click', (e) => {
 let buscaTimer = null;
 document.getElementById('chat-busca-contatos').addEventListener('input', () => {
     clearTimeout(buscaTimer);
-    buscaTimer = setTimeout(() => carregarContatos(), 200);
+    buscaTimer = setTimeout(() => carregarContatos(true), 200);
 });
 
 let addBuscaTimer = null;
@@ -813,28 +1297,32 @@ document.getElementById('add-busca').addEventListener('input', () => {
     }, 300);
 });
 
-document.getElementById('btn-add-email').addEventListener('click', async () => {
-    const email = (document.getElementById('add-email').value || '').trim();
-    const msg = document.getElementById('add-contato-msg');
-    if (!email) {
-        msg.textContent = 'Informe o e-mail.';
-        msg.className = 'msg erro';
-        return;
-    }
-    const u = await rpcBuscarEmail(email);
-    if (!u) {
-        msg.textContent = 'E-mail não encontrado no Minera App.';
-        msg.className = 'msg erro';
-        return;
-    }
-    await adicionarContato(u);
-});
-
 document.getElementById('btn-chat-back').addEventListener('click', () => {
     contatoAtivo = null;
     showThreadUI(false);
-    carregarContatos();
+    carregarContatos(true);
 });
+
+
+(function bindImageEnlarge() {
+    document.addEventListener('click', (e) => {
+        const img = e.target && e.target.closest && e.target.closest('.bubble-media img');
+        if (!img || img.closest('.bubble-media-loading')) return;
+        let lb = document.getElementById('chat-lightbox');
+        if (!lb) {
+            lb = document.createElement('div');
+            lb.id = 'chat-lightbox';
+            lb.className = 'chat-lightbox oculto';
+            lb.innerHTML = '<button type="button" class="chat-lightbox-close" aria-label="Fechar">×</button><img alt="">';
+            document.body.appendChild(lb);
+            lb.addEventListener('click', (ev) => {
+                if (ev.target === lb || ev.target.classList.contains('chat-lightbox-close')) lb.classList.add('oculto');
+            });
+        }
+        lb.querySelector('img').src = img.getAttribute('src');
+        lb.classList.remove('oculto');
+    });
+})();
 
 (async function init() {
     const session = await requireSession();
@@ -852,7 +1340,7 @@ document.getElementById('btn-chat-back').addEventListener('click', () => {
         if (input && !input.value) input.placeholder = 'Mensagem sobre o lote ' + loteCtx + '...';
     }
 
-    await carregarContatos();
+    await carregarContatos(true);
 
     const para = lerParaQuery();
     if (para) {
@@ -860,18 +1348,17 @@ document.getElementById('btn-chat-back').addEventListener('click', () => {
         const p = perfis[0] || { auth_id: para, nome: 'Contato', papeis: [], tipo: '' };
         await abrirThread({
             auth_id: p.auth_id || para,
-            nome: p.nome || 'Contato',
-            email: p.email || '',
+            nome: displayNome(p),
             papeis: p.papeis || [],
             tipo: p.tipo || '',
-            apelido: null
+            apelido: p.apelido || null
         });
     }
 
     pollTimer = setInterval(async () => {
-        if (contatoAtivo) await carregarThread();
+        if (contatoAtivo) await carregarThread(false);
     }, 4000);
-    contactsPollTimer = setInterval(carregarContatos, 12000);
+    contactsPollTimer = setInterval(() => carregarContatos(false), 12000);
 
     if (typeof window.MineraNotif !== 'undefined' && MineraNotif.start) {
         MineraNotif.start(meuAuthId);
@@ -881,4 +1368,5 @@ document.getElementById('btn-chat-back').addEventListener('click', () => {
 window.addEventListener('beforeunload', () => {
     if (pollTimer) clearInterval(pollTimer);
     if (contactsPollTimer) clearInterval(contactsPollTimer);
+    stopAudioTimer();
 });

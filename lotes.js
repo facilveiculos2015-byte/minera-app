@@ -142,7 +142,7 @@ async function salvarLote(e) {
 
     const nome = (perfilAtual && perfilAtual.nome) ||
         (sessionAtual && sessionAtual.user && sessionAtual.user.user_metadata && sessionAtual.user.user_metadata.nome) ||
-        (sessionAtual && sessionAtual.user && sessionAtual.user.email) || 'Usuário';
+        'Usuário';
     const uid = sessionAtual && sessionAtual.user ? sessionAtual.user.id : null;
 
     const payload = {

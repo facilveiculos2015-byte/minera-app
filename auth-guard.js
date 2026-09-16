@@ -98,7 +98,8 @@ async function getPerfil(session) {
         return {
             id: data.id,
             auth_id: data.auth_id || uid,
-            nome: data.nome || metaNome || email,
+            nome: data.nome || metaNome || 'Usuário',
+            apelido: data.apelido || null,
             email: data.email || email,
             tipo: data.tipo || 'operador',
             papeis: normalizarPapeis(data.papeis, data.tipo),
@@ -151,7 +152,7 @@ async function getPerfil(session) {
     return {
         id: null,
         auth_id: uid,
-        nome: metaNome || email,
+        nome: metaNome || 'Usuário',
         email,
         tipo: 'operador',
         papeis: [],
@@ -276,7 +277,7 @@ async function requireRole(perfil, rolesPermitidos) {
 function aplicarUserLabel(perfil) {
     const el = document.getElementById('user-label');
     if (!el || !perfil) return;
-    el.textContent = 'Olá, ' + (perfil.nome || perfil.email) + ' · ' + rotuloPapeis(perfil);
+    el.textContent = 'Olá, ' + (perfil.apelido || perfil.nome || 'Usuário') + ' · ' + rotuloPapeis(perfil);
 }
 
 async function sairApp() {

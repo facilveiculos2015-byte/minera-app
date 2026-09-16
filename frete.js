@@ -66,7 +66,7 @@ document.getElementById('form-frete').addEventListener('submit', async (e) => {
     const pesoRaw = document.getElementById('peso_kg').value;
     const { data: { session } } = await supabaseClient.auth.getSession();
     const nome = (perfilAtual && perfilAtual.nome) ||
-        (session && session.user && session.user.email) || 'Usuário';
+        'Usuário';
     const row = {
         lote_id: loteVal ? parseInt(loteVal, 10) : null,
         perna: document.getElementById('perna').value,

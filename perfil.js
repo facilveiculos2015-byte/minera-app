@@ -25,6 +25,7 @@ function lerPapeisForm() {
 
 function preencherForm(perfil) {
     document.getElementById('perfil-nome').value = perfil.nome || '';
+    document.getElementById('perfil-apelido').value = perfil.apelido || '';
     document.getElementById('perfil-email').value = perfil.email || '';
     const papeis = Array.isArray(perfil.papeis) ? perfil.papeis.map(p => String(p).toLowerCase()) : [];
     // Legado transportador → marca ambas pernas
@@ -52,6 +53,7 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     e.preventDefault();
     const msgEl = document.getElementById('perfil-msg');
     const nome = document.getElementById('perfil-nome').value.trim();
+    const apelido = document.getElementById('perfil-apelido').value.trim() || null;
     const papeis = lerPapeisForm();
     if (!perfilAtual || !perfilAtual.auth_id) {
         msgEl.textContent = 'Perfil ainda não vinculado na tabela usuarios. Faça logout/login e tente de novo.';
@@ -61,7 +63,7 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     const tipo = papeis.includes('admin') ? 'admin' : 'operador';
     const { error } = await supabaseClient
         .from('usuarios')
-        .update({ nome, papeis, tipo })
+        .update({ nome, apelido, papeis, tipo })
         .eq('auth_id', perfilAtual.auth_id);
     if (error) {
         msgEl.textContent = 'Erro: ' + error.message;
@@ -69,6 +71,7 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
         return;
     }
     perfilAtual.nome = nome;
+    perfilAtual.apelido = apelido;
     perfilAtual.papeis = papeis;
     perfilAtual.tipo = tipo;
     aplicarUserLabel(perfilAtual);

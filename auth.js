@@ -41,7 +41,7 @@ function lerPapeisCadastro() {
         });
 }
 
-async function upsertUsuarioPerfil(user, nome, papeis) {
+async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
     if (!user || !user.id) return;
     const row = {
         auth_id: user.id,
@@ -50,6 +50,8 @@ async function upsertUsuarioPerfil(user, nome, papeis) {
         tipo: (Array.isArray(papeis) && papeis.includes('admin')) ? 'admin' : 'operador',
         senha_hash: 'supabase-auth'
     };
+    const ap = (apelido != null ? apelido : (user.user_metadata && user.user_metadata.apelido)) || '';
+    if (String(ap).trim()) row.apelido = String(ap).trim();
     if (Array.isArray(papeis)) {
         row.papeis = papeis;
     } else {
@@ -74,6 +76,7 @@ async function upsertUsuarioPerfil(user, nome, papeis) {
                 papeis: row.papeis,
                 tipo: row.tipo
             };
+            if (row.apelido) upd.apelido = row.apelido;
             const { error: updErr } = await supabaseClient
                 .from('usuarios')
                 .update(upd)
@@ -149,6 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         msg('Criando conta...', true);
         const nome = document.getElementById('cad-nome').value.trim();
+        const apelidoEl = document.getElementById('cad-apelido');
+        const apelido = apelidoEl ? apelidoEl.value.trim() : '';
         const email = document.getElementById('cad-email').value.trim();
         const password = document.getElementById('cad-senha').value;
         const papeis = lerPapeisCadastro();
@@ -156,14 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const { data, error } = await supabaseClient.auth.signUp({
                 email,
                 password,
-                options: { data: { nome, papeis } }
+                options: { data: { nome, papeis, apelido } }
             });
             if (error) {
                 msg('Erro no cadastro: ' + error.message, false);
                 return;
             }
             if (data.user) {
-                await upsertUsuarioPerfil(data.user, nome, papeis);
+                await upsertUsuarioPerfil(data.user, nome, papeis, apelido);
                 if (typeof processarIndicacaoNoCadastro === 'function') {
                     await processarIndicacaoNoCadastro(data.user, nome);
                 }

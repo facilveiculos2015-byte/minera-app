@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Chat</title>
-    <link rel="icon" type="image/png" href="logo-escavadeira.png?v=20260916w">
-    <link rel="apple-touch-icon" href="logo-escavadeira.png?v=20260916w">
-    <link rel="stylesheet" href="style.css?v=20260916w">
+    <link rel="icon" type="image/png" href="logo-escavadeira.png?v=20260916v">
+    <link rel="apple-touch-icon" href="logo-escavadeira.png?v=20260916v">
+    <link rel="stylesheet" href="style.css?v=20260916v">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -28,18 +28,18 @@
             <aside class="chat-contacts-pane" id="chat-contacts-pane">
                 <div class="chat-contacts-head">
                     <h2>Conversas</h2>
-                    <button type="button" class="btn-sm" id="btn-add-contato">＋ Adicionar contato</button>
+                    <button type="button" class="btn-sm" id="btn-add-contato">＋ Adicionar por nome</button>
                 </div>
-                <input type="search" id="chat-busca-contatos" class="chat-busca" placeholder="Buscar contato..." autocomplete="off">
+                <input type="search" id="chat-busca-contatos" class="chat-busca" placeholder="Buscar por nome..." autocomplete="off">
                 <div id="chat-contatos-list" class="chat-contatos-list"></div>
             </aside>
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260916w" alt="" width="72" height="72" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260916v" alt="" width="72" height="72" decoding="async">
                     <p class="chat-empty-title">Suas conversas privadas</p>
                     <p>Selecione um contato à esquerda para abrir o DM.</p>
-                    <p class="hint">Só você e o destinatário veem as mensagens. Use <strong>＋ Adicionar contato</strong> para achar por papel ou e-mail.</p>
+                    <p class="hint">Só você e o destinatário veem as mensagens. Use <strong>＋ Adicionar por nome</strong> para achar por <strong>nome ou apelido</strong> (e-mail nunca é exibido).</p>
                 </div>
                 <div id="chat-thread-active" class="chat-thread-active oculto">
                     <div class="chat-thread-head">
@@ -52,12 +52,21 @@
                     <p id="chat-lote-ctx" class="sub oculto"></p>
                     <div id="chat-msgs" class="chat-msgs"></div>
 
+                    <div id="chat-rec-bar" class="chat-rec-bar oculto" role="status" aria-live="polite">
+                        <span class="rec-dot" aria-hidden="true"></span>
+                        <span id="chat-rec-timer" class="chat-rec-timer">00:00</span>
+                        <span class="chat-rec-wave" aria-hidden="true"></span>
+                        <button type="button" class="btn-sm btn-danger" id="btn-cancel-rec">Cancelar</button>
+                    </div>
+
+                    <div id="chat-media-preview" class="chat-media-preview oculto"></div>
+
                     <div class="chat-toolbar">
                         <label class="btn-sm" for="chat-foto">📷 Foto</label>
                         <input type="file" id="chat-foto" accept="image/*" class="oculto">
                         <label class="btn-sm" for="chat-video">🎬 Vídeo</label>
                         <input type="file" id="chat-video" accept="video/*" class="oculto">
-                        <button type="button" class="btn-sm" id="btn-audio">🎙️ Áudio</button>
+                        <button type="button" class="btn-sm" id="btn-audio" title="Segure para gravar" aria-label="Gravar áudio">🎙️ Áudio</button>
                         <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
                         <button type="button" class="btn-sm" id="btn-toggle-agendar">🗓️ Agendar</button>
                     </div>
@@ -90,25 +99,22 @@
     <div id="modal-add-contato" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-add-titulo">
         <div class="modal-backdrop" data-close-add="1"></div>
         <div class="modal-panel chat-add-panel">
-            <h3 id="modal-add-titulo">Adicionar contato</h3>
-            <label for="add-busca">Buscar por nome ou e-mail</label>
-            <input type="search" id="add-busca" placeholder="Nome ou e-mail...">
+            <h3 id="modal-add-titulo">Adicionar por nome</h3>
+            <label for="add-busca">Buscar por nome ou apelido</label>
+            <input type="search" id="add-busca" placeholder="Digite o nome..." autocomplete="off">
             <div class="chat-add-roles" id="add-role-filters"></div>
             <div id="add-diretorio" class="chat-diretorio-list"></div>
-            <div class="chat-add-email-row">
-                <input type="email" id="add-email" placeholder="Ou digite o e-mail exato">
-                <button type="button" class="btn-sm" id="btn-add-email">Adicionar</button>
-            </div>
+            <p class="hint">Por segurança, e-mails de outros usuários nunca aparecem no chat.</p>
             <p id="add-contato-msg" class="msg"></p>
             <button type="button" class="btn-ghost" id="btn-fechar-add">Fechar</button>
         </div>
     </div>
 
-    <script src="config.js?v=20260916w"></script>
-    <script src="auth-guard.js?v=20260916w"></script>
-    <script src="suporte.js?v=20260916w"></script>
-    <script src="nav.js?v=20260916w"></script>
-    <script src="anti-golpe.js?v=20260916w"></script>
-    <script src="chat.js?v=20260916w"></script>
+    <script src="config.js?v=20260916v"></script>
+    <script src="auth-guard.js?v=20260916v"></script>
+    <script src="suporte.js?v=20260916v"></script>
+    <script src="nav.js?v=20260916v"></script>
+    <script src="anti-golpe.js?v=20260916v"></script>
+    <script src="chat.js?v=20260916v"></script>
 </body>
 </html>
