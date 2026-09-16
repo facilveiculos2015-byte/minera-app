@@ -63,7 +63,7 @@ document.getElementById('form-chat').addEventListener('submit', async (e) => {
     meuAuthId = session.user.id;
     perfilAtual = await getPerfil(session);
     aplicarUserLabel(perfilAtual);
-    montarNav('chat');
+    montarNav('chat', perfilAtual);
     await carregarChat();
     pollTimer = setInterval(carregarChat, 4000);
 })();

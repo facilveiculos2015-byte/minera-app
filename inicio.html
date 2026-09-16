@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Início</title>
-    <link rel="stylesheet" href="style.css?v=20260916c">
+    <link rel="stylesheet" href="style.css?v=20260916d">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -22,12 +22,36 @@
         <section class="card">
             <h2>O que está rolando</h2>
             <p class="sub">Marketplace / feed de lotes — quem postou, status e peso</p>
+            <div class="filtros-row">
+                <div class="filtro-campo">
+                    <label for="filtro-tipo">Tipo de minério</label>
+                    <select id="filtro-tipo">
+                        <option value="">Todos</option>
+                        <option value="Cobre">Cobre</option>
+                        <option value="Ferro">Ferro</option>
+                        <option value="Ouro">Ouro</option>
+                        <option value="Manganês">Manganês</option>
+                        <option value="Níquel">Níquel</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                <div class="filtro-campo">
+                    <label for="filtro-status">Status</label>
+                    <select id="filtro-status">
+                        <option value="">Todos</option>
+                        <option value="pendente">pendente</option>
+                        <option value="em_processo">em_processo</option>
+                        <option value="processado">processado</option>
+                        <option value="expedido">expedido</option>
+                    </select>
+                </div>
+            </div>
             <div id="feed" class="loading">Carregando...</div>
         </section>
     </div>
-    <script src="config.js?v=20260916c"></script>
-    <script src="auth-guard.js?v=20260916c"></script>
-    <script src="nav.js?v=20260916c"></script>
-    <script src="inicio.js?v=20260916c"></script>
+    <script src="config.js?v=20260916d"></script>
+    <script src="auth-guard.js?v=20260916d"></script>
+    <script src="nav.js?v=20260916d"></script>
+    <script src="inicio.js?v=20260916d"></script>
 </body>
 </html>

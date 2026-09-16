@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Entrar</title>
-    <link rel="stylesheet" href="style.css?v=20260916c">
+    <link rel="stylesheet" href="style.css?v=20260916d">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -35,13 +35,21 @@
                 <input type="email" id="cad-email" required placeholder="voce@email.com" autocomplete="email">
                 <label for="cad-senha">Senha (mín. 6)</label>
                 <input type="password" id="cad-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <fieldset class="papeis-fieldset">
+                    <legend>Papéis (pode marcar mais de um)</legend>
+                    <label class="check-row"><input type="checkbox" id="papel-minerador" value="minerador"> Minerador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-comprador" value="comprador"> Comprador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-transportador" value="transportador"> Transportador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-dono_britador" value="dono_britador"> Dono do britador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-carregamento" value="carregamento"> Carregamento</label>
+                </fieldset>
                 <button type="submit">Criar conta</button>
             </form>
 
             <p id="auth-msg" class="msg"></p>
         </section>
     </div>
-    <script src="config.js?v=20260916c"></script>
-    <script src="auth.js?v=20260916c"></script>
+    <script src="config.js?v=20260916d"></script>
+    <script src="auth.js?v=20260916d"></script>
 </body>
 </html>

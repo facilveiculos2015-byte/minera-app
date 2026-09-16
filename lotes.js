@@ -18,9 +18,10 @@ async function carregarLotes() {
             return;
         }
         listaDiv.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-            '<th>Código</th><th>Origem</th><th>Peso (kg)</th><th>Status</th><th>Por</th></tr></thead><tbody>' +
+            '<th>Código</th><th>Tipo</th><th>Origem</th><th>Peso (kg)</th><th>Status</th><th>Por</th></tr></thead><tbody>' +
             data.map(l => `<tr>
                 <td><b>${esc(l.codigo_lote)}</b></td>
+                <td>${esc(l.tipo_minerio || '—')}</td>
                 <td>${esc(l.origem || '—')}</td>
                 <td>${l.peso_bruto_kg}</td>
                 <td><span class="badge badge-${esc(l.status || 'pendente')}">${esc(l.status || 'pendente')}</span></td>
@@ -38,6 +39,7 @@ document.getElementById('form-lote').addEventListener('submit', async (e) => {
     const msgEl = document.getElementById('lote-msg');
     const codigo_lote = document.getElementById('codigo_lote').value.trim();
     const origem = document.getElementById('origem').value.trim();
+    const tipo_minerio = document.getElementById('tipo_minerio').value;
     const peso_bruto_kg = parseFloat(document.getElementById('peso_bruto').value);
     const { data: { session } } = await supabaseClient.auth.getSession();
     const nome = (perfilAtual && perfilAtual.nome) ||
@@ -48,6 +50,7 @@ document.getElementById('form-lote').addEventListener('submit', async (e) => {
         .insert([{
             codigo_lote,
             origem,
+            tipo_minerio,
             peso_bruto_kg,
             status: 'pendente',
             criado_por: nome,
@@ -60,7 +63,7 @@ document.getElementById('form-lote').addEventListener('submit', async (e) => {
     }
     msgEl.textContent = 'Lote cadastrado!';
     msgEl.className = 'msg ok';
-    await registrarLog('lote_criar', { codigo_lote, peso_bruto_kg }, perfilAtual);
+    await registrarLog('lote_criar', { codigo_lote, peso_bruto_kg, tipo_minerio }, perfilAtual);
     document.getElementById('form-lote').reset();
     carregarLotes();
 });
@@ -70,6 +73,6 @@ document.getElementById('form-lote').addEventListener('submit', async (e) => {
     if (!session) return;
     perfilAtual = await getPerfil(session);
     aplicarUserLabel(perfilAtual);
-    montarNav('lotes');
+    montarNav('lotes', perfilAtual);
     carregarLotes();
 })();

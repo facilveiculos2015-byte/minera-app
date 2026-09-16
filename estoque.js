@@ -58,6 +58,6 @@ document.getElementById('form-estoque').addEventListener('submit', async (e) => 
     if (!session) return;
     perfilAtual = await getPerfil(session);
     aplicarUserLabel(perfilAtual);
-    montarNav('estoque');
+    montarNav('estoque', perfilAtual);
     carregarEstoque();
 })();

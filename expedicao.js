@@ -83,7 +83,7 @@ document.getElementById('form-exp').addEventListener('submit', async (e) => {
     if (!session) return;
     perfilAtual = await getPerfil(session);
     aplicarUserLabel(perfilAtual);
-    montarNav('expedicao');
+    montarNav('expedicao', perfilAtual);
     await carregarSelects();
     carregarExp();
 })();

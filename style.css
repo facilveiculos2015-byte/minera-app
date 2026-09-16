@@ -286,3 +286,51 @@ label { font-size: 0.9rem; color: #cbd5e1; }
     .nav-chips .chip { padding: 6px 10px; font-size: 0.8rem; }
     .chat-form { flex-direction: column; }
 }
+
+/* Papéis (checkboxes) */
+.papeis-fieldset {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 4px 0;
+}
+.papeis-fieldset legend {
+    padding: 0 6px;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+}
+.check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    color: var(--text-color);
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.check-row input[type="checkbox"] {
+    width: auto;
+    accent-color: var(--accent-color);
+}
+
+/* Filtros do feed */
+.filtros-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.filtro-campo {
+    flex: 1;
+    min-width: 140px;
+}
+.filtro-campo label {
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* Badges frete */
+.badge-agendado { background: #422006; color: #fbbf24; }
+.badge-em_transito { background: #1e3a5f; color: #93c5fd; }
+.badge-concluido { background: #14532d; color: #86efac; }
+.badge-cancelado { background: #450a0a; color: #fca5a5; }

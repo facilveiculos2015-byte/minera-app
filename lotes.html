@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Lotes</title>
-    <link rel="stylesheet" href="style.css?v=20260916c">
+    <link rel="stylesheet" href="style.css?v=20260916d">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -32,6 +32,16 @@
                     <input type="text" id="codigo_lote" placeholder="Ex: LT-001" required>
                     <label for="origem">Origem / Frente</label>
                     <input type="text" id="origem" placeholder="Frente / Origem" required>
+                    <label for="tipo_minerio">Tipo de minério</label>
+                    <select id="tipo_minerio" required>
+                        <option value="">Selecione...</option>
+                        <option value="Cobre">Cobre</option>
+                        <option value="Ferro">Ferro</option>
+                        <option value="Ouro">Ouro</option>
+                        <option value="Manganês">Manganês</option>
+                        <option value="Níquel">Níquel</option>
+                        <option value="Outro">Outro</option>
+                    </select>
                     <label for="peso_bruto">Peso bruto (kg)</label>
                     <input type="number" id="peso_bruto" placeholder="Peso Bruto (kg)" required step="0.01" min="0">
                     <button type="submit">Cadastrar Lote</button>
@@ -40,9 +50,9 @@
             </section>
         </main>
     </div>
-    <script src="config.js?v=20260916c"></script>
-    <script src="auth-guard.js?v=20260916c"></script>
-    <script src="nav.js?v=20260916c"></script>
-    <script src="lotes.js?v=20260916c"></script>
+    <script src="config.js?v=20260916d"></script>
+    <script src="auth-guard.js?v=20260916d"></script>
+    <script src="nav.js?v=20260916d"></script>
+    <script src="lotes.js?v=20260916d"></script>
 </body>
 </html>

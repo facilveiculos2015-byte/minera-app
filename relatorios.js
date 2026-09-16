@@ -78,7 +78,7 @@ async function carregarLogs() {
     if (!session) return;
     perfilAtual = await getPerfil(session);
     aplicarUserLabel(perfilAtual);
-    montarNav('relatorios');
+    montarNav('relatorios', perfilAtual);
     await carregarKpis();
     await carregarLogs();
 })();

@@ -1,3 +1,5 @@
+let feedCache = [];
+
 function tempoRelativo(iso) {
     if (!iso) return '';
     const t = new Date(iso).getTime();
@@ -17,6 +19,38 @@ function badgeStatus(st) {
     return '<span class="badge badge-' + s + '">' + s + '</span>';
 }
 
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderFeed(lista) {
+    const box = document.getElementById('feed');
+    if (!lista.length) {
+        box.innerHTML = '<p>Nenhum lote com esses filtros. Veja <a href="' + APP_ROOT + 'lotes.html">Lotes</a>.</p>';
+        return;
+    }
+    box.innerHTML = '<ul class="feed-list">' + lista.map(lote => {
+        const quem = lote.criado_por || 'Usuário';
+        const quando = tempoRelativo(lote.data_entrada);
+        const tipo = lote.tipo_minerio ? ' · ' + esc(lote.tipo_minerio) : '';
+        return `<li class="feed-item">
+            <div class="feed-top"><b>${esc(quem)}</b> postou um lote${quando ? ' · ' + quando : ''}</div>
+            <div class="feed-body"><b>${esc(lote.codigo_lote)}</b> — ${esc(lote.origem || '—')} · ${lote.peso_bruto_kg} kg${tipo}</div>
+            <div class="feed-meta">Status: ${badgeStatus(lote.status)}</div>
+        </li>`;
+    }).join('') + '</ul>';
+}
+
+function aplicarFiltros() {
+    const tipo = (document.getElementById('filtro-tipo').value || '').trim();
+    const status = (document.getElementById('filtro-status').value || '').trim();
+    let lista = feedCache.slice();
+    if (tipo) lista = lista.filter(l => (l.tipo_minerio || '') === tipo);
+    if (status) lista = lista.filter(l => (l.status || '').toLowerCase() === status.toLowerCase());
+    renderFeed(lista);
+}
+
 async function carregarFeed() {
     const box = document.getElementById('feed');
     try {
@@ -26,28 +60,16 @@ async function carregarFeed() {
             .order('id', { ascending: false })
             .limit(50);
         if (error) throw error;
-        if (!data.length) {
+        feedCache = data || [];
+        if (!feedCache.length) {
             box.innerHTML = '<p>Ninguém postou ainda. Seja o primeiro em <a href="' + APP_ROOT + 'lotes.html">Lotes</a>.</p>';
             return;
         }
-        box.innerHTML = '<ul class="feed-list">' + data.map(lote => {
-            const quem = lote.criado_por || 'Usuário';
-            const quando = tempoRelativo(lote.data_entrada);
-            return `<li class="feed-item">
-                <div class="feed-top"><b>${esc(quem)}</b> postou um lote${quando ? ' · ' + quando : ''}</div>
-                <div class="feed-body"><b>${esc(lote.codigo_lote)}</b> — ${esc(lote.origem || '—')} · ${lote.peso_bruto_kg} kg</div>
-                <div class="feed-meta">Status: ${badgeStatus(lote.status)}</div>
-            </li>`;
-        }).join('') + '</ul>';
+        aplicarFiltros();
     } catch (err) {
         console.error(err);
         box.innerHTML = '<p class="erro">Não deu pra carregar o feed. Tente sair e entrar de novo.</p>';
     }
-}
-
-function esc(s) {
-    return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 (async function init() {
@@ -55,6 +77,8 @@ function esc(s) {
     if (!session) return;
     const perfil = await getPerfil(session);
     aplicarUserLabel(perfil);
-    montarNav('inicio');
+    montarNav('inicio', perfil);
+    document.getElementById('filtro-tipo').addEventListener('change', aplicarFiltros);
+    document.getElementById('filtro-status').addEventListener('change', aplicarFiltros);
     carregarFeed();
 })();

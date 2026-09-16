@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Perfil</title>
+    <link rel="stylesheet" href="style.css?v=20260916d">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container wide">
+        <header class="header-row">
+            <div>
+                <h1>Minera App</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+        </header>
+        <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card">
+            <h2>Meu perfil</h2>
+            <p class="sub">Atualize nome e papéis. Vários papéis liberam chips diferentes na navegação.</p>
+            <form id="form-perfil">
+                <label for="perfil-nome">Nome</label>
+                <input type="text" id="perfil-nome" required placeholder="Seu nome">
+                <label for="perfil-email">E-mail</label>
+                <input type="email" id="perfil-email" disabled>
+                <fieldset class="papeis-fieldset">
+                    <legend>Papéis</legend>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-minerador" value="minerador"> Minerador</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-comprador" value="comprador"> Comprador</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-transportador" value="transportador"> Transportador</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-dono_britador" value="dono_britador"> Dono do britador</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-carregamento" value="carregamento"> Carregamento</label>
+                    <label class="check-row oculto" id="row-admin"><input type="checkbox" id="perfil-papel-admin" value="admin"> Admin</label>
+                </fieldset>
+                <button type="submit">Salvar perfil</button>
+            </form>
+            <p id="perfil-msg" class="msg"></p>
+        </section>
+    </div>
+    <script src="config.js?v=20260916d"></script>
+    <script src="auth-guard.js?v=20260916d"></script>
+    <script src="nav.js?v=20260916d"></script>
+    <script src="perfil.js?v=20260916d"></script>
+</body>
+</html>

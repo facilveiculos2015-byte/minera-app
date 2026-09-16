@@ -1,4 +1,4 @@
-/** Sessão + perfil (usuarios.auth_id) + roles */
+/** Sessão + perfil (usuarios.auth_id) + papéis múltiplos */
 
 async function requireSession() {
     const { data: { session }, error } = await supabaseClient.auth.getSession();
@@ -9,11 +9,66 @@ async function requireSession() {
     return session;
 }
 
+function normalizarPapeis(raw, tipo) {
+    let arr = [];
+    if (Array.isArray(raw)) {
+        arr = raw.map(p => String(p).toLowerCase().trim()).filter(Boolean);
+    } else if (typeof raw === 'string' && raw.trim()) {
+        // fallback se vier como "{a,b}" do pg
+        arr = raw.replace(/[{}]/g, '').split(',').map(p => p.trim().toLowerCase()).filter(Boolean);
+    }
+    const t = (tipo || '').toLowerCase();
+    if (t === 'admin' && !arr.includes('admin')) arr.push('admin');
+    return arr;
+}
+
+function temPapel(perfil, role) {
+    if (!perfil || !role) return false;
+    const r = String(role).toLowerCase();
+    if (ehAdmin(perfil)) return true;
+    const papeis = Array.isArray(perfil.papeis) ? perfil.papeis : [];
+    return papeis.map(p => String(p).toLowerCase()).includes(r);
+}
+
+function ehAdmin(perfil) {
+    if (!perfil) return false;
+    if ((perfil.tipo || '').toLowerCase() === 'admin') return true;
+    const papeis = Array.isArray(perfil.papeis) ? perfil.papeis : [];
+    return papeis.map(p => String(p).toLowerCase()).includes('admin');
+}
+
+function rotuloPapeis(perfil) {
+    if (!perfil) return '';
+    if (ehAdmin(perfil)) return 'admin';
+    const papeis = Array.isArray(perfil.papeis) ? perfil.papeis : [];
+    if (!papeis.length) return perfil.tipo || 'operador';
+    const labels = {
+        minerador: 'minerador',
+        comprador: 'comprador',
+        transportador: 'transportador',
+        dono_britador: 'dono britador',
+        carregamento: 'carregamento',
+        admin: 'admin'
+    };
+    return papeis.map(p => labels[p] || p).join(', ');
+}
+
 async function getPerfil(session) {
     if (!session || !session.user) return null;
     const uid = session.user.id;
     const email = session.user.email || '';
     const metaNome = (session.user.user_metadata && session.user.user_metadata.nome) || '';
+
+    function mapRow(data) {
+        return {
+            id: data.id,
+            auth_id: data.auth_id || uid,
+            nome: data.nome || metaNome || email,
+            email: data.email || email,
+            tipo: data.tipo || 'operador',
+            papeis: normalizarPapeis(data.papeis, data.tipo)
+        };
+    }
 
     try {
         const { data, error } = await supabaseClient
@@ -22,15 +77,7 @@ async function getPerfil(session) {
             .eq('auth_id', uid)
             .maybeSingle();
         if (error) console.warn('getPerfil:', error.message);
-        if (data) {
-            return {
-                id: data.id,
-                auth_id: data.auth_id,
-                nome: data.nome || metaNome || email,
-                email: data.email || email,
-                tipo: data.tipo || 'operador'
-            };
-        }
+        if (data) return mapRow(data);
     } catch (e) {
         console.warn(e);
     }
@@ -46,13 +93,7 @@ async function getPerfil(session) {
             if (!byEmail.auth_id) {
                 await supabaseClient.from('usuarios').update({ auth_id: uid }).eq('id', byEmail.id);
             }
-            return {
-                id: byEmail.id,
-                auth_id: uid,
-                nome: byEmail.nome || metaNome || email,
-                email: byEmail.email || email,
-                tipo: byEmail.tipo || 'operador'
-            };
+            return mapRow(Object.assign({}, byEmail, { auth_id: uid }));
         }
     } catch (e) {
         console.warn(e);
@@ -63,15 +104,20 @@ async function getPerfil(session) {
         auth_id: uid,
         nome: metaNome || email,
         email,
-        tipo: 'operador'
+        tipo: 'operador',
+        papeis: []
     };
 }
 
 async function requireRole(perfil, rolesPermitidos) {
     const ok = rolesPermitidos.map(r => String(r).toLowerCase());
+    if (ehAdmin(perfil)) return true;
+    const papeis = (perfil && Array.isArray(perfil.papeis) ? perfil.papeis : [])
+        .map(p => String(p).toLowerCase());
     const tipo = (perfil && perfil.tipo ? String(perfil.tipo) : 'operador').toLowerCase();
-    if (!ok.includes(tipo)) {
-        alert('Acesso restrito. Seu perfil: ' + tipo);
+    const hit = ok.some(r => papeis.includes(r) || r === tipo);
+    if (!hit) {
+        alert('Acesso restrito. Seus papéis: ' + (rotuloPapeis(perfil) || tipo));
         irPara('inicio.html');
         return false;
     }
@@ -81,8 +127,7 @@ async function requireRole(perfil, rolesPermitidos) {
 function aplicarUserLabel(perfil) {
     const el = document.getElementById('user-label');
     if (!el || !perfil) return;
-    const role = perfil.tipo || 'operador';
-    el.textContent = 'Olá, ' + (perfil.nome || perfil.email) + ' · ' + role;
+    el.textContent = 'Olá, ' + (perfil.nome || perfil.email) + ' · ' + rotuloPapeis(perfil);
 }
 
 async function sairApp() {

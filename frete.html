@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Frete</title>
+    <link rel="stylesheet" href="style.css?v=20260916d">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container wide">
+        <header class="header-row">
+            <div>
+                <h1>Minera App</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+        </header>
+        <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card">
+            <h2>Fretes / logística</h2>
+            <p class="sub">Pernas: Mina → Britador e Britador → Porto de embarque</p>
+            <div id="frete-lista" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Agendar frete</h2>
+            <form id="form-frete">
+                <label for="frete_lote_id">Lote (opcional)</label>
+                <select id="frete_lote_id"><option value="">—</option></select>
+                <label for="perna">Perna</label>
+                <select id="perna" required>
+                    <option value="mina_britador">Mina → Britador</option>
+                    <option value="britador_porto">Britador → Porto</option>
+                </select>
+                <label for="origem">Origem</label>
+                <input type="text" id="origem" required placeholder="Ex: Frente 3 / Britador A">
+                <label for="destino">Destino</label>
+                <input type="text" id="destino" required placeholder="Ex: Britador A / Porto de embarque">
+                <label for="veiculo">Veículo</label>
+                <input type="text" id="veiculo" placeholder="Placa / modelo">
+                <label for="motorista">Motorista</label>
+                <input type="text" id="motorista" placeholder="Nome">
+                <label for="peso_kg">Peso (kg)</label>
+                <input type="number" id="peso_kg" step="0.01" min="0">
+                <label for="status">Status</label>
+                <select id="status">
+                    <option value="agendado">agendado</option>
+                    <option value="em_transito">em_transito</option>
+                    <option value="concluido">concluido</option>
+                    <option value="cancelado">cancelado</option>
+                </select>
+                <label for="observacoes">Observações</label>
+                <textarea id="observacoes" rows="2" placeholder="Opcional"></textarea>
+                <button type="submit">Salvar frete</button>
+            </form>
+            <p id="frete-msg" class="msg"></p>
+        </section>
+    </div>
+    <script src="config.js?v=20260916d"></script>
+    <script src="auth-guard.js?v=20260916d"></script>
+    <script src="nav.js?v=20260916d"></script>
+    <script src="frete.js?v=20260916d"></script>
+</body>
+</html>

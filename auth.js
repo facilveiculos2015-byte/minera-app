@@ -1,3 +1,11 @@
+const PAPEIS_OPCOES = [
+    { id: 'minerador', label: 'Minerador' },
+    { id: 'comprador', label: 'Comprador' },
+    { id: 'transportador', label: 'Transportador' },
+    { id: 'dono_britador', label: 'Dono do britador' },
+    { id: 'carregamento', label: 'Carregamento' }
+];
+
 function mostrarAba(nome) {
     const entrar = nome === 'entrar';
     const formEntrar = document.getElementById('form-entrar');
@@ -21,16 +29,27 @@ function msg(texto, ok) {
     el.className = 'msg ' + (ok ? 'ok' : 'erro');
 }
 
-async function upsertUsuarioPerfil(user, nome) {
+function lerPapeisCadastro() {
+    return PAPEIS_OPCOES
+        .map(p => p.id)
+        .filter(id => {
+            const el = document.getElementById('papel-' + id);
+            return el && el.checked;
+        });
+}
+
+async function upsertUsuarioPerfil(user, nome, papeis) {
     if (!user) return;
     const row = {
         auth_id: user.id,
         nome: nome || (user.user_metadata && user.user_metadata.nome) || user.email || 'Usuário',
         email: user.email,
-        tipo: 'operador',
+        tipo: (Array.isArray(papeis) && papeis.includes('admin')) ? 'admin' : 'operador',
         senha_hash: 'supabase-auth'
     };
-    // Tenta upsert por auth_id; se falhar (sem unique match), tenta insert / update por email
+    if (Array.isArray(papeis)) {
+        row.papeis = papeis;
+    }
     const { error } = await supabaseClient
         .from('usuarios')
         .upsert(row, { onConflict: 'auth_id' });
@@ -42,12 +61,18 @@ async function upsertUsuarioPerfil(user, nome) {
             .eq('email', user.email)
             .maybeSingle();
         if (existing) {
-            await supabaseClient.from('usuarios').update({
+            const upd = {
                 auth_id: user.id,
                 nome: row.nome,
                 senha_hash: 'supabase-auth'
-            }).eq('id', existing.id);
+            };
+            if (Array.isArray(papeis)) {
+                upd.papeis = papeis;
+                upd.tipo = row.tipo;
+            }
+            await supabaseClient.from('usuarios').update(upd).eq('id', existing.id);
         } else {
+            if (!Array.isArray(row.papeis)) row.papeis = [];
             const { error: insErr } = await supabaseClient.from('usuarios').insert([row]);
             if (insErr) console.warn('insert usuario:', insErr.message);
         }
@@ -84,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 msg('Login sem sessão. Tente de novo.', false);
                 return;
             }
+            // Login: não sobrescreve papeis
             await upsertUsuarioPerfil(data.user, data.user.user_metadata && data.user.user_metadata.nome);
             irPara('inicio.html');
         } catch (err) {
@@ -98,18 +124,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const nome = document.getElementById('cad-nome').value.trim();
         const email = document.getElementById('cad-email').value.trim();
         const password = document.getElementById('cad-senha').value;
+        const papeis = lerPapeisCadastro();
         try {
             const { data, error } = await supabaseClient.auth.signUp({
                 email,
                 password,
-                options: { data: { nome } }
+                options: { data: { nome, papeis } }
             });
             if (error) {
                 msg('Erro no cadastro: ' + error.message, false);
                 return;
             }
             if (data.user) {
-                await upsertUsuarioPerfil(data.user, nome);
+                await upsertUsuarioPerfil(data.user, nome, papeis);
             }
             if (data.session) {
                 irPara('inicio.html');

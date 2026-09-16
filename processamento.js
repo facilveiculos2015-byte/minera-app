@@ -104,7 +104,7 @@ document.getElementById('form-proc').addEventListener('submit', async (e) => {
     if (!session) return;
     perfilAtual = await getPerfil(session);
     aplicarUserLabel(perfilAtual);
-    montarNav('britagem');
+    montarNav('britagem', perfilAtual);
     await carregarSelectLotes();
     carregarProc();
 })();
