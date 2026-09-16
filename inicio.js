@@ -319,6 +319,23 @@ async function atualizarCotacoes() {
     }
 }
 
+
+function rotuloPapelFeed(papel) {
+    if (!papel) return '';
+    const labels = {
+        minerador: 'Minerador',
+        comprador: 'Comprador',
+        transportador: 'Transportador',
+        transportador_mina_britador: 'Transportador (Mina - Britador)',
+        transportador_britador_porto: 'Transportador (Britador - Porto)',
+        dono_britador: 'Dono de Britador',
+        carregamento: 'Carregador',
+        admin: 'Admin'
+    };
+    const k = String(papel).toLowerCase();
+    return labels[k] || papel;
+}
+
 function renderFeed(lista) {
     const box = document.getElementById('feed');
     if (!lista.length) {
@@ -340,6 +357,7 @@ function renderFeed(lista) {
             <div class="lote-card-body">
                 <div class="lote-card-top">
                     <span class="lote-tipo">${esc(lote.tipo_minerio || 'Minério')}</span>
+                    ${lote.publicado_como ? '<span class="lote-papel-badge">' + esc(rotuloPapelFeed(lote.publicado_como)) + '</span>' : ''}
                     <span class="${statusBadgeClass(lote.status)}">${esc(statusAmigavel(lote.status))}</span>
                 </div>
                 <h3 class="lote-codigo">${esc(codigo)}</h3>

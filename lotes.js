@@ -1,11 +1,79 @@
 let perfilAtual = null;
 let sessionAtual = null;
 let lotesMeus = [];
-let imagemDataUrl = null;
+/** URL pública após upload Storage (não data-URL). */
+let imagemUploadUrl = null;
+let imagemUploading = false;
+
+const LOTE_IMG_MAX = 8388608; // 8 MB
+const LOTE_IMG_COMPRESS_OVER = 1572864; // ~1.5 MB
+const LOTE_STORAGE_BUCKET = 'chat-midia';
+const LOTE_STORAGE_FOLDER = 'lotes';
+
+const PAPEIS_LOTE_LABELS = {
+    minerador: 'Minerador',
+    comprador: 'Comprador',
+    transportador: 'Transportador',
+    transportador_mina_britador: 'Transportador (Mina - Britador)',
+    transportador_britador_porto: 'Transportador (Britador - Porto)',
+    dono_britador: 'Dono de Britador',
+    carregamento: 'Carregador',
+    admin: 'Admin'
+};
 
 function esc(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function rotuloPapelLote(papel) {
+    if (!papel) return '';
+    const k = String(papel).toLowerCase();
+    return PAPEIS_LOTE_LABELS[k] || papel;
+}
+
+function papeisAtivosUsuario() {
+    const raw = (perfilAtual && Array.isArray(perfilAtual.papeis)) ? perfilAtual.papeis : [];
+    let arr = raw.map(p => String(p).toLowerCase().trim()).filter(Boolean);
+    // Não listar admin como opção de publicação de marketplace, salvo se for o único
+    const semAdmin = arr.filter(p => p !== 'admin');
+    if (semAdmin.length) arr = semAdmin;
+    // Dedup
+    const seen = {};
+    return arr.filter(p => (seen[p] ? false : (seen[p] = true)));
+}
+
+function montarSelectPublicadoComo(preselect) {
+    const sel = document.getElementById('publicado_como');
+    const wrap = document.getElementById('wrap-publicado-como');
+    const hint = document.getElementById('publicado-como-hint');
+    if (!sel) return;
+    const papeis = papeisAtivosUsuario();
+    const prev = preselect != null ? String(preselect).toLowerCase() : (sel.value || '');
+    sel.innerHTML = '<option value="">Selecione o papel…</option>' +
+        papeis.map(p => '<option value="' + esc(p) + '">' + esc(rotuloPapelLote(p)) + '</option>').join('');
+    if (papeis.length === 1) {
+        sel.value = papeis[0];
+        sel.required = true;
+        if (wrap) wrap.classList.add('publicado-unico');
+        if (hint) hint.textContent = 'Publicando como ' + rotuloPapelLote(papeis[0]) + '.';
+    } else if (papeis.length === 0) {
+        sel.value = '';
+        sel.required = true;
+        if (wrap) wrap.classList.remove('publicado-unico');
+        if (hint) hint.textContent = 'Defina ao menos um papel em Perfil para publicar.';
+    } else {
+        if (prev && papeis.includes(prev)) sel.value = prev;
+        else sel.value = '';
+        sel.required = true;
+        if (wrap) wrap.classList.remove('publicado-unico');
+        if (hint) hint.textContent = 'Escolha com qual categoria esta publicação aparece no feed.';
+    }
+}
+
+function badgePublicadoComo(papel) {
+    if (!papel) return '';
+    return '<span class="lote-papel-badge">' + esc(rotuloPapelLote(papel)) + '</span>';
 }
 
 function abrirModal(titulo) {
@@ -18,7 +86,8 @@ function fecharModal() {
     document.getElementById('modal-lote').classList.add('oculto');
     document.getElementById('form-lote').reset();
     document.getElementById('lote-id').value = '';
-    imagemDataUrl = null;
+    imagemUploadUrl = null;
+    imagemUploading = false;
 }
 
 function ehMeuLote(l) {
@@ -46,6 +115,7 @@ function renderCards(lista) {
             <div class="lote-card-body">
                 <div class="lote-card-top">
                     <span class="lote-tipo">${esc(l.tipo_minerio || 'Minério')}</span>
+                    ${badgePublicadoComo(l.publicado_como)}
                     <span class="${statusBadgeClass(l.status)}">${esc(statusAmigavel(l.status))}</span>
                 </div>
                 <h3 class="lote-codigo">${esc(l.codigo_lote)}</h3>
@@ -87,13 +157,140 @@ function preencherForm(lote) {
     document.getElementById('imagem_url').value = lote ? (lote.imagem_url || '') : '';
     document.getElementById('lote_lat').value = lote && lote.lat != null ? lote.lat : '';
     document.getElementById('lote_lng').value = lote && lote.lng != null ? lote.lng : '';
-    imagemDataUrl = null;
+    imagemUploadUrl = null;
     document.getElementById('imagem_file').value = '';
+    montarSelectPublicadoComo(lote ? lote.publicado_como : null);
+}
+
+function extForMime(mime, fallback) {
+    const m = (mime || '').toLowerCase();
+    if (m === 'image/jpeg') return 'jpg';
+    if (m === 'image/png') return 'png';
+    if (m === 'image/gif') return 'gif';
+    if (m === 'image/webp') return 'webp';
+    return fallback || 'jpg';
+}
+
+/** Comprime JPEG via canvas se > ~1.5MB (max edge 1600, q≈0.82). */
+function comprimirImagemSePreciso(file) {
+    return new Promise((resolve) => {
+        if (!file || !file.type || !file.type.startsWith('image/')) {
+            resolve(file);
+            return;
+        }
+        if (file.size <= LOTE_IMG_COMPRESS_OVER) {
+            resolve(file);
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            try {
+                URL.revokeObjectURL(url);
+                let w = img.naturalWidth || img.width;
+                let h = img.naturalHeight || img.height;
+                const maxEdge = 1600;
+                if (w > maxEdge || h > maxEdge) {
+                    if (w >= h) {
+                        h = Math.round(h * (maxEdge / w));
+                        w = maxEdge;
+                    } else {
+                        w = Math.round(w * (maxEdge / h));
+                        h = maxEdge;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        resolve(file);
+                        return;
+                    }
+                    const nome = (file.name || 'lote').replace(/\.[^.]+$/, '') + '.jpg';
+                    resolve(new File([blob], nome, { type: 'image/jpeg', lastModified: Date.now() }));
+                }, 'image/jpeg', 0.82);
+            } catch (e) {
+                console.warn('compress', e);
+                resolve(file);
+            }
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(file);
+        };
+        img.src = url;
+    });
+}
+
+async function uploadLoteImagem(file) {
+    const mime = (file.type || 'image/jpeg').split(';')[0];
+    const ext = extForMime(mime, (file.name || '').split('.').pop() || 'jpg');
+    const uid = (sessionAtual && sessionAtual.user && sessionAtual.user.id) || 'anon';
+    const path = LOTE_STORAGE_FOLDER + '/' + uid + '/' + Date.now() + '_' +
+        String(file.name || ('lote.' + ext)).replace(/[^\w.\-]+/g, '_').replace(/\.[^.]+$/, '') + '.' + ext;
+    const { data, error } = await supabaseClient.storage
+        .from(LOTE_STORAGE_BUCKET)
+        .upload(path, file, {
+            upsert: false,
+            contentType: mime,
+            cacheControl: '3600'
+        });
+    if (error) throw error;
+    const { data: pub } = supabaseClient.storage.from(LOTE_STORAGE_BUCKET).getPublicUrl((data && data.path) || path);
+    if (!pub || !pub.publicUrl) throw new Error('URL pública indisponível');
+    return pub.publicUrl;
+}
+
+async function onImagemFileChange(e) {
+    const file = e.target.files && e.target.files[0];
+    imagemUploadUrl = null;
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+        toastMsg('Selecione um arquivo de imagem.');
+        e.target.value = '';
+        return;
+    }
+    if (file.size > LOTE_IMG_MAX) {
+        toastMsg('Imagem acima de 8 MB — escolha outra ou use URL.');
+        e.target.value = '';
+        return;
+    }
+    imagemUploading = true;
+    toastMsg('Enviando imagem…');
+    try {
+        const ready = await comprimirImagemSePreciso(file);
+        if (ready.size > LOTE_IMG_MAX) {
+            toastMsg('Imagem acima de 8 MB — escolha outra ou use URL.');
+            e.target.value = '';
+            imagemUploading = false;
+            return;
+        }
+        const url = await uploadLoteImagem(ready);
+        imagemUploadUrl = url;
+        document.getElementById('imagem_url').value = url;
+        toastMsg('Imagem enviada');
+    } catch (err) {
+        console.warn(err);
+        const msg = (err && err.message) ? err.message : String(err);
+        toastMsg('Falha no upload — use URL ou aplique SQL 24/26 (storage).');
+        imagemUploadUrl = null;
+    } finally {
+        imagemUploading = false;
+    }
 }
 
 async function salvarLote(e) {
     e.preventDefault();
     const msgEl = document.getElementById('lote-msg');
+    if (imagemUploading) {
+        msgEl.textContent = 'Aguarde o envio da imagem…';
+        msgEl.className = 'msg erro';
+        toastMsg('Aguarde o envio da imagem…');
+        return;
+    }
     const id = document.getElementById('lote-id').value;
     const codigo_lote = document.getElementById('codigo_lote').value.trim();
     const origem = document.getElementById('origem').value.trim();
@@ -102,7 +299,8 @@ async function salvarLote(e) {
     const precoRaw = document.getElementById('preco').value;
     const preco = precoRaw === '' ? null : parseFloat(precoRaw);
     let imagem_url = document.getElementById('imagem_url').value.trim() || null;
-    if (imagemDataUrl) imagem_url = imagemDataUrl;
+    if (imagemUploadUrl) imagem_url = imagemUploadUrl;
+    const publicado_como = (document.getElementById('publicado_como').value || '').trim().toLowerCase();
     const latRaw = document.getElementById('lote_lat').value.trim();
     const lngRaw = document.getElementById('lote_lng').value.trim();
     const lat = latRaw === '' ? null : parseFloat(latRaw);
@@ -124,6 +322,19 @@ async function salvarLote(e) {
         return;
     }
 
+    const papeisOk = papeisAtivosUsuario();
+    if (!publicado_como) {
+        msgEl.textContent = 'Escolha “Publicar como” (seu papel/categoria).';
+        msgEl.className = 'msg erro';
+        toastMsg('Escolha Publicar como');
+        return;
+    }
+    if (papeisOk.length && !papeisOk.includes(publicado_como) && !(ehAdmin(perfilAtual) && publicado_como === 'admin')) {
+        msgEl.textContent = 'Papel inválido para sua conta.';
+        msgEl.className = 'msg erro';
+        return;
+    }
+
     if (typeof AntiGolpe !== 'undefined') {
         const chk = AntiGolpe.validarCampos({
             codigo_lote, origem, imagem_url: imagem_url || ''
@@ -134,7 +345,6 @@ async function salvarLote(e) {
             toastMsg(chk.motivo);
             return;
         }
-        // apply cleaned (esp. if strip future)
         if (chk.campos) {
             // keep originals unless stripped null
         }
@@ -153,7 +363,8 @@ async function salvarLote(e) {
         preco,
         imagem_url,
         lat,
-        lng
+        lng,
+        publicado_como
     };
 
     let error;
@@ -170,7 +381,9 @@ async function salvarLote(e) {
 
     if (error) {
         let hint = '';
-        if (error.message.includes('preco') || error.message.includes('imagem')) {
+        if (/publicado_como|column/i.test(error.message || '')) {
+            hint = ' — aplique o SQL 26-lotes-publicado-como.sql no Supabase.';
+        } else if (error.message.includes('preco') || error.message.includes('imagem')) {
             hint = ' — aplique o SQL 09-ui-marketplace.sql no Supabase.';
         } else if (error.message.includes('lat') || error.message.includes('lng') || error.message.includes('column')) {
             hint = ' — aplique o SQL 11-mapa-coords.sql no Supabase.';
@@ -181,7 +394,7 @@ async function salvarLote(e) {
     }
     msgEl.textContent = id ? 'Lote atualizado!' : 'Lote cadastrado!';
     msgEl.className = 'msg ok';
-    await registrarLog(id ? 'lote_editar' : 'lote_criar', { codigo_lote, peso_bruto_kg, tipo_minerio }, perfilAtual);
+    await registrarLog(id ? 'lote_editar' : 'lote_criar', { codigo_lote, peso_bruto_kg, tipo_minerio, publicado_como }, perfilAtual);
     fecharModal();
     carregarLotes();
 }
@@ -305,19 +518,7 @@ document.getElementById('modal-lote').addEventListener('click', (e) => {
     if (e.target && e.target.getAttribute('data-close')) fecharModal();
 });
 
-document.getElementById('imagem_file').addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    imagemDataUrl = null;
-    if (!file) return;
-    if (file.size > 120000) {
-        toastMsg('Arquivo grande — use URL da imagem');
-        e.target.value = '';
-        return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => { imagemDataUrl = reader.result; };
-    reader.readAsDataURL(file);
-});
+document.getElementById('imagem_file').addEventListener('change', onImagemFileChange);
 
 document.getElementById('form-lote').addEventListener('submit', salvarLote);
 

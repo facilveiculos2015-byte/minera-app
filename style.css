@@ -452,7 +452,7 @@ label { font-size: 0.9rem; color: var(--label); }
 }
 .lote-img.placeholder span { font-size: 2.4rem; }
 .lote-card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.lote-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lote-card-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 .lote-tipo { font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 .lote-codigo { font-size: 1.1rem; color: var(--accent-color); }
 .lote-meta { font-size: 0.9rem; color: #cbd5e1; }
@@ -2340,3 +2340,29 @@ tr.row-pendente { background: rgba(251, 191, 36, 0.08); }
 .bubble-failed { opacity: 0.85; border: 1px solid var(--danger, #f87171); }
 .bubble-audio audio { width: 100%; min-width: 180px; }
 .notif-emp-item strong { color: #fbbf24; }
+
+
+/* Publicar como + badge de papel no card */
+.publicado-como-wrap {
+    margin-bottom: 0.85rem;
+}
+.publicado-como-wrap.publicado-unico select {
+    opacity: 0.92;
+    pointer-events: none;
+}
+.lote-papel-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #1e293b;
+    color: #93c5fd;
+    border: 1px solid #334155;
+    letter-spacing: 0.02em;
+}
+html[data-theme="light"] .lote-papel-badge {
+    background: #e0f2fe;
+    color: #075985;
+    border-color: #bae6fd;
+}

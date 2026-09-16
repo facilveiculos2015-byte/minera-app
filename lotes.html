@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Meus Lotes</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260916z">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916z">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260916aa">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916aa">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260916z">
+    <link rel="stylesheet" href="style.css?v=20260916aa">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -48,6 +48,13 @@
             </div>
             <form id="form-lote">
                 <input type="hidden" id="lote-id" value="">
+                <div id="wrap-publicado-como" class="publicado-como-wrap">
+                    <label for="publicado_como">Publicar como</label>
+                    <select id="publicado_como" required>
+                        <option value="">Selecione o papel…</option>
+                    </select>
+                    <p class="hint" id="publicado-como-hint">Escolha com qual categoria esta publicação aparece no feed.</p>
+                </div>
                 <label for="codigo_lote">Código</label>
                 <input type="text" id="codigo_lote" placeholder="Ex: LT-001" required>
                 <label for="tipo_minerio">Tipo de minério</label>
@@ -77,11 +84,12 @@
                     </div>
                 </div>
                 <p class="hint">Coords WGS84 para o Mapa de Satélite. Deixe vazio se não souber.</p>
-                <label for="imagem_url">URL da imagem</label>
-                <input type="url" id="imagem_url" placeholder="https://... (opcional)">
-                <label for="imagem_file">Ou arquivo pequeno (data URL)</label>
+                <label for="imagem_file">Foto do lote</label>
                 <input type="file" id="imagem_file" accept="image/*">
-                <p class="hint">Arquivos grandes são ignorados — use URL. Preferência: coluna imagem_url.</p>
+                <p class="hint">Até 8 MB — enviada ao storage (fotos de celular OK). Compressão automática se grande.</p>
+                <label for="imagem_url">URL da imagem (opcional)</label>
+                <input type="url" id="imagem_url" placeholder="https://... ou envie um arquivo acima">
+                <p class="hint">URL manual como fallback. Após upload, o link público preenche este campo.</p>
                 <div class="modal-actions">
                     <button type="button" class="btn-ghost" id="modal-lote-cancelar">Cancelar</button>
                     <button type="submit" id="btn-salvar-lote">Salvar</button>
@@ -91,12 +99,12 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260916z"></script>
-    <script src="auth-guard.js?v=20260916z"></script>
-    <script src="suporte.js?v=20260916z"></script>
-    <script src="nav.js?v=20260916z"></script>
-    <script src="anti-golpe.js?v=20260916z"></script>
-    <script src="lotes.js?v=20260916z"></script>
-    <script src="pwa.js?v=20260916z"></script>
+    <script src="config.js?v=20260916aa"></script>
+    <script src="auth-guard.js?v=20260916aa"></script>
+    <script src="suporte.js?v=20260916aa"></script>
+    <script src="nav.js?v=20260916aa"></script>
+    <script src="anti-golpe.js?v=20260916aa"></script>
+    <script src="lotes.js?v=20260916aa"></script>
+    <script src="pwa.js?v=20260916aa"></script>
 </body>
 </html>
