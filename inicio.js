@@ -1,5 +1,3 @@
-const APP_BASE = new URL('.', window.location.href);
-function irPara(pagina) { window.location.replace(new URL(pagina, APP_BASE).href); }
 
 async function exigirLogin() {
     const { data: { session } } = await supabaseClient.auth.getSession();

@@ -1,9 +1,4 @@
 // Base da pasta do app (funciona no GitHub Pages com /minera-app/)
-const APP_BASE = new URL('.', window.location.href);
-
-function irPara(pagina) {
-    window.location.replace(new URL(pagina, APP_BASE).href);
-}
 
 function mostrarAba(nome) {
     const entrar = nome === 'entrar';
