@@ -334,7 +334,7 @@ function renderContatosList(filtered) {
     if (!filtered.length) {
         box.innerHTML = '<div class="chat-contacts-empty">' +
             '<p><strong>Nenhuma conversa ainda</strong></p>' +
-            '<p class="sub">Toque em <strong>＋ Adicionar contato</strong> para achar por nome ou apelido.</p>' +
+            '<p class="sub">Toque em <strong>＋ Adicionar por nome</strong> para achar por nome ou apelido.</p>' +
             '</div>';
         return;
     }

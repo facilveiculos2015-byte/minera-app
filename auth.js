@@ -45,7 +45,7 @@ async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
     if (!user || !user.id) return;
     const row = {
         auth_id: user.id,
-        nome: nome || (user.user_metadata && user.user_metadata.nome) || user.email || 'Usuário',
+        nome: nome || (user.user_metadata && user.user_metadata.nome) || 'Usuário',
         email: user.email,
         tipo: (Array.isArray(papeis) && papeis.includes('admin')) ? 'admin' : 'operador',
         senha_hash: 'supabase-auth'
