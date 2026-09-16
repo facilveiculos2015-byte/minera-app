@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -40,3 +40,8 @@ Incremental após 17: `chat_contatos`, `chat_leituras`; RLS chat só participant
 ## 19-fixes.sql
 Incremental após 18: RLS chat INSERT exige `para_auth_id` (DM real); SELECT esconde `agendada` do destinatário; trigger trava `de_auth_id`/`para_auth_id` no UPDATE. Idempotente. NÃO wipe.
 **Parent deve aplicar no Supabase SQL Editor após 18.**
+
+
+## 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql
+O SQL 20 limpa dados de teste e mantém o admin e o operador de teste. O SQL 21 cria os RPCs `chat_diretorio()` e `chat_buscar_email(text)` como `SECURITY DEFINER`, permitindo ao chat consultar os perfis públicos de todos os usuários autenticados (exceto o próprio) mesmo com o isolamento de RLS em `usuarios`.
+**Parent deve aplicar o SQL 21 no Supabase SQL Editor após 20.**

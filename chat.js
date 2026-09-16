@@ -189,9 +189,14 @@ function renderMedia(m) {
 
 async function rpcDiretorio(busca) {
     try {
-        const { data, error } = await supabaseClient.rpc('chat_diretorio', { p_busca: busca || null });
+        // O diretório usa RPC sem argumentos para atravessar o RLS isolado de
+        // usuarios; a busca é aplicada localmente aos campos públicos.
+        const { data, error } = await supabaseClient.rpc('chat_diretorio');
         if (error) throw error;
-        return data || [];
+        const termo = String(busca || '').trim().toLowerCase();
+        return (data || []).filter(u => !termo ||
+            String(u.nome || '').toLowerCase().includes(termo) ||
+            String(u.email || '').toLowerCase().includes(termo));
     } catch (e) {
         console.warn('chat_diretorio', e);
         return [];
