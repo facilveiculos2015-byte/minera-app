@@ -8,6 +8,8 @@ const PAPEIS_EDIT = [
     'admin'
 ];
 let perfilAtual = null;
+/** @type {object|null} active pix_admin row */
+let pixAtivoCache = null;
 
 function lerPapeisForm() {
     return PAPEIS_EDIT.filter(id => {
@@ -115,15 +117,64 @@ async function buscarPixAtivo() {
     return any || null;
 }
 
+/**
+ * Build / refresh Copia e Cola + QR for current pix key and optional amount.
+ * @param {number|string|null} [valor]
+ * @param {string} [txid]
+ */
+function atualizarPixEmv(valor, txid) {
+    const panel = document.getElementById('pix-emv-panel');
+    const ta = document.getElementById('pix-copia-cola');
+    const qrEl = document.getElementById('pix-qr');
+    if (!panel || !ta || !qrEl) return;
+
+    const pix = pixAtivoCache;
+    const chave = (pix && pix.chave_pix) || (window.PixBrCode && PixBrCode.FALLBACK_CHAVE) || '';
+    if (!chave || typeof gerarPixCopiaCola !== 'function') {
+        panel.classList.add('oculto');
+        return;
+    }
+
+    const nome = (pix && pix.titular) || (window.PixBrCode && PixBrCode.FALLBACK_NOME) || 'JeL empreendimentos';
+    const cidade = (window.PixBrCode && PixBrCode.FALLBACK_CIDADE) || 'BELEM';
+
+    let amount = valor;
+    if (amount == null || amount === '') {
+        const input = document.getElementById('pix-valor');
+        amount = input && input.value !== '' ? input.value : null;
+    }
+
+    try {
+        const payload = gerarPixCopiaCola({
+            chave,
+            nome,
+            cidade,
+            valor: amount,
+            txid: txid || (amount != null && amount !== '' ? 'COMISSAO' : '***')
+        });
+        ta.value = payload;
+        panel.classList.remove('oculto');
+        if (window.PixBrCode && typeof PixBrCode.renderQr === 'function') {
+            PixBrCode.renderQr(qrEl, payload, 200);
+        }
+    } catch (e) {
+        console.warn('Pix EMV', e);
+        panel.classList.add('oculto');
+    }
+}
+
 async function carregarPixUsuario() {
     const info = document.getElementById('pix-user-info');
     const form = document.getElementById('form-pix-comprovante');
     if (!info) return;
     try {
         const pix = await buscarPixAtivo();
+        pixAtivoCache = pix;
         if (!pix || !pix.chave_pix) {
             info.innerHTML = '<p class="sub">Nenhuma chave Pix ativa no momento.</p>';
             if (form) form.classList.add('oculto');
+            const panel = document.getElementById('pix-emv-panel');
+            if (panel) panel.classList.add('oculto');
             return;
         }
         info.innerHTML = '<div class="pix-box"><strong>Chave Pix</strong>' +
@@ -133,6 +184,7 @@ async function carregarPixUsuario() {
             (pix.instrucoes ? '<p>' + String(pix.instrucoes).replace(/</g,'&lt;') + '</p>' : '') +
             '</div>';
         if (form) form.classList.remove('oculto');
+        atualizarPixEmv();
     } catch (e) {
         info.innerHTML = '<p class="erro">Pix indisponível (rode SQL 10): ' + (e.message || e) + '</p>';
         if (form) form.classList.add('oculto');
@@ -187,6 +239,36 @@ if (formPix) {
         msgEl.className = 'msg ok';
         formPix.reset();
         carregarMeusPix();
+        atualizarPixEmv();
+    });
+}
+
+const pixValorInput = document.getElementById('pix-valor');
+if (pixValorInput) {
+    pixValorInput.addEventListener('input', () => atualizarPixEmv());
+    pixValorInput.addEventListener('change', () => atualizarPixEmv());
+}
+
+const btnCopiarPix = document.getElementById('btn-copiar-pix');
+if (btnCopiarPix) {
+    btnCopiarPix.addEventListener('click', async () => {
+        const ta = document.getElementById('pix-copia-cola');
+        const payload = ta && ta.value;
+        if (!payload) return toastMsg('Nada para copiar');
+        try {
+            if (window.PixBrCode && PixBrCode.copiarTexto) {
+                await PixBrCode.copiarTexto(payload);
+            } else {
+                await navigator.clipboard.writeText(payload);
+            }
+            toastMsg('Pix Copia e Cola copiado!');
+        } catch (e) {
+            if (ta) {
+                ta.focus();
+                ta.select();
+            }
+            toastMsg('Selecione e copie manualmente (Ctrl+C)');
+        }
     });
 }
 
@@ -237,6 +319,7 @@ document.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act="pagar-comissao"]');
     if (!btn) return;
     const valor = btn.getAttribute('data-valor');
+    const comissaoId = btn.getAttribute('data-id');
     const card = document.getElementById('card-pix-user');
     const input = document.getElementById('pix-valor');
     if (input && valor != null) {
@@ -248,7 +331,9 @@ document.addEventListener('click', (e) => {
         const form = document.getElementById('form-pix-comprovante');
         if (form) form.classList.remove('oculto');
     }
-    toastMsg('Valor da comissão preenchido no Pix — envie o comprovante');
+    const txid = comissaoId ? ('C' + String(comissaoId).replace(/\D/g, '').slice(0, 24)) : 'COMISSAO';
+    atualizarPixEmv(valor, txid);
+    toastMsg('QR e Copia e Cola prontos — pague e envie o comprovante');
 });
 
 // Hook after init: load pix when perfil ready

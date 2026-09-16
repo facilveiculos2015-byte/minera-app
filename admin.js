@@ -147,6 +147,8 @@ async function carregarPixAdmin() {
         const ativo = (data || []).find(p => isPixAtivo(p.ativo)) || (data && data[0]);
         if (!ativo) {
             box.classList.add('oculto');
+            const prev = document.getElementById('pix-admin-preview');
+            if (prev) prev.classList.add('oculto');
             return;
         }
         box.classList.remove('oculto');
@@ -162,11 +164,79 @@ async function carregarPixAdmin() {
         // Prefer showing as active if this is the chosen row (even if DB null/legacy)
         document.getElementById('pix-ativo').checked = isPixAtivo(ativo.ativo) || ativo === (data && data[0]);
         box.dataset.id = ativo.id;
+        atualizarPixAdminPreview(ativo);
     } catch (e) {
         box.classList.remove('oculto');
         box.innerHTML = '<p class="erro">Pix indisponível: ' + esc(e.message) + ' (SQL 10)</p>';
+        const prev = document.getElementById('pix-admin-preview');
+        if (prev) prev.classList.add('oculto');
     }
 }
+
+/** Preview QR + Copia e Cola for sample R$ 1,00 (or key-only if no amount desired). */
+function atualizarPixAdminPreview(pix) {
+    const panel = document.getElementById('pix-admin-preview');
+    const ta = document.getElementById('pix-admin-copia');
+    const qrEl = document.getElementById('pix-admin-qr');
+    if (!panel || !ta || !qrEl) return;
+    const chaveEl = document.getElementById('pix-chave');
+    const chave = (pix && pix.chave_pix) || (chaveEl && chaveEl.value.trim()) || '';
+    if (!chave || typeof gerarPixCopiaCola !== 'function') {
+        panel.classList.add('oculto');
+        return;
+    }
+    const nome = (pix && pix.titular) ||
+        (document.getElementById('pix-titular') && document.getElementById('pix-titular').value.trim()) ||
+        (window.PixBrCode && PixBrCode.FALLBACK_NOME) ||
+        'JeL empreendimentos';
+    const cidade = (window.PixBrCode && PixBrCode.FALLBACK_CIDADE) || 'BELEM';
+    try {
+        const payload = gerarPixCopiaCola({
+            chave,
+            nome,
+            cidade,
+            valor: 1.0,
+            txid: 'TESTE1'
+        });
+        ta.value = payload;
+        panel.classList.remove('oculto');
+        if (window.PixBrCode && typeof PixBrCode.renderQr === 'function') {
+            PixBrCode.renderQr(qrEl, payload, 180);
+        }
+    } catch (e) {
+        console.warn('admin pix preview', e);
+        panel.classList.add('oculto');
+    }
+}
+
+const btnAdminCopiar = document.getElementById('btn-admin-copiar-pix');
+if (btnAdminCopiar) {
+    btnAdminCopiar.addEventListener('click', async () => {
+        const ta = document.getElementById('pix-admin-copia');
+        const payload = ta && ta.value;
+        if (!payload) return toastMsg('Nada para copiar');
+        try {
+            if (window.PixBrCode && PixBrCode.copiarTexto) await PixBrCode.copiarTexto(payload);
+            else await navigator.clipboard.writeText(payload);
+            toastMsg('Pix Copia e Cola copiado!');
+        } catch (e) {
+            if (ta) { ta.focus(); ta.select(); }
+            toastMsg('Selecione e copie manualmente (Ctrl+C)');
+        }
+    });
+}
+
+// Live preview when editing chave/titular
+['pix-chave', 'pix-titular'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+        atualizarPixAdminPreview({
+            chave_pix: document.getElementById('pix-chave').value.trim(),
+            titular: document.getElementById('pix-titular').value.trim()
+        });
+    });
+});
 
 document.getElementById('form-pix-admin').addEventListener('submit', async (e) => {
     e.preventDefault();

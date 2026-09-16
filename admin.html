@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Admin</title>
-    <link rel="stylesheet" href="style.css?v=20260916j">
+    <link rel="stylesheet" href="style.css?v=20260916k">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container wide">
@@ -67,6 +68,16 @@
             </form>
             <p id="pix-admin-msg" class="msg"></p>
             <div id="pix-admin-atual" class="pix-box oculto"></div>
+            <div id="pix-admin-preview" class="pix-emv-panel oculto">
+                <h3 class="pix-preview-title">Preview QR (teste R$ 1,00)</h3>
+                <div id="pix-admin-qr" class="pix-qr" aria-label="QR Code Pix preview"></div>
+                <label for="pix-admin-copia">Pix Copia e Cola</label>
+                <textarea id="pix-admin-copia" readonly rows="3"></textarea>
+                <div class="pix-emv-actions">
+                    <button type="button" id="btn-admin-copiar-pix" class="btn-ok">Copiar Pix</button>
+                </div>
+                <p class="sub pix-hint">Abra o Nubank → Pix → QR ou Copia e Cola. O app não confirma o pagamento sozinho ainda.</p>
+            </div>
         </section>
 
 
@@ -88,9 +99,10 @@
             Ou marque Admin em Perfil se você já for admin.</p>
         </section>
     </div>
-    <script src="config.js?v=20260916j"></script>
-    <script src="auth-guard.js?v=20260916j"></script>
-    <script src="nav.js?v=20260916j"></script>
-    <script src="admin.js?v=20260916j"></script>
+    <script src="config.js?v=20260916k"></script>
+    <script src="auth-guard.js?v=20260916k"></script>
+    <script src="nav.js?v=20260916k"></script>
+    <script src="pix-brcode.js?v=20260916k"></script>
+    <script src="admin.js?v=20260916k"></script>
 </body>
 </html>

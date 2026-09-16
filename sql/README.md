@@ -12,3 +12,7 @@ lotes.lat / lotes.lng (opcional) para marcadores no Mapa de Satélite. Idempoten
 
 ## 12-comissoes.sql
 Tabela `comissoes` (1% venda → pendente/pago) + RLS. Idempotent. NÃO wipe.
+
+## Pix estático (app) + futuro Nubank API
+O front gera EMV Copia e Cola + QR (`pix-brcode.js`) a partir de `pix_admin`.
+Plano API dinâmica / webhook: ver `docs/nubank-pix-api-plan.md` (fora de escopo agora).

@@ -790,6 +790,51 @@ body.has-bottom-nav .app-toast {
     word-break: break-all;
     margin: 6px 0;
 }
+
+/* ===== Pix Copia e Cola + QR ===== */
+.pix-emv-panel {
+    margin-top: 14px;
+    padding: 14px;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.pix-preview-title {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+.pix-qr {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 8px auto 12px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 8px;
+    width: fit-content;
+    max-width: 100%;
+}
+.pix-qr img, .pix-qr canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+.pix-emv-panel textarea {
+    width: 100%;
+    font-family: ui-monospace, monospace;
+    font-size: 0.78rem;
+    word-break: break-all;
+    resize: vertical;
+    min-height: 72px;
+}
+.pix-emv-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+.pix-hint { margin-top: 6px; }
 .admin-tabs { margin-bottom: 12px; }
 
 @media (max-width: 640px) {
