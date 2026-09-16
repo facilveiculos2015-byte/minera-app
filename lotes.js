@@ -214,4 +214,13 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
     aplicarUserLabel(perfilAtual);
     montarNav('lotes', perfilAtual);
     carregarLotes();
+    try {
+        const u = new URL(window.location.href);
+        if (u.searchParams.get('novo') === '1' || u.hash === '#novo') {
+            setTimeout(() => {
+                const b = document.getElementById('btn-novo-lote');
+                if (b) b.click();
+            }, 200);
+        }
+    } catch (e) {}
 })();

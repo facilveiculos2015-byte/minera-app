@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Feed</title>
-    <link rel="stylesheet" href="style.css?v=20260916e">
+    <link rel="stylesheet" href="style.css?v=20260916f">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -21,6 +21,34 @@
         </header>
 
         <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card cotacoes-card" id="card-cotacoes">
+            <h2>Cotações</h2>
+            <p class="sub">Spot / COMEX / LBMA aproximados — não é feed oficial da LME</p>
+            <div class="cotacoes-grid" id="cotacoes-grid">
+                <div class="cotacao-item">
+                    <div class="c-label">Dólar (USD/BRL)</div>
+                    <div class="c-valor" id="cot-dolar">—</div>
+                    <div class="c-sub" id="cot-dolar-sub">AwesomeAPI</div>
+                </div>
+                <div class="cotacao-item">
+                    <div class="c-label">Ouro</div>
+                    <div class="c-valor" id="cot-ouro">—</div>
+                    <div class="c-sub" id="cot-ouro-sub">USD/oz · spot approx</div>
+                </div>
+                <div class="cotacao-item">
+                    <div class="c-label">Cobre</div>
+                    <div class="c-valor" id="cot-cobre">—</div>
+                    <div class="c-sub" id="cot-cobre-sub">USD · spot approx</div>
+                </div>
+            </div>
+            <div class="cotacoes-links">
+                <a href="https://www.lme.com/en/Metals/Non-ferrous/LME-Copper" target="_blank" rel="noopener">LME Copper</a>
+                <a href="https://www.lme.com/" target="_blank" rel="noopener">LME Home</a>
+                <a href="https://www.lbma.org.uk/prices-and-data/precious-metal-prices" target="_blank" rel="noopener">Gold LBMA</a>
+            </div>
+            <p class="cotacoes-fonte" id="cotacoes-atualizado">Atualizando a cada 60s…</p>
+        </section>
 
         <section class="card">
             <h2>Marketplace</h2>
@@ -42,9 +70,9 @@
             <div id="feed" class="loading">Carregando...</div>
         </section>
     </div>
-    <script src="config.js?v=20260916e"></script>
-    <script src="auth-guard.js?v=20260916e"></script>
-    <script src="nav.js?v=20260916e"></script>
-    <script src="inicio.js?v=20260916e"></script>
+    <script src="config.js?v=20260916f"></script>
+    <script src="auth-guard.js?v=20260916f"></script>
+    <script src="nav.js?v=20260916f"></script>
+    <script src="inicio.js?v=20260916f"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Chat</title>
-    <link rel="stylesheet" href="style.css?v=20260916e">
+    <link rel="stylesheet" href="style.css?v=20260916f">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -22,16 +22,43 @@
             <h2>Chat da equipe</h2>
             <p id="chat-lote-ctx" class="sub oculto"></p>
             <div id="chat-msgs" class="chat-msgs"></div>
-            <form id="form-chat" class="chat-form">
-                <input type="text" id="chat-texto" placeholder="Escreva uma mensagem..." required maxlength="1000" autocomplete="off">
+
+            <div class="chat-toolbar">
+                <label class="btn-sm" for="chat-foto">📷 Foto</label>
+                <input type="file" id="chat-foto" accept="image/*" class="oculto">
+                <label class="btn-sm" for="chat-video">🎬 Vídeo</label>
+                <input type="file" id="chat-video" accept="video/*" class="oculto">
+                <button type="button" class="btn-sm" id="btn-audio">🎙️ Áudio</button>
+                <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
+                <button type="button" class="btn-sm" id="btn-toggle-agendar">🗓️ Agendar</button>
+            </div>
+            <p id="chat-anexo-info" class="hint oculto"></p>
+
+            <div id="chat-agendar-box" class="chat-agendar-row oculto">
+                <div style="flex:1">
+                    <label for="chat-agendar-em">Enviar em</label>
+                    <input type="datetime-local" id="chat-agendar-em">
+                </div>
+            </div>
+
+            <div class="chat-extra">
+                <div style="flex:1;min-width:160px">
+                    <label for="chat-url-midia">Ou cole URL da mídia</label>
+                    <input type="url" id="chat-url-midia" placeholder="https://... (opcional)">
+                </div>
+            </div>
+
+            <form id="form-chat" class="chat-form" style="margin-top:8px">
+                <input type="text" id="chat-texto" placeholder="Escreva uma mensagem..." maxlength="2000" autocomplete="off">
                 <button type="submit">Enviar</button>
             </form>
             <p id="chat-msg" class="msg"></p>
+            <p class="hint">Canal geral · poll 4s · Admin vê tudo. Bucket Storage: chat-midia (opcional).</p>
         </section>
     </div>
-    <script src="config.js?v=20260916e"></script>
-    <script src="auth-guard.js?v=20260916e"></script>
-    <script src="nav.js?v=20260916e"></script>
-    <script src="chat.js?v=20260916e"></script>
+    <script src="config.js?v=20260916f"></script>
+    <script src="auth-guard.js?v=20260916f"></script>
+    <script src="nav.js?v=20260916f"></script>
+    <script src="chat.js?v=20260916f"></script>
 </body>
 </html>

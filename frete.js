@@ -102,3 +102,40 @@ document.getElementById('form-frete').addEventListener('submit', async (e) => {
     await carregarLotesSelect();
     carregarFretes();
 })();
+
+async function carregarFretePix() {
+    const box = document.getElementById('frete-pix-info');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('pix_admin')
+            .select('*')
+            .eq('ativo', true)
+            .order('id', { ascending: false })
+            .limit(1);
+        if (error) throw error;
+        const pix = data && data[0];
+        if (!pix) {
+            box.innerHTML = '<p class="sub">Nenhuma chave Pix ativa.</p>';
+            return;
+        }
+        box.innerHTML = '<div class="pix-box"><div class="pix-chave">' +
+            String(pix.chave_pix).replace(/</g,'&lt;') + '</div>' +
+            '<p class="sub">' + (pix.titular ? String(pix.titular).replace(/</g,'&lt;') : '') + '</p></div>';
+    } catch (e) {
+        box.innerHTML = '<p class="sub">Pix (SQL 10): ' + (e.message || '') + '</p>';
+    }
+}
+// call after page ready
+(async function () {
+    for (let i = 0; i < 40; i++) {
+        if (perfilAtual) break;
+        await new Promise(r => setTimeout(r, 50));
+    }
+    carregarFretePix();
+})();
+
+const linkPix = document.getElementById('link-pix-perfil');
+if (linkPix && typeof APP_ROOT !== 'undefined') {
+    linkPix.href = APP_ROOT + 'perfil.html#pix';
+}

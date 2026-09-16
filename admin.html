@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Admin</title>
+    <link rel="stylesheet" href="style.css?v=20260916f">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container wide">
+        <header class="header-row">
+            <div>
+                <h1>Minera App</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+        </header>
+        <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card">
+            <h2>Painel Admin</h2>
+            <p class="sub">Visão geral · somente administradores</p>
+            <div class="kpi-grid admin-kpis" id="admin-kpis">
+                <div class="kpi-card"><div class="kpi-value" id="kpi-usuarios">—</div><div class="kpi-label">Usuários</div></div>
+                <div class="kpi-card"><div class="kpi-value" id="kpi-lotes">—</div><div class="kpi-label">Lotes</div></div>
+                <div class="kpi-card"><div class="kpi-value" id="kpi-fretes">—</div><div class="kpi-label">Fretes</div></div>
+                <div class="kpi-card"><div class="kpi-value" id="kpi-msgs">—</div><div class="kpi-label">Mensagens</div></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Usuários</h2>
+            <div id="admin-usuarios" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Lotes recentes</h2>
+            <div id="admin-lotes" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Monitor Chat</h2>
+            <p class="sub">Flag / soft-delete (moderacao / deleted_at)</p>
+            <div id="admin-chat" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Pix (chave admin)</h2>
+            <form id="form-pix-admin">
+                <label for="pix-chave">Chave Pix</label>
+                <input type="text" id="pix-chave" required placeholder="CPF, e-mail, telefone ou aleatória">
+                <label for="pix-tipo">Tipo da chave</label>
+                <select id="pix-tipo">
+                    <option value="aleatoria">Aleatória</option>
+                    <option value="cpf">CPF</option>
+                    <option value="cnpj">CNPJ</option>
+                    <option value="email">E-mail</option>
+                    <option value="telefone">Telefone</option>
+                </select>
+                <label for="pix-titular">Titular</label>
+                <input type="text" id="pix-titular" placeholder="Nome do titular">
+                <label for="pix-instrucoes">Instruções</label>
+                <textarea id="pix-instrucoes" rows="2" placeholder="Ex: Envie o comprovante após o pagamento"></textarea>
+                <label class="check-row"><input type="checkbox" id="pix-ativo" checked> Ativo</label>
+                <button type="submit">Salvar chave Pix</button>
+            </form>
+            <p id="pix-admin-msg" class="msg"></p>
+            <div id="pix-admin-atual" class="pix-box oculto"></div>
+        </section>
+
+        <section class="card">
+            <h2>Pagamentos Pix</h2>
+            <div id="admin-pix-pag" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Promover admin</h2>
+            <p class="hint">Primeiro admin: no SQL rode<br>
+            <code>UPDATE usuarios SET tipo='admin', papeis = array_append(COALESCE(papeis,'{}'),'admin') WHERE email='seu@email.com';</code><br>
+            Ou marque Admin em Perfil se você já for admin.</p>
+        </section>
+    </div>
+    <script src="config.js?v=20260916f"></script>
+    <script src="auth-guard.js?v=20260916f"></script>
+    <script src="nav.js?v=20260916f"></script>
+    <script src="admin.js?v=20260916f"></script>
+</body>
+</html>

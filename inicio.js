@@ -1,6 +1,8 @@
 let feedCache = [];
 let filtroTipo = '';
 let filtroStatus = '';
+let cotacaoTimer = null;
+let ultimoUsdBrl = null;
 
 function tempoRelativo(iso) {
     if (!iso) return '';
@@ -28,6 +30,121 @@ function imgPlaceholder(tipo) {
     else if (t === 'ferro') emoji = '⚙️';
     else if (t === 'cobre') emoji = '🔶';
     return '<div class="lote-img placeholder" aria-hidden="true"><span>' + emoji + '</span></div>';
+}
+
+function fmtUsd(n) {
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+}
+
+function fmtBrl(n) {
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+async function fetchJson(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+}
+
+async function carregarDolar() {
+    const data = await fetchJson('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+    const bid = parseFloat(data.USDBRL && data.USDBRL.bid);
+    if (!bid) throw new Error('sem bid');
+    ultimoUsdBrl = bid;
+    document.getElementById('cot-dolar').textContent = fmtBrl(bid);
+    const pct = data.USDBRL.pctChange;
+    document.getElementById('cot-dolar-sub').textContent =
+        'AwesomeAPI' + (pct != null ? ' · var ' + pct + '%' : '');
+    return bid;
+}
+
+async function carregarOuro() {
+    // mintedmetal prices.json — gold USD/oz
+    try {
+        const data = await fetchJson('https://mintedmetal.com/api/prices.json');
+        let usd = null;
+        if (data && typeof data === 'object') {
+            if (data.gold != null) usd = parseFloat(data.gold);
+            else if (data.Gold != null) usd = parseFloat(data.Gold);
+            else if (data.prices && data.prices.gold != null) usd = parseFloat(data.prices.gold);
+            else if (data.XAU != null) usd = parseFloat(data.XAU);
+            else {
+                // tenta achar primeiro número razoável em gold*
+                for (const k of Object.keys(data)) {
+                    if (/gold|xau/i.test(k) && typeof data[k] === 'number') {
+                        usd = data[k];
+                        break;
+                    }
+                    if (/gold|xau/i.test(k) && data[k] && data[k].price != null) {
+                        usd = parseFloat(data[k].price);
+                        break;
+                    }
+                }
+            }
+        }
+        if (usd == null || isNaN(usd)) throw new Error('parse gold');
+        const brl = ultimoUsdBrl ? usd * ultimoUsdBrl : null;
+        document.getElementById('cot-ouro').textContent = fmtUsd(usd);
+        document.getElementById('cot-ouro-sub').textContent =
+            'USD/oz spot (mintedmetal)' + (brl ? ' · ' + fmtBrl(brl) : '');
+        return usd;
+    } catch (e) {
+        document.getElementById('cot-ouro').textContent = '—';
+        document.getElementById('cot-ouro-sub').textContent = 'CORS/API indisponível · veja LBMA';
+        throw e;
+    }
+}
+
+async function carregarCobre() {
+    try {
+        const data = await fetchJson('https://metalmetric.com/api/gpt?action=spot_prices');
+        let usd = null;
+        const tryObj = (obj) => {
+            if (!obj || typeof obj !== 'object') return null;
+            if (obj.copper != null) return parseFloat(obj.copper);
+            if (obj.Copper != null) return parseFloat(obj.Copper);
+            if (obj.HG != null) return parseFloat(obj.HG);
+            if (obj.CU != null) return parseFloat(obj.CU);
+            for (const k of Object.keys(obj)) {
+                if (/copper|cobre|hg/i.test(k)) {
+                    const v = obj[k];
+                    if (typeof v === 'number') return v;
+                    if (v && v.price != null) return parseFloat(v.price);
+                    if (v && v.usd != null) return parseFloat(v.usd);
+                }
+            }
+            return null;
+        };
+        usd = tryObj(data) || tryObj(data && data.prices) || tryObj(data && data.spot_prices) || tryObj(data && data.data);
+        if (usd == null || isNaN(usd)) throw new Error('parse copper');
+        const brl = ultimoUsdBrl ? usd * ultimoUsdBrl : null;
+        document.getElementById('cot-cobre').textContent = fmtUsd(usd);
+        document.getElementById('cot-cobre-sub').textContent =
+            'USD spot (metalmetric)' + (brl ? ' · ' + fmtBrl(brl) : '');
+        return usd;
+    } catch (e) {
+        document.getElementById('cot-cobre').textContent = '—';
+        document.getElementById('cot-cobre-sub').textContent = 'CORS/API indisponível · veja LME Copper';
+        throw e;
+    }
+}
+
+async function atualizarCotacoes() {
+    const stamp = document.getElementById('cotacoes-atualizado');
+    try {
+        await carregarDolar();
+    } catch (e) {
+        document.getElementById('cot-dolar').textContent = '—';
+        document.getElementById('cot-dolar-sub').textContent = 'Falha AwesomeAPI';
+    }
+    try { await carregarOuro(); } catch (e) { /* already set */ }
+    try { await carregarCobre(); } catch (e) { /* already set */ }
+    if (stamp) {
+        stamp.textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR') +
+            ' · fontes spot/COMEX/LBMA approx (não LME oficial)';
+    }
 }
 
 function renderFeed(lista) {
@@ -122,5 +239,11 @@ async function carregarFeed() {
     bindChipGroup('filtro-status-chips', 'data-status', v => { filtroStatus = v; });
     const notif = document.getElementById('btn-notif');
     if (notif) notif.addEventListener('click', () => toastMsg('Sem notificações'));
+    atualizarCotacoes();
+    cotacaoTimer = setInterval(atualizarCotacoes, 60000);
     carregarFeed();
 })();
+
+window.addEventListener('beforeunload', () => {
+    if (cotacaoTimer) clearInterval(cotacaoTimer);
+});

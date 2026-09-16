@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Perfil</title>
-    <link rel="stylesheet" href="style.css?v=20260916e">
+    <link rel="stylesheet" href="style.css?v=20260916f">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -40,10 +40,25 @@
             </form>
             <p id="perfil-msg" class="msg"></p>
         </section>
+
+        <section class="card" id="card-pix-user">
+            <h2>Pagar via Pix</h2>
+            <div id="pix-user-info" class="loading">Carregando chave...</div>
+            <form id="form-pix-comprovante" class="oculto" style="margin-top:12px">
+                <label for="pix-valor">Valor (R$)</label>
+                <input type="number" id="pix-valor" step="0.01" min="0" placeholder="0,00">
+                <label for="pix-comprovante">URL do comprovante</label>
+                <input type="url" id="pix-comprovante" required placeholder="https://... ou link do comprovante">
+                <button type="submit">Enviei comprovante</button>
+            </form>
+            <p id="pix-user-msg" class="msg"></p>
+            <div id="pix-user-hist" class="sub"></div>
+        </section>
+
     </div>
-    <script src="config.js?v=20260916e"></script>
-    <script src="auth-guard.js?v=20260916e"></script>
-    <script src="nav.js?v=20260916e"></script>
-    <script src="perfil.js?v=20260916e"></script>
+    <script src="config.js?v=20260916f"></script>
+    <script src="auth-guard.js?v=20260916f"></script>
+    <script src="nav.js?v=20260916f"></script>
+    <script src="perfil.js?v=20260916f"></script>
 </body>
 </html>
