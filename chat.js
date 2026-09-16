@@ -1018,7 +1018,7 @@ function resetAudioBtn() {
     if (!btn) return;
     btn.textContent = '🎙️ Áudio';
     btn.classList.remove('btn-danger', 'recording', 'btn-ok');
-    btn.title = 'Segure para gravar';
+    btn.title = 'Segure para gravar ou toque para iniciar';
 }
 
 function onRecordingReady(blob) {
@@ -1052,22 +1052,34 @@ function onRecordingReady(blob) {
     setAnexoInfo('Áudio pronto — toque Enviar');
 }
 
+function toastAudio(msg) {
+    const msgEl = document.getElementById('chat-msg');
+    if (msgEl) {
+        msgEl.textContent = msg;
+        msgEl.className = 'msg erro';
+    }
+    if (typeof toastMsg === 'function') toastMsg(msg);
+    setAnexoInfo(msg);
+}
+
 async function startRecording(fromHold) {
-    if (!navigator.mediaDevices || !window.MediaRecorder) {
-        document.getElementById('chat-audio-file').click();
-        return;
-    }
     if (!contatoAtivo || !contatoAtivo.auth_id) {
-        const msgEl = document.getElementById('chat-msg');
-        if (msgEl) {
-            msgEl.textContent = 'Selecione um contato primeiro.';
-            msgEl.className = 'msg erro';
-        }
+        toastAudio('Selecione um contato primeiro.');
         return;
     }
+    if (!window.isSecureContext) {
+        toastAudio('Microfone exige HTTPS. Use “Anexar áudio” ou abra o site seguro.');
+        return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        toastAudio('Gravação não suportada neste navegador. Use “Anexar áudio”.');
+        return;
+    }
+    if (gravando) return;
     audioCancelado = false;
     audioHoldMode = !!fromHold;
     try {
+        // getUserMedia deve rodar no gesto do usuário (pointerdown), sem setTimeout
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioChunks = [];
         const mime = pickRecorderMime();
@@ -1111,7 +1123,20 @@ async function startRecording(fromHold) {
         showMediaPreview(null);
     } catch (err) {
         console.warn(err);
-        document.getElementById('chat-audio-file').click();
+        gravando = false;
+        resetAudioBtn();
+        const name = (err && err.name) || '';
+        let msg = 'Não foi possível acessar o microfone.';
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+            msg = 'Permissão do microfone negada. Libere o mic nas configurações do navegador ou use “Anexar áudio”.';
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+            msg = 'Nenhum microfone encontrado. Use “Anexar áudio”.';
+        } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+            msg = 'Microfone em uso por outro app. Feche-o ou use “Anexar áudio”.';
+        } else if (err && err.message) {
+            msg = 'Microfone: ' + err.message;
+        }
+        toastAudio(msg);
     }
 }
 
@@ -1286,49 +1311,62 @@ document.getElementById('chat-audio-file').addEventListener('change', async (e) 
     const btn = document.getElementById('btn-audio');
     if (!btn || btn._audioBound) return;
     btn._audioBound = true;
-    let holdTimer = null;
     let holdStarted = false;
     let pointerDown = false;
     let suppressClick = false;
-
-    const clearHold = () => {
-        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-    };
+    let downAt = 0;
+    let startPromise = null;
 
     btn.addEventListener('pointerdown', (e) => {
         if (e.button != null && e.button !== 0) return;
         if (anexoPendente && anexoPendente.tipo === 'audio' && !gravando) return;
         if (gravando) return;
-        holdStarted = false;
+        holdStarted = true;
         pointerDown = true;
+        downAt = Date.now();
         audioPointerId = e.pointerId;
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-        holdTimer = setTimeout(async () => {
-            holdStarted = true;
-            await startRecording(true);
-            if (!pointerDown && gravando) stopRecording(false);
-        }, 220);
+        // Inicia no gesto do usuário (não em setTimeout) — evita fallback silencioso ao file picker
+        startPromise = startRecording(true).then(() => {
+            if (!pointerDown && gravando && audioHoldMode) {
+                // soltou antes do mic abrir: se foi toque curto, vira modo toggle
+                if (Date.now() - downAt < 280) {
+                    audioHoldMode = false;
+                    setAnexoInfo('Gravando… toque de novo para parar');
+                } else {
+                    stopRecording(false);
+                }
+            }
+        });
     });
 
     const endHold = (e) => {
-        clearHold();
         if (audioPointerId != null && e.pointerId !== audioPointerId && e.type !== 'pointercancel') return;
+        const wasDown = pointerDown;
         pointerDown = false;
-        if (holdStarted) {
-            suppressClick = true;
-            if (gravando) stopRecording(false);
+        if (!wasDown || !holdStarted) {
             holdStarted = false;
             audioPointerId = null;
-            e.preventDefault();
             return;
+        }
+        const dur = Date.now() - downAt;
+        suppressClick = true;
+        if (gravando && audioHoldMode) {
+            if (dur >= 280) {
+                stopRecording(false);
+            } else {
+                // Toque curto: continua gravando até segundo toque (estilo toggle)
+                audioHoldMode = false;
+                setAnexoInfo('Gravando… toque de novo para parar');
+            }
         }
         holdStarted = false;
         audioPointerId = null;
+        try { e.preventDefault(); } catch (err) { /* ignore */ }
     };
 
     btn.addEventListener('pointerup', endHold);
     btn.addEventListener('pointercancel', () => {
-        clearHold();
         pointerDown = false;
         suppressClick = holdStarted;
         if (gravando && audioHoldMode) stopRecording(true);
@@ -1347,8 +1385,12 @@ document.getElementById('chat-audio-file').addEventListener('change', async (e) 
             await enviarAnexoPendente();
             return;
         }
-        if (!gravando) await startRecording(false);
-        else stopRecording(false);
+        if (gravando) {
+            stopRecording(false);
+            return;
+        }
+        // Clique sem pointerdown (teclado/acessibilidade)
+        await startRecording(false);
     });
 })();
 
