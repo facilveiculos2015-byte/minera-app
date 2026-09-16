@@ -9,6 +9,7 @@ const NAV_PRIMARIOS = [
 ];
 
 const NAV_SECUNDARIOS = [
+    { id: 'financeiro', label: 'Caixa Minera', href: 'financeiro.html', featured: true },
     { id: 'mapa', label: 'Mapa de Satélite', href: 'mapa.html' },
     { id: 'britagem', label: 'Britagem', href: 'processamento.html' },
     { id: 'frete', label: 'Logística', href: 'frete.html' },
@@ -19,14 +20,14 @@ const NAV_SECUNDARIOS = [
 ];
 
 const PAPEIS_CHIPS = {
-    minerador: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
-    comprador: ['inicio', 'chat', 'perfil', 'mapa'],
-    transportador: ['inicio', 'frete', 'chat', 'perfil'],
-    transportador_mina_britador: ['inicio', 'frete', 'chat', 'perfil'],
-    transportador_britador_porto: ['inicio', 'frete', 'chat', 'perfil'],
-    dono_britador: ['inicio', 'britagem', 'estoque', 'chat', 'perfil'],
-    carregamento: ['inicio', 'expedicao', 'frete', 'chat', 'perfil'],
-    admin: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'estoque', 'expedicao', 'relatorios', 'admin']
+    minerador: ['inicio', 'financeiro', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
+    comprador: ['inicio', 'financeiro', 'chat', 'perfil', 'mapa'],
+    transportador: ['inicio', 'financeiro', 'frete', 'chat', 'perfil'],
+    transportador_mina_britador: ['inicio', 'financeiro', 'frete', 'chat', 'perfil'],
+    transportador_britador_porto: ['inicio', 'financeiro', 'frete', 'chat', 'perfil'],
+    dono_britador: ['inicio', 'financeiro', 'britagem', 'estoque', 'chat', 'perfil'],
+    carregamento: ['inicio', 'financeiro', 'expedicao', 'frete', 'chat', 'perfil'],
+    admin: ['inicio', 'financeiro', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'estoque', 'expedicao', 'relatorios', 'admin']
 };
 
 function iniciaisNome(nome) {
@@ -42,7 +43,7 @@ function chipsPermitidos(perfil) {
     if (typeof ehAdmin === 'function' && ehAdmin(perfil)) return allIds;
     const papeis = Array.isArray(perfil.papeis) ? perfil.papeis : [];
     if (!papeis.length) return allIds.filter(id => id !== 'admin');
-    const set = new Set(['perfil', 'inicio', 'chat', 'mapa']);
+    const set = new Set(['perfil', 'inicio', 'chat', 'mapa', 'financeiro']);
     papeis.forEach(p => {
         const key = String(p).toLowerCase();
         const chips = PAPEIS_CHIPS[key];
@@ -88,7 +89,8 @@ function garantirMaisSheet(secundarios) {
         extras.push({ id: 'tutorial', label: 'Tutorial', href: 'tutorial.html' });
     }
     list.innerHTML = extras.map(it =>
-        '<a class="mais-item" href="' + APP_ROOT + it.href + '">' + it.label + '</a>'
+        '<a class="mais-item' + (it.featured ? ' mais-item-featured' : '') + '" href="' + APP_ROOT + it.href + '">' +
+        (it.featured ? '🏦 ' : '') + it.label + '</a>'
     ).join('') || '<p class="sub">Nenhuma opção extra para seus papéis.</p>';
 
     const btnSair = document.getElementById('mais-sair');
@@ -119,7 +121,8 @@ function montarNav(paginaAtiva, perfil) {
         topNav.className = 'nav-chips nav-secondary';
         let html = secs.map(it => {
             const on = it.id === paginaAtiva ? ' on' : '';
-            return '<a class="chip' + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
+            const feat = it.featured ? ' chip-featured' : '';
+            return '<a class="chip' + feat + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
         }).join('');
         html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
         html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';

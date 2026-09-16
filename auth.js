@@ -17,6 +17,8 @@ function mostrarAba(nome) {
     formCad.style.display = entrar ? 'none' : 'flex';
     document.getElementById('tab-entrar').classList.toggle('on', entrar);
     document.getElementById('tab-cadastrar').classList.toggle('on', !entrar);
+    const welcome = document.getElementById('cadastro-welcome');
+    if (welcome) welcome.classList.toggle('oculto', entrar);
     document.getElementById('auth-msg').textContent = '';
     if (entrar) {
         const email = document.getElementById('login-email');

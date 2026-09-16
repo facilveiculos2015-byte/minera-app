@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09-ui-marketplace.sql → 10-chat-pix-admin.sql → 11-mapa-coords.sql → 12-comissoes.sql
+… → 08 → 09-ui-marketplace.sql → 10-chat-pix-admin.sql → 11-mapa-coords.sql → 12-comissoes.sql → 13-bloqueio-cotacoes.sql → 14-caixa-emprestimos.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -10,7 +10,7 @@ Primeiro admin: UPDATE usuarios SET tipo='admin', papeis=array_append(COALESCE(p
 ## 11-mapa-coords.sql
 lotes.lat / lotes.lng (opcional) para marcadores no Mapa de Satélite. Idempotent.
 
-## 12-comissoes.sql
+## 12-comissoes.sql → 13-bloqueio-cotacoes.sql → 14-caixa-emprestimos.sql
 Tabela `comissoes` (1% venda → pendente/pago) + RLS. Idempotent. NÃO wipe.
 
 ## Pix estático (app) + futuro Nubank API
@@ -19,3 +19,8 @@ Plano API dinâmica / webhook: ver `docs/nubank-pix-api-plan.md` (fora de escopo
 
 ## 13-bloqueio-cotacoes.sql
 Incremental: usuarios.bloqueado / bloqueado_motivo / bloqueado_em; tabela cotacoes_historico + RLS. Idempotente. NÃO wipe.
+
+## 14-caixa-emprestimos.sql
+Tabelas `emprestimos`, `caixa_saldos`, `caixa_movimentos` + RLS authenticated (select/insert/update). Idempotente. NÃO wipe.
+Caixa Minera (saldo + movimentos) e solicitações de empréstimo (status analise|aprovado|rejeitado|pago, juros 15%).
+

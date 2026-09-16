@@ -454,6 +454,119 @@ async function carregarComissoes() {
     }
 }
 
+
+async function creditarCaixaEmprestimo(emp) {
+    const uid = emp.auth_id;
+    const valor = Number(emp.valor) || 0;
+    if (!uid || !(valor > 0)) return;
+    let { data: row } = await supabaseClient
+        .from('caixa_saldos')
+        .select('*')
+        .eq('auth_id', uid)
+        .maybeSingle();
+    if (!row) {
+        const ins = await supabaseClient.from('caixa_saldos')
+            .insert([{ auth_id: uid, saldo: 0, taxa_mensal: 0.5 }])
+            .select('*').maybeSingle();
+        if (ins.error) throw ins.error;
+        row = ins.data;
+    }
+    const saldo = row && row.saldo != null ? Number(row.saldo) : 0;
+    const novo = saldo + valor;
+    const { error: movErr } = await supabaseClient.from('caixa_movimentos').insert([{
+        auth_id: uid,
+        tipo: 'emprestimo',
+        valor: valor,
+        saldo_apos: novo,
+        observacao: 'Empréstimo #' + emp.id + ' aprovado'
+    }]);
+    if (movErr) throw movErr;
+    const { error: upErr } = await supabaseClient.from('caixa_saldos').update({
+        saldo: novo,
+        atualizado_em: new Date().toISOString()
+    }).eq('auth_id', uid);
+    if (upErr) throw upErr;
+}
+
+async function carregarEmprestimosAdmin() {
+    const box = document.getElementById('admin-emprestimos');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('emprestimos')
+            .select('*')
+            .order('criado_em', { ascending: false })
+            .limit(80);
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p>Nenhum empréstimo.</p>';
+            return;
+        }
+        const lab = { analise: 'Em análise', aprovado: 'Aprovado', rejeitado: 'Rejeitado', pago: 'Pago' };
+        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Quando</th><th>Nome</th><th>Valor</th><th>Total</th><th>Prazo</th><th>Status</th><th></th></tr></thead><tbody>' +
+            data.map(e => {
+                const when = e.criado_em ? new Date(e.criado_em).toLocaleString('pt-BR') : '—';
+                const st = String(e.status || 'analise');
+                let btns = '';
+                if (st === 'analise') {
+                    btns = '<button type="button" class="btn-sm btn-ok" data-act="aprovar">Aprovar</button> ' +
+                        '<button type="button" class="btn-sm btn-danger" data-act="rejeitar">Rejeitar</button>';
+                } else if (st === 'aprovado') {
+                    btns = '<button type="button" class="btn-sm btn-ok" data-act="pago">Marcar pago</button>';
+                }
+                return `<tr data-id="${e.id}">
+                    <td>${esc(when)}</td>
+                    <td>${esc(e.nome || '—')}<br><span class="sub">${esc(e.finalidade || '')}</span></td>
+                    <td>${esc(Number(e.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
+                    <td>${esc(Number(e.total_previsto != null ? e.total_previsto : Number(e.valor) * 1.15).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
+                    <td>${esc(e.prazo_dias)} d</td>
+                    <td><span class="badge">${esc(lab[st] || st)}</span></td>
+                    <td class="card-actions">${btns}</td>
+                </tr>`;
+            }).join('') + '</tbody></table></div>';
+
+        box.querySelectorAll('[data-act]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tr = btn.closest('tr');
+                const id = parseInt(tr.getAttribute('data-id'), 10);
+                const row = (data || []).find(x => x.id === id);
+                const act = btn.getAttribute('data-act');
+                try {
+                    if (act === 'aprovar') {
+                        const { error } = await supabaseClient.from('emprestimos').update({
+                            status: 'aprovado',
+                            atualizado_em: new Date().toISOString()
+                        }).eq('id', id);
+                        if (error) throw error;
+                        if (row) await creditarCaixaEmprestimo(row);
+                        toastMsg('Empréstimo aprovado e creditado no Caixa');
+                    } else if (act === 'rejeitar') {
+                        const { error } = await supabaseClient.from('emprestimos').update({
+                            status: 'rejeitado',
+                            atualizado_em: new Date().toISOString()
+                        }).eq('id', id);
+                        if (error) throw error;
+                        toastMsg('Empréstimo rejeitado');
+                    } else if (act === 'pago') {
+                        const { error } = await supabaseClient.from('emprestimos').update({
+                            status: 'pago',
+                            atualizado_em: new Date().toISOString()
+                        }).eq('id', id);
+                        if (error) throw error;
+                        toastMsg('Empréstimo marcado como pago');
+                    }
+                    carregarEmprestimosAdmin();
+                } catch (e) {
+                    toastMsg('Erro: ' + (e.message || e) + ' (SQL 14?)');
+                }
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 14)</p>';
+    }
+}
+
 (async function init() {
     const session = await requireSession();
     if (!session) return;
@@ -472,6 +585,7 @@ async function carregarComissoes() {
         carregarChatMonitor(),
         carregarPixAdmin(),
         carregarPixPagamentos(),
-        carregarComissoes()
+        carregarComissoes(),
+        carregarEmprestimosAdmin()
     ]);
 })();

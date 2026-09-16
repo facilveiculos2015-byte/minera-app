@@ -1104,3 +1104,145 @@ html[data-theme="light"] .mais-panel {
     background: var(--card-bg);
     color: var(--text-color);
 }
+
+/* ---- Cadastro welcome callout ---- */
+.callout-institucional {
+    background: linear-gradient(135deg, #422006 0%, #1e293b 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 0 0 16px;
+    color: var(--text-color);
+}
+.callout-institucional strong {
+    display: block;
+    color: #fbbf24;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+.callout-institucional p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #e2e8f0;
+}
+html[data-theme="light"] .callout-institucional {
+    background: #fff7ed;
+    border-color: #f59e0b;
+}
+html[data-theme="light"] .callout-institucional p { color: #334155; }
+html[data-theme="light"] .callout-institucional strong { color: #b45309; }
+
+/* ---- Caixa Minera bank card ---- */
+.caixa-bank-card {
+    background: linear-gradient(145deg, #0f172a 0%, #1e3a5f 55%, #422006 100%);
+    border: 1px solid #f59e0b;
+    box-shadow: 0 8px 28px rgba(245, 158, 11, 0.18);
+}
+.caixa-bank-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.caixa-bank-eyebrow {
+    margin: 0 0 4px;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fbbf24;
+    font-weight: 700;
+}
+.caixa-bank-card h2 { margin-top: 0; color: #fef3c7; }
+.btn-saiba-mais {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    color: #fbbf24 !important;
+    text-decoration: underline;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+}
+.caixa-saldo-block {
+    margin: 16px 0 12px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+.caixa-saldo-label {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+.caixa-saldo-valor {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #fef3c7;
+    letter-spacing: -0.02em;
+}
+.caixa-rendimento {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #86efac;
+}
+.caixa-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.caixa-actions .btn-ok,
+.caixa-actions .btn-ghost {
+    flex: 1;
+    min-width: 120px;
+}
+.caixa-mov-form { margin-top: 12px; }
+.aviso-credito {
+    background: #422006;
+    border: 1px solid #f59e0b;
+    color: #fde68a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+}
+.saiba-mais-body { font-size: 0.92rem; line-height: 1.5; }
+.saiba-mais-body ul { padding-left: 1.2em; margin: 10px 0; }
+.saiba-mais-body li { margin-bottom: 8px; }
+.saiba-mais-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Featured nav chip */
+.nav-chips .chip.chip-featured {
+    background: linear-gradient(135deg, #422006, #1e3a5f);
+    border-color: #f59e0b;
+    color: #fde68a;
+    font-weight: 700;
+}
+.nav-chips .chip.chip-featured.on {
+    background: #f59e0b;
+    color: #1c1917;
+}
+.mais-item-featured {
+    border: 1px solid #f59e0b !important;
+    color: #fde68a !important;
+    font-weight: 700;
+}
+html[data-theme="light"] .caixa-bank-card {
+    background: linear-gradient(145deg, #fff7ed, #e0f2fe);
+}
+html[data-theme="light"] .caixa-bank-card h2 { color: #92400e; }
+html[data-theme="light"] .caixa-saldo-block { background: #fff; }
+html[data-theme="light"] .caixa-saldo-valor { color: #92400e; }
+html[data-theme="light"] .aviso-credito {
+    background: #fff7ed;
+    color: #92400e;
+}
