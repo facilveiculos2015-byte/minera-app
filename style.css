@@ -1029,6 +1029,20 @@ body.mapa-page #app-nav {
     width: auto;
     accent-color: var(--accent-color);
 }
+.mapa-base-select {
+    margin-left: 4px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.mapa-base-select:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
 .mapa-toolbar-hint {
     font-size: 0.75rem;
     color: var(--muted);

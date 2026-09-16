@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Mapa de Satélite</title>
-    <link rel="icon" type="image/png" href="logo-escavadeira.png?v=20260916x">
-    <link rel="apple-touch-icon" href="logo-escavadeira.png?v=20260916x">
+    <link rel="icon" type="image/png" href="logo-escavadeira.png?v=20260916y">
+    <link rel="apple-touch-icon" href="logo-escavadeira.png?v=20260916y">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzPCf9ltuBmfPSqGp53aX4TrjE=" crossorigin="">
-    <link rel="stylesheet" href="style.css?v=20260916x">
+    <link rel="stylesheet" href="style.css?v=20260916y">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -28,26 +28,34 @@
         <nav id="app-nav" class="nav-chips"></nav>
 
         <div class="mapa-toolbar">
+            <label class="mapa-toggle mapa-base-label">
+                Camada
+                <select id="mapa-base" class="mapa-base-select" aria-label="Camada do mapa">
+                    <option value="esri" selected>Satélite (leve)</option>
+                    <option value="osm">Ruas</option>
+                    <option value="sentinel">Sentinel (detalhe)</option>
+                </select>
+            </label>
             <label class="mapa-toggle">
-                <input type="checkbox" id="toggle-rotulos" checked>
-                Rotas / rótulos OSM
+                <input type="checkbox" id="toggle-rotulos">
+                Rótulos
             </label>
             <span class="mapa-toolbar-hint">Zoom e arraste para frentes</span>
         </div>
 
-        <div id="mapa" class="mapa-canvas" role="application" aria-label="Mapa Sentinel-2"></div>
+        <div id="mapa" class="mapa-canvas" role="application" aria-label="Mapa de satélite"></div>
 
         <p class="mapa-legend" id="mapa-legend">
-            Imagens Sentinel-2 (nuvens removidas) · zoom para frentes
+            Satélite leve (Esri) · zoom para frentes
         </p>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="config.js?v=20260916x"></script>
-    <script src="auth-guard.js?v=20260916x"></script>
-    <script src="suporte.js?v=20260916x"></script>
-    <script src="nav.js?v=20260916x"></script>
-    <script src="mapa.js?v=20260916x"></script>
+    <script src="config.js?v=20260916y"></script>
+    <script src="auth-guard.js?v=20260916y"></script>
+    <script src="suporte.js?v=20260916y"></script>
+    <script src="nav.js?v=20260916y"></script>
+    <script src="mapa.js?v=20260916y"></script>
 </body>
 </html>

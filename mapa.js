@@ -1,16 +1,40 @@
-/** Mapa de Satélite — Leaflet + Sentinel-2 cloudless (EOX), in-app. */
+/** Mapa de Satélite — Leaflet + Esri World Imagery (leve), in-app. */
 
 let perfilAtual = null;
 let sessionAtual = null;
 let map = null;
-let layerSentinel = null;
+let layerEsri = null;
+let layerOsm = null;
+let layerSentinel = null; // lazy: só criado ao selecionar
 let layerLabels = null;
 let markersLayer = null;
+let baseAtual = 'esri';
 
 const DEFAULT_CENTER = [-6.0, -50.0]; // Pará / Carajás
 const DEFAULT_ZOOM = 7;
 
-/** EOX Sentinel-2 cloudless 2024 — GoogleMapsCompatible XYZ (z/y/x), sem API key */
+const TILE_PERF = {
+    updateWhenZooming: false,
+    updateWhenIdle: true,
+    keepBuffer: 1,
+    maxZoom: 18,
+    tileSize: 256,
+    crossOrigin: true
+};
+
+/** Esri World Imagery — leve, sem API key */
+const ESRI_URL =
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const ESRI_ATTR =
+    'Tiles &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> — ' +
+    'Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community';
+
+/** OSM ruas */
+const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_ATTR =
+    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+/** EOX Sentinel-2 cloudless 2024 — pesado; só sob demanda */
 const SENTINEL_URL =
     'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg';
 const SENTINEL_ATTR =
@@ -18,12 +42,85 @@ const SENTINEL_ATTR =
     '<a href="https://eox.at" target="_blank" rel="noopener">EOX</a> ' +
     '(Contains modified Copernicus Sentinel data 2024)';
 
-const LABELS_URL = 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png';
-const LABELS_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO';
+/** Rótulos Esri (transporte + referência) — overlay opcional */
+const LABELS_URL =
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+const LABELS_ATTR =
+    'Labels &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a>';
 
 function esc(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function criarEsri() {
+    return L.tileLayer(ESRI_URL, Object.assign({}, TILE_PERF, {
+        attribution: ESRI_ATTR,
+        maxNativeZoom: 18
+    }));
+}
+
+function criarOsm() {
+    return L.tileLayer(OSM_URL, Object.assign({}, TILE_PERF, {
+        attribution: OSM_ATTR,
+        maxNativeZoom: 19,
+        subdomains: 'abc'
+    }));
+}
+
+function criarSentinel() {
+    return L.tileLayer(SENTINEL_URL, Object.assign({}, TILE_PERF, {
+        attribution: SENTINEL_ATTR,
+        maxZoom: 16,
+        maxNativeZoom: 14
+    }));
+}
+
+function criarLabels() {
+    return L.tileLayer(LABELS_URL, Object.assign({}, TILE_PERF, {
+        attribution: LABELS_ATTR,
+        opacity: 0.75,
+        pane: 'overlayPane'
+    }));
+}
+
+function removerBaseAtual() {
+    if (!map) return;
+    if (baseAtual === 'esri' && layerEsri && map.hasLayer(layerEsri)) map.removeLayer(layerEsri);
+    if (baseAtual === 'osm' && layerOsm && map.hasLayer(layerOsm)) map.removeLayer(layerOsm);
+    if (baseAtual === 'sentinel' && layerSentinel && map.hasLayer(layerSentinel)) {
+        map.removeLayer(layerSentinel);
+    }
+}
+
+function setBase(tipo) {
+    if (!map || tipo === baseAtual) return;
+    removerBaseAtual();
+    if (tipo === 'esri') {
+        if (!layerEsri) layerEsri = criarEsri();
+        layerEsri.addTo(map);
+    } else if (tipo === 'osm') {
+        if (!layerOsm) layerOsm = criarOsm();
+        layerOsm.addTo(map);
+    } else if (tipo === 'sentinel') {
+        // Lazy: só cria e adiciona quando o usuário escolhe
+        if (!layerSentinel) layerSentinel = criarSentinel();
+        layerSentinel.addTo(map);
+    }
+    baseAtual = tipo;
+    atualizarLegenda(tipo);
+}
+
+function atualizarLegenda(tipo) {
+    const el = document.getElementById('mapa-legend');
+    if (!el) return;
+    if (tipo === 'osm') {
+        el.textContent = 'Mapa de ruas (OpenStreetMap) · zoom para frentes';
+    } else if (tipo === 'sentinel') {
+        el.textContent = 'Sentinel-2 detalhe (EOX) · pode ser mais lento';
+    } else {
+        el.textContent = 'Satélite leve (Esri) · zoom para frentes';
+    }
 }
 
 function initMap() {
@@ -36,29 +133,32 @@ function initMap() {
         preferCanvas: false
     }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
-    layerSentinel = L.tileLayer(SENTINEL_URL, {
-        attribution: SENTINEL_ATTR,
-        maxZoom: 16,
-        maxNativeZoom: 14,
-        tileSize: 256,
-        crossOrigin: true
-    }).addTo(map);
+    // Default: só Esri (leve). Sentinel NÃO é criado nem adicionado aqui.
+    layerEsri = criarEsri();
+    layerEsri.addTo(map);
+    baseAtual = 'esri';
 
-    layerLabels = L.tileLayer(LABELS_URL, {
-        attribution: LABELS_ATTR,
-        maxZoom: 18,
-        opacity: 0.9,
-        pane: 'overlayPane'
-    }).addTo(map);
+    // Labels off by default
+    layerLabels = criarLabels();
 
     markersLayer = L.layerGroup().addTo(map);
 
+    const selBase = document.getElementById('mapa-base');
+    if (selBase) {
+        selBase.value = 'esri';
+        selBase.addEventListener('change', () => {
+            setBase(selBase.value);
+        });
+    }
+
     const toggle = document.getElementById('toggle-rotulos');
     if (toggle) {
+        toggle.checked = false;
         toggle.addEventListener('change', () => {
             if (toggle.checked) {
+                if (!layerLabels) layerLabels = criarLabels();
                 if (!map.hasLayer(layerLabels)) layerLabels.addTo(map);
-            } else if (map.hasLayer(layerLabels)) {
+            } else if (layerLabels && map.hasLayer(layerLabels)) {
                 map.removeLayer(layerLabels);
             }
         });
@@ -92,6 +192,7 @@ function initMap() {
         });
     }
 
+    atualizarLegenda('esri');
     setTimeout(() => { if (map) map.invalidateSize(); }, 100);
     window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
 }
