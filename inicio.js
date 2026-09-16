@@ -1,7 +1,10 @@
+const APP_BASE = new URL('.', window.location.href);
+function irPara(pagina) { window.location.replace(new URL(pagina, APP_BASE).href); }
+
 async function exigirLogin() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) {
-        window.location.href = 'index.html';
+        irPara('index.html');
         return null;
     }
     const email = session.user.email || '';
@@ -54,7 +57,7 @@ async function carregarFeed() {
 
 document.getElementById('btn-sair').addEventListener('click', async () => {
     await supabaseClient.auth.signOut();
-    window.location.href = 'index.html';
+    irPara('index.html');
 });
 
 (async function init() {
