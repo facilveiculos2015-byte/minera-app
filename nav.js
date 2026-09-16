@@ -221,14 +221,25 @@ function montarNav(paginaAtiva, perfil) {
 }
 
 
-/** Logo escavadeira ao lado do título Minera App */
+/** Logo escavadeira ao lado do título Minera App (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260916s';
+    const src = root + 'logo-escavadeira.png?v=20260916t';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
+        // Already wrapped in brand-row with logo
+        const existingRow = h1.closest('.brand-row');
+        if (existingRow && existingRow.querySelector('.brand-logo')) {
+            const img0 = existingRow.querySelector('.brand-logo');
+            if (img0 && img0.getAttribute('src') !== src) img0.src = src;
+            return;
+        }
         const wrap = h1.parentElement;
         if (!wrap) return;
-        if (wrap.querySelector('.brand-logo')) return;
+        if (wrap.querySelector(':scope > .brand-logo, :scope > .brand-row > .brand-logo')) {
+            const img0 = wrap.querySelector('.brand-logo');
+            if (img0 && img0.getAttribute('src') !== src) img0.src = src;
+            return;
+        }
         wrap.classList.add('brand-title');
         const img = document.createElement('img');
         img.className = 'brand-logo';
@@ -237,7 +248,6 @@ function garantirBrandLogo() {
         img.width = 40;
         img.height = 40;
         img.decoding = 'async';
-        // Place logo before h1 inside a flex row if needed
         if (!wrap.classList.contains('brand-row')) {
             const row = document.createElement('div');
             row.className = 'brand-row';
@@ -248,11 +258,15 @@ function garantirBrandLogo() {
             wrap.insertBefore(img, h1);
         }
     });
-    // index auth logo-mark: replace SVG with excavator
+    // index / auth logo-mark
     document.querySelectorAll('.logo-mark').forEach(mark => {
-        if (mark.querySelector('img.brand-logo-lg')) return;
+        let img = mark.querySelector('img.brand-logo-lg');
+        if (img) {
+            if (img.getAttribute('src') !== src) img.src = src;
+            return;
+        }
         mark.innerHTML = '';
-        const img = document.createElement('img');
+        img = document.createElement('img');
         img.className = 'brand-logo-lg';
         img.src = src;
         img.alt = 'Minera App';
@@ -261,6 +275,13 @@ function garantirBrandLogo() {
         img.decoding = 'async';
         mark.appendChild(img);
     });
+}
+
+// Early inject (before async montarNav) so logo never flashes missing
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', garantirBrandLogo);
+} else {
+    try { garantirBrandLogo(); } catch (e) { /* ignore */ }
 }
 
 function garantirHeaderNotifBtn() {
@@ -359,7 +380,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916s' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916t' });
             }
         } catch (e) { /* ignore */ }
     }
@@ -421,9 +442,11 @@ const MineraNotif = (function () {
                         const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') +
                             'chat.html?para=' + encodeURIComponent(m.de_auth_id);
                         const preview = (m.texto || '[' + (m.tipo || 'msg') + ']').slice(0, 60);
+                        const escN = (s) => String(s == null ? '' : s)
+                            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
                         return '<a class="notif-dd-item" href="' + href + '"><strong>' +
-                            String(m.de_nome || 'Alguém').replace(/</g, '&lt;') +
-                            '</strong><span>' + String(preview).replace(/</g, '&lt;') + '</span></a>';
+                            escN(m.de_nome || 'Alguém') +
+                            '</strong><span>' + escN(preview) + '</span></a>';
                     }).join('');
                 }
             }

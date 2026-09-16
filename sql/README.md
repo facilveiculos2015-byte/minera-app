@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -36,3 +36,7 @@ Incremental: `public.is_admin()` + RLS por perfil (usuarios/caixa/comissoes/empr
 ## 18-chat-contatos-dms.sql
 Incremental após 17: `chat_contatos`, `chat_leituras`; RLS chat só participante/admin (quebra broadcast); RPCs `chat_diretorio`, `chat_buscar_email`, `chat_perfis_publicos`. Idempotente. NÃO wipe.
 **Parent deve aplicar no Supabase SQL Editor após 17.**
+
+## 19-fixes.sql
+Incremental após 18: RLS chat INSERT exige `para_auth_id` (DM real); SELECT esconde `agendada` do destinatário; trigger trava `de_auth_id`/`para_auth_id` no UPDATE. Idempotente. NÃO wipe.
+**Parent deve aplicar no Supabase SQL Editor após 18.**

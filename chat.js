@@ -310,7 +310,10 @@ async function carregarContatos() {
         });
 
         if (!filtered.length) {
-            box.innerHTML = '<p class="sub">Nenhum contato. Toque em <strong>Adicionar contato</strong>.</p>';
+            box.innerHTML = '<div class="chat-contacts-empty">' +
+                '<p><strong>Nenhuma conversa ainda</strong></p>' +
+                '<p class="sub">Toque em <strong>＋ Adicionar contato</strong> para achar mineradores, compradores, transportadores…</p>' +
+                '</div>';
             return;
         }
 
@@ -406,7 +409,9 @@ async function carregarThread() {
             !m.deleted_at &&
             (m.moderacao || '') !== 'removida' &&
             ((m.de_auth_id === meuAuthId && m.para_auth_id === them) ||
-             (m.de_auth_id === them && m.para_auth_id === meuAuthId))
+             (m.de_auth_id === them && m.para_auth_id === meuAuthId)) &&
+            // Destinatário não vê agendada até promover
+            !((m.status || '') === 'agendada' && m.de_auth_id !== meuAuthId)
         );
         await promoverAgendadas(lista);
 

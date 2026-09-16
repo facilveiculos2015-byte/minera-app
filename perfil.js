@@ -1,3 +1,8 @@
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const PAPEIS_EDIT = [
     'minerador',
     'comprador',
@@ -180,7 +185,7 @@ async function carregarPixUsuario() {
         if (form) form.classList.remove('oculto');
         atualizarPixEmv();
     } catch (e) {
-        info.innerHTML = '<p class="erro">Pix indisponível (rode SQL 10): ' + (e.message || e) + '</p>';
+        info.innerHTML = '<p class="erro">Pix indisponível (rode SQL 10): ' + esc(e.message || e) + '</p>';
         if (form) form.classList.add('oculto');
     }
     await carregarMeusPix();
@@ -204,6 +209,7 @@ async function carregarMeusPix() {
                 ' · <span class="badge">' + (p.status || 'pendente') + '</span></li>';
         }).join('') + '</ul>';
     } catch (e) {
+        console.warn('pix_pagamentos', e);
         box.textContent = '';
     }
 }
@@ -317,8 +323,8 @@ async function carregarComissoesPendentes() {
         if (typeof verificarInadimplencia === 'function') await verificarInadimplencia(perfilAtual);
         if (typeof mostrarBannerBloqueio === 'function') mostrarBannerBloqueio(perfilAtual);
     } catch (e) {
-        box.innerHTML = '<p class="erro">Comissões indisponíveis (rode SQL 12): ' +
-            String(e.message || e).replace(/</g, '&lt;') + '</p>';
+        console.warn('comissoes', e);
+        box.innerHTML = '<p class="erro">Comissões indisponíveis (rode SQL 12): ' + esc(e.message || e) + '</p>';
     }
 }
 

@@ -80,10 +80,17 @@ async function getPerfil(session) {
 
     // Never load another profile via query string / arbitrary id
     try {
-        const q = new URLSearchParams(window.location.search || '');
+        const u = new URL(window.location.href);
         const banned = ['id', 'user', 'user_id', 'auth_id', 'uid', 'perfil'];
+        let dirty = false;
         for (const k of banned) {
-            if (q.has(k)) q.delete(k);
+            if (u.searchParams.has(k)) {
+                u.searchParams.delete(k);
+                dirty = true;
+            }
+        }
+        if (dirty && window.history && history.replaceState) {
+            history.replaceState(null, '', u.pathname + u.search + u.hash);
         }
     } catch (e) { /* ignore */ }
 
@@ -236,8 +243,10 @@ function mostrarBannerBloqueio(perfil) {
         document.body.insertBefore(el, document.body.firstChild);
     }
     const motivo = perfil.bloqueado_motivo || 'Conta bloqueada por inadimplência.';
+    const escM = (s) => String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     el.innerHTML = '<strong>Conta bloqueada</strong> — ' +
-        String(motivo).replace(/</g, '&lt;') +
+        escM(motivo) +
         ' <a href="' + (typeof APP_ROOT !== 'undefined' ? APP_ROOT : '/minera-app/') +
         'perfil.html#comissoes">Pagar comissão (Pix)</a>';
 }

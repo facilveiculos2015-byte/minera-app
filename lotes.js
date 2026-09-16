@@ -354,5 +354,5 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
                 if (b) b.click();
             }, 200);
         }
-    } catch (e) {}
+    } catch (e) { console.warn('novo query', e); }
 })();
