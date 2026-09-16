@@ -41,9 +41,15 @@ body {
     min-height: 100vh;
 }
 
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
 .container {
     max-width: 600px;
+    width: 100%;
     margin: 0 auto;
+    min-width: 0;
 }
 
 .container.wide {
@@ -624,7 +630,17 @@ body.has-bottom-nav {
 
 .nav-secondary {
     margin-bottom: 12px;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+    padding-bottom: 2px;
 }
+.nav-secondary::-webkit-scrollbar { display: none; }
+.nav-secondary .chip { flex: 0 0 auto; }
 .nav-secondary .chip-mais {
     background: #1e293b;
 }
@@ -689,6 +705,9 @@ body.has-bottom-nav .app-toast {
     padding: 10px 12px !important;
     overflow: hidden;
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 .cotacoes-card.cotacoes-compact h2 { display: none; }
 .cotacoes-strip-head {
@@ -698,6 +717,7 @@ body.has-bottom-nav .app-toast {
     gap: 8px;
     margin-bottom: 6px;
     min-width: 0;
+    width: 100%;
 }
 .cotacoes-strip-title {
     font-size: 0.75rem;
@@ -713,7 +733,9 @@ body.has-bottom-nav .app-toast {
     gap: 6px;
     margin-bottom: 6px;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
 }
 .cotacoes-strip .cotacao-item {
     background: #0f172a;
@@ -721,7 +743,9 @@ body.has-bottom-nav .app-toast {
     border-radius: 8px;
     padding: 6px 8px;
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
+    box-sizing: border-box;
 }
 .cotacao-item .c-label {
     font-size: 0.65rem;
@@ -748,7 +772,7 @@ body.has-bottom-nav .app-toast {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.cotacoes-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.cotacoes-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; max-width: 100%; }
 .cotacoes-links a {
     display: inline-block;
     padding: 3px 8px;
@@ -765,19 +789,20 @@ body.has-bottom-nav .app-toast {
     color: var(--muted);
     margin: 0;
     min-width: 0;
+    flex: 1 1 auto;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 @media (max-width: 480px) {
-    .cotacoes-card { padding: 8px 10px !important; }
+    .cotacoes-card { padding: 8px 8px !important; }
     .cotacoes-grid { gap: 4px; }
-    .cotacoes-strip .cotacao-item { padding: 5px 6px; }
-    .cotacao-item .c-valor { font-size: 0.8rem; }
+    .cotacoes-strip .cotacao-item { padding: 5px 5px; }
+    .cotacao-item .c-valor { font-size: 0.78rem; }
     .cotacao-item .c-label,
-    .cotacao-item .c-sub { font-size: 0.6rem; }
-    .cotacoes-fonte { font-size: 0.58rem; max-width: 55%; }
+    .cotacao-item .c-sub { font-size: 0.58rem; }
+    .cotacoes-fonte { font-size: 0.58rem; max-width: 50%; }
     .header-actions { gap: 6px; }
     .btn-caixa-bank { width: 40px; height: 40px; }
     .header-actions .btn-icon { width: 34px; height: 34px; padding: 0; }

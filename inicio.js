@@ -240,7 +240,7 @@ async function carregarDolar() {
     document.getElementById('cot-dolar').textContent = fmtBrl(bid);
     const pct = data.USDBRL.pctChange;
     document.getElementById('cot-dolar-sub').textContent =
-        'AwesomeAPI' + (pct != null ? ' · var ' + pct + '%' : '');
+        pct != null ? ('var ' + pct + '%') : 'USD/BRL';
     return bid;
 }
 
@@ -258,12 +258,12 @@ async function carregarOuro() {
         const usd = parseGoldUsd(data);
         if (usd == null || isNaN(usd)) throw new Error('parse gold');
         writeLsNumber(LS_OURO, usd);
-        showMetal('cot-ouro', 'cot-ouro-sub', usd, 'USD/oz spot', viaProxy, false);
+        showMetal('cot-ouro', 'cot-ouro-sub', usd, 'USD/oz', viaProxy, false);
         return usd;
     } catch (e) {
         const cached = readLsNumber(LS_OURO);
         if (cached != null) {
-            showMetal('cot-ouro', 'cot-ouro-sub', cached, 'USD/oz spot', false, true);
+            showMetal('cot-ouro', 'cot-ouro-sub', cached, 'USD/oz', false, true);
             return cached;
         }
         document.getElementById('cot-ouro').textContent = '—';
@@ -286,12 +286,12 @@ async function carregarCobre() {
         const usd = parseCopperUsd(data);
         if (usd == null || isNaN(usd)) throw new Error('parse copper');
         writeLsNumber(LS_COBRE, usd);
-        showMetal('cot-cobre', 'cot-cobre-sub', usd, 'USD/lb COMEX', viaProxy, false, { usdPerTon: true });
+        showMetal('cot-cobre', 'cot-cobre-sub', usd, 'USD/lb', viaProxy, false, { usdPerTon: true });
         return usd;
     } catch (e) {
         const cached = readLsNumber(LS_COBRE);
         if (cached != null) {
-            showMetal('cot-cobre', 'cot-cobre-sub', cached, 'USD/lb COMEX', false, true, { usdPerTon: true });
+            showMetal('cot-cobre', 'cot-cobre-sub', cached, 'USD/lb', false, true, { usdPerTon: true });
             return cached;
         }
         document.getElementById('cot-cobre').textContent = '—';
