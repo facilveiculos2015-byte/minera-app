@@ -2278,3 +2278,43 @@ body, .container, .card, header, nav, section { min-width: 0; }
     border: none; background: #1e293b; color: #fff; font-size: 1.5rem; cursor: pointer;
 }
 .bubble-media img { cursor: zoom-in; }
+
+/* WhatsApp-like composer preview and live recording timer */
+.chat-rec-bar, .chat-media-preview {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 7px 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(15, 23, 42, .78);
+}
+.chat-rec-bar { border-color: rgba(239, 68, 68, .7); }
+.rec-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+    background: #ef4444; animation: minera-rec-pulse 1s ease-in-out infinite;
+}
+@keyframes minera-rec-pulse { 50% { opacity: .3; } }
+.chat-rec-timer { color: #fecaca; font-weight: 800; font-variant-numeric: tabular-nums; }
+.chat-rec-wave {
+    flex: 1 1 80px; min-width: 40px; height: 4px; border-radius: 4px;
+    background: linear-gradient(90deg, #ef4444, #fca5a5, #ef4444);
+}
+.chat-media-preview .media-preview-thumb {
+    width: 76px; height: 76px; max-width: 28vw; object-fit: cover;
+    border-radius: 8px; border: 1px solid var(--border);
+}
+.chat-media-preview audio { flex: 1 1 180px; min-width: 0; max-width: 100%; }
+.media-preview-status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.media-uploading-spin {
+    width: 14px; height: 14px; display: inline-block; border-radius: 50%;
+    border: 2px solid #475569; border-top-color: var(--accent-color);
+    animation: minera-spin .7s linear infinite;
+}
+@keyframes minera-spin { to { transform: rotate(360deg); } }
+#btn-audio.recording { background: #7f1d1d; color: #fecaca; }
