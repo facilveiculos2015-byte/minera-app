@@ -166,13 +166,62 @@ function labelPapelCurto(papeis, tipo) {
     return arr.map(p => labels[p] || p).join(', ') || 'Outros';
 }
 
+/** Base MIME without codecs (Storage rejects some ";codecs=..." types). */
+function baseMime(t) {
+    const s = String(t || '').split(';')[0].trim().toLowerCase();
+    return s || '';
+}
+
+function extForMime(mime, fallback) {
+    const m = baseMime(mime);
+    if (m === 'audio/webm' || m === 'video/webm') return 'webm';
+    if (m === 'audio/ogg' || m === 'video/ogg') return 'ogg';
+    if (m === 'audio/mp4' || m === 'audio/aac' || m === 'audio/x-m4a') return 'm4a';
+    if (m === 'audio/mpeg' || m === 'audio/mp3') return 'mp3';
+    if (m === 'audio/wav' || m === 'audio/wave') return 'wav';
+    if (m === 'image/jpeg') return 'jpg';
+    if (m === 'image/png') return 'png';
+    if (m === 'image/gif') return 'gif';
+    if (m === 'image/webp') return 'webp';
+    if (m === 'video/mp4') return 'mp4';
+    return fallback || 'bin';
+}
+
+function pickRecorderMime() {
+    if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
+        return '';
+    }
+    const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+        'audio/mp4',
+        'audio/aac'
+    ];
+    for (let i = 0; i < candidates.length; i++) {
+        try {
+            if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+        } catch (e) { /* ignore */ }
+    }
+    return '';
+}
+
 async function uploadMidia(file, pasta) {
     if (!file) return null;
-    const path = (pasta || 'geral') + '/' + Date.now() + '_' + (file.name || 'arquivo').replace(/[^\w.\-]/g, '_');
+    const mime = baseMime(file.type) || (pasta === 'audios' ? 'audio/webm' : undefined);
+    const ext = extForMime(mime, (file.name || '').split('.').pop() || 'bin');
+    const safeName = String(file.name || ('arquivo.' + ext)).replace(/[^\w.\-]/g, '_');
+    const stem = safeName.replace(/\.[^.]+$/, '') || 'arquivo';
+    const path = (pasta || 'geral') + '/' + Date.now() + '_' + stem + '.' + ext;
     try {
         const { data, error } = await supabaseClient.storage
             .from('chat-midia')
-            .upload(path, file, { upsert: false, contentType: file.type || undefined });
+            .upload(path, file, {
+                upsert: false,
+                contentType: mime || undefined,
+                cacheControl: '3600'
+            });
         if (!error && data) {
             const { data: pub } = supabaseClient.storage.from('chat-midia').getPublicUrl(data.path || path);
             if (pub && pub.publicUrl) return pub.publicUrl;
@@ -181,11 +230,16 @@ async function uploadMidia(file, pasta) {
     } catch (e) {
         console.warn('Storage indisponível:', e);
     }
-    if (file.type && file.type.startsWith('image/') && file.size <= 400000) {
+    // Fallbacks: data-URL so the bubble still plays for the sender (prefer real URL via SQL 24)
+    const maxImg = 400000;
+    const maxAudio = 1800000; // ~1.8MB — short voice notes
+    if (mime && mime.startsWith('image/') && file.size <= maxImg) {
         return await fileToDataUrl(file);
     }
-    if (file.type && file.type.startsWith('audio/') && file.size <= 500000) {
-        return await fileToDataUrl(file);
+    if ((mime && mime.startsWith('audio/')) || pasta === 'audios') {
+        if (file.size <= maxAudio) {
+            try { return await fileToDataUrl(file); } catch (e2) { console.warn(e2); }
+        }
     }
     return null;
 }
@@ -251,7 +305,9 @@ function renderMedia(m) {
         return '<div class="bubble-media"><video src="' + esc(url) + '" controls playsinline></video></div>';
     }
     if (tipo === 'audio') {
-        return '<div class="bubble-media"><audio src="' + esc(url) + '" controls></audio></div>';
+        // Prefer remote URL; keep blob/data playable. preload=metadata avoids some mobile errors.
+        return '<div class="bubble-media bubble-audio">' +
+            '<audio src="' + esc(url) + '" controls preload="metadata" playsinline></audio></div>';
     }
     return '<div class="bubble-media"><a href="' + esc(url) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
 }
@@ -833,27 +889,51 @@ async function enviarAnexoPendente() {
     if (!url && pend.file) {
         const pasta = pend.tipo === 'imagem' ? 'imagens' : (pend.tipo === 'video' ? 'videos' : 'audios');
         url = await uploadMidia(pend.file, pasta);
-        if (!url && pend.file.size <= 500000) {
+        if (!url) {
             try { url = await fileToDataUrl(pend.file); } catch (e) { /* ignore */ }
         }
     }
     const tempEl = document.querySelector('[data-temp-id="' + tempId + '"]');
     if (!url) {
-        if (tempEl) tempEl.remove();
+        if (tempEl) {
+            const st = tempEl.querySelector('.bubble-status');
+            if (st) st.textContent = 'falha no envio';
+            tempEl.classList.add('bubble-failed');
+        }
         showMediaPreview(null);
-        setAnexoInfo('Falha no upload. Tente arquivo menor ou cole uma URL.');
-        anexoPendente = null;
+        setAnexoInfo('Falha no upload de áudio/mídia. Aplique SQL 24 (bucket chat-midia) ou tente de novo.');
+        const msgEl = document.getElementById('chat-msg');
+        if (msgEl) {
+            msgEl.textContent = 'Não foi possível enviar a mídia (storage).';
+            msgEl.className = 'msg erro';
+        }
+        // Keep anexoPendente so user can retry Enviar
         resetAudioBtn();
+        if (pend.tipo === 'audio' && pend.file) {
+            const btn = document.getElementById('btn-audio');
+            if (btn) {
+                btn.textContent = '➤ Enviar';
+                btn.classList.add('btn-ok');
+            }
+        }
         return;
     }
     anexoPendente = null;
     showMediaPreview(null);
     setAnexoInfo('');
     resetAudioBtn();
-    await enviarMensagem({ tipo: pend.tipo, midia_url: url, texto: '', keepInput: true });
+    const ok = await enviarMensagem({ tipo: pend.tipo, midia_url: url, texto: '', keepInput: true });
     if (tempEl) tempEl.remove();
+    if (!ok && localUrl) {
+        // Insert failed — restore pending so user can retry
+        anexoPendente = pend;
+        setAnexoInfo('Envio falhou — toque Enviar para tentar de novo.');
+    }
+    // Delay revoke so optimistic/local playback isn't killed mid-transition
     if (localUrl && String(localUrl).startsWith('blob:')) {
-        try { URL.revokeObjectURL(localUrl); } catch (e) { /* ignore */ }
+        setTimeout(() => {
+            try { URL.revokeObjectURL(localUrl); } catch (e) { /* ignore */ }
+        }, 15000);
     }
 }
 
@@ -874,7 +954,7 @@ async function pickMidiaArquivo(file, tipo) {
 
     const pasta = tipo === 'imagem' ? 'imagens' : (tipo === 'video' ? 'videos' : 'audios');
     let url = await uploadMidia(file, pasta);
-    if (!url && file.size <= 500000) {
+    if (!url) {
         try { url = await fileToDataUrl(file); } catch (e) { /* ignore */ }
     }
     if (!anexoPendente || anexoPendente.localUrl !== token) {
@@ -942,7 +1022,9 @@ function resetAudioBtn() {
 }
 
 function onRecordingReady(blob) {
-    const file = new File([blob], 'audio_' + Date.now() + '.webm', { type: blob.type || 'audio/webm' });
+    const mime = baseMime(blob.type) || 'audio/webm';
+    const ext = extForMime(mime, 'webm');
+    const file = new File([blob], 'audio_' + Date.now() + '.' + ext, { type: mime });
     const localUrl = URL.createObjectURL(blob);
     anexoPendente = {
         tipo: 'audio',
@@ -988,7 +1070,10 @@ async function startRecording(fromHold) {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioChunks = [];
-        mediaRecorder = new MediaRecorder(stream);
+        const mime = pickRecorderMime();
+        mediaRecorder = mime
+            ? new MediaRecorder(stream, { mimeType: mime })
+            : new MediaRecorder(stream);
         mediaRecorder.ondataavailable = (ev) => {
             if (ev.data && ev.data.size) audioChunks.push(ev.data);
         };
@@ -1003,7 +1088,8 @@ async function startRecording(fromHold) {
                 setAnexoInfo('');
                 return;
             }
-            const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            const blobType = baseMime(mediaRecorder.mimeType) || baseMime(mime) || 'audio/webm';
+            const blob = new Blob(audioChunks, { type: blobType });
             if (!blob.size) {
                 resetAudioBtn();
                 setAnexoInfo('Áudio vazio — tente de novo.');
@@ -1011,7 +1097,8 @@ async function startRecording(fromHold) {
             }
             onRecordingReady(blob);
         };
-        mediaRecorder.start();
+        // timeslice garante chunks em browsers que só emitem no stop com atraso
+        try { mediaRecorder.start(250); } catch (eStart) { mediaRecorder.start(); }
         gravando = true;
         startAudioTimer();
         showRecBar(true);

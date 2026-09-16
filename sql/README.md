@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql → 23-admin-emprestimos.sql → 24-chat-midia-storage.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -50,3 +50,14 @@ O SQL 20 limpa dados de teste e mantém o admin e o operador de teste. O SQL 21 
 ## 22-chat-diretorio-sem-email.sql
 Incremental após 21: `usuarios.apelido`; RPCs `chat_diretorio()`, `chat_buscar_nome(text)`, `chat_perfis_publicos(uuid[])` **sem e-mail** (anti-golpe). DROP de `chat_buscar_email`. Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 22 no Supabase SQL Editor após 21.**
+
+
+## 23-admin-emprestimos.sql
+Incremental após 22: RLS empréstimos (SELECT own/admin, INSERT own, **UPDATE só admin**); RPCs `admin_listar_emprestimos(limit)` e `admin_contar_emprestimos_pendentes()` (SECURITY DEFINER + `is_admin()`). Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 23 no Supabase SQL Editor após 22.**
+Corrige admin sem ver pedidos de outros usuários / sem poder liberar crédito.
+
+## 24-chat-midia-storage.sql
+Incremental após 23: cria/atualiza bucket Storage público `chat-midia` + policies SELECT público / INSERT·UPDATE·DELETE authenticated. Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 24 no Supabase SQL Editor após 23.**
+Necessário para áudio/imagem/vídeo do chat tocáveis por outros usuários (sem depender só de data-URL).

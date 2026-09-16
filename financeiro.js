@@ -661,4 +661,6 @@ function bindUI() {
     atualizarTotalPrevisto();
     await Promise.all([carregarCaixa(), carregarMovimentos(), carregarEmprestimos(), carregarPedidos()]);
     if (!saibaDismissed() && isUnlocked()) abrirSaibaMais();
+    // Status do empréstimo muda no Admin — atualiza a lista periodicamente
+    setInterval(() => { try { carregarEmprestimos(); } catch (e) { /* ignore */ } }, 30000);
 })();

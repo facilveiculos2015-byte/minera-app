@@ -211,11 +211,12 @@ function montarNav(paginaAtiva, perfil) {
         garantirFaleConosco(perfil);
     }
 
-    // Notificações de DM (badge no sino)
+    // Notificações de DM (badge no sino) + empréstimos pendentes (admin)
     try {
         const uid = perfil && perfil.auth_id;
         if (uid && typeof MineraNotif !== 'undefined' && MineraNotif.start) {
-            MineraNotif.start(uid);
+            const adm = typeof ehAdmin === 'function' && ehAdmin(perfil);
+            MineraNotif.start(uid, { isAdmin: !!adm });
         }
     } catch (e) { /* ignore */ }
 }
@@ -224,7 +225,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera App (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260916v';
+    const src = root + 'logo-escavadeira.png?v=20260916w';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -321,6 +322,9 @@ const MineraNotif = (function () {
     let authId = null;
     let knownIds = new Set();
     let bootstrapped = false;
+    let isAdminUser = false;
+    let adminEmpPendentes = 0;
+    let lastEmpToastN = -1;
 
     function lsLeituras() {
         try {
@@ -341,17 +345,62 @@ const MineraNotif = (function () {
         } catch (e) { /* ignore */ }
     }
 
+    let dmBadgeCount = 0;
+
     function updateBadge(n) {
+        dmBadgeCount = Number(n) || 0;
+        renderCombinedBadge();
+    }
+
+    function renderCombinedBadge() {
         const badge = document.getElementById('notif-badge');
         const btn = document.getElementById('btn-notif');
         if (!badge) return;
-        if (n > 0) {
-            badge.textContent = n > 99 ? '99+' : String(n);
+        const total = dmBadgeCount + (isAdminUser ? adminEmpPendentes : 0);
+        if (total > 0) {
+            badge.textContent = total > 99 ? '99+' : String(total);
             badge.classList.remove('oculto');
             if (btn) btn.classList.add('has-unread');
         } else {
             badge.classList.add('oculto');
             if (btn) btn.classList.remove('has-unread');
+        }
+    }
+
+    function setAdminEmpPendentes(n) {
+        adminEmpPendentes = Math.max(0, Number(n) || 0);
+        isAdminUser = true;
+        renderCombinedBadge();
+        // Toast once when new pending appears
+        if (adminEmpPendentes > 0 && adminEmpPendentes !== lastEmpToastN) {
+            if (lastEmpToastN >= 0 && adminEmpPendentes > lastEmpToastN) {
+                if (typeof toastMsg === 'function') {
+                    toastMsg(adminEmpPendentes + ' empréstimo(s) aguardando análise');
+                }
+                showBrowserNotif('Minera App — Empréstimos', adminEmpPendentes + ' pedido(s) em análise');
+            }
+            lastEmpToastN = adminEmpPendentes;
+        }
+        if (adminEmpPendentes === 0) lastEmpToastN = 0;
+        fillAdminEmpInDropdown();
+    }
+
+    function fillAdminEmpInDropdown() {
+        const list = document.getElementById('notif-dd-list');
+        if (!list || !isAdminUser) return;
+        let empBlock = document.getElementById('notif-emp-block');
+        if (adminEmpPendentes <= 0) {
+            if (empBlock) empBlock.remove();
+            return;
+        }
+        const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html#sec-admin-emprestimos';
+        const html = '<a class="notif-dd-item notif-emp-item" id="notif-emp-block" href="' + href + '">' +
+            '<strong>Empréstimos em análise</strong>' +
+            '<span>' + adminEmpPendentes + ' pedido(s) — Liberar ou Recusar no Admin</span></a>';
+        if (empBlock) {
+            empBlock.outerHTML = html;
+        } else {
+            list.insertAdjacentHTML('afterbegin', html);
         }
     }
 
@@ -361,7 +410,7 @@ const MineraNotif = (function () {
         dd = document.createElement('div');
         dd.id = 'notif-dropdown';
         dd.className = 'notif-dropdown oculto';
-        dd.innerHTML = '<div class="notif-dd-head">Mensagens</div><div class="notif-dd-list" id="notif-dd-list"></div>' +
+        dd.innerHTML = '<div class="notif-dd-head">Notificações</div><div class="notif-dd-list" id="notif-dd-list"></div>' +
             '<a class="notif-dd-foot" id="notif-dd-foot" href="#">Abrir Chat</a>';
         document.body.appendChild(dd);
         const foot = document.getElementById('notif-dd-foot');
@@ -380,7 +429,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916v' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916w' });
             }
         } catch (e) { /* ignore */ }
     }
@@ -449,6 +498,14 @@ const MineraNotif = (function () {
                             '</strong><span>' + escN(preview) + '</span></a>';
                     }).join('');
                 }
+                fillAdminEmpInDropdown();
+            }
+            // Admin: poll pending loans for bell badge
+            if (isAdminUser) {
+                try {
+                    const { data: nEmp, error: empErr } = await supabaseClient.rpc('admin_contar_emprestimos_pendentes');
+                    if (!empErr && nEmp != null) setAdminEmpPendentes(Number(nEmp) || 0);
+                } catch (empE) { /* SQL 23 optional until applied */ }
             }
         } catch (e) {
             console.warn('MineraNotif', e);
@@ -479,9 +536,11 @@ const MineraNotif = (function () {
         });
     }
 
-    function start(uid) {
+    function start(uid, opts) {
         if (!uid) return;
         authId = uid;
+        opts = opts || {};
+        if (opts.isAdmin) isAdminUser = true;
         bindBell();
         ensureDropdown();
         if (started) return;
@@ -490,6 +549,6 @@ const MineraNotif = (function () {
         timer = setInterval(poll, 8000);
     }
 
-    return { start, poll, updateBadge };
+    return { start, poll, updateBadge, setAdminEmpPendentes, renderCombinedBadge };
 })();
 window.MineraNotif = MineraNotif;

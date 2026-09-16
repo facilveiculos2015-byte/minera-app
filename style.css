@@ -2318,3 +2318,11 @@ body, .container, .card, header, nav, section { min-width: 0; }
 }
 @keyframes minera-spin { to { transform: rotate(360deg); } }
 #btn-audio.recording { background: #7f1d1d; color: #fecaca; }
+
+
+/* Admin: empréstimos pendentes */
+.kpi-card.kpi-alert .kpi-value { color: #fbbf24; }
+tr.row-pendente { background: rgba(251, 191, 36, 0.08); }
+.bubble-failed { opacity: 0.85; border: 1px solid var(--danger, #f87171); }
+.bubble-audio audio { width: 100%; min-width: 180px; }
+.notif-emp-item strong { color: #fbbf24; }

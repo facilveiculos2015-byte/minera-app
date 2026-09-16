@@ -671,40 +671,126 @@ async function carregarSaquesAdmin() {
     }
 }
 
+function rotuloPapeisEmp(papeis, tipo) {
+    const labels = {
+        minerador: 'Minerador',
+        comprador: 'Comprador',
+        transportador: 'Transportador',
+        transportador_mina_britador: 'Transportador (Mina–Britador)',
+        transportador_britador_porto: 'Transportador (Britador–Porto)',
+        dono_britador: 'Dono de Britador',
+        carregamento: 'Carregador',
+        admin: 'Admin',
+        operador: 'Operador'
+    };
+    const arr = Array.isArray(papeis) ? papeis.map(p => String(p).toLowerCase()) : [];
+    if (!arr.length && tipo) return labels[String(tipo).toLowerCase()] || tipo;
+    return arr.map(p => labels[p] || p).join(', ') || (tipo || '—');
+}
+
+function atualizarBadgeEmprestimos(n) {
+    const kpi = document.getElementById('kpi-emprestimos');
+    if (kpi) kpi.textContent = String(n);
+    const badge = document.getElementById('badge-emp-pendentes');
+    if (badge) {
+        if (n > 0) {
+            badge.textContent = n > 99 ? '99+' : String(n);
+            badge.classList.remove('oculto');
+        } else {
+            badge.classList.add('oculto');
+        }
+    }
+    try {
+        if (typeof MineraNotif !== 'undefined' && MineraNotif.setAdminEmpPendentes) {
+            MineraNotif.setAdminEmpPendentes(n);
+        }
+    } catch (e) { /* ignore */ }
+}
+
+async function buscarEmprestimosAdminRows() {
+    // Prefer RPC (SQL 23) — includes papeis even if RLS join is awkward
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_listar_emprestimos', { p_limit: 80 });
+        if (!error && Array.isArray(data)) return data;
+        if (error) console.warn('admin_listar_emprestimos:', error.message);
+    } catch (e) {
+        console.warn('RPC emprestimos indisponível', e);
+    }
+    const { data, error } = await supabaseClient
+        .from('emprestimos')
+        .select('*')
+        .order('criado_em', { ascending: false })
+        .limit(80);
+    if (error) throw error;
+    const rows = data || [];
+    // Enrich with usuarios.papeis when possible
+    const ids = [...new Set(rows.map(r => r.auth_id).filter(Boolean))];
+    let byAuth = {};
+    if (ids.length) {
+        const { data: users } = await supabaseClient
+            .from('usuarios')
+            .select('auth_id, nome, tipo, papeis')
+            .in('auth_id', ids);
+        (users || []).forEach(u => { byAuth[u.auth_id] = u; });
+    }
+    return rows.map(e => {
+        const u = byAuth[e.auth_id] || {};
+        return Object.assign({}, e, {
+            usuario_nome: u.nome || null,
+            usuario_tipo: u.tipo || null,
+            usuario_papeis: u.papeis || []
+        });
+    });
+}
+
 async function carregarEmprestimosAdmin() {
     const box = document.getElementById('admin-emprestimos');
     if (!box) return;
     try {
-        const { data, error } = await supabaseClient
-            .from('emprestimos')
-            .select('*')
-            .order('criado_em', { ascending: false })
-            .limit(80);
-        if (error) throw error;
+        const data = await buscarEmprestimosAdminRows();
+        const pendentes = (data || []).filter(e => String(e.status || 'analise') === 'analise').length;
+        atualizarBadgeEmprestimos(pendentes);
         if (!data || !data.length) {
-            box.innerHTML = '<p>Nenhum empréstimo.</p>';
+            box.innerHTML = '<p>Nenhum empréstimo solicitado ainda.</p>';
             return;
         }
-        const lab = { analise: 'Em análise', aprovado: 'Aprovado', rejeitado: 'Rejeitado', pago: 'Pago' };
-        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-            '<th>Quando</th><th>Nome</th><th>Valor</th><th>Total</th><th>Prazo</th><th>Status</th><th></th></tr></thead><tbody>' +
-            data.map(e => {
+        const lab = { analise: 'Em análise', aprovado: 'Aprovado / creditado', rejeitado: 'Recusado', pago: 'Pago' };
+        const pend = (data || []).filter(e => String(e.status || '') === 'analise');
+        const rest = (data || []).filter(e => String(e.status || '') !== 'analise');
+        const ordered = pend.concat(rest);
+        box.innerHTML = (pendentes
+            ? '<p class="aviso-credito"><strong>' + pendentes + '</strong> pedido(s) aguardando análise de crédito.</p>'
+            : '<p class="sub">Nenhum pedido pendente no momento.</p>') +
+            '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Quando</th><th>Solicitante</th><th>Papéis</th><th>Valor / Total</th><th>Prazo</th><th>Formulário</th><th>Status</th><th></th></tr></thead><tbody>' +
+            ordered.map(e => {
                 const when = e.criado_em ? new Date(e.criado_em).toLocaleString('pt-BR') : '—';
                 const st = String(e.status || 'analise');
                 let btns = '';
                 if (st === 'analise') {
-                    btns = '<button type="button" class="btn-sm btn-ok" data-act="aprovar">Aprovar</button> ' +
-                        '<button type="button" class="btn-sm btn-danger" data-act="rejeitar">Rejeitar</button>';
+                    btns = '<button type="button" class="btn-sm btn-ok" data-act="aprovar">Liberar crédito</button> ' +
+                        '<button type="button" class="btn-sm btn-danger" data-act="rejeitar">Recusar</button>';
                 } else if (st === 'aprovado') {
                     btns = '<button type="button" class="btn-sm btn-ok" data-act="pago">Marcar pago</button>';
                 }
-                return `<tr data-id="${e.id}">
+                const nomeShow = e.nome || e.usuario_nome || '—';
+                const papeis = rotuloPapeisEmp(e.usuario_papeis, e.usuario_tipo);
+                const total = Number(e.total_previsto != null ? e.total_previsto : (Number(e.valor) || 0) * (1 + 0.15 * ((Number(e.prazo_dias) || 30) / 30)));
+                const formBits = [
+                    e.finalidade ? ('Finalidade: ' + e.finalidade) : '',
+                    e.telefone ? ('Tel: ' + e.telefone) : '',
+                    e.renda_declarada != null ? ('Renda: ' + Number(e.renda_declarada).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })) : '',
+                    e.observacoes ? ('Obs: ' + e.observacoes) : ''
+                ].filter(Boolean).join(' · ') || '—';
+                const rowCls = st === 'analise' ? ' class="row-pendente"' : '';
+                return `<tr data-id="${e.id}"${rowCls}>
                     <td>${esc(when)}</td>
-                    <td>${esc(e.nome || '—')}<br><span class="sub">${esc(e.finalidade || '')}</span></td>
-                    <td>${esc(Number(e.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
-                    <td>${esc(Number(e.total_previsto != null ? e.total_previsto : (Number(e.valor)||0) * (1 + 0.15 * ((Number(e.prazo_dias)||30)/30))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
+                    <td><strong>${esc(nomeShow)}</strong><br><span class="sub">${esc(String(e.auth_id || '').slice(0, 8))}…</span></td>
+                    <td>${esc(papeis)}</td>
+                    <td>${esc(Number(e.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}<br><span class="sub">prev. ${esc(total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</span></td>
                     <td>${esc(e.prazo_dias)} d</td>
-                    <td><span class="badge">${esc(lab[st] || st)}</span></td>
+                    <td class="sub">${esc(formBits)}</td>
+                    <td><span class="badge ${st === 'analise' ? 'badge-pendente' : (st === 'rejeitado' ? 'badge-atrasado' : 'badge-pago')}">${esc(lab[st] || st)}</span></td>
                     <td class="card-actions">${btns}</td>
                 </tr>`;
             }).join('') + '</tbody></table></div>';
@@ -713,8 +799,9 @@ async function carregarEmprestimosAdmin() {
             btn.addEventListener('click', async () => {
                 const tr = btn.closest('tr');
                 const id = parseInt(tr.getAttribute('data-id'), 10);
-                const row = (data || []).find(x => x.id === id);
+                const row = (ordered || []).find(x => x.id === id);
                 const act = btn.getAttribute('data-act');
+                btn.disabled = true;
                 try {
                     if (act === 'aprovar') {
                         const { error } = await supabaseClient.from('emprestimos').update({
@@ -723,14 +810,14 @@ async function carregarEmprestimosAdmin() {
                         }).eq('id', id);
                         if (error) throw error;
                         if (row) await creditarCaixaEmprestimo(row);
-                        toastMsg('Empréstimo aprovado e creditado no Caixa');
+                        toastMsg('Crédito liberado no Caixa Minera do solicitante');
                     } else if (act === 'rejeitar') {
                         const { error } = await supabaseClient.from('emprestimos').update({
                             status: 'rejeitado',
                             atualizado_em: new Date().toISOString()
                         }).eq('id', id);
                         if (error) throw error;
-                        toastMsg('Empréstimo rejeitado');
+                        toastMsg('Empréstimo recusado');
                     } else if (act === 'pago') {
                         const { error } = await supabaseClient.from('emprestimos').update({
                             status: 'pago',
@@ -741,12 +828,14 @@ async function carregarEmprestimosAdmin() {
                     }
                     carregarEmprestimosAdmin();
                 } catch (e) {
-                    toastMsg('Erro: ' + (e.message || e) + ' (SQL 14?)');
+                    btn.disabled = false;
+                    toastMsg('Erro: ' + (e.message || e) + ' (aplique SQL 23?)');
                 }
             });
         });
     } catch (e) {
-        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 14)</p>';
+        atualizarBadgeEmprestimos(0);
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' — aplique sql/23-admin-emprestimos.sql no Supabase.</p>';
     }
 }
 
@@ -868,4 +957,6 @@ async function carregarSuporteAdmin() {
         carregarEmprestimosAdmin(),
         carregarSuporteAdmin()
     ]);
+    // Atualiza pedidos de empréstimo periodicamente (badge + lista)
+    setInterval(() => { try { carregarEmprestimosAdmin(); } catch (e) { /* ignore */ } }, 45000);
 })();
