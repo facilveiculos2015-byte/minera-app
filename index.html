@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Gestão de Mineração</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="app" class="container">
+        <header>
+            <h1>Minera App</h1>
+            <p>Painel de Controle e Produção</p>
+        </header>
+
+        <main>
+            <section class="card">
+                <h2>Lotes em Andamento</h2>
+                <div id="lotes-lista" class="loading">Carregando dados...</div>
+            </section>
+
+            <section class="card">
+                <h2>Novo Lote</h2>
+                <form id="form-lote">
+                    <input type="text" id="codigo_lote" placeholder="Código do Lote (Ex: LT-001)" required>
+                    <input type="text" id="origem" placeholder="Frente / Origem" required>
+                    <input type="number" id="peso_bruto" placeholder="Peso Bruto (kg)" required>
+                    <button type="submit">Cadastrar Lote</button>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
