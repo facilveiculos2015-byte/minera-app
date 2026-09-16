@@ -76,6 +76,33 @@ function badgePublicadoComo(papel) {
     return '<span class="lote-papel-badge">' + esc(rotuloPapelLote(papel)) + '</span>';
 }
 
+function loteLocalMeta(l) {
+    const bits = [];
+    if (l.cidade && l.estado) bits.push(l.cidade + '-' + String(l.estado).toUpperCase());
+    else if (l.cidade) bits.push(l.cidade);
+    else if (l.estado) bits.push(String(l.estado).toUpperCase());
+    if (l.ddd) bits.push('DDD ' + l.ddd);
+    if (l.origem) bits.push(l.origem);
+    return bits.length ? bits.join(' · ') : '—';
+}
+
+async function onLoteEstadoChange() {
+    const uf = (document.getElementById('lote_estado').value || '').toUpperCase();
+    if (typeof LocalidadeBR !== 'undefined') {
+        await LocalidadeBR.preencherSelectCidades(document.getElementById('lote_cidade'), uf, '');
+    }
+    document.getElementById('lote_ddd').value = '';
+}
+
+async function onLoteCidadeChange() {
+    const uf = (document.getElementById('lote_estado').value || '').toUpperCase();
+    const cidade = document.getElementById('lote_cidade').value || '';
+    if (cidade && uf && typeof LocalidadeBR !== 'undefined') {
+        const d = LocalidadeBR.dddDeCidade(cidade, uf);
+        if (d) document.getElementById('lote_ddd').value = d;
+    }
+}
+
 function abrirModal(titulo) {
     document.getElementById('modal-lote-titulo').textContent = titulo || 'Novo Lote';
     document.getElementById('modal-lote').classList.remove('oculto');
@@ -119,7 +146,7 @@ function renderCards(lista) {
                     <span class="${statusBadgeClass(l.status)}">${esc(statusAmigavel(l.status))}</span>
                 </div>
                 <h3 class="lote-codigo">${esc(l.codigo_lote)}</h3>
-                <p class="lote-meta">📍 ${esc(l.origem || '—')} · ⚖️ ${esc(formatPeso(l.peso_bruto_kg))}</p>
+                <p class="lote-meta">📍 ${esc(loteLocalMeta(l))} · ⚖️ ${esc(formatPeso(l.peso_bruto_kg))}</p>
                 ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : ''}
                 <div class="card-actions">
                     <button type="button" class="btn-sm" data-act="edit" data-id="${l.id}">Editar</button>
@@ -147,7 +174,7 @@ async function carregarLotes() {
     }
 }
 
-function preencherForm(lote) {
+async function preencherForm(lote) {
     document.getElementById('lote-id').value = lote ? lote.id : '';
     document.getElementById('codigo_lote').value = lote ? (lote.codigo_lote || '') : '';
     document.getElementById('tipo_minerio').value = lote ? (lote.tipo_minerio || '') : '';
@@ -160,6 +187,21 @@ function preencherForm(lote) {
     imagemUploadUrl = null;
     document.getElementById('imagem_file').value = '';
     montarSelectPublicadoComo(lote ? lote.publicado_como : null);
+
+    const uf = lote && lote.estado ? String(lote.estado).toUpperCase() : '';
+    const cidade = lote && lote.cidade ? lote.cidade : '';
+    const ddd = lote && lote.ddd != null ? String(lote.ddd) : '';
+    if (typeof LocalidadeBR !== 'undefined') {
+        await LocalidadeBR.preencherSelectEstados(document.getElementById('lote_estado'), uf);
+        await LocalidadeBR.preencherSelectCidades(document.getElementById('lote_cidade'), uf, cidade);
+    } else {
+        document.getElementById('lote_estado').value = uf;
+    }
+    document.getElementById('lote_ddd').value = ddd || (
+        (cidade && uf && typeof LocalidadeBR !== 'undefined')
+            ? (LocalidadeBR.dddDeCidade(cidade, uf) || '')
+            : ''
+    );
 }
 
 function extForMime(mime, fallback) {
@@ -316,6 +358,25 @@ async function salvarLote(e) {
         return;
     }
 
+    const estado = (document.getElementById('lote_estado').value || '').trim().toUpperCase();
+    const cidade = (document.getElementById('lote_cidade').value || '').trim();
+    let ddd = (document.getElementById('lote_ddd').value || '').trim().replace(/\D/g, '');
+    if (ddd.length > 2) ddd = ddd.slice(0, 2);
+    if (!estado || !cidade) {
+        msgEl.textContent = 'Informe Estado e Cidade do lote (necessário para o Marketplace).';
+        msgEl.className = 'msg erro';
+        toastMsg('Escolha Estado e Cidade');
+        return;
+    }
+    if (!ddd && typeof LocalidadeBR !== 'undefined') {
+        ddd = LocalidadeBR.dddDeCidade(cidade, estado) || '';
+    }
+    if (ddd && !/^\d{2}$/.test(ddd)) {
+        msgEl.textContent = 'DDD inválido (use 2 dígitos).';
+        msgEl.className = 'msg erro';
+        return;
+    }
+
     if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Criar/editar lote')) {
         msgEl.textContent = 'Conta bloqueada — pague a comissão no Perfil.';
         msgEl.className = 'msg erro';
@@ -364,7 +425,10 @@ async function salvarLote(e) {
         imagem_url,
         lat,
         lng,
-        publicado_como
+        publicado_como,
+        estado,
+        cidade,
+        ddd: ddd || null
     };
 
     let error;
@@ -381,12 +445,14 @@ async function salvarLote(e) {
 
     if (error) {
         let hint = '';
-        if (/publicado_como|column/i.test(error.message || '')) {
+        if (/publicado_como/i.test(error.message || '')) {
             hint = ' — aplique o SQL 26-lotes-publicado-como.sql no Supabase.';
+        } else if (/\bestado\b|\bcidade\b|\bddd\b/i.test(error.message || '')) {
+            hint = ' — aplique o SQL 29-lotes-localidade.sql no Supabase.';
         } else if (error.message.includes('preco') || error.message.includes('imagem')) {
             hint = ' — aplique o SQL 09-ui-marketplace.sql no Supabase.';
         } else if (error.message.includes('lat') || error.message.includes('lng') || error.message.includes('column')) {
-            hint = ' — aplique o SQL 11-mapa-coords.sql no Supabase.';
+            hint = ' — aplique o SQL 11-mapa-coords.sql (ou 29) no Supabase.';
         }
         msgEl.textContent = 'Erro: ' + error.message + hint;
         msgEl.className = 'msg erro';
@@ -506,9 +572,9 @@ async function marcarVendido(id) {
     carregarLotes();
 }
 
-document.getElementById('btn-novo-lote').addEventListener('click', () => {
+document.getElementById('btn-novo-lote').addEventListener('click', async () => {
     if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Novo lote')) return;
-    preencherForm(null);
+    await preencherForm(null);
     abrirModal('Novo Lote');
 });
 
@@ -529,8 +595,7 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
     const act = btn.getAttribute('data-act');
     const lote = lotesMeus.find(l => l.id === id);
     if (act === 'edit' && lote) {
-        preencherForm(lote);
-        abrirModal('Editar Lote');
+        preencherForm(lote).then(() => abrirModal('Editar Lote'));
     } else if (act === 'del') {
         excluirLote(id);
     } else if (act === 'vendido') {
@@ -546,6 +611,13 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
     montarNav('lotes', perfilAtual);
     if (typeof verificarInadimplencia === 'function') await verificarInadimplencia(perfilAtual);
     mostrarBannerBloqueio(perfilAtual);
+    const estEl = document.getElementById('lote_estado');
+    const cidEl = document.getElementById('lote_cidade');
+    if (estEl) estEl.addEventListener('change', () => { onLoteEstadoChange(); });
+    if (cidEl) cidEl.addEventListener('change', () => { onLoteCidadeChange(); });
+    if (typeof LocalidadeBR !== 'undefined') {
+        try { await LocalidadeBR.preencherSelectEstados(estEl, ''); } catch (e) { console.warn(e); }
+    }
     carregarLotes();
     try {
         const u = new URL(window.location.href);

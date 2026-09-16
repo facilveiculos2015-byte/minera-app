@@ -1,6 +1,13 @@
 let feedCache = [];
 let filtroTipo = '';
 let filtroStatus = '';
+/** modo local: todos | estado | cidade | ddd */
+let filtroLocMode = 'todos';
+let filtroEstado = '';
+let filtroCidade = '';
+let filtroDdd = '';
+/** geo detectada no open: {cidade, estado, ddd} ou null */
+let geoPerto = null;
 let cotacaoTimer = null;
 let ultimoUsdBrl = null;
 
@@ -418,6 +425,50 @@ function rotuloPapelFeed(papel) {
     return labels[k] || papel;
 }
 
+function localLabel(lote) {
+    const parts = [];
+    if (lote.cidade && lote.estado) parts.push(lote.cidade + '-' + String(lote.estado).toUpperCase());
+    else if (lote.cidade) parts.push(lote.cidade);
+    else if (lote.estado) parts.push(String(lote.estado).toUpperCase());
+    if (lote.ddd) parts.push('DDD ' + lote.ddd);
+    if (lote.origem) parts.push(lote.origem);
+    return parts.length ? parts.join(' · ') : '—';
+}
+
+function setLocStatus(texto) {
+    const el = document.getElementById('loc-status');
+    if (el) el.textContent = texto;
+}
+
+function syncLocModeChips() {
+    const box = document.getElementById('filtro-local-chips');
+    if (!box) return;
+    box.querySelectorAll('.fchip').forEach(b => {
+        b.classList.toggle('on', (b.getAttribute('data-loc') || '') === filtroLocMode);
+    });
+}
+
+function persistLocPref() {
+    if (typeof LocalidadeBR === 'undefined') return;
+    LocalidadeBR.salvarPreferencia({
+        mode: filtroLocMode,
+        estado: filtroEstado,
+        cidade: filtroCidade,
+        ddd: filtroDdd
+    });
+}
+
+function matchCidade(l, cidade) {
+    if (!cidade) return true;
+    const a = (typeof LocalidadeBR !== 'undefined')
+        ? LocalidadeBR.norm(l.cidade || '')
+        : String(l.cidade || '').toLowerCase();
+    const b = (typeof LocalidadeBR !== 'undefined')
+        ? LocalidadeBR.norm(cidade)
+        : String(cidade).toLowerCase();
+    return a === b;
+}
+
 function renderFeed(lista) {
     const box = document.getElementById('feed');
     if (!lista.length) {
@@ -443,7 +494,7 @@ function renderFeed(lista) {
                     <span class="${statusBadgeClass(lote.status)}">${esc(statusAmigavel(lote.status))}</span>
                 </div>
                 <h3 class="lote-codigo">${esc(codigo)}</h3>
-                <p class="lote-meta">📍 ${esc(lote.origem || '—')} · ⚖️ ${esc(formatPeso(lote.peso_bruto_kg))}</p>
+                <p class="lote-meta">📍 ${esc(localLabel(lote))} · ⚖️ ${esc(formatPeso(lote.peso_bruto_kg))}</p>
                 ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : ''}
                 <p class="lote-who">${esc(lote.criado_por || 'Usuário')}${quando ? ' · ' + quando : ''}</p>
                 <a class="btn-card" href="${APP_ROOT}chat.html?${lote.criado_por_id ? ('com=' + encodeURIComponent(lote.criado_por_id) + '&') : ''}lote=${encodeURIComponent(codigo)}">Negociar / Ver Detalhes</a>
@@ -454,6 +505,20 @@ function renderFeed(lista) {
 
 function aplicarFiltros() {
     let lista = feedCache.slice();
+    // Localidade (AND com mineral/status)
+    if (filtroLocMode === 'estado' && filtroEstado) {
+        const uf = filtroEstado.toUpperCase();
+        lista = lista.filter(l => String(l.estado || '').toUpperCase() === uf);
+    } else if (filtroLocMode === 'cidade' && filtroCidade) {
+        if (filtroEstado) {
+            const uf = filtroEstado.toUpperCase();
+            lista = lista.filter(l => String(l.estado || '').toUpperCase() === uf);
+        }
+        lista = lista.filter(l => matchCidade(l, filtroCidade));
+    } else if (filtroLocMode === 'ddd' && filtroDdd) {
+        const d = String(filtroDdd);
+        lista = lista.filter(l => String(l.ddd || '') === d);
+    }
     if (filtroTipo) lista = lista.filter(l => (l.tipo_minerio || '') === filtroTipo);
     if (filtroStatus) {
         lista = lista.filter(l => {
@@ -483,15 +548,40 @@ function bindChipGroup(containerId, attr, setter) {
 async function carregarFeed() {
     const box = document.getElementById('feed');
     try {
-        const { data, error } = await supabaseClient
+        let q = supabaseClient
             .from('lotes')
             .select('*')
             .order('id', { ascending: false })
-            .limit(50);
-        if (error) throw error;
+            .limit(120);
+        // Pré-filtro no servidor quando possível (AND com chips locais no cliente)
+        if (filtroLocMode === 'estado' && filtroEstado) {
+            q = q.eq('estado', filtroEstado.toUpperCase());
+        } else if (filtroLocMode === 'cidade' && filtroCidade) {
+            if (filtroEstado) q = q.eq('estado', filtroEstado.toUpperCase());
+            q = q.ilike('cidade', filtroCidade);
+        } else if (filtroLocMode === 'ddd' && filtroDdd) {
+            q = q.eq('ddd', String(filtroDdd));
+        }
+        const { data, error } = await q;
+        if (error) {
+            // Colunas de localidade ausentes → fallback sem filtro SQL
+            if (/estado|cidade|ddd|column|schema cache/i.test(error.message || '')) {
+                console.warn('localidade columns?', error.message);
+                const res2 = await supabaseClient.from('lotes').select('*').order('id', { ascending: false }).limit(120);
+                if (res2.error) throw res2.error;
+                feedCache = res2.data || [];
+                if (box && !feedCache.length) {
+                    box.innerHTML = '<p>Ninguém postou ainda. Seja o primeiro em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+                    return;
+                }
+                aplicarFiltros();
+                return;
+            }
+            throw error;
+        }
         feedCache = data || [];
         if (!feedCache.length) {
-            box.innerHTML = '<p>Ninguém postou ainda. Seja o primeiro em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+            box.innerHTML = '<p>Nenhum lote com esses filtros de local. Amplie para <b>Todos</b> ou publique em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
             return;
         }
         aplicarFiltros();
@@ -499,6 +589,119 @@ async function carregarFeed() {
         console.error(err);
         box.innerHTML = '<p class="erro">Não deu pra carregar o feed. Tente sair e entrar de novo.</p>';
     }
+}
+
+async function onLocModeChange(mode) {
+    filtroLocMode = mode || 'todos';
+    syncLocModeChips();
+    if (filtroLocMode === 'todos') {
+        // mantém selects mas não filtra
+    }
+    persistLocPref();
+    await carregarFeed();
+}
+
+async function onEstadoChange() {
+    const sel = document.getElementById('filtro-estado');
+    filtroEstado = (sel && sel.value) ? sel.value.toUpperCase() : '';
+    filtroCidade = '';
+    if (typeof LocalidadeBR !== 'undefined') {
+        await LocalidadeBR.preencherSelectCidades(document.getElementById('filtro-cidade'), filtroEstado, '');
+        LocalidadeBR.preencherSelectDdd(document.getElementById('filtro-ddd'), filtroEstado, filtroDdd);
+    }
+    if (filtroLocMode === 'todos' && filtroEstado) {
+        filtroLocMode = 'estado';
+        syncLocModeChips();
+    }
+    persistLocPref();
+    await carregarFeed();
+}
+
+async function onCidadeChange() {
+    const sel = document.getElementById('filtro-cidade');
+    filtroCidade = (sel && sel.value) ? sel.value : '';
+    if (filtroCidade && typeof LocalidadeBR !== 'undefined' && filtroEstado) {
+        const d = LocalidadeBR.dddDeCidade(filtroCidade, filtroEstado);
+        if (d) {
+            filtroDdd = d;
+            const dsel = document.getElementById('filtro-ddd');
+            if (dsel) dsel.value = d;
+        }
+    }
+    if (filtroCidade) {
+        filtroLocMode = 'cidade';
+        syncLocModeChips();
+    }
+    persistLocPref();
+    await carregarFeed();
+}
+
+async function onDddChange() {
+    const sel = document.getElementById('filtro-ddd');
+    filtroDdd = (sel && sel.value) ? sel.value : '';
+    if (filtroDdd) {
+        filtroLocMode = 'ddd';
+        syncLocModeChips();
+    }
+    persistLocPref();
+    await carregarFeed();
+}
+
+async function initLocalidadeUI() {
+    if (typeof LocalidadeBR === 'undefined') {
+        setLocStatus('Escolha estado/cidade');
+        return;
+    }
+    const estSel = document.getElementById('filtro-estado');
+    const cidSel = document.getElementById('filtro-cidade');
+    const dddSel = document.getElementById('filtro-ddd');
+
+    await LocalidadeBR.preencherSelectEstados(estSel, '');
+    LocalidadeBR.preencherSelectDdd(dddSel, '', '');
+
+    const pref = LocalidadeBR.lerPreferencia();
+
+    setLocStatus('Pedindo permissão de localização…');
+    geoPerto = await LocalidadeBR.obterLocalizacaoUsuario({ timeout: 10000 });
+
+    if (geoPerto && geoPerto.cidade && geoPerto.estado) {
+        setLocStatus('Perto de você: ' + geoPerto.cidade + '-' + geoPerto.estado);
+        filtroEstado = geoPerto.estado;
+        filtroCidade = geoPerto.cidade;
+        filtroDdd = geoPerto.ddd || '';
+        filtroLocMode = 'cidade';
+        await LocalidadeBR.preencherSelectEstados(estSel, filtroEstado);
+        await LocalidadeBR.preencherSelectCidades(cidSel, filtroEstado, filtroCidade);
+        LocalidadeBR.preencherSelectDdd(dddSel, filtroEstado, filtroDdd);
+        syncLocModeChips();
+        persistLocPref();
+    } else if (pref && (pref.estado || pref.cidade || pref.ddd || pref.mode)) {
+        setLocStatus('Escolha estado/cidade (localização indisponível)');
+        filtroLocMode = pref.mode || 'todos';
+        filtroEstado = pref.estado || '';
+        filtroCidade = pref.cidade || '';
+        filtroDdd = pref.ddd || '';
+        await LocalidadeBR.preencherSelectEstados(estSel, filtroEstado);
+        if (filtroEstado) await LocalidadeBR.preencherSelectCidades(cidSel, filtroEstado, filtroCidade);
+        LocalidadeBR.preencherSelectDdd(dddSel, filtroEstado, filtroDdd);
+        syncLocModeChips();
+    } else {
+        setLocStatus('Escolha estado/cidade');
+        filtroLocMode = 'todos';
+        syncLocModeChips();
+    }
+
+    const chips = document.getElementById('filtro-local-chips');
+    if (chips) {
+        chips.addEventListener('click', (e) => {
+            const btn = e.target.closest('.fchip');
+            if (!btn) return;
+            onLocModeChange(btn.getAttribute('data-loc') || 'todos');
+        });
+    }
+    if (estSel) estSel.addEventListener('change', () => { onEstadoChange(); });
+    if (cidSel) cidSel.addEventListener('change', () => { onCidadeChange(); });
+    if (dddSel) dddSel.addEventListener('change', () => { onDddChange(); });
 }
 
 (async function init() {
@@ -517,6 +720,12 @@ async function carregarFeed() {
     // Notificações: MineraNotif (nav.js) liga o sino / badge de DMs
     atualizarCotacoes();
     cotacaoTimer = setInterval(atualizarCotacoes, 60000);
+    try {
+        await initLocalidadeUI();
+    } catch (e) {
+        console.warn('localidade init', e);
+        setLocStatus('Escolha estado/cidade');
+    }
     carregarFeed();
 })();
 

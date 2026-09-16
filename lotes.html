@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Meus Lotes</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ad">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ad">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ae">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ae">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260916ad">
+    <link rel="stylesheet" href="style.css?v=20260916ae">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -69,6 +69,23 @@
                 </select>
                 <label for="origem">Origem / Frente</label>
                 <input type="text" id="origem" placeholder="Frente / Origem" required>
+                <div class="loc-form-row">
+                    <div>
+                        <label for="lote_estado">Estado (UF)</label>
+                        <select id="lote_estado" required>
+                            <option value="">Selecione o estado…</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="lote_cidade">Cidade</label>
+                        <select id="lote_cidade" required disabled>
+                            <option value="">Selecione a cidade…</option>
+                        </select>
+                    </div>
+                </div>
+                <label for="lote_ddd">DDD</label>
+                <input type="text" id="lote_ddd" placeholder="Auto (pela cidade)" maxlength="2" inputmode="numeric" pattern="[0-9]{2}">
+                <p class="hint">Estado e cidade ajudam o Marketplace a mostrar seu lote perto de quem busca. O DDD é preenchido automaticamente quando possível.</p>
                 <label for="peso_bruto">Peso bruto (kg)</label>
                 <input type="number" id="peso_bruto" placeholder="Peso Bruto (kg)" required step="0.01" min="0">
                 <label for="preco">Preço (R$)</label>
@@ -99,12 +116,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260916ad"></script>
-    <script src="auth-guard.js?v=20260916ad"></script>
-    <script src="suporte.js?v=20260916ad"></script>
-    <script src="nav.js?v=20260916ad"></script>
-    <script src="anti-golpe.js?v=20260916ad"></script>
-    <script src="lotes.js?v=20260916ad"></script>
-    <script src="pwa.js?v=20260916ad"></script>
+    <script src="config.js?v=20260916ae"></script>
+    <script src="auth-guard.js?v=20260916ae"></script>
+    <script src="suporte.js?v=20260916ae"></script>
+    <script src="nav.js?v=20260916ae"></script>
+    <script src="anti-golpe.js?v=20260916ae"></script>
+    <script src="localidade.js?v=20260916ae"></script>
+    <script src="lotes.js?v=20260916ae"></script>
+    <script src="pwa.js?v=20260916ae"></script>
 </body>
 </html>

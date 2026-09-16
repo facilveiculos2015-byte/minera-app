@@ -2535,3 +2535,45 @@ body.pagina-chat .nav-chips.nav-secondary {
         margin: 16px;
     }
 }
+
+/* ===== Localidade Marketplace (20260916ae) ===== */
+.loc-bar {
+    margin: 0 0 14px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border, #334155);
+    background: rgba(15, 23, 42, 0.55);
+}
+.loc-bar-status {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent-color, #f59e0b);
+    margin-bottom: 8px;
+}
+.loc-mode-chips { margin-bottom: 8px; }
+.loc-selects {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+.loc-select,
+.loc-form-row select,
+#lote_estado, #lote_cidade, #lote_ddd {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #475569;
+    background: #0f172a;
+    color: inherit;
+    font: inherit;
+}
+.loc-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 8px 0;
+}
+@media (max-width: 640px) {
+    .loc-selects { grid-template-columns: 1fr; }
+    .loc-form-row { grid-template-columns: 1fr; }
+}

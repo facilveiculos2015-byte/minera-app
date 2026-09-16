@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Feed</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ad">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ad">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ae">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ae">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260916ad">
+    <link rel="stylesheet" href="style.css?v=20260916ae">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -68,6 +68,27 @@
             <h2>Marketplace</h2>
             <p class="sub">Feed de lotes — negocie e veja detalhes</p>
 
+            <div class="loc-bar" id="loc-bar" aria-live="polite">
+                <div class="loc-bar-status" id="loc-status">Detectando localização…</div>
+                <div class="chip-filters loc-mode-chips" id="filtro-local-chips" role="group" aria-label="Filtro de localidade">
+                    <button type="button" class="fchip on" data-loc="todos">Todos</button>
+                    <button type="button" class="fchip" data-loc="estado">Estado</button>
+                    <button type="button" class="fchip" data-loc="cidade">Cidade</button>
+                    <button type="button" class="fchip" data-loc="ddd">DDD</button>
+                </div>
+                <div class="loc-selects" id="loc-selects">
+                    <select id="filtro-estado" aria-label="Estado" class="loc-select">
+                        <option value="">Estado (UF)</option>
+                    </select>
+                    <select id="filtro-cidade" aria-label="Cidade" class="loc-select" disabled>
+                        <option value="">Cidade</option>
+                    </select>
+                    <select id="filtro-ddd" aria-label="DDD" class="loc-select">
+                        <option value="">DDD</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="chip-filters" id="filtro-tipo-chips" role="group" aria-label="Tipo de minério">
                 <button type="button" class="fchip on" data-tipo="">Todos</button>
                 <button type="button" class="fchip" data-tipo="Ouro">Ouro</button>
@@ -84,11 +105,12 @@
             <div id="feed" class="loading">Carregando...</div>
         </section>
     </div>
-    <script src="config.js?v=20260916ad"></script>
-    <script src="auth-guard.js?v=20260916ad"></script>
-    <script src="suporte.js?v=20260916ad"></script>
-    <script src="nav.js?v=20260916ad"></script>
-    <script src="inicio.js?v=20260916ad"></script>
-    <script src="pwa.js?v=20260916ad"></script>
+    <script src="config.js?v=20260916ae"></script>
+    <script src="auth-guard.js?v=20260916ae"></script>
+    <script src="suporte.js?v=20260916ae"></script>
+    <script src="nav.js?v=20260916ae"></script>
+    <script src="localidade.js?v=20260916ae"></script>
+    <script src="inicio.js?v=20260916ae"></script>
+    <script src="pwa.js?v=20260916ae"></script>
 </body>
 </html>
