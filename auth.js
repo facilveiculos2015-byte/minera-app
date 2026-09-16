@@ -15,7 +15,7 @@ function msg(texto, ok) {
 
 async function irSeLogado() {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) window.location.href = 'lotes.html';
+    if (session) window.location.href = 'inicio.html';
 }
 
 document.getElementById('form-entrar').addEventListener('submit', async (e) => {
@@ -30,7 +30,7 @@ document.getElementById('form-entrar').addEventListener('submit', async (e) => {
             : error.message, false);
         return;
     }
-    window.location.href = 'lotes.html';
+    window.location.href = 'inicio.html';
 });
 
 document.getElementById('form-cadastrar').addEventListener('submit', async (e) => {
@@ -49,7 +49,7 @@ document.getElementById('form-cadastrar').addEventListener('submit', async (e) =
         return;
     }
     if (data.session) {
-        window.location.href = 'lotes.html';
+        window.location.href = 'inicio.html';
         return;
     }
     // sem sessão = confirmação de e-mail ligada

@@ -127,3 +127,30 @@ label { font-size: 0.9rem; color: #cbd5e1; }
     font-weight: 600;
 }
 .btn-sair:hover { background: #334155; }
+
+.nav-chips { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.nav-chips .chip {
+    display: inline-block;
+    text-decoration: none;
+    background: #0f172a;
+    color: #94a3b8;
+    border: 1px solid #475569;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+.nav-chips .chip.on {
+    background: var(--accent-color);
+    color: #000;
+    border-color: var(--accent-color);
+    font-weight: 700;
+}
+.sub { color: #94a3b8; font-size: 0.9rem; margin: -4px 0 12px; }
+.feed-list { list-style: none; }
+.feed-item {
+    padding: 14px 0;
+    border-bottom: 1px solid #334155;
+}
+.feed-top { font-size: 0.9rem; color: #cbd5e1; margin-bottom: 6px; }
+.feed-body { font-size: 1.05rem; }
+.feed-meta { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }

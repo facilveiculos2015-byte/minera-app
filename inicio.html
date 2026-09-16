@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Início</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header-row">
+            <div>
+                <h1>Minera App</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+        </header>
+
+        <nav class="nav-chips">
+            <a class="chip on" href="inicio.html">Início</a>
+            <a class="chip" href="lotes.html">Meus lotes / cadastrar</a>
+        </nav>
+
+        <section class="card">
+            <h2>O que está rolando</h2>
+            <p class="sub">Quem postou lote e o que entrou no sistema</p>
+            <div id="feed" class="loading">Carregando...</div>
+        </section>
+    </div>
+    <script src="config.js"></script>
+    <script src="inicio.js"></script>
+</body>
+</html>

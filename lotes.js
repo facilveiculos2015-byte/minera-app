@@ -39,9 +39,19 @@ document.getElementById('form-lote').addEventListener('submit', async (e) => {
     const codigo_lote = document.getElementById('codigo_lote').value.trim();
     const origem = document.getElementById('origem').value.trim();
     const peso_bruto_kg = parseFloat(document.getElementById('peso_bruto').value);
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const email = session && session.user ? (session.user.email || '') : '';
+    const nome = (session && session.user && session.user.user_metadata && session.user.user_metadata.nome) || email;
     const { error } = await supabaseClient
         .from('lotes')
-        .insert([{ codigo_lote, origem, peso_bruto_kg, status: 'pendente' }]);
+        .insert([{
+            codigo_lote,
+            origem,
+            peso_bruto_kg,
+            status: 'pendente',
+            criado_por: nome || email || 'Usuário',
+            criado_por_id: session && session.user ? session.user.id : null
+        }]);
     if (error) {
         alert('Erro ao cadastrar lote: ' + error.message);
         return;
