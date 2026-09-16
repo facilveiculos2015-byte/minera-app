@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql → 23-admin-emprestimos.sql → 24-chat-midia-storage.sql → 25-ensure-admin.sql → 26-lotes-publicado-como.sql → 27-chat-audio-fix.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql → 23-admin-emprestimos.sql → 24-chat-midia-storage.sql → 25-ensure-admin.sql → 26-lotes-publicado-como.sql → 27-chat-audio-fix.sql → 28-chat-msg-acoes.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -77,3 +77,13 @@ Incremental após 24/25: `lotes.publicado_como` + garante bucket `chat-midia` (f
 Incremental após 24 (e 26 se aplicável): **repara** bucket Storage `chat-midia` — `public=true`, `allowed_mime_types=NULL`, file_size ≥ 10MB, policies SELECT público + INSERT/UPDATE/DELETE authenticated. Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 27 no Supabase SQL Editor (obrigatório para áudio do chat sem 403).**
 Corrige playback 403 (bucket privado), upload rejeitado por MIME, e policies faltando/renomeadas no dashboard.
+
+
+
+
+## 28-chat-msg-acoes.sql
+Incremental após 27: colunas `resposta_a_id`, `apagada_para`; tabela `chat_conversas_ocultas`; RLS/trigger; RPCs
+`chat_apagar_historico_para_todos`, `chat_apagar_para_mim`, `chat_apagar_para_todos`, `chat_desocultar_conversa`, `chat_ocultar_conversa`.
+Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 28 no Supabase SQL Editor após 27.**
+Habilita Responder / Apagar para mim / Apagar para todos / Apagar histórico no chat.

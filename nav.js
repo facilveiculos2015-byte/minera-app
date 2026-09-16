@@ -141,39 +141,51 @@ function montarNav(paginaAtiva, perfil) {
     garantirHeaderCaixaBtn();
     const permitidos = new Set(chipsPermitidos(perfil));
     const body = document.body;
-    if (body) body.classList.add('has-bottom-nav');
+    if (body) {
+        body.classList.add('has-bottom-nav');
+        body.classList.toggle('pagina-chat', paginaAtiva === 'chat');
+    }
 
-    // Top slim secondary row (role extras)
+    // Top slim secondary row (role extras) — oculto no Chat (WhatsApp-like)
     const topNav = document.getElementById('app-nav');
     if (topNav) {
         const secs = NAV_SECUNDARIOS.filter(it => {
             if (it.adminOnly && !(typeof ehAdmin === 'function' && ehAdmin(perfil))) return false;
             return permitidos.has(it.id);
         });
-        topNav.className = 'nav-chips nav-secondary';
-        let html = secs.map(it => {
-            const on = it.id === paginaAtiva ? ' on' : '';
-            const feat = it.featured ? ' chip-featured' : '';
-            return '<a class="chip' + feat + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
-        }).join('');
-        html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
-        html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';
-        topNav.innerHTML = html;
+        if (paginaAtiva === 'chat') {
+            topNav.className = 'nav-chips nav-secondary oculto';
+            topNav.innerHTML = '';
+            topNav.setAttribute('aria-hidden', 'true');
+            // Mantém sheet "Mais" disponível via outros atalhos se necessário
+            garantirMaisSheet(secs);
+        } else {
+            topNav.className = 'nav-chips nav-secondary';
+            topNav.removeAttribute('aria-hidden');
+            let html = secs.map(it => {
+                const on = it.id === paginaAtiva ? ' on' : '';
+                const feat = it.featured ? ' chip-featured' : '';
+                return '<a class="chip' + feat + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
+            }).join('');
+            html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
+            html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';
+            topNav.innerHTML = html;
 
-        const btnMais = document.getElementById('nav-mais');
-        if (btnMais) btnMais.addEventListener('click', abrirMaisSheet);
+            const btnMais = document.getElementById('nav-mais');
+            if (btnMais) btnMais.addEventListener('click', abrirMaisSheet);
 
-        const btn = document.getElementById('nav-sair');
-        if (btn) {
-            btn.addEventListener('click', async () => {
-                if (typeof sairApp === 'function') await sairApp();
-                else {
-                    await supabaseClient.auth.signOut();
-                    irPara('index.html');
-                }
-            });
+            const btn = document.getElementById('nav-sair');
+            if (btn) {
+                btn.addEventListener('click', async () => {
+                    if (typeof sairApp === 'function') await sairApp();
+                    else {
+                        await supabaseClient.auth.signOut();
+                        irPara('index.html');
+                    }
+                });
+            }
+            garantirMaisSheet(secs);
         }
-        garantirMaisSheet(secs);
     }
 
     // Bottom Instagram bar
@@ -225,7 +237,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera App (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260916ac';
+    const src = root + 'logo-escavadeira.png?v=20260916ad';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -429,7 +441,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916ac' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916ad' });
             }
         } catch (e) { /* ignore */ }
     }

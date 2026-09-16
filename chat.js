@@ -20,6 +20,10 @@ let lastContactsSig = '';
 let renderedMsgOrder = []; // ids currently in DOM (stable order)
 let renderedMsgSigs = new Map();
 let threadInitialized = false;
+/** Mensagem sendo respondida: { id, texto, de_nome, tipo } | null */
+let replyToMsg = null;
+/** Cache id → mensagem da thread ativa (p/ quotes e menu) */
+let threadMsgsById = new Map();
 
 const ROLE_GROUPS = [
     { id: 'minerador', title: 'Mineradores/Vendedores', match: ['minerador'] },
@@ -84,7 +88,8 @@ function lerLoteQuery() {
 function lerParaQuery() {
     try {
         const u = new URL(window.location.href);
-        return (u.searchParams.get('para') || u.searchParams.get('dm') || '').trim();
+        // com= = vendedor (Negociar); para=/dm= aliases
+        return (u.searchParams.get('com') || u.searchParams.get('para') || u.searchParams.get('dm') || '').trim();
     } catch (e) { return ''; }
 }
 
@@ -349,7 +354,23 @@ function renderMedia(m) {
 }
 
 function messageSignature(m) {
-    return JSON.stringify([m.id, m.texto || '', m.tipo || '', m.midia_url || '', m.status || '', m.agendado_para || '', m.moderacao || '', m.deleted_at || '']);
+    return JSON.stringify([
+        m.id, m.texto || '', m.tipo || '', m.midia_url || '', m.status || '',
+        m.agendado_para || '', m.moderacao || '', m.deleted_at || '',
+        m.resposta_a_id || '', (m.apagada_para || []).join(',')
+    ]);
+}
+
+function snippetMsg(m) {
+    if (!m) return '';
+    if (m.deleted_at) return 'Mensagem apagada';
+    const raw = (m.texto || '').trim();
+    if (raw) return raw.slice(0, 120);
+    if (m.tipo === 'audio') return '🎙️ Áudio';
+    if (m.tipo === 'imagem') return '📷 Foto';
+    if (m.tipo === 'video') return '🎬 Vídeo';
+    if (m.tipo && m.tipo !== 'text') return '[' + m.tipo + ']';
+    return '(sem texto)';
 }
 
 function bubbleHtml(m) {
@@ -363,12 +384,26 @@ function bubbleHtml(m) {
     const flag = m.moderacao ? ' · 🚩 ' + esc(m.moderacao) : '';
     const isAdmin = typeof ehAdmin === 'function' && ehAdmin(perfilAtual);
     const pendingCls = m._pending || m._loading ? ' pending' : '';
+    const deleted = !!m.deleted_at;
     const idAttr = m.id != null ? ' data-msg-id="' + esc(String(m.id)) + '"' : (m._tempId ? ' data-temp-id="' + esc(m._tempId) + '"' : '');
-    return `<div class="bubble ${mine ? 'mine' : 'theirs'}${sched ? ' scheduled' : ''}${pendingCls}"${idAttr}>
+    const deAttr = m.de_auth_id ? ' data-de-auth="' + esc(String(m.de_auth_id)) + '"' : '';
+    let quoteHtml = '';
+    if (!deleted && m.resposta_a_id) {
+        const orig = threadMsgsById.get(Number(m.resposta_a_id)) || threadMsgsById.get(String(m.resposta_a_id));
+        const qNome = orig ? nomePublicoTexto(orig.de_nome, 'Mensagem') : 'Mensagem';
+        const qTxt = orig ? snippetMsg(orig) : ('#' + m.resposta_a_id);
+        quoteHtml = '<div class="bubble-quote"><span class="bubble-quote-name">' + esc(qNome) +
+            '</span><span class="bubble-quote-text">' + esc(qTxt) + '</span></div>';
+    }
+    const body = deleted
+        ? '<div class="bubble-text bubble-deleted">Mensagem apagada</div>'
+        : ((m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : '') +
+            renderMedia(m));
+    return `<div class="bubble ${mine ? 'mine' : 'theirs'}${sched ? ' scheduled' : ''}${deleted ? ' deleted' : ''}${pendingCls}"${idAttr}${deAttr}>
         <div class="bubble-meta">${esc(nomePublicoTexto(m.de_nome, 'Alguém'))} · ${when}${agLabel}${flag}</div>
-        ${m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : ''}
-        ${renderMedia(m)}
-        <div class="bubble-status">${esc(m._loading ? 'enviando' : st)}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
+        ${quoteHtml}
+        ${body}
+        <div class="bubble-status">${esc(deleted ? 'apagada' : (m._loading ? 'enviando' : st))}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
     </div>`;
 }
 
@@ -489,14 +524,25 @@ async function carregarContatos(force) {
 
         const { data: msgs } = await supabaseClient
             .from('chat_mensagens')
-            .select('id,de_auth_id,para_auth_id,texto,tipo,criado_em,status,deleted_at,de_nome')
+            .select('id,de_auth_id,para_auth_id,texto,tipo,criado_em,status,deleted_at,de_nome,apagada_para')
             .or('de_auth_id.eq.' + meuAuthId + ',para_auth_id.eq.' + meuAuthId)
-            .is('deleted_at', null)
             .order('criado_em', { ascending: false })
             .limit(400);
 
+        let ocultasMap = {};
+        try {
+            const { data: oc } = await supabaseClient
+                .from('chat_conversas_ocultas')
+                .select('outro_auth_id,oculto_em')
+                .eq('auth_id', meuAuthId);
+            (oc || []).forEach(r => { ocultasMap[r.outro_auth_id] = r.oculto_em; });
+        } catch (e) { /* SQL 28 */ }
+
         const lastByPeer = {};
         (msgs || []).forEach(m => {
+            if (m.deleted_at) return;
+            const ap = m.apagada_para || [];
+            if (Array.isArray(ap) && ap.indexOf(meuAuthId) >= 0) return;
             const peer = m.de_auth_id === meuAuthId ? m.para_auth_id : m.de_auth_id;
             if (!peer || lastByPeer[peer]) return;
             lastByPeer[peer] = m;
@@ -545,6 +591,11 @@ async function carregarContatos(force) {
         });
 
         const filtered = contatosCache.filter(c => {
+            const ocEm = ocultasMap[c.auth_id];
+            if (ocEm) {
+                const lastT = c.last && c.last.criado_em ? new Date(c.last.criado_em).getTime() : 0;
+                if (lastT <= new Date(ocEm).getTime()) return false;
+            }
             if (!busca) return true;
             return (c.nome || '').toLowerCase().includes(busca) ||
                 (c.apelido || '').toLowerCase().includes(busca) ||
@@ -576,15 +627,21 @@ function showThreadUI(show) {
 
 async function abrirThread(contato) {
     contatoAtivo = contato;
+    setReplyTo(null);
+    fecharChatHeadMenu();
     showThreadUI(true);
     document.getElementById('chat-com-nome').textContent = displayNome(contato);
     document.getElementById('chat-com-papel').textContent = labelPapelCurto(contato.papeis, contato.tipo);
     lastThreadMsgIds = new Set();
     renderedMsgOrder = [];
     renderedMsgSigs = new Map();
+    threadMsgsById = new Map();
     threadInitialized = false;
     const box = document.getElementById('chat-msgs');
     if (box) box.innerHTML = '';
+    try {
+        await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contato.auth_id });
+    } catch (e) { /* SQL 28 opcional */ }
     await carregarThread(true);
     await carregarContatos(true);
     try {
@@ -702,14 +759,18 @@ async function carregarThread(forceFull) {
             .limit(400);
         if (error) throw error;
 
-        let lista = (data || []).filter(m =>
-            !m.deleted_at &&
-            (m.moderacao || '') !== 'removida' &&
-            ((m.de_auth_id === meuAuthId && m.para_auth_id === them) ||
-             (m.de_auth_id === them && m.para_auth_id === meuAuthId)) &&
-            !((m.status || '') === 'agendada' && m.de_auth_id !== meuAuthId)
-        );
-        await promoverAgendadas(lista);
+        let lista = (data || []).filter(m => {
+            const ap = m.apagada_para || [];
+            if (Array.isArray(ap) && ap.indexOf(meuAuthId) >= 0) return false;
+            if ((m.moderacao || '') === 'removida' && !m.deleted_at) return false;
+            const inDm = (m.de_auth_id === meuAuthId && m.para_auth_id === them) ||
+                (m.de_auth_id === them && m.para_auth_id === meuAuthId);
+            if (!inDm) return false;
+            if ((m.status || '') === 'agendada' && m.de_auth_id !== meuAuthId) return false;
+            return true;
+        });
+        threadMsgsById = new Map(lista.map(m => [Number(m.id), m]));
+        await promoverAgendadas(lista.filter(m => !m.deleted_at));
 
         const incoming = lista.filter(m =>
             m.para_auth_id === meuAuthId &&
@@ -829,10 +890,16 @@ async function enviarMensagem(opts) {
         status,
         agendado_para
     };
+    if (replyToMsg && replyToMsg.id) {
+        row.resposta_a_id = Number(replyToMsg.id);
+    }
 
     const { error } = await supabaseClient.from('chat_mensagens').insert([row]);
     if (error) {
-        msgEl.textContent = 'Erro: ' + error.message + (/policy|RLS|row-level/i.test(error.message || '') ? ' (rode SQL 18)' : '');
+        const hint = /resposta_a_id|column/i.test(error.message || '')
+            ? ' (rode SQL 28)'
+            : (/policy|RLS|row-level/i.test(error.message || '') ? ' (rode SQL 18)' : '');
+        msgEl.textContent = 'Erro: ' + error.message + hint;
         msgEl.className = 'msg erro';
         return false;
     }
@@ -843,8 +910,12 @@ async function enviarMensagem(opts) {
     document.getElementById('chat-url-midia').value = '';
     anexoPendente = null;
     setAnexoInfo('');
+    setReplyTo(null);
     if (typeof showMediaPreview === 'function') showMediaPreview(null);
     resetAudioBtn();
+    try {
+        await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contatoAtivo.auth_id });
+    } catch (e) { /* ok */ }
     await carregarThread();
     await carregarContatos(true);
     return true;
@@ -1517,6 +1588,198 @@ document.getElementById('btn-chat-back').addEventListener('click', () => {
         d.textContent = 'Erro ao tocar áudio (URL privada/rede). Aplique SQL 27.';
         wrap.appendChild(d);
     }, true);
+})();
+
+
+/* ===== Ações de mensagem (responder / apagar / histórico) ===== */
+let sheetMsg = null;
+let longPressTimer = null;
+let longPressStart = null;
+const LONG_PRESS_MS = 400;
+
+function setReplyTo(m) {
+    replyToMsg = m || null;
+    const bar = document.getElementById('chat-reply-bar');
+    const snip = document.getElementById('chat-reply-snippet');
+    if (!bar) return;
+    if (!replyToMsg) {
+        bar.classList.add('oculto');
+        if (snip) snip.textContent = '';
+        return;
+    }
+    if (snip) {
+        const who = nomePublicoTexto(replyToMsg.de_nome, 'Mensagem');
+        snip.textContent = who + ': ' + snippetMsg(replyToMsg);
+    }
+    bar.classList.remove('oculto');
+    const input = document.getElementById('chat-texto');
+    if (input) input.focus();
+}
+
+function fecharChatHeadMenu() {
+    const menu = document.getElementById('chat-head-menu');
+    if (menu) menu.classList.add('oculto');
+}
+
+function toggleChatHeadMenu() {
+    const menu = document.getElementById('chat-head-menu');
+    if (!menu) return;
+    menu.classList.toggle('oculto');
+}
+
+function fecharMsgSheet() {
+    const sheet = document.getElementById('chat-msg-sheet');
+    if (sheet) sheet.classList.add('oculto');
+    sheetMsg = null;
+}
+
+function abrirMsgSheet(m) {
+    if (!m || !m.id || m._pending || m._loading) return;
+    sheetMsg = m;
+    const sheet = document.getElementById('chat-msg-sheet');
+    const prev = document.getElementById('chat-msg-sheet-preview');
+    const btnTodos = document.getElementById('sheet-apagar-todos');
+    if (prev) prev.textContent = snippetMsg(m);
+    if (btnTodos) {
+        const souRemetente = m.de_auth_id === meuAuthId;
+        btnTodos.classList.toggle('oculto', !souRemetente);
+    }
+    if (sheet) sheet.classList.remove('oculto');
+}
+
+function msgFromBubbleEl(el) {
+    const bubble = el && el.closest ? el.closest('.bubble[data-msg-id]') : null;
+    if (!bubble) return null;
+    const id = Number(bubble.getAttribute('data-msg-id'));
+    if (!id) return null;
+    return threadMsgsById.get(id) || threadMsgsById.get(String(id)) || { id: id, de_auth_id: bubble.getAttribute('data-de-auth'), texto: (bubble.querySelector('.bubble-text') || {}).textContent || '' };
+}
+
+async function apagarMsgParaMim(m) {
+    if (!m || !m.id) return;
+    const { error } = await supabaseClient.rpc('chat_apagar_para_mim', { p_msg_id: Number(m.id) });
+    if (error) {
+        if (typeof toastMsg === 'function') toastMsg('Erro ao apagar: ' + error.message + ' (SQL 28?)');
+        return;
+    }
+    fecharMsgSheet();
+    await carregarThread(true);
+    await carregarContatos(true);
+}
+
+async function apagarMsgParaTodos(m) {
+    if (!m || !m.id) return;
+    if (m.de_auth_id !== meuAuthId) return;
+    if (!confirm('Apagar esta mensagem para todos?')) return;
+    const { error } = await supabaseClient.rpc('chat_apagar_para_todos', { p_msg_id: Number(m.id) });
+    if (error) {
+        if (typeof toastMsg === 'function') toastMsg('Erro: ' + error.message + ' (SQL 28?)');
+        return;
+    }
+    fecharMsgSheet();
+    await carregarThread(true);
+    await carregarContatos(true);
+}
+
+async function apagarConversaParaMim() {
+    if (!contatoAtivo || !contatoAtivo.auth_id) return;
+    fecharChatHeadMenu();
+    if (!confirm('Apagar conversa para mim? As mensagens somem só do seu lado.')) return;
+    const { error } = await supabaseClient.rpc('chat_ocultar_conversa', { p_outro: contatoAtivo.auth_id });
+    if (error) {
+        if (typeof toastMsg === 'function') toastMsg('Erro: ' + error.message + ' (SQL 28?)');
+        return;
+    }
+    contatoAtivo = null;
+    showThreadUI(false);
+    await carregarContatos(true);
+}
+
+async function apagarHistoricoParaTodos() {
+    if (!contatoAtivo || !contatoAtivo.auth_id) return;
+    fecharChatHeadMenu();
+    if (!confirm('Isso remove o histórico para os dois lados. Continuar?')) return;
+    const { error } = await supabaseClient.rpc('chat_apagar_historico_para_todos', { p_outro: contatoAtivo.auth_id });
+    if (error) {
+        if (typeof toastMsg === 'function') toastMsg('Erro: ' + error.message + ' (SQL 28?)');
+        return;
+    }
+    contatoAtivo = null;
+    showThreadUI(false);
+    await carregarContatos(true);
+}
+
+(function bindMsgActions() {
+    const box = document.getElementById('chat-msgs');
+    if (box) {
+        const clearLp = () => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+            longPressStart = null;
+        };
+        box.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            const m = msgFromBubbleEl(e.target);
+            if (!m || m.deleted_at) return;
+            // não atrapalhar áudio/links/botões
+            if (e.target.closest && e.target.closest('audio, video, a, button, input')) return;
+            longPressStart = { x: e.clientX, y: e.clientY, m: m };
+            longPressTimer = setTimeout(() => {
+                if (longPressStart) abrirMsgSheet(longPressStart.m);
+                clearLp();
+            }, LONG_PRESS_MS);
+        });
+        box.addEventListener('pointermove', (e) => {
+            if (!longPressStart) return;
+            const dx = Math.abs(e.clientX - longPressStart.x);
+            const dy = Math.abs(e.clientY - longPressStart.y);
+            if (dx > 12 || dy > 12) clearLp();
+        });
+        box.addEventListener('pointerup', clearLp);
+        box.addEventListener('pointercancel', clearLp);
+        box.addEventListener('contextmenu', (e) => {
+            const m = msgFromBubbleEl(e.target);
+            if (!m || m.deleted_at) return;
+            if (e.target.closest && e.target.closest('audio, video, a')) return;
+            e.preventDefault();
+            abrirMsgSheet(m);
+        });
+    }
+
+    const sheet = document.getElementById('chat-msg-sheet');
+    if (sheet) {
+        sheet.addEventListener('click', (e) => {
+            if (e.target && e.target.getAttribute && e.target.getAttribute('data-close-sheet')) fecharMsgSheet();
+        });
+    }
+    const btnResp = document.getElementById('sheet-responder');
+    if (btnResp) btnResp.addEventListener('click', () => {
+        if (sheetMsg) setReplyTo(sheetMsg);
+        fecharMsgSheet();
+    });
+    const btnMim = document.getElementById('sheet-apagar-mim');
+    if (btnMim) btnMim.addEventListener('click', () => apagarMsgParaMim(sheetMsg));
+    const btnTodos = document.getElementById('sheet-apagar-todos');
+    if (btnTodos) btnTodos.addEventListener('click', () => apagarMsgParaTodos(sheetMsg));
+
+    const btnCancelReply = document.getElementById('btn-cancel-reply');
+    if (btnCancelReply) btnCancelReply.addEventListener('click', () => setReplyTo(null));
+
+    const btnMenu = document.getElementById('btn-chat-menu');
+    if (btnMenu) btnMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleChatHeadMenu();
+    });
+    const btnHistMim = document.getElementById('btn-apagar-hist-mim');
+    if (btnHistMim) btnHistMim.addEventListener('click', () => apagarConversaParaMim());
+    const btnHistTodos = document.getElementById('btn-apagar-hist-todos');
+    if (btnHistTodos) btnHistTodos.addEventListener('click', () => apagarHistoricoParaTodos());
+
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('chat-head-menu');
+        if (!menu || menu.classList.contains('oculto')) return;
+        if (e.target.closest && (e.target.closest('#chat-head-menu') || e.target.closest('#btn-chat-menu'))) return;
+        fecharChatHeadMenu();
+    });
 })();
 
 (async function init() {

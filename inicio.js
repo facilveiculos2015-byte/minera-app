@@ -446,7 +446,7 @@ function renderFeed(lista) {
                 <p class="lote-meta">📍 ${esc(lote.origem || '—')} · ⚖️ ${esc(formatPeso(lote.peso_bruto_kg))}</p>
                 ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : ''}
                 <p class="lote-who">${esc(lote.criado_por || 'Usuário')}${quando ? ' · ' + quando : ''}</p>
-                <a class="btn-card" href="${APP_ROOT}chat.html?lote=${encodeURIComponent(codigo)}">Negociar / Ver Detalhes</a>
+                <a class="btn-card" href="${APP_ROOT}chat.html?${lote.criado_por_id ? ('com=' + encodeURIComponent(lote.criado_por_id) + '&') : ''}lote=${encodeURIComponent(codigo)}">Negociar / Ver Detalhes</a>
             </div>
         </article>`;
     }).join('') + '</div>';
