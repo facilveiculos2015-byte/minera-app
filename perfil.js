@@ -78,22 +78,49 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     aplicarUserLabel(perfilAtual);
     montarNav('perfil', perfilAtual);
     preencherForm(perfilAtual);
+    await carregarPixUsuario();
+    if (location.hash === '#pix') {
+        const el = document.getElementById('card-pix-user');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
 })();
+
+function isPixAtivoFlag(v) {
+    return v === true || v === 'true' || v === 't' || v === 1 || v === '1';
+}
+
+async function buscarPixAtivo() {
+    // Prefer explicit ativo=true; fall back to latest row with chave (boolean quirks / legacy null)
+    let { data, error } = await supabaseClient
+        .from('pix_admin')
+        .select('*')
+        .eq('ativo', true)
+        .order('id', { ascending: false })
+        .limit(1);
+    if (error) throw error;
+    if (data && data[0] && data[0].chave_pix) return data[0];
+
+    // Retry without boolean filter (some PostgREST/boolean edge cases)
+    ({ data, error } = await supabaseClient
+        .from('pix_admin')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(5));
+    if (error) throw error;
+    const rows = data || [];
+    const active = rows.find(p => isPixAtivoFlag(p.ativo) && p.chave_pix);
+    if (active) return active;
+    const any = rows.find(p => p.chave_pix);
+    return any || null;
+}
 
 async function carregarPixUsuario() {
     const info = document.getElementById('pix-user-info');
     const form = document.getElementById('form-pix-comprovante');
     if (!info) return;
     try {
-        const { data, error } = await supabaseClient
-            .from('pix_admin')
-            .select('*')
-            .eq('ativo', true)
-            .order('id', { ascending: false })
-            .limit(1);
-        if (error) throw error;
-        const pix = data && data[0];
-        if (!pix) {
+        const pix = await buscarPixAtivo();
+        if (!pix || !pix.chave_pix) {
             info.innerHTML = '<p class="sub">Nenhuma chave Pix ativa no momento.</p>';
             if (form) form.classList.add('oculto');
             return;
@@ -107,6 +134,7 @@ async function carregarPixUsuario() {
         if (form) form.classList.remove('oculto');
     } catch (e) {
         info.innerHTML = '<p class="erro">Pix indisponível (rode SQL 10): ' + (e.message || e) + '</p>';
+        if (form) form.classList.add('oculto');
     }
     await carregarMeusPix();
 }

@@ -143,7 +143,8 @@ async function carregarPixAdmin() {
             .order('id', { ascending: false })
             .limit(5);
         if (error) throw error;
-        const ativo = (data || []).find(p => p.ativo) || (data && data[0]);
+        const isPixAtivo = (v) => v === true || v === 'true' || v === 't' || v === 1 || v === '1';
+        const ativo = (data || []).find(p => isPixAtivo(p.ativo)) || (data && data[0]);
         if (!ativo) {
             box.classList.add('oculto');
             return;
@@ -158,7 +159,8 @@ async function carregarPixAdmin() {
         document.getElementById('pix-tipo').value = ativo.tipo_chave || 'aleatoria';
         document.getElementById('pix-titular').value = ativo.titular || '';
         document.getElementById('pix-instrucoes').value = ativo.instrucoes || '';
-        document.getElementById('pix-ativo').checked = !!ativo.ativo;
+        // Prefer showing as active if this is the chosen row (even if DB null/legacy)
+        document.getElementById('pix-ativo').checked = isPixAtivo(ativo.ativo) || ativo === (data && data[0]);
         box.dataset.id = ativo.id;
     } catch (e) {
         box.classList.remove('oculto');
@@ -169,21 +171,40 @@ async function carregarPixAdmin() {
 document.getElementById('form-pix-admin').addEventListener('submit', async (e) => {
     e.preventDefault();
     const msgEl = document.getElementById('pix-admin-msg');
+    // Salvar chave sempre como ativa (checkbox só desativa se usuário desmarcar de propósito,
+    // mas default / smoke: ativo=true). Também desativa as demais.
+    const wantAtivo = document.getElementById('pix-ativo').checked;
     const row = {
         chave_pix: document.getElementById('pix-chave').value.trim(),
         tipo_chave: document.getElementById('pix-tipo').value,
         titular: document.getElementById('pix-titular').value.trim() || null,
         instrucoes: document.getElementById('pix-instrucoes').value.trim() || null,
-        ativo: document.getElementById('pix-ativo').checked,
+        ativo: wantAtivo !== false, // default true even if somehow undefined
         atualizado_em: new Date().toISOString()
     };
+    // Force true when saving a non-empty key (Admin "Salvar chave" implies activate)
+    if (row.chave_pix) {
+        row.ativo = true;
+        document.getElementById('pix-ativo').checked = true;
+    }
     const box = document.getElementById('pix-admin-atual');
     const existingId = box.dataset.id ? parseInt(box.dataset.id, 10) : null;
     let error;
+    // Deactivate other keys first so Perfil .eq('ativo', true) finds this one
+    if (row.ativo) {
+        try {
+            let q = supabaseClient.from('pix_admin').update({ ativo: false, atualizado_em: row.atualizado_em });
+            if (existingId) q = q.neq('id', existingId);
+            else q = q.gte('id', 1);
+            await q;
+        } catch (e) { console.warn('pix deactivate others', e); }
+    }
     if (existingId) {
         ({ error } = await supabaseClient.from('pix_admin').update(row).eq('id', existingId));
     } else {
-        ({ error } = await supabaseClient.from('pix_admin').insert([row]));
+        const ins = await supabaseClient.from('pix_admin').insert([row]).select('id').limit(1);
+        error = ins.error;
+        if (!error && ins.data && ins.data[0]) box.dataset.id = String(ins.data[0].id);
     }
     if (error) {
         msgEl.textContent = 'Erro: ' + error.message;

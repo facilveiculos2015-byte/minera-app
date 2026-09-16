@@ -103,19 +103,37 @@ document.getElementById('form-frete').addEventListener('submit', async (e) => {
     carregarFretes();
 })();
 
+function isPixAtivoFlag(v) {
+    return v === true || v === 'true' || v === 't' || v === 1 || v === '1';
+}
+
+async function buscarPixAtivo() {
+    let { data, error } = await supabaseClient
+        .from('pix_admin')
+        .select('*')
+        .eq('ativo', true)
+        .order('id', { ascending: false })
+        .limit(1);
+    if (error) throw error;
+    if (data && data[0] && data[0].chave_pix) return data[0];
+    ({ data, error } = await supabaseClient
+        .from('pix_admin')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(5));
+    if (error) throw error;
+    const rows = data || [];
+    return rows.find(p => isPixAtivoFlag(p.ativo) && p.chave_pix)
+        || rows.find(p => p.chave_pix)
+        || null;
+}
+
 async function carregarFretePix() {
     const box = document.getElementById('frete-pix-info');
     if (!box) return;
     try {
-        const { data, error } = await supabaseClient
-            .from('pix_admin')
-            .select('*')
-            .eq('ativo', true)
-            .order('id', { ascending: false })
-            .limit(1);
-        if (error) throw error;
-        const pix = data && data[0];
-        if (!pix) {
+        const pix = await buscarPixAtivo();
+        if (!pix || !pix.chave_pix) {
             box.innerHTML = '<p class="sub">Nenhuma chave Pix ativa.</p>';
             return;
         }
