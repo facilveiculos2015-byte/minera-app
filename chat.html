@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera App - Início</title>
+    <title>Minera App - Chat</title>
     <link rel="stylesheet" href="style.css?v=20260916c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -16,18 +16,21 @@
             </div>
             <button type="button" class="btn-sair" id="btn-sair">Sair</button>
         </header>
-
         <nav id="app-nav" class="nav-chips"></nav>
 
-        <section class="card">
-            <h2>O que está rolando</h2>
-            <p class="sub">Marketplace / feed de lotes — quem postou, status e peso</p>
-            <div id="feed" class="loading">Carregando...</div>
+        <section class="card chat-card">
+            <h2>Chat da equipe</h2>
+            <div id="chat-msgs" class="chat-msgs"></div>
+            <form id="form-chat" class="chat-form">
+                <input type="text" id="chat-texto" placeholder="Escreva uma mensagem..." required maxlength="1000" autocomplete="off">
+                <button type="submit">Enviar</button>
+            </form>
+            <p id="chat-msg" class="msg"></p>
         </section>
     </div>
     <script src="config.js?v=20260916c"></script>
     <script src="auth-guard.js?v=20260916c"></script>
     <script src="nav.js?v=20260916c"></script>
-    <script src="inicio.js?v=20260916c"></script>
+    <script src="chat.js?v=20260916c"></script>
 </body>
 </html>

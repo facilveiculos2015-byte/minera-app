@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera App - Início</title>
+    <title>Minera App - Relatórios</title>
     <link rel="stylesheet" href="style.css?v=20260916c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -16,18 +16,22 @@
             </div>
             <button type="button" class="btn-sair" id="btn-sair">Sair</button>
         </header>
-
         <nav id="app-nav" class="nav-chips"></nav>
 
         <section class="card">
-            <h2>O que está rolando</h2>
-            <p class="sub">Marketplace / feed de lotes — quem postou, status e peso</p>
-            <div id="feed" class="loading">Carregando...</div>
+            <h2>KPIs</h2>
+            <div id="kpi-grid" class="kpi-grid">Carregando...</div>
+        </section>
+
+        <section class="card" id="logs-section">
+            <h2>Logs do sistema</h2>
+            <p class="sub">Últimas ações registradas (visível se RLS permitir)</p>
+            <div id="logs-lista" class="loading">Carregando...</div>
         </section>
     </div>
     <script src="config.js?v=20260916c"></script>
     <script src="auth-guard.js?v=20260916c"></script>
     <script src="nav.js?v=20260916c"></script>
-    <script src="inicio.js?v=20260916c"></script>
+    <script src="relatorios.js?v=20260916c"></script>
 </body>
 </html>

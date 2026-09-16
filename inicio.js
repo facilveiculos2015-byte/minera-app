@@ -1,16 +1,3 @@
-
-async function exigirLogin() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) {
-        irPara('index.html');
-        return null;
-    }
-    const email = session.user.email || '';
-    const nome = (session.user.user_metadata && session.user.user_metadata.nome) || email;
-    document.getElementById('user-label').textContent = 'Olá, ' + nome;
-    return session;
-}
-
 function tempoRelativo(iso) {
     if (!iso) return '';
     const t = new Date(iso).getTime();
@@ -25,6 +12,11 @@ function tempoRelativo(iso) {
     return d + ' d';
 }
 
+function badgeStatus(st) {
+    const s = (st || 'pendente').toLowerCase();
+    return '<span class="badge badge-' + s + '">' + s + '</span>';
+}
+
 async function carregarFeed() {
     const box = document.getElementById('feed');
     try {
@@ -35,16 +27,16 @@ async function carregarFeed() {
             .limit(50);
         if (error) throw error;
         if (!data.length) {
-            box.innerHTML = '<p>Ninguém postou ainda. Seja o primeiro em <a href="lotes.html">Meus lotes / cadastrar</a>.</p>';
+            box.innerHTML = '<p>Ninguém postou ainda. Seja o primeiro em <a href="' + APP_ROOT + 'lotes.html">Lotes</a>.</p>';
             return;
         }
         box.innerHTML = '<ul class="feed-list">' + data.map(lote => {
             const quem = lote.criado_por || 'Usuário';
             const quando = tempoRelativo(lote.data_entrada);
             return `<li class="feed-item">
-                <div class="feed-top"><b>${quem}</b> postou um lote${quando ? ' · ' + quando : ''}</div>
-                <div class="feed-body"><b>${lote.codigo_lote}</b> — ${lote.origem || '—'} · ${lote.peso_bruto_kg} kg</div>
-                <div class="feed-meta">Status: ${lote.status || 'pendente'}</div>
+                <div class="feed-top"><b>${esc(quem)}</b> postou um lote${quando ? ' · ' + quando : ''}</div>
+                <div class="feed-body"><b>${esc(lote.codigo_lote)}</b> — ${esc(lote.origem || '—')} · ${lote.peso_bruto_kg} kg</div>
+                <div class="feed-meta">Status: ${badgeStatus(lote.status)}</div>
             </li>`;
         }).join('') + '</ul>';
     } catch (err) {
@@ -53,13 +45,16 @@ async function carregarFeed() {
     }
 }
 
-document.getElementById('btn-sair').addEventListener('click', async () => {
-    await supabaseClient.auth.signOut();
-    irPara('index.html');
-});
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 (async function init() {
-    const session = await exigirLogin();
+    const session = await requireSession();
     if (!session) return;
+    const perfil = await getPerfil(session);
+    aplicarUserLabel(perfil);
+    montarNav('inicio');
     carregarFeed();
 })();

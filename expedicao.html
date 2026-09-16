@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Expedição</title>
+    <link rel="stylesheet" href="style.css?v=20260916c">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container wide">
+        <header class="header-row">
+            <div>
+                <h1>Minera App</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+        </header>
+        <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card">
+            <h2>Expedições</h2>
+            <div id="exp-lista" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Nova expedição</h2>
+            <form id="form-exp">
+                <label for="exp_lote_id">Lote (opcional)</label>
+                <select id="exp_lote_id"><option value="">—</option></select>
+                <label for="exp_estoque_id">Estoque (opcional)</label>
+                <select id="exp_estoque_id"><option value="">—</option></select>
+                <label for="quantidade_kg">Quantidade (kg)</label>
+                <input type="number" id="quantidade_kg" step="0.01" min="0" required>
+                <label for="destino">Destino</label>
+                <input type="text" id="destino" required placeholder="Cliente / obra">
+                <label for="nota_fiscal">Nota fiscal</label>
+                <input type="text" id="nota_fiscal" placeholder="NF-e">
+                <label for="valor_total">Valor total (R$)</label>
+                <input type="number" id="valor_total" step="0.01" min="0">
+                <button type="submit">Registrar expedição</button>
+            </form>
+            <p id="exp-msg" class="msg"></p>
+        </section>
+    </div>
+    <script src="config.js?v=20260916c"></script>
+    <script src="auth-guard.js?v=20260916c"></script>
+    <script src="nav.js?v=20260916c"></script>
+    <script src="expedicao.js?v=20260916c"></script>
+</body>
+</html>

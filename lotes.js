@@ -1,14 +1,8 @@
+let perfilAtual = null;
 
-async function exigirLogin() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) {
-        irPara('index.html');
-        return null;
-    }
-    const email = session.user.email || '';
-    const nome = (session.user.user_metadata && session.user.user_metadata.nome) || email;
-    document.getElementById('user-label').textContent = 'Olá, ' + nome;
-    return session;
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 async function carregarLotes() {
@@ -23,12 +17,16 @@ async function carregarLotes() {
             listaDiv.innerHTML = '<p>Nenhum lote cadastrado.</p>';
             return;
         }
-        let html = '<ul>';
-        data.forEach(lote => {
-            html += `<li><b>${lote.codigo_lote}</b> - ${lote.origem} (${lote.peso_bruto_kg} kg) [Status: ${lote.status}]</li>`;
-        });
-        html += '</ul>';
-        listaDiv.innerHTML = html;
+        listaDiv.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Código</th><th>Origem</th><th>Peso (kg)</th><th>Status</th><th>Por</th></tr></thead><tbody>' +
+            data.map(l => `<tr>
+                <td><b>${esc(l.codigo_lote)}</b></td>
+                <td>${esc(l.origem || '—')}</td>
+                <td>${l.peso_bruto_kg}</td>
+                <td><span class="badge badge-${esc(l.status || 'pendente')}">${esc(l.status || 'pendente')}</span></td>
+                <td>${esc(l.criado_por || '—')}</td>
+            </tr>`).join('') +
+            '</tbody></table></div>';
     } catch (err) {
         console.error(err);
         listaDiv.innerHTML = '<p class="erro">Erro ao carregar dados. Faça login de novo.</p>';
@@ -37,12 +35,14 @@ async function carregarLotes() {
 
 document.getElementById('form-lote').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const msgEl = document.getElementById('lote-msg');
     const codigo_lote = document.getElementById('codigo_lote').value.trim();
     const origem = document.getElementById('origem').value.trim();
     const peso_bruto_kg = parseFloat(document.getElementById('peso_bruto').value);
     const { data: { session } } = await supabaseClient.auth.getSession();
-    const email = session && session.user ? (session.user.email || '') : '';
-    const nome = (session && session.user && session.user.user_metadata && session.user.user_metadata.nome) || email;
+    const nome = (perfilAtual && perfilAtual.nome) ||
+        (session && session.user && session.user.user_metadata && session.user.user_metadata.nome) ||
+        (session && session.user && session.user.email) || 'Usuário';
     const { error } = await supabaseClient
         .from('lotes')
         .insert([{
@@ -50,25 +50,26 @@ document.getElementById('form-lote').addEventListener('submit', async (e) => {
             origem,
             peso_bruto_kg,
             status: 'pendente',
-            criado_por: nome || email || 'Usuário',
+            criado_por: nome,
             criado_por_id: session && session.user ? session.user.id : null
         }]);
     if (error) {
-        alert('Erro ao cadastrar lote: ' + error.message);
+        msgEl.textContent = 'Erro: ' + error.message;
+        msgEl.className = 'msg erro';
         return;
     }
-    alert('Lote cadastrado com sucesso!');
+    msgEl.textContent = 'Lote cadastrado!';
+    msgEl.className = 'msg ok';
+    await registrarLog('lote_criar', { codigo_lote, peso_bruto_kg }, perfilAtual);
     document.getElementById('form-lote').reset();
     carregarLotes();
 });
 
-document.getElementById('btn-sair').addEventListener('click', async () => {
-    await supabaseClient.auth.signOut();
-    irPara('index.html');
-});
-
 (async function init() {
-    const session = await exigirLogin();
+    const session = await requireSession();
     if (!session) return;
+    perfilAtual = await getPerfil(session);
+    aplicarUserLabel(perfilAtual);
+    montarNav('lotes');
     carregarLotes();
 })();

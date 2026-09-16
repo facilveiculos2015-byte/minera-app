@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Britagem</title>
+    <link rel="stylesheet" href="style.css?v=20260916c">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container wide">
+        <header class="header-row">
+            <div>
+                <h1>Minera App</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+        </header>
+        <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card">
+            <h2>Processamentos / Britagem</h2>
+            <div id="proc-lista" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Registrar britagem</h2>
+            <form id="form-proc">
+                <label for="lote_id">Lote</label>
+                <select id="lote_id" required></select>
+                <label for="britador_id">Britador</label>
+                <input type="text" id="britador_id" placeholder="Ex: BR-01" required>
+                <label for="peso_saida_kg">Peso saída (kg)</label>
+                <input type="number" id="peso_saida_kg" step="0.01" min="0" required>
+                <label for="inicio_processo">Início</label>
+                <input type="datetime-local" id="inicio_processo">
+                <label for="fim_processo">Fim</label>
+                <input type="datetime-local" id="fim_processo">
+                <label for="observacoes">Observações</label>
+                <textarea id="observacoes" rows="2" placeholder="Opcional"></textarea>
+                <button type="submit">Salvar processamento</button>
+            </form>
+            <p id="proc-msg" class="msg"></p>
+        </section>
+    </div>
+    <script src="config.js?v=20260916c"></script>
+    <script src="auth-guard.js?v=20260916c"></script>
+    <script src="nav.js?v=20260916c"></script>
+    <script src="processamento.js?v=20260916c"></script>
+</body>
+</html>

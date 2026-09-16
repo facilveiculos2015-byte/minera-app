@@ -1,0 +1,84 @@
+let perfilAtual = null;
+
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function kpiCard(label, value) {
+    return `<div class="kpi-card"><div class="kpi-value">${value}</div><div class="kpi-label">${esc(label)}</div></div>`;
+}
+
+async function carregarKpis() {
+    const grid = document.getElementById('kpi-grid');
+    try {
+        const [lotes, proc, estoque, exp] = await Promise.all([
+            supabaseClient.from('lotes').select('id, peso_bruto_kg, status'),
+            supabaseClient.from('processamento').select('id, peso_saida_kg'),
+            supabaseClient.from('estoque').select('id, peso_atual_kg'),
+            supabaseClient.from('expedicao').select('id, quantidade_kg, valor_total')
+        ]);
+
+        const L = lotes.data || [];
+        const P = proc.data || [];
+        const E = estoque.data || [];
+        const X = exp.data || [];
+
+        const sum = (arr, key) => arr.reduce((a, r) => a + (Number(r[key]) || 0), 0);
+        const pesoLotes = sum(L, 'peso_bruto_kg');
+        const pesoProc = sum(P, 'peso_saida_kg');
+        const pesoEst = sum(E, 'peso_atual_kg');
+        const pesoExp = sum(X, 'quantidade_kg');
+        const valorExp = sum(X, 'valor_total');
+        const pendentes = L.filter(l => (l.status || '') === 'pendente').length;
+
+        grid.innerHTML =
+            kpiCard('Lotes', L.length) +
+            kpiCard('Peso lotes (kg)', pesoLotes.toLocaleString('pt-BR')) +
+            kpiCard('Pendentes', pendentes) +
+            kpiCard('Britagens', P.length) +
+            kpiCard('Peso processado (kg)', pesoProc.toLocaleString('pt-BR')) +
+            kpiCard('Itens estoque', E.length) +
+            kpiCard('Peso estoque (kg)', pesoEst.toLocaleString('pt-BR')) +
+            kpiCard('Expedições', X.length) +
+            kpiCard('Peso expedido (kg)', pesoExp.toLocaleString('pt-BR')) +
+            kpiCard('Valor expedido (R$)', valorExp.toLocaleString('pt-BR'));
+    } catch (err) {
+        console.error(err);
+        grid.innerHTML = '<p class="erro">Erro ao carregar KPIs: ' + esc(err.message) + '</p>';
+    }
+}
+
+async function carregarLogs() {
+    const box = document.getElementById('logs-lista');
+    try {
+        const { data, error } = await supabaseClient
+            .from('logs_sistema')
+            .select('*')
+            .order('id', { ascending: false })
+            .limit(30);
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p>Nenhum log ainda.</p>';
+            return;
+        }
+        box.innerHTML = '<ul class="log-list">' + data.map(l => {
+            const when = l.data_hora ? new Date(l.data_hora).toLocaleString('pt-BR') : '';
+            const det = l.detalhes ? (typeof l.detalhes === 'string' ? l.detalhes : JSON.stringify(l.detalhes)) : '';
+            return `<li><span class="log-when">${when}</span> <b>${esc(l.acao)}</b> ${esc(det)}</li>`;
+        }).join('') + '</ul>';
+    } catch (err) {
+        console.error(err);
+        box.innerHTML = '<p class="sub">Logs não legíveis agora: ' + esc(err.message) + '</p>';
+    }
+}
+
+(async function init() {
+    const session = await requireSession();
+    if (!session) return;
+    perfilAtual = await getPerfil(session);
+    aplicarUserLabel(perfilAtual);
+    montarNav('relatorios');
+    await carregarKpis();
+    await carregarLogs();
+})();
