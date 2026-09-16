@@ -1,10 +1,18 @@
 let perfilAtual = null;
 let pollTimer = null;
 let meuAuthId = null;
+let loteCtx = null;
 
 function esc(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function lerLoteQuery() {
+    try {
+        const u = new URL(window.location.href);
+        return (u.searchParams.get('lote') || '').trim();
+    } catch (e) { return ''; }
 }
 
 async function carregarChat() {
@@ -39,8 +47,11 @@ async function carregarChat() {
 document.getElementById('form-chat').addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = document.getElementById('chat-texto');
-    const texto = input.value.trim();
+    let texto = input.value.trim();
     if (!texto) return;
+    if (loteCtx && !texto.includes(loteCtx)) {
+        texto = '[Lote ' + loteCtx + '] ' + texto;
+    }
     const msgEl = document.getElementById('chat-msg');
     const { error } = await supabaseClient.from('chat_mensagens').insert([{
         de_auth_id: meuAuthId,
@@ -64,6 +75,14 @@ document.getElementById('form-chat').addEventListener('submit', async (e) => {
     perfilAtual = await getPerfil(session);
     aplicarUserLabel(perfilAtual);
     montarNav('chat', perfilAtual);
+    loteCtx = lerLoteQuery();
+    const ctxEl = document.getElementById('chat-lote-ctx');
+    if (loteCtx && ctxEl) {
+        ctxEl.textContent = 'Negociando lote: ' + loteCtx;
+        ctxEl.classList.remove('oculto');
+        const input = document.getElementById('chat-texto');
+        if (input && !input.value) input.placeholder = 'Mensagem sobre o lote ' + loteCtx + '...';
+    }
     await carregarChat();
     pollTimer = setInterval(carregarChat, 4000);
 })();

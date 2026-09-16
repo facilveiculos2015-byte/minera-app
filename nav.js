@@ -1,12 +1,12 @@
 /** Nav chips por papéis — união se múltiplos; admin/vazio → todos. Sempre Perfil + Sair. */
 
 const NAV_ITENS = [
-    { id: 'inicio', label: 'Início', href: 'inicio.html' },
-    { id: 'lotes', label: 'Lotes', href: 'lotes.html' },
+    { id: 'inicio', label: 'Feed', href: 'inicio.html' },
+    { id: 'lotes', label: 'Meus Lotes', href: 'lotes.html' },
     { id: 'britagem', label: 'Britagem', href: 'processamento.html' },
     { id: 'estoque', label: 'Estoque', href: 'estoque.html' },
     { id: 'expedicao', label: 'Expedição', href: 'expedicao.html' },
-    { id: 'frete', label: 'Frete', href: 'frete.html' },
+    { id: 'frete', label: 'Logística', href: 'frete.html' },
     { id: 'chat', label: 'Chat', href: 'chat.html' },
     { id: 'relatorios', label: 'Relatórios', href: 'relatorios.html' },
     { id: 'perfil', label: 'Perfil', href: 'perfil.html' }
@@ -14,8 +14,10 @@ const NAV_ITENS = [
 
 const PAPEIS_CHIPS = {
     minerador: ['inicio', 'lotes', 'chat'],
-    comprador: ['inicio', 'chat', 'relatorios'],
+    comprador: ['inicio', 'chat'],
     transportador: ['inicio', 'frete', 'chat'],
+    transportador_mina_britador: ['inicio', 'frete', 'chat'],
+    transportador_britador_porto: ['inicio', 'frete', 'chat'],
     dono_britador: ['inicio', 'britagem', 'estoque', 'chat'],
     carregamento: ['inicio', 'expedicao', 'frete', 'chat'],
     admin: NAV_ITENS.map(i => i.id)
@@ -26,8 +28,8 @@ function chipsPermitidos(perfil) {
     if (!perfil) return allIds;
     if (typeof ehAdmin === 'function' && ehAdmin(perfil)) return allIds;
     const papeis = Array.isArray(perfil.papeis) ? perfil.papeis : [];
-    if (!papeis.length) return allIds; // vazio → todos (legado / operador)
-    const set = new Set(['perfil']); // sempre perfil
+    if (!papeis.length) return allIds;
+    const set = new Set(['perfil']);
     papeis.forEach(p => {
         const key = String(p).toLowerCase();
         const chips = PAPEIS_CHIPS[key];

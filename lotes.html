@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera App - Lotes</title>
-    <link rel="stylesheet" href="style.css?v=20260916d">
+    <title>Minera App - Meus Lotes</title>
+    <link rel="stylesheet" href="style.css?v=20260916e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -19,40 +19,62 @@
 
         <nav id="app-nav" class="nav-chips"></nav>
 
-        <main>
-            <section class="card">
-                <h2>Lotes em Andamento</h2>
-                <div id="lotes-lista" class="loading">Carregando dados...</div>
-            </section>
-
-            <section class="card">
-                <h2>Novo Lote</h2>
-                <form id="form-lote">
-                    <label for="codigo_lote">Código</label>
-                    <input type="text" id="codigo_lote" placeholder="Ex: LT-001" required>
-                    <label for="origem">Origem / Frente</label>
-                    <input type="text" id="origem" placeholder="Frente / Origem" required>
-                    <label for="tipo_minerio">Tipo de minério</label>
-                    <select id="tipo_minerio" required>
-                        <option value="">Selecione...</option>
-                        <option value="Cobre">Cobre</option>
-                        <option value="Ferro">Ferro</option>
-                        <option value="Ouro">Ouro</option>
-                        <option value="Manganês">Manganês</option>
-                        <option value="Níquel">Níquel</option>
-                        <option value="Outro">Outro</option>
-                    </select>
-                    <label for="peso_bruto">Peso bruto (kg)</label>
-                    <input type="number" id="peso_bruto" placeholder="Peso Bruto (kg)" required step="0.01" min="0">
-                    <button type="submit">Cadastrar Lote</button>
-                </form>
-                <p id="lote-msg" class="msg"></p>
-            </section>
-        </main>
+        <section class="card">
+            <div class="section-head">
+                <div>
+                    <h2>Meus Lotes</h2>
+                    <p class="sub">Somente os lotes que você criou</p>
+                </div>
+                <button type="button" class="btn-primary-lg" id="btn-novo-lote">+ Novo Lote</button>
+            </div>
+            <div id="lotes-lista" class="loading">Carregando dados...</div>
+        </section>
     </div>
-    <script src="config.js?v=20260916d"></script>
-    <script src="auth-guard.js?v=20260916d"></script>
-    <script src="nav.js?v=20260916d"></script>
-    <script src="lotes.js?v=20260916d"></script>
+
+    <div id="modal-lote" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-lote-titulo">
+        <div class="modal-backdrop" data-close="1"></div>
+        <div class="modal-panel">
+            <div class="modal-head">
+                <h3 id="modal-lote-titulo">Novo Lote</h3>
+                <button type="button" class="btn-icon" id="modal-lote-fechar" aria-label="Fechar">✕</button>
+            </div>
+            <form id="form-lote">
+                <input type="hidden" id="lote-id" value="">
+                <label for="codigo_lote">Código</label>
+                <input type="text" id="codigo_lote" placeholder="Ex: LT-001" required>
+                <label for="tipo_minerio">Tipo de minério</label>
+                <select id="tipo_minerio" required>
+                    <option value="">Selecione...</option>
+                    <option value="Ouro">Ouro</option>
+                    <option value="Ferro">Ferro</option>
+                    <option value="Cobre">Cobre</option>
+                    <option value="Manganês">Manganês</option>
+                    <option value="Níquel">Níquel</option>
+                    <option value="Outro">Outro</option>
+                </select>
+                <label for="origem">Origem / Frente</label>
+                <input type="text" id="origem" placeholder="Frente / Origem" required>
+                <label for="peso_bruto">Peso bruto (kg)</label>
+                <input type="number" id="peso_bruto" placeholder="Peso Bruto (kg)" required step="0.01" min="0">
+                <label for="preco">Preço (R$)</label>
+                <input type="number" id="preco" placeholder="Opcional" step="0.01" min="0">
+                <label for="imagem_url">URL da imagem</label>
+                <input type="url" id="imagem_url" placeholder="https://... (opcional)">
+                <label for="imagem_file">Ou arquivo pequeno (data URL)</label>
+                <input type="file" id="imagem_file" accept="image/*">
+                <p class="hint">Arquivos grandes são ignorados — use URL. Preferência: coluna imagem_url.</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn-ghost" id="modal-lote-cancelar">Cancelar</button>
+                    <button type="submit" id="btn-salvar-lote">Salvar</button>
+                </div>
+            </form>
+            <p id="lote-msg" class="msg"></p>
+        </div>
+    </div>
+
+    <script src="config.js?v=20260916e"></script>
+    <script src="auth-guard.js?v=20260916e"></script>
+    <script src="nav.js?v=20260916e"></script>
+    <script src="lotes.js?v=20260916e"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Britagem</title>
-    <link rel="stylesheet" href="style.css?v=20260916d">
+    <link rel="stylesheet" href="style.css?v=20260916e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -17,6 +17,36 @@
             <button type="button" class="btn-sair" id="btn-sair">Sair</button>
         </header>
         <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card painel-britagem">
+            <h2>Painel de Britagem</h2>
+            <p class="sub">Configuração e fila — dono de britador</p>
+            <div class="kpi-grid" id="britagem-kpis">
+                <div class="kpi-card"><div class="kpi-value" id="kpi-preco">—</div><div class="kpi-label">R$/ton britagem</div></div>
+                <div class="kpi-card"><div class="kpi-value" id="kpi-tempo">—</div><div class="kpi-label">Tempo estimado</div></div>
+                <div class="kpi-card"><div class="kpi-value" id="kpi-fila">—</div><div class="kpi-label">Na fila</div></div>
+                <div class="kpi-card"><div class="kpi-value" id="kpi-proc">—</div><div class="kpi-label">Em processamento</div></div>
+                <div class="kpi-card"><div class="kpi-value" id="kpi-prazo">—</div><div class="kpi-label">Prazo retirada</div></div>
+            </div>
+            <form id="form-britagem-config" class="config-form">
+                <div class="filtros-row">
+                    <div class="filtro-campo">
+                        <label for="cfg-preco">Preço britagem por tonelada (R$)</label>
+                        <input type="number" id="cfg-preco" step="0.01" min="0" value="50">
+                    </div>
+                    <div class="filtro-campo">
+                        <label for="cfg-tempo">Tempo estimado (horas / lote)</label>
+                        <input type="number" id="cfg-tempo" step="0.5" min="0" value="4">
+                    </div>
+                    <div class="filtro-campo">
+                        <label for="cfg-prazo">Prazo máximo retirada (dias)</label>
+                        <input type="number" id="cfg-prazo" step="1" min="1" value="3">
+                    </div>
+                </div>
+                <button type="submit" id="btn-salvar-cfg">Salvar configuração</button>
+                <p id="cfg-msg" class="msg"></p>
+            </form>
+        </section>
 
         <section class="card">
             <h2>Processamentos / Britagem</h2>
@@ -43,9 +73,9 @@
             <p id="proc-msg" class="msg"></p>
         </section>
     </div>
-    <script src="config.js?v=20260916d"></script>
-    <script src="auth-guard.js?v=20260916d"></script>
-    <script src="nav.js?v=20260916d"></script>
-    <script src="processamento.js?v=20260916d"></script>
+    <script src="config.js?v=20260916e"></script>
+    <script src="auth-guard.js?v=20260916e"></script>
+    <script src="nav.js?v=20260916e"></script>
+    <script src="processamento.js?v=20260916e"></script>
 </body>
 </html>

@@ -1,9 +1,10 @@
 const PAPEIS_OPCOES = [
     { id: 'minerador', label: 'Minerador' },
     { id: 'comprador', label: 'Comprador' },
-    { id: 'transportador', label: 'Transportador' },
-    { id: 'dono_britador', label: 'Dono do britador' },
-    { id: 'carregamento', label: 'Carregamento' }
+    { id: 'transportador_mina_britador', label: 'Transportador (Mina - Britador)' },
+    { id: 'transportador_britador_porto', label: 'Transportador (Britador - Porto)' },
+    { id: 'dono_britador', label: 'Dono de Britador' },
+    { id: 'carregamento', label: 'Operador de Carregamento' }
 ];
 
 function mostrarAba(nome) {
@@ -92,6 +93,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-entrar').addEventListener('click', () => mostrarAba('entrar'));
     document.getElementById('tab-cadastrar').addEventListener('click', () => mostrarAba('cadastrar'));
 
+    document.getElementById('btn-esqueci').addEventListener('click', async () => {
+        const email = document.getElementById('login-email').value.trim();
+        if (!email) {
+            msg('Preencha o e-mail acima para recuperar a senha.', false);
+            document.getElementById('login-email').focus();
+            return;
+        }
+        msg('Enviando e-mail de recuperação...', true);
+        try {
+            const redirectTo = window.location.origin + APP_ROOT + 'index.html';
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+            if (error) {
+                msg('Erro: ' + error.message, false);
+                return;
+            }
+            msg('Se este e-mail existir, enviamos um link para redefinir a senha. Confira a caixa de entrada.', true);
+        } catch (err) {
+            msg('Falha ao enviar: ' + (err.message || err), false);
+        }
+    });
+
     document.getElementById('form-entrar').addEventListener('submit', async (e) => {
         e.preventDefault();
         msg('Entrando...', true);
@@ -109,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 msg('Login sem sessão. Tente de novo.', false);
                 return;
             }
-            // Login: não sobrescreve papeis
             await upsertUsuarioPerfil(data.user, data.user.user_metadata && data.user.user_metadata.nome);
             irPara('inicio.html');
         } catch (err) {

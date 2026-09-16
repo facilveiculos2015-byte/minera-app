@@ -4,12 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Entrar</title>
-    <link rel="stylesheet" href="style.css?v=20260916d">
+    <link rel="stylesheet" href="style.css?v=20260916e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
-        <header>
+        <header class="auth-header">
+            <div class="logo-mark" aria-hidden="true">
+                <svg viewBox="0 0 64 64" width="56" height="56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="32" cy="32" r="30" fill="#422006" stroke="#f59e0b" stroke-width="3"/>
+                    <path d="M18 38 L32 14 L46 38 Z" fill="#f59e0b"/>
+                    <rect x="28" y="36" width="8" height="14" rx="1" fill="#fbbf24"/>
+                </svg>
+            </div>
             <h1>Minera App</h1>
             <p>Crie sua conta ou entre para gerenciar lotes</p>
         </header>
@@ -26,6 +33,7 @@
                 <label for="login-senha">Senha</label>
                 <input type="password" id="login-senha" required placeholder="••••••••" autocomplete="current-password" minlength="6">
                 <button type="submit">Entrar</button>
+                <button type="button" class="btn-link" id="btn-esqueci">Esqueci minha senha</button>
             </form>
 
             <form id="form-cadastrar" class="oculto">
@@ -39,9 +47,10 @@
                     <legend>Papéis (pode marcar mais de um)</legend>
                     <label class="check-row"><input type="checkbox" id="papel-minerador" value="minerador"> Minerador</label>
                     <label class="check-row"><input type="checkbox" id="papel-comprador" value="comprador"> Comprador</label>
-                    <label class="check-row"><input type="checkbox" id="papel-transportador" value="transportador"> Transportador</label>
-                    <label class="check-row"><input type="checkbox" id="papel-dono_britador" value="dono_britador"> Dono do britador</label>
-                    <label class="check-row"><input type="checkbox" id="papel-carregamento" value="carregamento"> Carregamento</label>
+                    <label class="check-row"><input type="checkbox" id="papel-transportador_mina_britador" value="transportador_mina_britador"> Transportador (Mina - Britador)</label>
+                    <label class="check-row"><input type="checkbox" id="papel-transportador_britador_porto" value="transportador_britador_porto"> Transportador (Britador - Porto)</label>
+                    <label class="check-row"><input type="checkbox" id="papel-dono_britador" value="dono_britador"> Dono de Britador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-carregamento" value="carregamento"> Operador de Carregamento</label>
                 </fieldset>
                 <button type="submit">Criar conta</button>
             </form>
@@ -49,7 +58,7 @@
             <p id="auth-msg" class="msg"></p>
         </section>
     </div>
-    <script src="config.js?v=20260916d"></script>
-    <script src="auth.js?v=20260916d"></script>
+    <script src="config.js?v=20260916e"></script>
+    <script src="auth.js?v=20260916e"></script>
 </body>
 </html>

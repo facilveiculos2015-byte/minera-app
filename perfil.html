@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Perfil</title>
-    <link rel="stylesheet" href="style.css?v=20260916d">
+    <link rel="stylesheet" href="style.css?v=20260916e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -30,9 +30,10 @@
                     <legend>Papéis</legend>
                     <label class="check-row"><input type="checkbox" id="perfil-papel-minerador" value="minerador"> Minerador</label>
                     <label class="check-row"><input type="checkbox" id="perfil-papel-comprador" value="comprador"> Comprador</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-transportador" value="transportador"> Transportador</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-dono_britador" value="dono_britador"> Dono do britador</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-carregamento" value="carregamento"> Carregamento</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-transportador_mina_britador" value="transportador_mina_britador"> Transportador (Mina - Britador)</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-transportador_britador_porto" value="transportador_britador_porto"> Transportador (Britador - Porto)</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-dono_britador" value="dono_britador"> Dono de Britador</label>
+                    <label class="check-row"><input type="checkbox" id="perfil-papel-carregamento" value="carregamento"> Operador de Carregamento</label>
                     <label class="check-row oculto" id="row-admin"><input type="checkbox" id="perfil-papel-admin" value="admin"> Admin</label>
                 </fieldset>
                 <button type="submit">Salvar perfil</button>
@@ -40,9 +41,9 @@
             <p id="perfil-msg" class="msg"></p>
         </section>
     </div>
-    <script src="config.js?v=20260916d"></script>
-    <script src="auth-guard.js?v=20260916d"></script>
-    <script src="nav.js?v=20260916d"></script>
-    <script src="perfil.js?v=20260916d"></script>
+    <script src="config.js?v=20260916e"></script>
+    <script src="auth-guard.js?v=20260916e"></script>
+    <script src="nav.js?v=20260916e"></script>
+    <script src="perfil.js?v=20260916e"></script>
 </body>
 </html>

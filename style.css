@@ -334,3 +334,200 @@ label { font-size: 0.9rem; color: #cbd5e1; }
 .badge-em_transito { background: #1e3a5f; color: #93c5fd; }
 .badge-concluido { background: #14532d; color: #86efac; }
 .badge-cancelado { background: #450a0a; color: #fca5a5; }
+
+/* Auth logo */
+.auth-header { text-align: center; }
+.logo-mark { display: flex; justify-content: center; margin-bottom: 8px; }
+.btn-link {
+    background: transparent !important;
+    color: var(--accent-color) !important;
+    border: none;
+    padding: 8px;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.btn-link:hover { color: #fbbf24 !important; background: transparent !important; }
+
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.btn-icon {
+    width: auto;
+    padding: 8px 12px;
+    background: #0f172a;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+    border-radius: 8px;
+    font-size: 1.1rem;
+}
+.btn-icon:hover { background: #334155; }
+
+/* Chip filters */
+.chip-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.fchip {
+    width: auto;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #0f172a;
+    color: var(--muted);
+    border: 1px solid #475569;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.fchip.on {
+    background: var(--accent-color);
+    color: #000;
+    border-color: var(--accent-color);
+}
+
+/* Lote marketplace cards */
+.lote-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+.lote-card {
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.lote-img {
+    height: 120px;
+    background: linear-gradient(135deg, #422006, #1e293b 60%, #0f172a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.lote-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.lote-img.placeholder span { font-size: 2.4rem; }
+.lote-card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.lote-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lote-tipo { font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+.lote-codigo { font-size: 1.1rem; color: var(--accent-color); }
+.lote-meta { font-size: 0.9rem; color: #cbd5e1; }
+.lote-preco { font-weight: 800; color: #86efac; }
+.lote-who { font-size: 0.8rem; color: var(--muted); }
+.btn-card {
+    display: block;
+    text-align: center;
+    margin-top: auto;
+    padding: 10px;
+    background: var(--accent-color);
+    color: #000 !important;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+.btn-card:hover { background: var(--accent-hover); }
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.section-head h2 { border: none; padding: 0; margin: 0; }
+.btn-primary-lg {
+    width: auto;
+    white-space: nowrap;
+    padding: 12px 18px;
+    font-size: 1rem;
+}
+
+.card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.btn-sm {
+    width: auto;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    background: #334155;
+    color: #e2e8f0;
+}
+.btn-sm:hover { background: #475569; }
+.btn-sm.btn-danger { background: #7f1d1d; color: #fecaca; }
+.btn-sm.btn-ok { background: #14532d; color: #bbf7d0; }
+
+/* Modal */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.modal.oculto { display: none !important; }
+.modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+}
+.modal-panel {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    width: min(480px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 1;
+}
+.modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.modal-head h3 { color: var(--accent-color); }
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.btn-ghost {
+    width: auto;
+    background: transparent;
+    border: 1px solid #475569;
+    color: #e2e8f0;
+}
+.btn-ghost:hover { background: #334155; }
+.hint { font-size: 0.8rem; color: var(--muted); }
+
+/* Toast */
+.app-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1e293b;
+    border: 1px solid var(--accent-color);
+    color: #f8fafc;
+    padding: 12px 18px;
+    border-radius: 10px;
+    z-index: 2000;
+    opacity: 0;
+    transition: all 0.25s ease;
+    pointer-events: none;
+    max-width: 90vw;
+}
+.app-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.config-form { margin-top: 14px; }
+.painel-britagem .kpi-grid { margin-bottom: 8px; }

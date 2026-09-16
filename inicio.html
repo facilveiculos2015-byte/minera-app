@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera App - Início</title>
-    <link rel="stylesheet" href="style.css?v=20260916d">
+    <title>Minera App - Feed</title>
+    <link rel="stylesheet" href="style.css?v=20260916e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -14,44 +14,37 @@
                 <h1>Minera App</h1>
                 <p id="user-label">Carregando...</p>
             </div>
-            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+            <div class="header-actions">
+                <button type="button" class="btn-icon" id="btn-notif" title="Notificações" aria-label="Notificações">🔔</button>
+                <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+            </div>
         </header>
 
         <nav id="app-nav" class="nav-chips"></nav>
 
         <section class="card">
-            <h2>O que está rolando</h2>
-            <p class="sub">Marketplace / feed de lotes — quem postou, status e peso</p>
-            <div class="filtros-row">
-                <div class="filtro-campo">
-                    <label for="filtro-tipo">Tipo de minério</label>
-                    <select id="filtro-tipo">
-                        <option value="">Todos</option>
-                        <option value="Cobre">Cobre</option>
-                        <option value="Ferro">Ferro</option>
-                        <option value="Ouro">Ouro</option>
-                        <option value="Manganês">Manganês</option>
-                        <option value="Níquel">Níquel</option>
-                        <option value="Outro">Outro</option>
-                    </select>
-                </div>
-                <div class="filtro-campo">
-                    <label for="filtro-status">Status</label>
-                    <select id="filtro-status">
-                        <option value="">Todos</option>
-                        <option value="pendente">pendente</option>
-                        <option value="em_processo">em_processo</option>
-                        <option value="processado">processado</option>
-                        <option value="expedido">expedido</option>
-                    </select>
-                </div>
+            <h2>Marketplace</h2>
+            <p class="sub">Feed de lotes — negocie e veja detalhes</p>
+
+            <div class="chip-filters" id="filtro-tipo-chips" role="group" aria-label="Tipo de minério">
+                <button type="button" class="fchip on" data-tipo="">Todos</button>
+                <button type="button" class="fchip" data-tipo="Ouro">Ouro</button>
+                <button type="button" class="fchip" data-tipo="Ferro">Ferro</button>
+                <button type="button" class="fchip" data-tipo="Cobre">Cobre</button>
             </div>
+            <div class="chip-filters" id="filtro-status-chips" role="group" aria-label="Status">
+                <button type="button" class="fchip on" data-status="">Todos</button>
+                <button type="button" class="fchip" data-status="pendente">Disponível</button>
+                <button type="button" class="fchip" data-status="em_processo">Em trânsito</button>
+                <button type="button" class="fchip" data-status="expedido">Vendido</button>
+            </div>
+
             <div id="feed" class="loading">Carregando...</div>
         </section>
     </div>
-    <script src="config.js?v=20260916d"></script>
-    <script src="auth-guard.js?v=20260916d"></script>
-    <script src="nav.js?v=20260916d"></script>
-    <script src="inicio.js?v=20260916d"></script>
+    <script src="config.js?v=20260916e"></script>
+    <script src="auth-guard.js?v=20260916e"></script>
+    <script src="nav.js?v=20260916e"></script>
+    <script src="inicio.js?v=20260916e"></script>
 </body>
 </html>

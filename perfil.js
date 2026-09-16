@@ -1,4 +1,12 @@
-const PAPEIS_EDIT = ['minerador', 'comprador', 'transportador', 'dono_britador', 'carregamento', 'admin'];
+const PAPEIS_EDIT = [
+    'minerador',
+    'comprador',
+    'transportador_mina_britador',
+    'transportador_britador_porto',
+    'dono_britador',
+    'carregamento',
+    'admin'
+];
 let perfilAtual = null;
 
 function lerPapeisForm() {
@@ -12,13 +20,19 @@ function preencherForm(perfil) {
     document.getElementById('perfil-nome').value = perfil.nome || '';
     document.getElementById('perfil-email').value = perfil.email || '';
     const papeis = Array.isArray(perfil.papeis) ? perfil.papeis.map(p => String(p).toLowerCase()) : [];
+    // Legado transportador → marca ambas pernas
+    const temTranspLegado = papeis.includes('transportador');
     PAPEIS_EDIT.forEach(id => {
         const el = document.getElementById('perfil-papel-' + id);
-        if (el) el.checked = papeis.includes(id);
+        if (!el) return;
+        if (id === 'transportador_mina_britador' || id === 'transportador_britador_porto') {
+            el.checked = papeis.includes(id) || temTranspLegado;
+        } else {
+            el.checked = papeis.includes(id);
+        }
     });
     const rowAdmin = document.getElementById('row-admin');
     if (rowAdmin) {
-        // Mostra checkbox admin só se já for admin (não auto-promove)
         if (ehAdmin(perfil) || papeis.includes('admin')) {
             rowAdmin.classList.remove('oculto');
         } else {
