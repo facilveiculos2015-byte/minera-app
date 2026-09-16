@@ -579,21 +579,20 @@ async function processarIndicacaoNoCadastro(novoUser, nome) {
     const codigo = lerRefSalvo();
     if (!codigo || !novoUser || !novoUser.id) return;
     try {
-        const { data: refUser } = await supabaseClient
-            .from('usuarios')
-            .select('auth_id, codigo_indicacao, nome')
-            .eq('codigo_indicacao', codigo)
-            .maybeSingle();
-        if (!refUser || !refUser.auth_id || refUser.auth_id === novoUser.id) return;
-        await supabaseClient.from('usuarios').update({
-            indicado_por: codigo
-        }).eq('auth_id', novoUser.id);
-        await creditarPontosIndicacao(
-            refUser.auth_id,
-            SUPORTE_REF_PREMIO,
-            'Indicação: ' + (nome || novoUser.email || 'novo usuário') + ' (código ' + codigo + ')'
-        );
-        try { localStorage.removeItem('minera_ref'); } catch (e2) { /* */ }
+        // SECURITY DEFINER RPC (SQL 17) — no cross-profile SELECT/UPDATE from client
+        const motivo = 'Indicação: ' + (nome || novoUser.email || 'novo usuário') + ' (código ' + codigo + ')';
+        const { data, error } = await supabaseClient.rpc('processar_indicacao', {
+            p_codigo: codigo,
+            p_pontos: SUPORTE_REF_PREMIO,
+            p_motivo: motivo
+        });
+        if (error) {
+            console.warn('indicação rpc:', error.message);
+            return;
+        }
+        if (data) {
+            try { localStorage.removeItem('minera_ref'); } catch (e2) { /* */ }
+        }
     } catch (e) {
         console.warn('indicação cadastro:', e);
     }

@@ -27,3 +27,7 @@ Caixa Minera (saldo + movimentos) e solicitações de empréstimo (status analis
 ## 15-caixa-depositos-saques-pin.sql
 Incremental após 14: `caixa_deposito_pedidos`, `caixa_saque_pedidos`; `caixa_saldos.pin_hash` / `pin_salt` / `taxa_yield_max` (até 5% a.m.); RLS authenticated. Idempotente. NÃO wipe.
 Caixa: depósito Pix (comprovante → admin confirma), saque (chave destino → admin processa/debita), PIN separado do login.
+
+## 17-rls-isolamento.sql
+Incremental: `public.is_admin()` + RLS por perfil (usuarios/caixa/comissoes/emprestimos/suporte/pix/indicacao). Lotes feed SELECT auth; mutação own/admin. Chat soft-delete own/admin. `processar_indicacao()` RPC para indicação sem cross-UPDATE. Idempotente. NÃO wipe.
+**Parent deve aplicar no Supabase SQL Editor após 16.**

@@ -42,7 +42,7 @@ function lerPapeisCadastro() {
 }
 
 async function upsertUsuarioPerfil(user, nome, papeis) {
-    if (!user) return;
+    if (!user || !user.id) return;
     const row = {
         auth_id: user.id,
         nome: nome || (user.user_metadata && user.user_metadata.nome) || user.email || 'Usuário',
@@ -52,30 +52,34 @@ async function upsertUsuarioPerfil(user, nome, papeis) {
     };
     if (Array.isArray(papeis)) {
         row.papeis = papeis;
+    } else {
+        row.papeis = [];
     }
+    // Conflict target MUST be auth_id only — never overwrite another profile by email/id
     const { error } = await supabaseClient
         .from('usuarios')
         .upsert(row, { onConflict: 'auth_id' });
     if (error) {
         console.warn('upsert auth_id:', error.message);
-        const { data: existing } = await supabaseClient
+        const { data: own } = await supabaseClient
             .from('usuarios')
-            .select('id')
-            .eq('email', user.email)
+            .select('id, auth_id')
+            .eq('auth_id', user.id)
             .maybeSingle();
-        if (existing) {
+        if (own && own.auth_id === user.id) {
             const upd = {
-                auth_id: user.id,
                 nome: row.nome,
-                senha_hash: 'supabase-auth'
+                email: row.email,
+                senha_hash: 'supabase-auth',
+                papeis: row.papeis,
+                tipo: row.tipo
             };
-            if (Array.isArray(papeis)) {
-                upd.papeis = papeis;
-                upd.tipo = row.tipo;
-            }
-            await supabaseClient.from('usuarios').update(upd).eq('id', existing.id);
+            const { error: updErr } = await supabaseClient
+                .from('usuarios')
+                .update(upd)
+                .eq('auth_id', user.id);
+            if (updErr) console.warn('update own usuario:', updErr.message);
         } else {
-            if (!Array.isArray(row.papeis)) row.papeis = [];
             const { error: insErr } = await supabaseClient.from('usuarios').insert([row]);
             if (insErr) console.warn('insert usuario:', insErr.message);
         }

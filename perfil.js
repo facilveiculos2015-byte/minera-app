@@ -48,7 +48,7 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     const msgEl = document.getElementById('perfil-msg');
     const nome = document.getElementById('perfil-nome').value.trim();
     const papeis = lerPapeisForm();
-    if (!perfilAtual || !perfilAtual.id) {
+    if (!perfilAtual || !perfilAtual.auth_id) {
         msgEl.textContent = 'Perfil ainda não vinculado na tabela usuarios. Faça logout/login e tente de novo.';
         msgEl.className = 'msg erro';
         return;
@@ -57,7 +57,7 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     const { error } = await supabaseClient
         .from('usuarios')
         .update({ nome, papeis, tipo })
-        .eq('id', perfilAtual.id);
+        .eq('auth_id', perfilAtual.auth_id);
     if (error) {
         msgEl.textContent = 'Erro: ' + error.message;
         msgEl.className = 'msg erro';

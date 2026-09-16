@@ -78,6 +78,15 @@ async function getPerfil(session) {
     const email = session.user.email || '';
     const metaNome = (session.user.user_metadata && session.user.user_metadata.nome) || '';
 
+    // Never load another profile via query string / arbitrary id
+    try {
+        const q = new URLSearchParams(window.location.search || '');
+        const banned = ['id', 'user', 'user_id', 'auth_id', 'uid', 'perfil'];
+        for (const k of banned) {
+            if (q.has(k)) q.delete(k);
+        }
+    } catch (e) { /* ignore */ }
+
     function mapRow(data) {
         return {
             id: data.id,
@@ -103,49 +112,35 @@ async function getPerfil(session) {
             .maybeSingle();
         if (error) console.warn('getPerfil:', error.message);
         if (data) {
-            const perfil = mapRow(data);
-            await verificarInadimplencia(perfil);
-            // re-read bloqueado if check may have updated
-            if (perfil.id) {
-                try {
-                    const { data: d2 } = await supabaseClient
-                        .from('usuarios')
-                        .select('bloqueado,bloqueado_motivo,bloqueado_em')
-                        .eq('id', perfil.id)
-                        .maybeSingle();
-                    if (d2) {
-                        perfil.bloqueado = !!(d2.bloqueado === true || d2.bloqueado === 'true' || d2.bloqueado === 't');
-                        perfil.bloqueado_motivo = d2.bloqueado_motivo || perfil.bloqueado_motivo;
-                        perfil.bloqueado_em = d2.bloqueado_em || perfil.bloqueado_em;
-                    }
-                } catch (e) { /* ignore */ }
+            // Refuse rows that somehow do not belong to this session
+            if (data.auth_id && data.auth_id !== uid) {
+                console.warn('getPerfil: ignored foreign auth_id');
+            } else {
+                const perfil = mapRow(data);
+                await verificarInadimplencia(perfil);
+                if (perfil.auth_id) {
+                    try {
+                        const { data: d2 } = await supabaseClient
+                            .from('usuarios')
+                            .select('bloqueado,bloqueado_motivo,bloqueado_em')
+                            .eq('auth_id', uid)
+                            .maybeSingle();
+                        if (d2) {
+                            perfil.bloqueado = !!(d2.bloqueado === true || d2.bloqueado === 'true' || d2.bloqueado === 't');
+                            perfil.bloqueado_motivo = d2.bloqueado_motivo || perfil.bloqueado_motivo;
+                            perfil.bloqueado_em = d2.bloqueado_em || perfil.bloqueado_em;
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+                mostrarBannerBloqueio(perfil);
+                return perfil;
             }
-            mostrarBannerBloqueio(perfil);
-            return perfil;
         }
     } catch (e) {
         console.warn(e);
     }
 
-    try {
-        const { data: byEmail } = await supabaseClient
-            .from('usuarios')
-            .select('*')
-            .eq('email', email)
-            .maybeSingle();
-        if (byEmail) {
-            if (!byEmail.auth_id) {
-                await supabaseClient.from('usuarios').update({ auth_id: uid }).eq('id', byEmail.id);
-            }
-            const perfil = mapRow(Object.assign({}, byEmail, { auth_id: uid }));
-            await verificarInadimplencia(perfil);
-            mostrarBannerBloqueio(perfil);
-            return perfil;
-        }
-    } catch (e) {
-        console.warn(e);
-    }
-
+    // Stub only — no email cross-lookup (RLS isolates usuarios; avoid hijack)
     return {
         id: null,
         auth_id: uid,
@@ -155,7 +150,10 @@ async function getPerfil(session) {
         papeis: [],
         bloqueado: false,
         bloqueado_motivo: null,
-        bloqueado_em: null
+        bloqueado_em: null,
+        codigo_indicacao: null,
+        indicado_por: null,
+        pontos_saldo: 0
     };
 }
 
@@ -200,7 +198,7 @@ async function verificarInadimplencia(perfil) {
                 bloqueado: true,
                 bloqueado_motivo: motivo,
                 bloqueado_em: new Date().toISOString()
-            }).eq('id', perfil.id);
+            }).eq('auth_id', perfil.auth_id);
             perfil.bloqueado = true;
             perfil.bloqueado_motivo = motivo;
             perfil.bloqueado_em = new Date().toISOString();
@@ -213,7 +211,7 @@ async function verificarInadimplencia(perfil) {
                     bloqueado: false,
                     bloqueado_motivo: null,
                     bloqueado_em: null
-                }).eq('id', perfil.id);
+                }).eq('auth_id', perfil.auth_id);
                 perfil.bloqueado = false;
                 perfil.bloqueado_motivo = null;
                 perfil.bloqueado_em = null;
