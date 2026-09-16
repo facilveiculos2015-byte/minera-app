@@ -32,14 +32,55 @@ function imgPlaceholder(tipo) {
     return '<div class="lote-img placeholder" aria-hidden="true"><span>' + emoji + '</span></div>';
 }
 
-function fmtUsd(n) {
+function fmtUsd(n, fracDigits) {
     if (n == null || isNaN(n)) return '—';
-    return Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+    const d = fracDigits == null ? 2 : fracDigits;
+    return Number(n).toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: d,
+        maximumFractionDigits: d
+    });
 }
 
-function fmtBrl(n) {
+function fmtUsdCompact(n) {
     if (n == null || isNaN(n)) return '—';
-    return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const abs = Math.abs(Number(n));
+    // Large ton prices: $9,800 (no cents) so Cobre stays readable on the strip
+    const d = abs >= 1000 ? 0 : (abs >= 100 ? 1 : 2);
+    return fmtUsd(n, d);
+}
+
+function fmtBrl(n, fracDigits) {
+    if (n == null || isNaN(n)) return '—';
+    const opts = { style: 'currency', currency: 'BRL' };
+    if (fracDigits != null) {
+        opts.minimumFractionDigits = fracDigits;
+        opts.maximumFractionDigits = fracDigits;
+    }
+    return Number(n).toLocaleString('pt-BR', opts);
+}
+
+/** 1 troy ounce = 31.1034768 grams */
+const TROY_OZ_TO_G = 31.1034768;
+/** 1 metric tonne = 2204.62262185 pounds */
+const LB_PER_METRIC_TON = 2204.62262185;
+
+function goldUsdPerGram(usdPerTroyOz) {
+    if (usdPerTroyOz == null || isNaN(usdPerTroyOz)) return null;
+    return Number(usdPerTroyOz) / TROY_OZ_TO_G;
+}
+
+/**
+ * Normalize copper to USD per metric tonne.
+ * COMEX HG / gold-api HG / Yahoo HG=F are USD/lb (~$2–$10).
+ * LME-style sources may already be USD/t (~$5,000–$15,000) — do not double-convert.
+ */
+function copperUsdPerTon(usdRaw) {
+    if (usdRaw == null || isNaN(usdRaw)) return null;
+    const n = Number(usdRaw);
+    if (n < 100) return n * LB_PER_METRIC_TON; // USD/lb → USD/t
+    return n; // already USD/t (or similar large unit)
 }
 
 const COT_LINKS = [
@@ -172,15 +213,17 @@ function parseGoldUsd(data) {
 }
 
 function parseCopperUsd(data) {
+    // Returns raw USD number from the source (usually USD/lb for HG; sometimes USD/t).
+    // Callers must run copperUsdPerTon() before display.
     if (data == null) return null;
     if (typeof data === 'number') return data;
     if (typeof data !== 'object') return null;
-    // gold-api.com: { price, name, symbol }
+    // gold-api.com HG: USD per pound (COMEX)
     if (data.price != null && /hg|copper|cobre/i.test(String(data.symbol || data.name || ''))) {
         const n = parseFloat(data.price);
         if (!isNaN(n)) return n;
     }
-    // Yahoo chart
+    // Yahoo HG=F chart: USD per pound
     try {
         const meta = data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
         if (meta && meta.regularMarketPrice != null) {
@@ -222,14 +265,36 @@ function writeLsNumber(key, n) {
 }
 
 function showMetal(elValor, elSub, usd, label, viaProxy, fromCache, options) {
+    options = options || {};
     const brl = ultimoUsdBrl != null ? usd * ultimoUsdBrl : null;
-    document.getElementById(elValor).textContent = fmtUsd(usd);
-    // Keep subtitle short on mobile strip (long /t + BRL was clipping Cobre)
+    const elV = document.getElementById(elValor);
+    const elS = document.getElementById(elSub);
+
+    // Main value
+    if (options.preferBrlMain && brl != null) {
+        // Gold for BR users: R$/g primary
+        elV.textContent = fmtBrl(brl, 2);
+    } else if (options.usdPerTon) {
+        elV.textContent = fmtUsdCompact(usd);
+    } else {
+        elV.textContent = fmtUsd(usd, options.usdFrac != null ? options.usdFrac : 2);
+    }
+
+    // Subtitle: keep short so Cobre is not clipped on mobile
     let sub = label;
-    if (fromCache) sub = 'cache';
-    else if (viaProxy) sub = 'proxy';
-    else if (brl != null && !(options && options.usdPerTon)) sub += ' · ' + fmtBrl(brl);
-    document.getElementById(elSub).textContent = sub;
+    if (fromCache) {
+        sub = 'cache · ' + label;
+    } else if (viaProxy) {
+        sub = 'proxy · ' + label;
+    } else if (options.preferBrlMain && brl != null) {
+        // Main is R$/g → subtitle carries USD/g
+        sub = 'USD/g · ' + fmtUsd(usd, 2);
+    } else if (brl != null && options.showBrlInSub) {
+        sub = label + ' · ' + fmtBrl(brl, options.usdPerTon ? 0 : 2);
+    } else if (brl != null && !options.usdPerTon && !options.preferBrlMain) {
+        sub = label + ' · ' + fmtBrl(brl, 2);
+    }
+    elS.textContent = sub;
 }
 
 async function carregarDolar() {
@@ -255,16 +320,26 @@ async function carregarOuro() {
     ];
     try {
         const { data, viaProxy } = await fetchJsonMulti(endpoints);
-        const usd = parseGoldUsd(data);
-        if (usd == null || isNaN(usd)) throw new Error('parse gold');
-        writeLsNumber(LS_OURO, usd);
-        showMetal('cot-ouro', 'cot-ouro-sub', usd, 'USD/oz', viaProxy, false);
-        return usd;
+        const usdOz = parseGoldUsd(data);
+        if (usdOz == null || isNaN(usdOz)) throw new Error('parse gold');
+        // APIs return USD/troy oz → display per gram
+        const usdG = goldUsdPerGram(usdOz);
+        writeLsNumber(LS_OURO, usdOz); // cache raw USD/oz; convert on read
+        showMetal('cot-ouro', 'cot-ouro-sub', usdG, 'USD/g', viaProxy, false, {
+            preferBrlMain: true,
+            usdFrac: 2
+        });
+        return usdG;
     } catch (e) {
-        const cached = readLsNumber(LS_OURO);
-        if (cached != null) {
-            showMetal('cot-ouro', 'cot-ouro-sub', cached, 'USD/oz', false, true);
-            return cached;
+        const cachedOz = readLsNumber(LS_OURO);
+        if (cachedOz != null) {
+            // Legacy cache may already be per-gram (< ~500) or troy-oz
+            const usdG = cachedOz > 500 ? goldUsdPerGram(cachedOz) : cachedOz;
+            showMetal('cot-ouro', 'cot-ouro-sub', usdG, 'USD/g', false, true, {
+                preferBrlMain: true,
+                usdFrac: 2
+            });
+            return usdG;
         }
         document.getElementById('cot-ouro').textContent = '—';
         document.getElementById('cot-ouro-sub').textContent = 'CORS/API indisponível · veja LBMA';
@@ -283,16 +358,23 @@ async function carregarCobre() {
     ];
     try {
         const { data, viaProxy } = await fetchJsonMulti(endpoints);
-        const usd = parseCopperUsd(data);
-        if (usd == null || isNaN(usd)) throw new Error('parse copper');
-        writeLsNumber(LS_COBRE, usd);
-        showMetal('cot-cobre', 'cot-cobre-sub', usd, 'USD/lb', viaProxy, false, { usdPerTon: true });
-        return usd;
+        const usdRaw = parseCopperUsd(data);
+        if (usdRaw == null || isNaN(usdRaw)) throw new Error('parse copper');
+        // HG sources are USD/lb; copperUsdPerTon avoids double-convert if already USD/t
+        const usdT = copperUsdPerTon(usdRaw);
+        writeLsNumber(LS_COBRE, usdRaw); // cache raw; normalize on read
+        showMetal('cot-cobre', 'cot-cobre-sub', usdT, 'USD/t', viaProxy, false, {
+            usdPerTon: true
+        });
+        return usdT;
     } catch (e) {
-        const cached = readLsNumber(LS_COBRE);
-        if (cached != null) {
-            showMetal('cot-cobre', 'cot-cobre-sub', cached, 'USD/lb', false, true, { usdPerTon: true });
-            return cached;
+        const cachedRaw = readLsNumber(LS_COBRE);
+        if (cachedRaw != null) {
+            const usdT = copperUsdPerTon(cachedRaw);
+            showMetal('cot-cobre', 'cot-cobre-sub', usdT, 'USD/t', false, true, {
+                usdPerTon: true
+            });
+            return usdT;
         }
         document.getElementById('cot-cobre').textContent = '—';
         document.getElementById('cot-cobre-sub').textContent = 'CORS/API indisponível · veja LME Copper';
