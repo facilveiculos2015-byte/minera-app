@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql → 23-admin-emprestimos.sql → 24-chat-midia-storage.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql → 23-admin-emprestimos.sql → 24-chat-midia-storage.sql → 25-ensure-admin.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -61,3 +61,10 @@ Corrige admin sem ver pedidos de outros usuários / sem poder liberar crédito.
 Incremental após 23: cria/atualiza bucket Storage público `chat-midia` + policies SELECT público / INSERT·UPDATE·DELETE authenticated. Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 24 no Supabase SQL Editor após 23.**
 Necessário para áudio/imagem/vídeo do chat tocáveis por outros usuários (sem depender só de data-URL).
+
+
+## 25-ensure-admin.sql
+Incremental após 24: garante `tipo='admin'` e `papeis` contendo `'admin'` para `facilveiculos2015@gmail.com` (UPSERT por e-mail/`auth_id` via `auth.users`). Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 25 no Supabase SQL Editor após 24.**
+Corrige admin que passa a ser tratado como operador (ex.: upsert de login sem papéis).
+

@@ -60,6 +60,16 @@
                 <button type="submit">Criar conta</button>
             </form>
 
+            <form id="form-nova-senha" class="oculto" style="display:none; flex-direction:column; gap:12px;">
+                <h2 style="margin:0; font-size:1.15rem;">Definir nova senha</h2>
+                <p class="sub" style="margin:0;">Digite e confirme a nova senha da sua conta.</p>
+                <label for="nova-senha">Nova senha</label>
+                <input type="password" id="nova-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <label for="nova-senha-confirma">Confirmar senha</label>
+                <input type="password" id="nova-senha-confirma" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <button type="submit">Salvar nova senha</button>
+            </form>
+
             <p id="auth-msg" class="msg"></p>
         </section>
     </div>
