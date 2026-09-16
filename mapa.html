@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Mapa de Satélite</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzPCf9ltuBmfPSqGp53aX4TrjE=" crossorigin="">
+    <link rel="stylesheet" href="style.css?v=20260916i">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="mapa-page">
+    <div class="container wide mapa-layout">
+        <header class="header-row">
+            <div>
+                <h1>Mapa de Satélite</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="btn-icon" id="btn-mapa-fs" title="Tela cheia" aria-label="Tela cheia">⛶</button>
+                <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+            </div>
+        </header>
+
+        <nav id="app-nav" class="nav-chips"></nav>
+
+        <div class="mapa-toolbar">
+            <label class="mapa-toggle">
+                <input type="checkbox" id="toggle-rotulos" checked>
+                Rotas / rótulos OSM
+            </label>
+            <span class="mapa-toolbar-hint">Zoom e arraste para frentes</span>
+        </div>
+
+        <div id="mapa" class="mapa-canvas" role="application" aria-label="Mapa Sentinel-2"></div>
+
+        <p class="mapa-legend" id="mapa-legend">
+            Imagens Sentinel-2 (nuvens removidas) · zoom para frentes
+        </p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="config.js?v=20260916i"></script>
+    <script src="auth-guard.js?v=20260916i"></script>
+    <script src="nav.js?v=20260916i"></script>
+    <script src="mapa.js?v=20260916i"></script>
+</body>
+</html>

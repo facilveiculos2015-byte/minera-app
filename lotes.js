@@ -85,6 +85,8 @@ function preencherForm(lote) {
     document.getElementById('peso_bruto').value = lote ? (lote.peso_bruto_kg || '') : '';
     document.getElementById('preco').value = lote && lote.preco != null ? lote.preco : '';
     document.getElementById('imagem_url').value = lote ? (lote.imagem_url || '') : '';
+    document.getElementById('lote_lat').value = lote && lote.lat != null ? lote.lat : '';
+    document.getElementById('lote_lng').value = lote && lote.lng != null ? lote.lng : '';
     imagemDataUrl = null;
     document.getElementById('imagem_file').value = '';
 }
@@ -101,6 +103,20 @@ async function salvarLote(e) {
     const preco = precoRaw === '' ? null : parseFloat(precoRaw);
     let imagem_url = document.getElementById('imagem_url').value.trim() || null;
     if (imagemDataUrl) imagem_url = imagemDataUrl;
+    const latRaw = document.getElementById('lote_lat').value.trim();
+    const lngRaw = document.getElementById('lote_lng').value.trim();
+    const lat = latRaw === '' ? null : parseFloat(latRaw);
+    const lng = lngRaw === '' ? null : parseFloat(lngRaw);
+    if ((lat != null && !Number.isFinite(lat)) || (lng != null && !Number.isFinite(lng))) {
+        msgEl.textContent = 'Latitude/longitude inválidas.';
+        msgEl.className = 'msg erro';
+        return;
+    }
+    if ((lat == null) !== (lng == null)) {
+        msgEl.textContent = 'Informe lat e lng juntos, ou deixe ambos vazios.';
+        msgEl.className = 'msg erro';
+        return;
+    }
 
     const nome = (perfilAtual && perfilAtual.nome) ||
         (sessionAtual && sessionAtual.user && sessionAtual.user.user_metadata && sessionAtual.user.user_metadata.nome) ||
@@ -113,7 +129,9 @@ async function salvarLote(e) {
         tipo_minerio,
         peso_bruto_kg,
         preco,
-        imagem_url
+        imagem_url,
+        lat,
+        lng
     };
 
     let error;
@@ -129,8 +147,13 @@ async function salvarLote(e) {
     }
 
     if (error) {
-        msgEl.textContent = 'Erro: ' + error.message + (error.message.includes('preco') || error.message.includes('imagem')
-            ? ' — aplique o SQL 09-ui-marketplace.sql no Supabase.' : '');
+        let hint = '';
+        if (error.message.includes('preco') || error.message.includes('imagem')) {
+            hint = ' — aplique o SQL 09-ui-marketplace.sql no Supabase.';
+        } else if (error.message.includes('lat') || error.message.includes('lng') || error.message.includes('column')) {
+            hint = ' — aplique o SQL 11-mapa-coords.sql no Supabase.';
+        }
+        msgEl.textContent = 'Erro: ' + error.message + hint;
         msgEl.className = 'msg erro';
         return;
     }

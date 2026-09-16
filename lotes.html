@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Meus Lotes</title>
-    <link rel="stylesheet" href="style.css?v=20260916h">
+    <link rel="stylesheet" href="style.css?v=20260916i">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -58,6 +58,17 @@
                 <input type="number" id="peso_bruto" placeholder="Peso Bruto (kg)" required step="0.01" min="0">
                 <label for="preco">Preço (R$)</label>
                 <input type="number" id="preco" placeholder="Opcional" step="0.01" min="0">
+                <div class="coords-row">
+                    <div>
+                        <label for="lote_lat">Latitude (opcional)</label>
+                        <input type="number" id="lote_lat" placeholder="Ex: -6.05" step="any">
+                    </div>
+                    <div>
+                        <label for="lote_lng">Longitude (opcional)</label>
+                        <input type="number" id="lote_lng" placeholder="Ex: -49.90" step="any">
+                    </div>
+                </div>
+                <p class="hint">Coords WGS84 para o Mapa de Satélite. Deixe vazio se não souber.</p>
                 <label for="imagem_url">URL da imagem</label>
                 <input type="url" id="imagem_url" placeholder="https://... (opcional)">
                 <label for="imagem_file">Ou arquivo pequeno (data URL)</label>
@@ -72,9 +83,9 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260916h"></script>
-    <script src="auth-guard.js?v=20260916h"></script>
-    <script src="nav.js?v=20260916h"></script>
-    <script src="lotes.js?v=20260916h"></script>
+    <script src="config.js?v=20260916i"></script>
+    <script src="auth-guard.js?v=20260916i"></script>
+    <script src="nav.js?v=20260916i"></script>
+    <script src="lotes.js?v=20260916i"></script>
 </body>
 </html>

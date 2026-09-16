@@ -9,6 +9,7 @@ const NAV_PRIMARIOS = [
 ];
 
 const NAV_SECUNDARIOS = [
+    { id: 'mapa', label: 'Mapa de Satélite', href: 'mapa.html' },
     { id: 'britagem', label: 'Britagem', href: 'processamento.html' },
     { id: 'frete', label: 'Logística', href: 'frete.html' },
     { id: 'estoque', label: 'Estoque', href: 'estoque.html' },
@@ -18,14 +19,14 @@ const NAV_SECUNDARIOS = [
 ];
 
 const PAPEIS_CHIPS = {
-    minerador: ['inicio', 'lotes', 'novo', 'chat', 'perfil'],
-    comprador: ['inicio', 'chat', 'perfil'],
+    minerador: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
+    comprador: ['inicio', 'chat', 'perfil', 'mapa'],
     transportador: ['inicio', 'frete', 'chat', 'perfil'],
     transportador_mina_britador: ['inicio', 'frete', 'chat', 'perfil'],
     transportador_britador_porto: ['inicio', 'frete', 'chat', 'perfil'],
     dono_britador: ['inicio', 'britagem', 'estoque', 'chat', 'perfil'],
     carregamento: ['inicio', 'expedicao', 'frete', 'chat', 'perfil'],
-    admin: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'britagem', 'frete', 'estoque', 'expedicao', 'relatorios', 'admin']
+    admin: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'estoque', 'expedicao', 'relatorios', 'admin']
 };
 
 function iniciaisNome(nome) {
@@ -41,7 +42,7 @@ function chipsPermitidos(perfil) {
     if (typeof ehAdmin === 'function' && ehAdmin(perfil)) return allIds;
     const papeis = Array.isArray(perfil.papeis) ? perfil.papeis : [];
     if (!papeis.length) return allIds.filter(id => id !== 'admin');
-    const set = new Set(['perfil', 'inicio', 'chat']);
+    const set = new Set(['perfil', 'inicio', 'chat', 'mapa']);
     papeis.forEach(p => {
         const key = String(p).toLowerCase();
         const chips = PAPEIS_CHIPS[key];
