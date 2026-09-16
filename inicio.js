@@ -49,6 +49,8 @@ const COT_LINKS = [
 ];
 const LS_OURO = 'minera_cot_ouro_usd';
 const LS_COBRE = 'minera_cot_cobre_usd';
+const URL_GOLD_API_XAU = 'https://api.gold-api.com/price/XAU';
+const URL_GOLD_API_HG = 'https://api.gold-api.com/price/HG';
 const URL_MINTED = 'https://mintedmetal.com/api/prices.json';
 const URL_METALMETRIC = 'https://metalmetric.com/api/gpt?action=spot_prices';
 const URL_COINBASE_XAU = 'https://api.coinbase.com/v2/prices/XAU-USD/spot';
@@ -123,6 +125,11 @@ function parseGoldUsd(data) {
     if (data == null) return null;
     if (typeof data === 'number') return data;
     if (typeof data !== 'object') return null;
+    // gold-api.com: { price, name, symbol }
+    if (data.price != null && /xau|gold/i.test(String(data.symbol || data.name || ''))) {
+        const n = parseFloat(data.price);
+        if (!isNaN(n)) return n;
+    }
     // Coinbase
     if (data.data && data.data.amount != null && /xau/i.test(String(data.data.base || 'XAU'))) {
         const n = parseFloat(data.data.amount);
@@ -166,6 +173,11 @@ function parseCopperUsd(data) {
     if (data == null) return null;
     if (typeof data === 'number') return data;
     if (typeof data !== 'object') return null;
+    // gold-api.com: { price, name, symbol }
+    if (data.price != null && /hg|copper|cobre/i.test(String(data.symbol || data.name || ''))) {
+        const n = parseFloat(data.price);
+        if (!isNaN(n)) return n;
+    }
     // Yahoo chart
     try {
         const meta = data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
@@ -207,13 +219,14 @@ function writeLsNumber(key, n) {
     try { localStorage.setItem(key, String(n)); } catch (e) { /* ignore */ }
 }
 
-function showMetal(elValor, elSub, usd, label, viaProxy, fromCache) {
-    const brl = ultimoUsdBrl ? usd * ultimoUsdBrl : null;
+function showMetal(elValor, elSub, usd, label, viaProxy, fromCache, options) {
+    const brl = ultimoUsdBrl != null ? usd * ultimoUsdBrl : null;
     document.getElementById(elValor).textContent = fmtUsd(usd);
     let sub = label;
     if (viaProxy) sub += ' · via proxy';
-    if (fromCache) sub += ' · last-known';
-    if (brl) sub += ' · ' + fmtBrl(brl);
+    if (fromCache) sub += ' · última conhecida';
+    if (brl != null) sub += ' · ' + fmtBrl(brl);
+    if (options && options.usdPerTon) sub += ' · aprox. ' + fmtUsd(usd * 2204.62) + '/t';
     document.getElementById(elSub).textContent = sub;
 }
 
@@ -232,6 +245,7 @@ async function carregarDolar() {
 async function carregarOuro() {
     garantirLinksCotacoes();
     const endpoints = [
+        { url: URL_GOLD_API_XAU, viaProxy: false },
         { url: URL_MINTED, viaProxy: false },
         { url: URL_COINBASE_XAU, viaProxy: false },
         { url: viaProxyUrl(URL_MINTED), viaProxy: true },
@@ -259,6 +273,7 @@ async function carregarOuro() {
 async function carregarCobre() {
     garantirLinksCotacoes();
     const endpoints = [
+        { url: URL_GOLD_API_HG, viaProxy: false },
         { url: URL_METALMETRIC, viaProxy: false },
         { url: URL_YAHOO_HG, viaProxy: false },
         { url: viaProxyUrl(URL_METALMETRIC), viaProxy: true },
@@ -269,12 +284,12 @@ async function carregarCobre() {
         const usd = parseCopperUsd(data);
         if (usd == null || isNaN(usd)) throw new Error('parse copper');
         writeLsNumber(LS_COBRE, usd);
-        showMetal('cot-cobre', 'cot-cobre-sub', usd, 'USD/lb COMEX approx', viaProxy, false);
+        showMetal('cot-cobre', 'cot-cobre-sub', usd, 'USD/lb COMEX', viaProxy, false, { usdPerTon: true });
         return usd;
     } catch (e) {
         const cached = readLsNumber(LS_COBRE);
         if (cached != null) {
-            showMetal('cot-cobre', 'cot-cobre-sub', cached, 'USD/lb COMEX approx', false, true);
+            showMetal('cot-cobre', 'cot-cobre-sub', cached, 'USD/lb COMEX', false, true, { usdPerTon: true });
             return cached;
         }
         document.getElementById('cot-cobre').textContent = '—';
