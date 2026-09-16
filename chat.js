@@ -207,38 +207,56 @@ function pickRecorderMime() {
     return '';
 }
 
+let lastUploadError = '';
+
 async function uploadMidia(file, pasta) {
     if (!file) return null;
-    const mime = baseMime(file.type) || (pasta === 'audios' ? 'audio/webm' : undefined);
+    lastUploadError = '';
+    const mime = baseMime(file.type) || (pasta === 'audios' ? 'audio/webm' : 'application/octet-stream');
     const ext = extForMime(mime, (file.name || '').split('.').pop() || 'bin');
     const safeName = String(file.name || ('arquivo.' + ext)).replace(/[^\w.\-]/g, '_');
     const stem = safeName.replace(/\.[^.]+$/, '') || 'arquivo';
     const path = (pasta || 'geral') + '/' + Date.now() + '_' + stem + '.' + ext;
+    // Re-wrap so Content-Type never carries ";codecs=..." (Storage/CDN often rejects it)
+    let payload = file;
+    try {
+        if (baseMime(file.type) !== mime || /;/.test(String(file.type || ''))) {
+            payload = new File([file], stem + '.' + ext, { type: mime });
+        }
+    } catch (eWrap) {
+        payload = file;
+    }
     try {
         const { data, error } = await supabaseClient.storage
             .from('chat-midia')
-            .upload(path, file, {
+            .upload(path, payload, {
                 upsert: false,
-                contentType: mime || undefined,
+                contentType: mime,
                 cacheControl: '3600'
             });
         if (!error && data) {
             const { data: pub } = supabaseClient.storage.from('chat-midia').getPublicUrl(data.path || path);
             if (pub && pub.publicUrl) return pub.publicUrl;
+            lastUploadError = 'Upload ok mas sem URL pública — rode SQL 27 (bucket público).';
+        } else {
+            lastUploadError = (error && error.message) || 'Falha no upload Storage';
+            console.warn('Storage upload falhou:', lastUploadError);
         }
-        console.warn('Storage upload falhou:', error && error.message);
     } catch (e) {
+        lastUploadError = (e && e.message) || 'Storage indisponível';
         console.warn('Storage indisponível:', e);
     }
-    // Fallbacks: data-URL so the bubble still plays for the sender (prefer real URL via SQL 24)
+    // Fallbacks: data-URL for short voice (~3–5MB) so sender still hears it if bucket missing
     const maxImg = 400000;
-    const maxAudio = 1800000; // ~1.8MB — short voice notes
+    const maxAudio = 4500000; // ~4.5MB — short voice notes when Storage fails
     if (mime && mime.startsWith('image/') && file.size <= maxImg) {
-        return await fileToDataUrl(file);
+        try { return await fileToDataUrl(file); } catch (e2) { console.warn(e2); }
     }
     if ((mime && mime.startsWith('audio/')) || pasta === 'audios') {
         if (file.size <= maxAudio) {
             try { return await fileToDataUrl(file); } catch (e2) { console.warn(e2); }
+        } else {
+            lastUploadError = lastUploadError || ('Áudio grande demais para fallback (' + Math.round(file.size / 1000) + ' KB).');
         }
     }
     return null;
@@ -273,6 +291,20 @@ async function promoverAgendadas(lista) {
     }
 }
 
+function mimeFromMediaUrl(url) {
+    const s = String(url || '');
+    if (s.startsWith('data:audio/')) {
+        return baseMime(s.slice(5).split(',')[0]);
+    }
+    const u = s.split('?')[0].toLowerCase();
+    if (/\.webm$/i.test(u)) return 'audio/webm';
+    if (/\.ogg$/i.test(u)) return 'audio/ogg';
+    if (/\.m4a$/i.test(u) || /\.mp4$/i.test(u)) return 'audio/mp4';
+    if (/\.mp3$/i.test(u) || /\.mpeg$/i.test(u)) return 'audio/mpeg';
+    if (/\.wav$/i.test(u)) return 'audio/wav';
+    return '';
+}
+
 function renderMedia(m) {
     const url = m.midia_url;
     const loading = !!m._loading;
@@ -292,7 +324,7 @@ function renderMedia(m) {
         }
         if (tipo === 'audio') {
             return '<div class="bubble-media bubble-media-loading">' +
-                '<audio src="' + esc(localPreview) + '" controls></audio>' +
+                '<audio src="' + esc(localPreview) + '" controls playsinline webkit-playsinline></audio>' +
                 '<div class="media-upload-overlay">Enviando…</div></div>';
         }
     }
@@ -305,9 +337,13 @@ function renderMedia(m) {
         return '<div class="bubble-media"><video src="' + esc(url) + '" controls playsinline></video></div>';
     }
     if (tipo === 'audio') {
-        // Prefer remote URL; keep blob/data playable. preload=metadata avoids some mobile errors.
+        const amime = mimeFromMediaUrl(url);
+        const typeAttr = amime ? ' type="' + esc(amime) + '"' : '';
+        // Prefer remote/public URL; blob/data still play. playsinline for mobile Chrome/Android.
         return '<div class="bubble-media bubble-audio">' +
-            '<audio src="' + esc(url) + '" controls preload="metadata" playsinline></audio></div>';
+            '<audio controls preload="metadata" playsinline webkit-playsinline>' +
+            '<source src="' + esc(url) + '"' + typeAttr + '>' +
+            '</audio></div>';
     }
     return '<div class="bubble-media"><a href="' + esc(url) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
 }
@@ -833,7 +869,7 @@ function showMediaPreview(opts) {
         body = '<' + tag + ' class="media-preview-thumb" src="' + esc(opts.localUrl) + '"' + extra + '></' + tag + '>';
     } else if (opts.tipo === 'audio') {
         body = '<div class="media-preview-audio">🎙️ Áudio ' + esc(opts.duracao || '') + '</div>' +
-            (opts.localUrl ? '<audio src="' + esc(opts.localUrl) + '" controls style="max-width:180px"></audio>' : '');
+            (opts.localUrl ? '<audio src="' + esc(opts.localUrl) + '" controls playsinline webkit-playsinline style="max-width:180px"></audio>' : '');
     } else {
         body = '<div class="media-preview-audio">' + esc(opts.nome || 'Mídia') + '</div>';
     }
@@ -901,12 +937,14 @@ async function enviarAnexoPendente() {
             tempEl.classList.add('bubble-failed');
         }
         showMediaPreview(null);
-        setAnexoInfo('Falha no upload de áudio/mídia. Aplique SQL 24 (bucket chat-midia) ou tente de novo.');
+        const detail = lastUploadError ? (' ' + lastUploadError) : '';
+        setAnexoInfo('Falha no upload de mídia. Aplique SQL 27 (bucket chat-midia público) ou tente de novo.');
         const msgEl = document.getElementById('chat-msg');
         if (msgEl) {
-            msgEl.textContent = 'Não foi possível enviar a mídia (storage).';
+            msgEl.textContent = 'Não foi possível enviar a mídia.' + detail;
             msgEl.className = 'msg erro';
         }
+        if (typeof toastMsg === 'function') toastMsg('Falha ao enviar mídia. Rode SQL 27 se o erro continuar.');
         // Keep anexoPendente so user can retry Enviar
         resetAudioBtn();
         if (pend.tipo === 'audio' && pend.file) {
@@ -974,6 +1012,7 @@ async function pickMidiaArquivo(file, tipo) {
 let audioCancelado = false;
 let audioHoldMode = false;
 let audioPointerId = null;
+let audioAutoSend = false;
 
 function formatAudioTimer(sec) {
     const s = Math.max(0, Math.floor(sec));
@@ -1026,6 +1065,8 @@ function onRecordingReady(blob) {
     const ext = extForMime(mime, 'webm');
     const file = new File([blob], 'audio_' + Date.now() + '.' + ext, { type: mime });
     const localUrl = URL.createObjectURL(blob);
+    const doSend = audioAutoSend;
+    audioAutoSend = false;
     anexoPendente = {
         tipo: 'audio',
         file,
@@ -1038,10 +1079,15 @@ function onRecordingReady(blob) {
     showMediaPreview({
         tipo: 'audio',
         localUrl,
-        uploading: false,
-        readyToSend: true,
+        uploading: !!doSend,
+        readyToSend: !doSend,
         duracao: formatAudioTimer(audioSeconds)
     });
+    if (doSend) {
+        setAnexoInfo('Enviando áudio…');
+        enviarAnexoPendente();
+        return;
+    }
     const btn = document.getElementById('btn-audio');
     if (btn) {
         btn.textContent = '➤ Enviar';
@@ -1068,11 +1114,11 @@ async function startRecording(fromHold) {
         return;
     }
     if (!window.isSecureContext) {
-        toastAudio('Microfone exige HTTPS. Use “Anexar áudio” ou abra o site seguro.');
+        toastAudio('Microfone exige HTTPS. Use “Anexo” ou abra o site seguro.');
         return;
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
-        toastAudio('Gravação não suportada neste navegador. Use “Anexar áudio”.');
+        toastAudio('Gravação não suportada neste navegador. Use “Anexo”.');
         return;
     }
     if (gravando) return;
@@ -1128,11 +1174,11 @@ async function startRecording(fromHold) {
         const name = (err && err.name) || '';
         let msg = 'Não foi possível acessar o microfone.';
         if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-            msg = 'Permissão do microfone negada. Libere o mic nas configurações do navegador ou use “Anexar áudio”.';
+            msg = 'Permissão do microfone negada. Libere o mic nas configurações do navegador ou use “Anexo”.';
         } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-            msg = 'Nenhum microfone encontrado. Use “Anexar áudio”.';
+            msg = 'Nenhum microfone encontrado. Use “Anexo”.';
         } else if (name === 'NotReadableError' || name === 'TrackStartError') {
-            msg = 'Microfone em uso por outro app. Feche-o ou use “Anexar áudio”.';
+            msg = 'Microfone em uso por outro app. Feche-o ou use “Anexo”.';
         } else if (err && err.message) {
             msg = 'Microfone: ' + err.message;
         }
@@ -1141,7 +1187,13 @@ async function startRecording(fromHold) {
 }
 
 function stopRecording(cancel) {
-    if (cancel) audioCancelado = true;
+    if (cancel) {
+        audioCancelado = true;
+        audioAutoSend = false;
+    } else {
+        // Hold-to-send / stop → upload automático (evita bolha quebrada sem Enviar)
+        audioAutoSend = true;
+    }
     gravando = false;
     showRecBar(false);
     stopAudioTimer();
@@ -1451,6 +1503,20 @@ document.getElementById('btn-chat-back').addEventListener('click', () => {
         lb.querySelector('img').src = img.getAttribute('src');
         lb.classList.remove('oculto');
     });
+})();
+
+
+(function bindAudioPlaybackErrors() {
+    document.addEventListener('error', (e) => {
+        const el = e.target;
+        if (!el || el.tagName !== 'AUDIO') return;
+        const wrap = el.closest && el.closest('.bubble-audio');
+        if (!wrap || wrap.querySelector('.audio-err')) return;
+        const d = document.createElement('div');
+        d.className = 'audio-err hint';
+        d.textContent = 'Erro ao tocar áudio (URL privada/rede). Aplique SQL 27.';
+        wrap.appendChild(d);
+    }, true);
 })();
 
 (async function init() {

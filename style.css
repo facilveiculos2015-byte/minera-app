@@ -2339,6 +2339,7 @@ body, .container, .card, header, nav, section { min-width: 0; }
 tr.row-pendente { background: rgba(251, 191, 36, 0.08); }
 .bubble-failed { opacity: 0.85; border: 1px solid var(--danger, #f87171); }
 .bubble-audio audio { width: 100%; min-width: 180px; }
+.bubble-audio .audio-err { color: #fca5a5; margin-top: 4px; }
 .notif-emp-item strong { color: #fbbf24; }
 
 
