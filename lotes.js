@@ -222,12 +222,22 @@ async function criarComissaoVenda(lote) {
         return null;
     }
     const percentual = 1;
-    const valor_comissao = Math.round(preco * percentual) / 100;
+    const valor_comissao_bruta = Math.round(preco * percentual) / 100;
     const uid = (sessionAtual && sessionAtual.user && sessionAtual.user.id)
         || (perfilAtual && perfilAtual.auth_id) || null;
     const nome = (perfilAtual && perfilAtual.nome)
         || (lote.criado_por)
         || 'Vendedor';
+    let valor_comissao = valor_comissao_bruta;
+    let desconto_pontos = 0;
+    let valor_comissao_original = valor_comissao_bruta;
+    if (typeof aplicarDescontoPontosComissao === 'function' && uid) {
+        const disc = await aplicarDescontoPontosComissao(uid, valor_comissao_bruta);
+        valor_comissao = disc.valor_comissao;
+        desconto_pontos = disc.desconto_pontos || 0;
+        valor_comissao_original = disc.valor_comissao_original != null
+            ? disc.valor_comissao_original : valor_comissao_bruta;
+    }
     const venc = new Date();
     venc.setDate(venc.getDate() + 7);
     const row = {
@@ -236,6 +246,8 @@ async function criarComissaoVenda(lote) {
         vendedor_nome: nome,
         valor_venda: preco,
         valor_comissao: valor_comissao,
+        valor_comissao_original: valor_comissao_original,
+        desconto_pontos: desconto_pontos,
         percentual: percentual,
         status: 'pendente',
         vencimento: venc.toISOString()
@@ -271,7 +283,7 @@ async function marcarVendido(id) {
         const criada = await criarComissaoVenda(lote);
         if (criada) {
             const valorFmt = preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            toastMsg('Comissão 1% de R$ ' + valorFmt + ' gerada — pague no Perfil/Pix');
+            toastMsg('Comissão 1% (sobre R$ ' + valorFmt + ') gerada — pontos aplicados se houver; pague no Perfil/Pix');
         } else {
             toastMsg('Marcado como Vendido');
         }

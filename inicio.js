@@ -404,9 +404,12 @@ async function carregarFeed() {
 (async function init() {
     const session = await requireSession();
     if (!session) return;
-    const perfil = await getPerfil(session);
+    let perfil = await getPerfil(session);
     aplicarUserLabel(perfil);
     montarNav('inicio', perfil);
+    if (typeof montarCardFamilia === 'function') {
+        perfil = await montarCardFamilia(document.querySelector('.container'), perfil, 'inicio') || perfil;
+    }
     if (typeof checarTutorialPrimeiroAcesso === 'function') checarTutorialPrimeiroAcesso();
     if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
     bindChipGroup('filtro-tipo-chips', 'data-tipo', v => { filtroTipo = v; });

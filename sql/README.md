@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09-ui-marketplace.sql → 10-chat-pix-admin.sql → 11-mapa-coords.sql → 12-comissoes.sql → 13-bloqueio-cotacoes.sql → 14-caixa-emprestimos.sql → 15-caixa-depositos-saques-pin.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15-caixa-depositos-saques-pin.sql → 16-suporte-indicacao.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.

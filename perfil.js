@@ -80,6 +80,9 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     aplicarUserLabel(perfilAtual);
     montarNav('perfil', perfilAtual);
     preencherForm(perfilAtual);
+    if (typeof montarCardFamilia === 'function') {
+        perfilAtual = await montarCardFamilia(document.querySelector('.container'), perfilAtual, 'perfil') || perfilAtual;
+    }
     if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
     const btnTema = document.getElementById('btn-tema');
     if (btnTema) btnTema.addEventListener('click', () => {
@@ -297,10 +300,14 @@ async function carregarComissoesPendentes() {
                     supabaseClient.from('comissoes').update({ status: 'atrasado' }).eq('id', c.id).then(() => {});
                 }
                 const venc = c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—';
+                const desc = c.desconto_pontos != null && Number(c.desconto_pontos) > 0
+                    ? '<br><span class="sub">−' + fmtBRL(c.desconto_pontos) + ' pts' +
+                      (c.valor_comissao_original != null ? ' (de ' + fmtBRL(c.valor_comissao_original) + ')' : '') + '</span>'
+                    : '';
                 return `<tr data-id="${c.id}">
                     <td>#${c.lote_id != null ? c.lote_id : '—'}</td>
                     <td>${fmtBRL(c.valor_venda)}</td>
-                    <td><strong>${fmtBRL(c.valor_comissao)}</strong></td>
+                    <td><strong>${fmtBRL(c.valor_comissao)}</strong>${desc}</td>
                     <td>${venc}</td>
                     <td><span class="badge badge-${st}">${st}</span></td>
                     <td><button type="button" class="btn-sm btn-ok" data-act="pagar-comissao"

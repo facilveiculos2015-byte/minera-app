@@ -750,6 +750,100 @@ async function carregarEmprestimosAdmin() {
     }
 }
 
+
+async function carregarSuporteAdmin() {
+    const box = document.getElementById('admin-suporte');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('suporte_mensagens')
+            .select('id, de_auth_id, de_nome, texto, origem, thread_auth_id, criado_em, lido_admin')
+            .order('criado_em', { ascending: false })
+            .limit(200);
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p class="sub">Nenhuma mensagem de suporte ainda.</p>';
+            return;
+        }
+        // Agrupa por thread_auth_id
+        const threads = new Map();
+        data.forEach(m => {
+            const tid = m.thread_auth_id || m.de_auth_id || '—';
+            if (!threads.has(tid)) threads.set(tid, []);
+            threads.get(tid).push(m);
+        });
+        const list = [];
+        threads.forEach((msgs, tid) => {
+            msgs.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
+            const last = msgs[msgs.length - 1];
+            const userMsg = msgs.find(x => x.origem === 'user' && x.de_nome);
+            const nome = (userMsg && userMsg.de_nome) || last.de_nome || tid.slice(0, 8);
+            const pendenteHumano = msgs.some(x => x.origem === 'user' && /falar com humano|aguardando atendimento/i.test(x.texto || ''));
+            list.push({ tid, nome, msgs, last, pendenteHumano });
+        });
+        list.sort((a, b) => new Date(b.last.criado_em) - new Date(a.last.criado_em));
+
+        box.innerHTML = list.map((t, i) => {
+            const preview = esc((t.last.texto || '').slice(0, 80));
+            const when = t.last.criado_em ? new Date(t.last.criado_em).toLocaleString('pt-BR') : '';
+            const badge = t.pendenteHumano ? '<span class="badge badge-atrasado">Humano</span>' : '';
+            return `<div class="suporte-thread" data-tid="${esc(t.tid)}">
+                <button type="button" class="suporte-thread-head" data-act="toggle-thread" data-i="${i}">
+                    <strong>${esc(t.nome)}</strong> ${badge}
+                    <span class="sub">${esc(when)} · ${preview}</span>
+                </button>
+                <div class="suporte-thread-body oculto" id="suporte-thread-${i}">
+                    <div class="suporte-msgs admin-suporte-msgs">
+                        ${t.msgs.map(m => {
+                            const cls = m.origem === 'user' ? 'user' : (m.origem === 'admin' ? 'admin' : 'bot');
+                            const who = m.origem === 'admin' ? (m.de_nome || 'Admin')
+                                : (m.origem === 'bot' ? 'Robô' : (m.de_nome || 'User'));
+                            return `<div class="suporte-bubble ${cls}"><div class="suporte-meta">${esc(who)}</div><div>${esc(m.texto)}</div></div>`;
+                        }).join('')}
+                    </div>
+                    <form class="suporte-admin-reply" data-tid="${esc(t.tid)}">
+                        <input type="text" name="reply" placeholder="Responder como admin…" required maxlength="2000">
+                        <button type="submit" class="btn-ok btn-sm">Enviar</button>
+                    </form>
+                </div>
+            </div>`;
+        }).join('');
+
+        box.querySelectorAll('[data-act="toggle-thread"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const i = btn.getAttribute('data-i');
+                const body = document.getElementById('suporte-thread-' + i);
+                if (body) body.classList.toggle('oculto');
+            });
+        });
+        box.querySelectorAll('form.suporte-admin-reply').forEach(form => {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const tid = form.getAttribute('data-tid');
+                const inp = form.querySelector('input[name="reply"]');
+                const texto = (inp && inp.value || '').trim();
+                if (!texto || !tid) return;
+                const { error: err } = await supabaseClient.from('suporte_mensagens').insert([{
+                    de_auth_id: perfilAtual && perfilAtual.auth_id,
+                    de_nome: (perfilAtual && perfilAtual.nome) || 'Admin',
+                    texto,
+                    origem: 'admin',
+                    thread_auth_id: tid
+                }]);
+                if (err) {
+                    toastMsg('Erro: ' + err.message + ' (SQL 16?)');
+                    return;
+                }
+                inp.value = '';
+                toastMsg('Resposta enviada');
+                carregarSuporteAdmin();
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 16)</p>';
+    }
+}
+
 (async function init() {
     const session = await requireSession();
     if (!session) return;
@@ -771,6 +865,7 @@ async function carregarEmprestimosAdmin() {
         carregarComissoes(),
         carregarDepositosAdmin(),
         carregarSaquesAdmin(),
-        carregarEmprestimosAdmin()
+        carregarEmprestimosAdmin(),
+        carregarSuporteAdmin()
     ]);
 })();

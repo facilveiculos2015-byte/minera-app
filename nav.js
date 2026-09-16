@@ -203,4 +203,9 @@ function montarNav(paginaAtiva, perfil) {
 
     const legado = document.getElementById('btn-sair');
     if (legado) legado.classList.add('oculto');
+
+    // Fale conosco (Robô Minera) — botão pequeno no header / float
+    if (typeof garantirFaleConosco === 'function') {
+        garantirFaleConosco(perfil);
+    }
 }

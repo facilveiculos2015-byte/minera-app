@@ -160,6 +160,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (data.user) {
                 await upsertUsuarioPerfil(data.user, nome, papeis);
+                if (typeof processarIndicacaoNoCadastro === 'function') {
+                    await processarIndicacaoNoCadastro(data.user, nome);
+                }
+                // Garante código de indicação do novo usuário
+                if (typeof garantirCodigoIndicacao === 'function') {
+                    await garantirCodigoIndicacao({ auth_id: data.user.id, nome });
+                }
             }
             if (data.session) {
                 irPara('inicio.html');
@@ -175,6 +182,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    mostrarAba('entrar');
+    if (typeof capturarRefUrl === 'function') capturarRefUrl();
+    // Se veio com ?ref=, abre aba cadastro
+    try {
+        const q = new URLSearchParams(window.location.search);
+        if (q.get('ref')) mostrarAba('cadastrar');
+        else mostrarAba('entrar');
+    } catch (e) {
+        mostrarAba('entrar');
+    }
     irSeLogado();
 });

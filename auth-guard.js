@@ -88,7 +88,10 @@ async function getPerfil(session) {
             papeis: normalizarPapeis(data.papeis, data.tipo),
             bloqueado: !!(data.bloqueado === true || data.bloqueado === 'true' || data.bloqueado === 't'),
             bloqueado_motivo: data.bloqueado_motivo || null,
-            bloqueado_em: data.bloqueado_em || null
+            bloqueado_em: data.bloqueado_em || null,
+            codigo_indicacao: data.codigo_indicacao || null,
+            indicado_por: data.indicado_por || null,
+            pontos_saldo: data.pontos_saldo != null ? Number(data.pontos_saldo) : 0
         };
     }
 

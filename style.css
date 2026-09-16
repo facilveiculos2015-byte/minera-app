@@ -1334,3 +1334,165 @@ html[data-theme="light"] .btn-caixa-bank {
     border-color: #f59e0b;
 }
 
+
+/* —— Fale conosco / Robô Minera —— */
+.btn-fale-conosco {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border, #334155);
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-fale-conosco:hover,
+.btn-fale-conosco:focus {
+    transform: scale(1.04);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+    outline: none;
+}
+.btn-fale-conosco .fale-icon { font-size: 1rem; line-height: 1; }
+.btn-fale-conosco .fale-label { white-space: nowrap; }
+@media (max-width: 420px) {
+    .btn-fale-conosco .fale-label { display: none; }
+    .btn-fale-conosco { width: 36px; padding: 0; justify-content: center; }
+}
+.btn-fale-float {
+    position: fixed;
+    right: 14px;
+    bottom: 78px;
+    z-index: 900;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+}
+.suporte-panel { width: min(440px, 100%); display: flex; flex-direction: column; max-height: 85vh; }
+.suporte-intro { margin: 0 0 8px; }
+.suporte-msgs {
+    flex: 1;
+    min-height: 180px;
+    max-height: 42vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(15, 23, 42, 0.45);
+    border-radius: 10px;
+    border: 1px solid var(--border, #334155);
+    margin-bottom: 8px;
+}
+.suporte-bubble {
+    max-width: 92%;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+.suporte-bubble .suporte-meta {
+    font-size: 0.7rem;
+    opacity: 0.75;
+    margin-bottom: 2px;
+}
+.suporte-bubble.user {
+    align-self: flex-end;
+    background: #1d4ed8;
+    color: #eff6ff;
+    border-bottom-right-radius: 4px;
+}
+.suporte-bubble.bot {
+    align-self: flex-start;
+    background: #334155;
+    color: #f1f5f9;
+    border-bottom-left-radius: 4px;
+}
+.suporte-bubble.admin {
+    align-self: flex-start;
+    background: #065f46;
+    color: #ecfdf5;
+    border-bottom-left-radius: 4px;
+}
+.suporte-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+.suporte-form input { flex: 1; margin: 0; }
+.suporte-form button { margin: 0; flex-shrink: 0; }
+.suporte-actions { margin: 4px 0 6px; }
+.suporte-thread {
+    border: 1px solid var(--border, #334155);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.suporte-thread-head {
+    width: 100%;
+    text-align: left;
+    background: rgba(30, 41, 59, 0.8);
+    border: 0;
+    color: inherit;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.suporte-thread-body { padding: 10px; }
+.admin-suporte-msgs { max-height: 240px; }
+.suporte-admin-reply { display: flex; gap: 8px; margin-top: 8px; }
+.suporte-admin-reply input { flex: 1; margin: 0; }
+
+/* —— Família Mineira —— */
+.familia-card {
+    border: 1.5px solid #f59e0b;
+    background: linear-gradient(145deg, rgba(66, 32, 6, 0.55), rgba(30, 58, 95, 0.4));
+}
+.familia-card h2 { color: #fbbf24; }
+.familia-lead { margin: 0 0 8px; font-size: 1.02rem; color: #fef3c7; }
+.familia-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+}
+.familia-stat {
+    flex: 1;
+    min-width: 120px;
+    background: rgba(15, 23, 42, 0.55);
+    border-radius: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+.familia-stat-val {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fde68a;
+}
+.familia-stat-lbl { font-size: 0.75rem; color: #94a3b8; }
+.familia-share-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.familia-share-row input { flex: 1; margin: 0; font-family: ui-monospace, monospace; }
+.familia-link-hint { word-break: break-all; font-size: 0.75rem; }
+html[data-theme="light"] .familia-card {
+    background: linear-gradient(145deg, #fff7ed, #e0f2fe);
+}
+html[data-theme="light"] .familia-lead { color: #92400e; }
+html[data-theme="light"] .familia-stat { background: #fff; }
+html[data-theme="light"] .familia-stat-val { color: #b45309; }
+html[data-theme="light"] .btn-fale-conosco {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #7dd3fc;
+}
+html[data-theme="light"] .suporte-msgs { background: #f1f5f9; }
+html[data-theme="light"] .suporte-bubble.bot { background: #e2e8f0; color: #0f172a; }
