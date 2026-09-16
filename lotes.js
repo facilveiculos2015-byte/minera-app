@@ -176,14 +176,82 @@ async function excluirLote(id) {
     carregarLotes();
 }
 
+async function criarComissaoVenda(lote) {
+    const preco = lote && lote.preco != null ? Number(lote.preco) : 0;
+    if (!(preco > 0) || !lote || !lote.id) return null;
+    // Idempotente: skip se já existe comissão para este lote
+    try {
+        const { data: existentes, error: errSel } = await supabaseClient
+            .from('comissoes')
+            .select('id')
+            .eq('lote_id', lote.id)
+            .limit(1);
+        if (errSel) {
+            console.warn('comissoes select:', errSel.message);
+            // tabela ausente → hint SQL 12
+            if (/relation|comissoes|schema cache|does not exist/i.test(errSel.message || '')) {
+                toastMsg('Aplique o SQL 12-comissoes.sql no Supabase');
+            }
+            return null;
+        }
+        if (existentes && existentes.length) return existentes[0];
+    } catch (e) {
+        console.warn(e);
+        return null;
+    }
+    const percentual = 1;
+    const valor_comissao = Math.round(preco * percentual) / 100;
+    const uid = (sessionAtual && sessionAtual.user && sessionAtual.user.id)
+        || (perfilAtual && perfilAtual.auth_id) || null;
+    const nome = (perfilAtual && perfilAtual.nome)
+        || (lote.criado_por)
+        || 'Vendedor';
+    const row = {
+        lote_id: lote.id,
+        vendedor_auth_id: uid,
+        vendedor_nome: nome,
+        valor_venda: preco,
+        valor_comissao: valor_comissao,
+        percentual: percentual,
+        status: 'pendente'
+    };
+    const { data, error } = await supabaseClient.from('comissoes').insert([row]).select('id').limit(1);
+    if (error) {
+        // unique race / already exists
+        if (/duplicate|unique|comissoes_lote/i.test(error.message || '')) {
+            return { id: null };
+        }
+        console.warn('comissao insert:', error.message);
+        if (/relation|comissoes|schema cache|does not exist/i.test(error.message || '')) {
+            toastMsg('Aplique o SQL 12-comissoes.sql no Supabase');
+        } else {
+            toastMsg('Comissão não gerada: ' + error.message);
+        }
+        return null;
+    }
+    return data && data[0] ? data[0] : { id: true };
+}
+
 async function marcarVendido(id) {
+    const lote = lotesMeus.find(l => l.id === id) || null;
     const { error } = await supabaseClient.from('lotes').update({ status: 'expedido' }).eq('id', id);
     if (error) {
         toastMsg('Erro: ' + error.message);
         return;
     }
     await registrarLog('lote_vendido', { id }, perfilAtual);
-    toastMsg('Marcado como Vendido');
+    const preco = lote && lote.preco != null ? Number(lote.preco) : 0;
+    if (preco > 0) {
+        const criada = await criarComissaoVenda(lote);
+        if (criada) {
+            const valorFmt = preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            toastMsg('Comissão 1% de R$ ' + valorFmt + ' gerada — pague no Perfil/Pix');
+        } else {
+            toastMsg('Marcado como Vendido');
+        }
+    } else {
+        toastMsg('Marcado como Vendido');
+    }
     carregarLotes();
 }
 

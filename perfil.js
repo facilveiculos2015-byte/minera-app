@@ -79,8 +79,9 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     montarNav('perfil', perfilAtual);
     preencherForm(perfilAtual);
     await carregarPixUsuario();
-    if (location.hash === '#pix') {
-        const el = document.getElementById('card-pix-user');
+    await carregarComissoesPendentes();
+    if (location.hash === '#pix' || location.hash === '#comissoes') {
+        const el = document.getElementById(location.hash === '#comissoes' ? 'card-comissoes' : 'card-pix-user');
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
 })();
@@ -189,6 +190,67 @@ if (formPix) {
     });
 }
 
+
+function fmtBRL(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return '—';
+    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+async function carregarComissoesPendentes() {
+    const box = document.getElementById('comissoes-pendentes');
+    if (!box || !perfilAtual) return;
+    try {
+        let q = supabaseClient
+            .from('comissoes')
+            .select('*')
+            .eq('status', 'pendente')
+            .order('criado_em', { ascending: false })
+            .limit(30);
+        if (perfilAtual.auth_id) q = q.eq('vendedor_auth_id', perfilAtual.auth_id);
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p class="sub">Nenhuma comissão pendente.</p>';
+            return;
+        }
+        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Lote</th><th>Venda</th><th>Comissão 1%</th><th>Vencimento</th><th></th></tr></thead><tbody>' +
+            data.map(c => {
+                const venc = c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—';
+                return `<tr data-id="${c.id}">
+                    <td>#${c.lote_id != null ? c.lote_id : '—'}</td>
+                    <td>${fmtBRL(c.valor_venda)}</td>
+                    <td><strong>${fmtBRL(c.valor_comissao)}</strong></td>
+                    <td>${venc}</td>
+                    <td><button type="button" class="btn-sm btn-ok" data-act="pagar-comissao"
+                        data-valor="${c.valor_comissao}" data-id="${c.id}">Pagar via Pix</button></td>
+                </tr>`;
+            }).join('') + '</tbody></table></div>';
+    } catch (e) {
+        box.innerHTML = '<p class="erro">Comissões indisponíveis (rode SQL 12): ' +
+            String(e.message || e).replace(/</g, '&lt;') + '</p>';
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="pagar-comissao"]');
+    if (!btn) return;
+    const valor = btn.getAttribute('data-valor');
+    const card = document.getElementById('card-pix-user');
+    const input = document.getElementById('pix-valor');
+    if (input && valor != null) {
+        const n = Number(valor);
+        input.value = Number.isFinite(n) ? n.toFixed(2) : valor;
+    }
+    if (card) {
+        card.scrollIntoView({ behavior: 'smooth' });
+        const form = document.getElementById('form-pix-comprovante');
+        if (form) form.classList.remove('oculto');
+    }
+    toastMsg('Valor da comissão preenchido no Pix — envie o comprovante');
+});
+
 // Hook after init: load pix when perfil ready
 (async function pixInitHook() {
     // wait a tick for main init
@@ -198,8 +260,9 @@ if (formPix) {
     }
     if (perfilAtual) {
         await carregarPixUsuario();
-        if (location.hash === '#pix') {
-            const el = document.getElementById('card-pix-user');
+        await carregarComissoesPendentes();
+        if (location.hash === '#pix' || location.hash === '#comissoes') {
+            const el = document.getElementById(location.hash === '#comissoes' ? 'card-comissoes' : 'card-pix-user');
             if (el) el.scrollIntoView({ behavior: 'smooth' });
         }
     }

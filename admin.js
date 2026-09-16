@@ -266,6 +266,64 @@ async function carregarPixPagamentos() {
     }
 }
 
+
+async function carregarComissoes() {
+    const box = document.getElementById('admin-comissoes');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('comissoes')
+            .select('*')
+            .order('criado_em', { ascending: false })
+            .limit(50);
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p>Nenhuma comissão.</p>';
+            return;
+        }
+        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Quando</th><th>Lote</th><th>Vendedor</th><th>Venda</th><th>1%</th><th>Status</th><th>Venc.</th><th></th></tr></thead><tbody>' +
+            data.map(c => {
+                const when = c.criado_em ? new Date(c.criado_em).toLocaleString('pt-BR') : '';
+                const venc = c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—';
+                const venda = c.valor_venda != null
+                    ? Number(c.valor_venda).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    : '—';
+                const com = c.valor_comissao != null
+                    ? Number(c.valor_comissao).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    : '—';
+                const st = c.status || 'pendente';
+                const btnPago = st === 'pago'
+                    ? ''
+                    : '<button type="button" class="btn-sm btn-ok" data-act="comissao-pago">Marcar pago</button>';
+                return `<tr data-id="${c.id}">
+                    <td>${esc(when)}</td>
+                    <td>#${c.lote_id != null ? c.lote_id : '—'}</td>
+                    <td>${esc(c.vendedor_nome || c.vendedor_auth_id || '—')}</td>
+                    <td>${esc(venda)}</td>
+                    <td>${esc(com)}</td>
+                    <td><span class="badge">${esc(st)}</span></td>
+                    <td>${esc(venc)}</td>
+                    <td class="card-actions">${btnPago}</td>
+                </tr>`;
+            }).join('') + '</tbody></table></div>';
+
+        box.querySelectorAll('[data-act="comissao-pago"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = parseInt(btn.closest('tr').getAttribute('data-id'), 10);
+                const { error } = await supabaseClient.from('comissoes')
+                    .update({ status: 'pago' })
+                    .eq('id', id);
+                if (error) return toastMsg('Erro: ' + error.message);
+                toastMsg('Comissão marcada como paga');
+                carregarComissoes();
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 12)</p>';
+    }
+}
+
 (async function init() {
     const session = await requireSession();
     if (!session) return;
@@ -283,6 +341,7 @@ async function carregarPixPagamentos() {
         carregarLotes(),
         carregarChatMonitor(),
         carregarPixAdmin(),
-        carregarPixPagamentos()
+        carregarPixPagamentos(),
+        carregarComissoes()
     ]);
 })();
