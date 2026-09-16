@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15-caixa-depositos-saques-pin.sql → 16-suporte-indicacao.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -31,3 +31,8 @@ Caixa: depósito Pix (comprovante → admin confirma), saque (chave destino → 
 ## 17-rls-isolamento.sql
 Incremental: `public.is_admin()` + RLS por perfil (usuarios/caixa/comissoes/emprestimos/suporte/pix/indicacao). Lotes feed SELECT auth; mutação own/admin. Chat soft-delete own/admin. `processar_indicacao()` RPC para indicação sem cross-UPDATE. Idempotente. NÃO wipe.
 **Parent deve aplicar no Supabase SQL Editor após 16.**
+
+
+## 18-chat-contatos-dms.sql
+Incremental após 17: `chat_contatos`, `chat_leituras`; RLS chat só participante/admin (quebra broadcast); RPCs `chat_diretorio`, `chat_buscar_email`, `chat_perfis_publicos`. Idempotente. NÃO wipe.
+**Parent deve aplicar no Supabase SQL Editor após 17.**

@@ -136,6 +136,8 @@ function garantirHeaderCaixaBtn() {
 }
 
 function montarNav(paginaAtiva, perfil) {
+    garantirBrandLogo();
+    garantirHeaderNotifBtn();
     garantirHeaderCaixaBtn();
     const permitidos = new Set(chipsPermitidos(perfil));
     const body = document.body;
@@ -208,4 +210,263 @@ function montarNav(paginaAtiva, perfil) {
     if (typeof garantirFaleConosco === 'function') {
         garantirFaleConosco(perfil);
     }
+
+    // Notificações de DM (badge no sino)
+    try {
+        const uid = perfil && perfil.auth_id;
+        if (uid && typeof MineraNotif !== 'undefined' && MineraNotif.start) {
+            MineraNotif.start(uid);
+        }
+    } catch (e) { /* ignore */ }
 }
+
+
+/** Logo escavadeira ao lado do título Minera App */
+function garantirBrandLogo() {
+    const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
+    const src = root + 'logo-escavadeira.png?v=20260916s';
+    document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
+        const wrap = h1.parentElement;
+        if (!wrap) return;
+        if (wrap.querySelector('.brand-logo')) return;
+        wrap.classList.add('brand-title');
+        const img = document.createElement('img');
+        img.className = 'brand-logo';
+        img.src = src;
+        img.alt = 'Minera App';
+        img.width = 40;
+        img.height = 40;
+        img.decoding = 'async';
+        // Place logo before h1 inside a flex row if needed
+        if (!wrap.classList.contains('brand-row')) {
+            const row = document.createElement('div');
+            row.className = 'brand-row';
+            h1.parentNode.insertBefore(row, h1);
+            row.appendChild(img);
+            row.appendChild(h1);
+        } else {
+            wrap.insertBefore(img, h1);
+        }
+    });
+    // index auth logo-mark: replace SVG with excavator
+    document.querySelectorAll('.logo-mark').forEach(mark => {
+        if (mark.querySelector('img.brand-logo-lg')) return;
+        mark.innerHTML = '';
+        const img = document.createElement('img');
+        img.className = 'brand-logo-lg';
+        img.src = src;
+        img.alt = 'Minera App';
+        img.width = 72;
+        img.height = 72;
+        img.decoding = 'async';
+        mark.appendChild(img);
+    });
+}
+
+function garantirHeaderNotifBtn() {
+    const header = document.querySelector('header.header-row');
+    if (!header) return;
+    let actions = header.querySelector('.header-actions');
+    if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'header-actions';
+        header.appendChild(actions);
+    }
+    let btn = document.getElementById('btn-notif');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'btn-notif';
+        btn.className = 'btn-icon';
+        btn.title = 'Notificações';
+        btn.setAttribute('aria-label', 'Notificações');
+        btn.innerHTML = '🔔<span class="notif-badge oculto" id="notif-badge">0</span>';
+        const sair = document.getElementById('btn-sair');
+        if (sair && sair.parentNode === actions) actions.insertBefore(btn, sair);
+        else actions.appendChild(btn);
+    } else if (!document.getElementById('notif-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'notif-badge oculto';
+        badge.id = 'notif-badge';
+        badge.textContent = '0';
+        btn.appendChild(badge);
+    }
+}
+
+/** Poll de DMs não lidas + badge + toast + Browser Notification */
+const MineraNotif = (function () {
+    let started = false;
+    let timer = null;
+    let authId = null;
+    let knownIds = new Set();
+    let bootstrapped = false;
+
+    function lsLeituras() {
+        try {
+            return JSON.parse(localStorage.getItem('minera_chat_leituras_' + authId) || '{}') || {};
+        } catch (e) { return {}; }
+    }
+
+    function lsSeenGlobal() {
+        try {
+            return Number(localStorage.getItem('minera_chat_seen_max_' + authId) || 0);
+        } catch (e) { return 0; }
+    }
+
+    function setSeenGlobal(id) {
+        try {
+            const prev = lsSeenGlobal();
+            if (Number(id) > prev) localStorage.setItem('minera_chat_seen_max_' + authId, String(id));
+        } catch (e) { /* ignore */ }
+    }
+
+    function updateBadge(n) {
+        const badge = document.getElementById('notif-badge');
+        const btn = document.getElementById('btn-notif');
+        if (!badge) return;
+        if (n > 0) {
+            badge.textContent = n > 99 ? '99+' : String(n);
+            badge.classList.remove('oculto');
+            if (btn) btn.classList.add('has-unread');
+        } else {
+            badge.classList.add('oculto');
+            if (btn) btn.classList.remove('has-unread');
+        }
+    }
+
+    function ensureDropdown() {
+        let dd = document.getElementById('notif-dropdown');
+        if (dd) return dd;
+        dd = document.createElement('div');
+        dd.id = 'notif-dropdown';
+        dd.className = 'notif-dropdown oculto';
+        dd.innerHTML = '<div class="notif-dd-head">Mensagens</div><div class="notif-dd-list" id="notif-dd-list"></div>' +
+            '<a class="notif-dd-foot" id="notif-dd-foot" href="#">Abrir Chat</a>';
+        document.body.appendChild(dd);
+        const foot = document.getElementById('notif-dd-foot');
+        if (foot) foot.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'chat.html';
+        document.addEventListener('click', (e) => {
+            if (!dd.classList.contains('oculto')) {
+                if (!dd.contains(e.target) && e.target.id !== 'btn-notif' && !(e.target.closest && e.target.closest('#btn-notif'))) {
+                    dd.classList.add('oculto');
+                }
+            }
+        });
+        return dd;
+    }
+
+    function showBrowserNotif(title, body) {
+        try {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916s' });
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    async function poll() {
+        if (!authId || typeof supabaseClient === 'undefined') return;
+        try {
+            const leituras = lsLeituras();
+            const { data, error } = await supabaseClient
+                .from('chat_mensagens')
+                .select('id,de_auth_id,de_nome,para_auth_id,texto,tipo,criado_em,status,deleted_at')
+                .eq('para_auth_id', authId)
+                .is('deleted_at', null)
+                .order('id', { ascending: false })
+                .limit(40);
+            if (error) return;
+
+            const unread = [];
+            const byPeer = {};
+            (data || []).forEach(m => {
+                if ((m.status || '') === 'agendada') return;
+                const lastRead = Number(leituras[m.de_auth_id] || 0);
+                if (Number(m.id) > lastRead) {
+                    unread.push(m);
+                    if (!byPeer[m.de_auth_id]) byPeer[m.de_auth_id] = m;
+                }
+            });
+
+            updateBadge(Object.keys(byPeer).length || (unread.length ? unread.length : 0));
+
+            // Toast / browser notif for newly seen ids after bootstrap
+            const fresh = (data || []).filter(m =>
+                Number(m.id) > lsSeenGlobal() &&
+                (!bootstrapped || !knownIds.has(m.id))
+            );
+            if (!bootstrapped) {
+                (data || []).forEach(m => knownIds.add(m.id));
+                if (data && data[0]) setSeenGlobal(data[0].id);
+                bootstrapped = true;
+            } else {
+                fresh.forEach(m => {
+                    knownIds.add(m.id);
+                    setSeenGlobal(m.id);
+                    const nome = m.de_nome || 'Alguém';
+                    const preview = (m.texto || (m.tipo && m.tipo !== 'text' ? '[' + m.tipo + ']' : 'Nova mensagem')).slice(0, 80);
+                    if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome);
+                    showBrowserNotif('Minera App', nome + ': ' + preview);
+                });
+            }
+
+            // Fill dropdown
+            const list = document.getElementById('notif-dd-list');
+            if (list) {
+                const peers = Object.values(byPeer);
+                if (!peers.length) {
+                    list.innerHTML = '<p class="sub">Nenhuma mensagem nova</p>';
+                } else {
+                    list.innerHTML = peers.map(m => {
+                        const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') +
+                            'chat.html?para=' + encodeURIComponent(m.de_auth_id);
+                        const preview = (m.texto || '[' + (m.tipo || 'msg') + ']').slice(0, 60);
+                        return '<a class="notif-dd-item" href="' + href + '"><strong>' +
+                            String(m.de_nome || 'Alguém').replace(/</g, '&lt;') +
+                            '</strong><span>' + String(preview).replace(/</g, '&lt;') + '</span></a>';
+                    }).join('');
+                }
+            }
+        } catch (e) {
+            console.warn('MineraNotif', e);
+        }
+    }
+
+    function bindBell() {
+        const btn = document.getElementById('btn-notif');
+        if (!btn || btn._notifBound) return;
+        btn._notifBound = true;
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const dd = ensureDropdown();
+            const rect = btn.getBoundingClientRect();
+            dd.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
+            dd.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+            dd.classList.toggle('oculto');
+            if (!dd.classList.contains('oculto')) {
+                await poll();
+                // Ask permission once
+                try {
+                    if ('Notification' in window && Notification.permission === 'default') {
+                        Notification.requestPermission();
+                    }
+                } catch (err) { /* ignore */ }
+            }
+        });
+    }
+
+    function start(uid) {
+        if (!uid) return;
+        authId = uid;
+        bindBell();
+        ensureDropdown();
+        if (started) return;
+        started = true;
+        poll();
+        timer = setInterval(poll, 8000);
+    }
+
+    return { start, poll, updateBadge };
+})();
+window.MineraNotif = MineraNotif;

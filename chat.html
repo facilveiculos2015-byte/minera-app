@@ -4,64 +4,109 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Chat</title>
-    <link rel="stylesheet" href="style.css?v=20260916r">
+    <link rel="icon" type="image/png" href="logo-escavadeira.png?v=20260916s">
+    <link rel="apple-touch-icon" href="logo-escavadeira.png?v=20260916s">
+    <link rel="stylesheet" href="style.css?v=20260916s">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body>
     <div class="container wide">
         <header class="header-row">
-            <div>
+            <div class="brand-title">
                 <h1>Minera App</h1>
                 <p id="user-label">Carregando...</p>
             </div>
-            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+            <div class="header-actions">
+                <button type="button" class="btn-icon" id="btn-notif" title="Notificações" aria-label="Notificações">🔔<span class="notif-badge oculto" id="notif-badge">0</span></button>
+                <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+            </div>
         </header>
         <nav id="app-nav" class="nav-chips"></nav>
 
-        <section class="card chat-card">
-            <h2>Chat da equipe</h2>
-            <p id="chat-lote-ctx" class="sub oculto"></p>
-            <div id="chat-msgs" class="chat-msgs"></div>
+        <section class="card chat-wa-layout" id="chat-wa">
+            <aside class="chat-contacts-pane" id="chat-contacts-pane">
+                <div class="chat-contacts-head">
+                    <h2>Conversas</h2>
+                    <button type="button" class="btn-sm" id="btn-add-contato">＋ Adicionar contato</button>
+                </div>
+                <input type="search" id="chat-busca-contatos" class="chat-busca" placeholder="Buscar contato..." autocomplete="off">
+                <div id="chat-contatos-list" class="chat-contatos-list"></div>
+            </aside>
 
-            <div class="chat-toolbar">
-                <label class="btn-sm" for="chat-foto">📷 Foto</label>
-                <input type="file" id="chat-foto" accept="image/*" class="oculto">
-                <label class="btn-sm" for="chat-video">🎬 Vídeo</label>
-                <input type="file" id="chat-video" accept="video/*" class="oculto">
-                <button type="button" class="btn-sm" id="btn-audio">🎙️ Áudio</button>
-                <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
-                <button type="button" class="btn-sm" id="btn-toggle-agendar">🗓️ Agendar</button>
-            </div>
-            <p id="chat-anexo-info" class="hint oculto"></p>
+            <div class="chat-thread-pane" id="chat-thread-pane">
+                <div id="chat-thread-empty" class="chat-thread-empty">
+                    <p>Selecione um contato para abrir a conversa privada.</p>
+                    <p class="hint">Mensagens são só entre você e o destinatário.</p>
+                </div>
+                <div id="chat-thread-active" class="chat-thread-active oculto">
+                    <div class="chat-thread-head">
+                        <button type="button" class="btn-sm chat-back" id="btn-chat-back" aria-label="Voltar">←</button>
+                        <div>
+                            <strong id="chat-com-nome">—</strong>
+                            <p id="chat-com-papel" class="sub"></p>
+                        </div>
+                    </div>
+                    <p id="chat-lote-ctx" class="sub oculto"></p>
+                    <div id="chat-msgs" class="chat-msgs"></div>
 
-            <div id="chat-agendar-box" class="chat-agendar-row oculto">
-                <div style="flex:1">
-                    <label for="chat-agendar-em">Enviar em</label>
-                    <input type="datetime-local" id="chat-agendar-em">
+                    <div class="chat-toolbar">
+                        <label class="btn-sm" for="chat-foto">📷 Foto</label>
+                        <input type="file" id="chat-foto" accept="image/*" class="oculto">
+                        <label class="btn-sm" for="chat-video">🎬 Vídeo</label>
+                        <input type="file" id="chat-video" accept="video/*" class="oculto">
+                        <button type="button" class="btn-sm" id="btn-audio">🎙️ Áudio</button>
+                        <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
+                        <button type="button" class="btn-sm" id="btn-toggle-agendar">🗓️ Agendar</button>
+                    </div>
+                    <p id="chat-anexo-info" class="hint oculto"></p>
+
+                    <div id="chat-agendar-box" class="chat-agendar-row oculto">
+                        <div style="flex:1">
+                            <label for="chat-agendar-em">Enviar em</label>
+                            <input type="datetime-local" id="chat-agendar-em">
+                        </div>
+                    </div>
+
+                    <div class="chat-extra">
+                        <div style="flex:1;min-width:160px">
+                            <label for="chat-url-midia">Ou cole URL da mídia</label>
+                            <input type="url" id="chat-url-midia" placeholder="https://... (opcional)">
+                        </div>
+                    </div>
+
+                    <form id="form-chat" class="chat-form" style="margin-top:8px">
+                        <input type="text" id="chat-texto" placeholder="Escreva uma mensagem..." maxlength="2000" autocomplete="off">
+                        <button type="submit">Enviar</button>
+                    </form>
+                    <p id="chat-msg" class="msg"></p>
                 </div>
             </div>
-
-            <div class="chat-extra">
-                <div style="flex:1;min-width:160px">
-                    <label for="chat-url-midia">Ou cole URL da mídia</label>
-                    <input type="url" id="chat-url-midia" placeholder="https://... (opcional)">
-                </div>
-            </div>
-
-            <form id="form-chat" class="chat-form" style="margin-top:8px">
-                <input type="text" id="chat-texto" placeholder="Escreva uma mensagem..." maxlength="2000" autocomplete="off">
-                <button type="submit">Enviar</button>
-            </form>
-            <p id="chat-msg" class="msg"></p>
-            <p class="hint">Canal geral · poll 4s · Admin vê tudo. Bucket Storage: chat-midia (opcional).</p>
         </section>
     </div>
-    <script src="config.js?v=20260916r"></script>
-    <script src="auth-guard.js?v=20260916r"></script>
-    <script src="suporte.js?v=20260916r"></script>
-    <script src="nav.js?v=20260916r"></script>
-    <script src="anti-golpe.js?v=20260916r"></script>
-    <script src="chat.js?v=20260916r"></script>
+
+    <div id="modal-add-contato" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-add-titulo">
+        <div class="modal-backdrop" data-close-add="1"></div>
+        <div class="modal-panel chat-add-panel">
+            <h3 id="modal-add-titulo">Adicionar contato</h3>
+            <label for="add-busca">Buscar por nome ou e-mail</label>
+            <input type="search" id="add-busca" placeholder="Nome ou e-mail...">
+            <div class="chat-add-roles" id="add-role-filters"></div>
+            <div id="add-diretorio" class="chat-diretorio-list"></div>
+            <div class="chat-add-email-row">
+                <input type="email" id="add-email" placeholder="Ou digite o e-mail exato">
+                <button type="button" class="btn-sm" id="btn-add-email">Adicionar</button>
+            </div>
+            <p id="add-contato-msg" class="msg"></p>
+            <button type="button" class="btn-ghost" id="btn-fechar-add">Fechar</button>
+        </div>
+    </div>
+
+    <script src="config.js?v=20260916s"></script>
+    <script src="auth-guard.js?v=20260916s"></script>
+    <script src="suporte.js?v=20260916s"></script>
+    <script src="nav.js?v=20260916s"></script>
+    <script src="anti-golpe.js?v=20260916s"></script>
+    <script src="chat.js?v=20260916s"></script>
 </body>
 </html>

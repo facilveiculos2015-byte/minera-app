@@ -414,8 +414,7 @@ async function carregarFeed() {
     if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
     bindChipGroup('filtro-tipo-chips', 'data-tipo', v => { filtroTipo = v; });
     bindChipGroup('filtro-status-chips', 'data-status', v => { filtroStatus = v; });
-    const notif = document.getElementById('btn-notif');
-    if (notif) notif.addEventListener('click', () => toastMsg('Sem notificações'));
+    // Notificações: MineraNotif (nav.js) liga o sino / badge de DMs
     atualizarCotacoes();
     cotacaoTimer = setInterval(atualizarCotacoes, 60000);
     carregarFeed();
