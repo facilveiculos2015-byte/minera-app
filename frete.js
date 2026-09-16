@@ -103,29 +103,17 @@ document.getElementById('form-frete').addEventListener('submit', async (e) => {
     carregarFretes();
 })();
 
-function isPixAtivoFlag(v) {
-    return v === true || v === 'true' || v === 't' || v === 1 || v === '1';
-}
-
 async function buscarPixAtivo() {
-    let { data, error } = await supabaseClient
+    // Always use the active pix_admin row; never fall back to an inactive/legacy key.
+    const { data, error } = await supabaseClient
         .from('pix_admin')
         .select('*')
         .eq('ativo', true)
+        .order('atualizado_em', { ascending: false, nullsFirst: false })
         .order('id', { ascending: false })
         .limit(1);
     if (error) throw error;
-    if (data && data[0] && data[0].chave_pix) return data[0];
-    ({ data, error } = await supabaseClient
-        .from('pix_admin')
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(5));
-    if (error) throw error;
-    const rows = data || [];
-    return rows.find(p => isPixAtivoFlag(p.ativo) && p.chave_pix)
-        || rows.find(p => p.chave_pix)
-        || null;
+    return data && data[0] ? data[0] : null;
 }
 
 async function carregarFretePix() {

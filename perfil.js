@@ -88,33 +88,17 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     }
 })();
 
-function isPixAtivoFlag(v) {
-    return v === true || v === 'true' || v === 't' || v === 1 || v === '1';
-}
-
 async function buscarPixAtivo() {
-    // Prefer explicit ativo=true; fall back to latest row with chave (boolean quirks / legacy null)
-    let { data, error } = await supabaseClient
+    // Always use the active pix_admin row; never fall back to an inactive/legacy key.
+    const { data, error } = await supabaseClient
         .from('pix_admin')
         .select('*')
         .eq('ativo', true)
+        .order('atualizado_em', { ascending: false, nullsFirst: false })
         .order('id', { ascending: false })
         .limit(1);
     if (error) throw error;
-    if (data && data[0] && data[0].chave_pix) return data[0];
-
-    // Retry without boolean filter (some PostgREST/boolean edge cases)
-    ({ data, error } = await supabaseClient
-        .from('pix_admin')
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(5));
-    if (error) throw error;
-    const rows = data || [];
-    const active = rows.find(p => isPixAtivoFlag(p.ativo) && p.chave_pix);
-    if (active) return active;
-    const any = rows.find(p => p.chave_pix);
-    return any || null;
+    return data && data[0] ? data[0] : null;
 }
 
 /**
