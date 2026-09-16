@@ -75,14 +75,25 @@ async function hashPin(pin, salt) {
     return sha256Hex(String(salt) + '|' + String(pin));
 }
 
+/** Juros 15% a.m.: total = valor * (1 + 0.15 * (prazo_dias/30)) */
+function totalEmprestimoPrevisto(valor, prazoDias) {
+    const v = Number(valor) || 0;
+    const dias = Number(prazoDias);
+    const meses = (isFinite(dias) && dias > 0) ? (dias / 30) : 1;
+    return v * (1 + (JUROS_EMPRESTIMO / 100) * meses);
+}
+
 function atualizarTotalPrevisto() {
     const valor = parseFloat(document.getElementById('emp-valor').value) || 0;
-    const total = valor * (1 + JUROS_EMPRESTIMO / 100);
+    const prazo = parseInt((document.getElementById('emp-prazo') || {}).value, 10) || 0;
+    const total = totalEmprestimoPrevisto(valor, prazo > 0 ? prazo : 30);
     const el = document.getElementById('emp-total-previsto');
     if (el) {
+        const mesesLabel = prazo > 0 ? (prazo / 30) : 1;
+        const mesesTxt = (Math.round(mesesLabel * 100) / 100).toLocaleString('pt-BR');
         el.textContent = valor > 0
-            ? 'Total previsto no pagamento (juros 15%): ' + fmtBRL(total)
-            : 'Total previsto no pagamento (juros 15%): R$ —';
+            ? 'Total previsto no pagamento (15% a.m. · ' + mesesTxt + ' mês(es)): ' + fmtBRL(total)
+            : 'Total previsto no pagamento (15% a.m.): R$ —';
     }
 }
 
@@ -309,7 +320,7 @@ async function carregarEmprestimos() {
             data.map(e => {
                 const when = e.criado_em ? new Date(e.criado_em).toLocaleString('pt-BR') : '—';
                 return '<tr><td>' + esc(when) + '</td><td>' + esc(fmtBRL(e.valor)) +
-                    '</td><td>' + esc(fmtBRL(e.total_previsto != null ? e.total_previsto : Number(e.valor) * 1.15)) +
+                    '</td><td>' + esc(fmtBRL(e.total_previsto != null ? e.total_previsto : totalEmprestimoPrevisto(e.valor, e.prazo_dias))) +
                     '</td><td>' + esc(e.prazo_dias) + ' d</td><td><span class="' +
                     statusEmpBadge(e.status) + '">' + esc(statusEmpLabel(e.status)) +
                     '</span></td></tr>';
@@ -591,6 +602,7 @@ function bindUI() {
     });
 
     document.getElementById('emp-valor').addEventListener('input', atualizarTotalPrevisto);
+    document.getElementById('emp-prazo').addEventListener('input', atualizarTotalPrevisto);
     document.getElementById('form-emprestimo').addEventListener('submit', async (ev) => {
         ev.preventDefault();
         const uid = authId();
@@ -606,7 +618,7 @@ function bindUI() {
             setEmpMsg('Preencha valor, prazo, finalidade e nome.', false);
             return;
         }
-        const total = valor * (1 + JUROS_EMPRESTIMO / 100);
+        const total = totalEmprestimoPrevisto(valor, prazo);
         try {
             const { error } = await supabaseClient.from('emprestimos').insert([{
                 auth_id: uid,

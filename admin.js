@@ -702,7 +702,7 @@ async function carregarEmprestimosAdmin() {
                     <td>${esc(when)}</td>
                     <td>${esc(e.nome || '—')}<br><span class="sub">${esc(e.finalidade || '')}</span></td>
                     <td>${esc(Number(e.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
-                    <td>${esc(Number(e.total_previsto != null ? e.total_previsto : Number(e.valor) * 1.15).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
+                    <td>${esc(Number(e.total_previsto != null ? e.total_previsto : (Number(e.valor)||0) * (1 + 0.15 * ((Number(e.prazo_dias)||30)/30))).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
                     <td>${esc(e.prazo_dias)} d</td>
                     <td><span class="badge">${esc(lab[st] || st)}</span></td>
                     <td class="card-actions">${btns}</td>

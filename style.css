@@ -1448,13 +1448,58 @@ html[data-theme="light"] .btn-caixa-bank {
 .suporte-admin-reply { display: flex; gap: 8px; margin-top: 8px; }
 .suporte-admin-reply input { flex: 1; margin: 0; }
 
-/* —— Família Mineira —— */
+/* —— Família Mineira (thin bar → expands) —— */
 .familia-card {
     border: 1.5px solid #f59e0b;
     background: linear-gradient(145deg, rgba(66, 32, 6, 0.55), rgba(30, 58, 95, 0.4));
+    padding: 0;
+    overflow: hidden;
 }
-.familia-card h2 { color: #fbbf24; }
-.familia-lead { margin: 0 0 8px; font-size: 1.02rem; color: #fef3c7; }
+.familia-card.familia-collapsed { padding: 0; }
+.familia-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 10px 12px;
+    min-height: 42px;
+    border: 0;
+    background: transparent;
+    color: #fef3c7;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+.familia-bar:hover,
+.familia-bar:focus {
+    background: rgba(251, 191, 36, 0.12);
+    outline: none;
+}
+.familia-bar-icon { flex-shrink: 0; font-size: 1.05rem; line-height: 1; }
+.familia-bar-text {
+    flex: 1;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #fef3c7;
+}
+.familia-bar-chevron {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    opacity: 0.85;
+    transition: transform 0.15s ease;
+}
+.familia-card.familia-expanded .familia-bar-chevron { transform: rotate(180deg); }
+.familia-panel {
+    padding: 0 14px 14px;
+    border-top: 1px solid rgba(251, 191, 36, 0.28);
+}
+.familia-panel-title {
+    margin: 12px 0 6px;
+    color: #fbbf24;
+    font-size: 1.05rem;
+}
 .familia-stats {
     display: flex;
     gap: 12px;
@@ -1486,9 +1531,12 @@ html[data-theme="light"] .btn-caixa-bank {
 html[data-theme="light"] .familia-card {
     background: linear-gradient(145deg, #fff7ed, #e0f2fe);
 }
-html[data-theme="light"] .familia-lead { color: #92400e; }
+html[data-theme="light"] .familia-bar-text { color: #92400e; }
+html[data-theme="light"] .familia-bar:hover,
+html[data-theme="light"] .familia-bar:focus { background: rgba(245, 158, 11, 0.12); }
 html[data-theme="light"] .familia-stat { background: #fff; }
 html[data-theme="light"] .familia-stat-val { color: #b45309; }
+html[data-theme="light"] .familia-panel-title { color: #b45309; }
 html[data-theme="light"] .btn-fale-conosco {
     background: #e0f2fe;
     color: #0369a1;

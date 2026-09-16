@@ -60,7 +60,7 @@ const FAQ_INTENTS = [
     {
         id: 'indicacao',
         keys: ['indicacao', 'indicação', 'familia', 'família', 'convidar', 'referral', 'pontos', 'renda extra', 'codigo', 'código'],
-        reply: '⛏️ **Família Mineira** — Convide colegas com seu link/código. Cada cadastro com seu código rende pontos. **1 ponto = R$ 0,10** de desconto na comissão de 1% (máximo = valor total da comissão). Veja o card no Feed e no Perfil.'
+        reply: '⛏️ **Família Mineira** — Convide colegas com seu link/código. Cada cadastro com seu código rende pontos. **1 ponto = R$ 0,10** de desconto na comissão de 1% (máximo = valor total da comissão). Toque na barra Família Mineira no Feed ou Perfil para ver código, pontos e copiar o link.'
     }
 ];
 
@@ -374,9 +374,14 @@ function htmlCardFamilia(perfil) {
     const link = linkIndicacao(codigo);
     const desconto = (pts * 0.1).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     return (
-        '<section class="card familia-card" id="card-familia-mineira">' +
-        '<h2>⛏️ Família Mineira</h2>' +
-        '<p class="familia-lead"><strong>Faça parte da família mineira — venha trabalhar conosco e tenha sua renda extra</strong></p>' +
+        '<section class="card familia-card familia-collapsed" id="card-familia-mineira">' +
+        '<button type="button" class="familia-bar" id="btn-familia-toggle" aria-expanded="false" aria-controls="familia-panel">' +
+        '<span class="familia-bar-icon" aria-hidden="true">⛏️</span>' +
+        '<span class="familia-bar-text">Faça parte da família mineira — venha trabalhar conosco e tenha renda extra</span>' +
+        '<span class="familia-bar-chevron" aria-hidden="true">▾</span>' +
+        '</button>' +
+        '<div class="familia-panel" id="familia-panel" hidden>' +
+        '<h2 class="familia-panel-title">Família Mineira</h2>' +
         '<p class="sub">Indique colegas: ao se cadastrarem com seu link, você ganha pontos. ' +
         '<strong>1 ponto = R$ 0,10</strong> de desconto na comissão de 1% (máx. = valor da comissão).</p>' +
         '<div class="familia-stats">' +
@@ -392,15 +397,36 @@ function htmlCardFamilia(perfil) {
         '</div>' +
         '<input type="hidden" id="familia-link" value="' + suporteEsc(link) + '">' +
         '<p class="sub familia-link-hint" id="familia-link-hint">' + suporteEsc(link) + '</p>' +
+        '</div>' +
         '</section>'
     );
 }
 
+function setFamiliaExpanded(expanded) {
+    const card = document.getElementById('card-familia-mineira');
+    const panel = document.getElementById('familia-panel');
+    const btn = document.getElementById('btn-familia-toggle');
+    if (!card || !panel || !btn) return;
+    card.classList.toggle('familia-collapsed', !expanded);
+    card.classList.toggle('familia-expanded', !!expanded);
+    panel.hidden = !expanded;
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+}
+
 function bindCardFamilia() {
+    const toggle = document.getElementById('btn-familia-toggle');
+    if (toggle && !toggle._boundToggle) {
+        toggle._boundToggle = true;
+        toggle.addEventListener('click', () => {
+            const open = toggle.getAttribute('aria-expanded') === 'true';
+            setFamiliaExpanded(!open);
+        });
+    }
     const btn = document.getElementById('btn-copiar-ref');
     if (!btn || btn._bound) return;
     btn._bound = true;
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (ev) => {
+        if (ev) ev.stopPropagation();
         const link = (document.getElementById('familia-link') || {}).value
             || linkIndicacao((document.getElementById('familia-codigo') || {}).value);
         try {

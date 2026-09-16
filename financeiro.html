@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Caixa Minera</title>
-    <link rel="stylesheet" href="style.css?v=20260916p">
+    <link rel="stylesheet" href="style.css?v=20260916q">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -153,7 +153,7 @@
                 <input type="number" id="emp-renda" min="0" step="0.01" placeholder="0,00">
                 <label for="emp-obs">Observações</label>
                 <textarea id="emp-obs" rows="2" placeholder="Informações adicionais"></textarea>
-                <p class="sub" id="emp-total-previsto">Total previsto no pagamento (juros 15%): R$ —</p>
+                <p class="sub" id="emp-total-previsto">Total previsto no pagamento (15% a.m.): R$ —</p>
                 <button type="submit">Solicitar empréstimo</button>
             </form>
             <p id="emp-msg" class="msg"></p>
@@ -175,7 +175,7 @@
                     <li><strong>Depositar:</strong> Pix para a chave da plataforma (titular JeL). Envie o comprovante; o admin confirma e credita o saldo.</li>
                     <li><strong>Sacar:</strong> informe valor e chave Pix de destino. Pode ser instantâneo ou levar até 24 horas.</li>
                     <li><strong>Rendimento estimado:</strong> até <strong>5% a.m.</strong> conforme cotação da bolsa (projeção informativa — não é garantia).</li>
-                    <li><strong>Empréstimos:</strong> juros de <strong>15%</strong>. Total previsto = valor × 1,15. <strong>Sujeito à análise de crédito</strong>.</li>
+                    <li><strong>Empréstimos:</strong> juros de <strong>15% a.m.</strong>. Total previsto = valor × (1 + 0,15 × prazo_dias/30). <strong>Sujeito à análise de crédito</strong>.</li>
                     <li><strong>Senha da Caixa:</strong> PIN separado do login. Em “Esqueci a senha”, confirme a senha de login ou use OTP por e-mail.</li>
                     <li><strong>Obrigações:</strong> você permanece responsável pelas próprias obrigações fiscais e legais. O Minera App não substitui orientação contábil ou jurídica.</li>
                 </ul>
@@ -187,11 +187,11 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260916p"></script>
-    <script src="auth-guard.js?v=20260916p"></script>
-    <script src="suporte.js?v=20260916p"></script>
-    <script src="nav.js?v=20260916p"></script>
-    <script src="pix-brcode.js?v=20260916p"></script>
-    <script src="financeiro.js?v=20260916p"></script>
+    <script src="config.js?v=20260916q"></script>
+    <script src="auth-guard.js?v=20260916q"></script>
+    <script src="suporte.js?v=20260916q"></script>
+    <script src="nav.js?v=20260916q"></script>
+    <script src="pix-brcode.js?v=20260916q"></script>
+    <script src="financeiro.js?v=20260916q"></script>
 </body>
 </html>
