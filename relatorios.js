@@ -81,4 +81,50 @@ async function carregarLogs() {
     montarNav('relatorios', perfilAtual);
     await carregarKpis();
     await carregarLogs();
+    renderHistRelatorios();
 })();
+
+
+function renderHistRelatorios() {
+    const box = document.getElementById('cotacoes-historico-rel');
+    if (!box) return;
+    let arr = [];
+    try {
+        const raw = localStorage.getItem('minera_cot_historico');
+        arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) arr = [];
+    } catch (e) { arr = []; }
+    arr = arr.slice().reverse().slice(0, 24);
+    if (!arr.length) {
+        box.innerHTML = '<p class="sub">Sem histórico ainda. Abra o Feed para capturar cotações.</p>';
+        return;
+    }
+    const labels = { USD: 'Dólar', XAU: 'Ouro', HG: 'Cobre' };
+    box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+        '<th>Quando</th><th>Símbolo</th><th>USD</th><th>BRL</th><th>Fonte</th></tr></thead><tbody>' +
+        arr.map(p => {
+            const when = p.capturado_em ? new Date(p.capturado_em).toLocaleString('pt-BR') : '—';
+            const usd = p.valor_usd != null ? Number(p.valor_usd).toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—';
+            const brl = p.valor_brl != null ? Number(p.valor_brl).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
+            return `<tr><td>${when}</td><td>${labels[p.simbolo] || p.simbolo || '—'}</td><td>${usd}</td><td>${brl}</td><td>${esc(p.fonte || '')}</td></tr>`;
+        }).join('') + '</tbody></table></div>';
+    // try hydrate from DB
+    (async () => {
+        try {
+            const { data, error } = await supabaseClient
+                .from('cotacoes_historico')
+                .select('*')
+                .order('capturado_em', { ascending: false })
+                .limit(30);
+            if (error || !data || !data.length) return;
+            box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+                '<th>Quando</th><th>Símbolo</th><th>USD</th><th>BRL</th><th>Fonte</th></tr></thead><tbody>' +
+                data.map(p => {
+                    const when = p.capturado_em ? new Date(p.capturado_em).toLocaleString('pt-BR') : '—';
+                    const usd = p.valor_usd != null ? Number(p.valor_usd).toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—';
+                    const brl = p.valor_brl != null ? Number(p.valor_brl).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
+                    return `<tr><td>${when}</td><td>${labels[p.simbolo] || esc(p.simbolo) || '—'}</td><td>${usd}</td><td>${brl}</td><td>${esc(p.fonte || '')}</td></tr>`;
+                }).join('') + '</tbody></table></div>';
+        } catch (e) { /* ignore */ }
+    })();
+}

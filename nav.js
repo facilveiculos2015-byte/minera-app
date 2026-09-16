@@ -82,7 +82,12 @@ function garantirMaisSheet(secundarios) {
         });
     }
     const list = document.getElementById('mais-list');
-    list.innerHTML = secundarios.map(it =>
+    const extras = secundarios.slice();
+    // Tutorial sempre disponível no sheet Mais
+    if (!extras.some(it => it.id === 'tutorial')) {
+        extras.push({ id: 'tutorial', label: 'Tutorial', href: 'tutorial.html' });
+    }
+    list.innerHTML = extras.map(it =>
         '<a class="mais-item" href="' + APP_ROOT + it.href + '">' + it.label + '</a>'
     ).join('') || '<p class="sub">Nenhuma opção extra para seus papéis.</p>';
 

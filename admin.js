@@ -30,7 +30,7 @@ async function carregarUsuarios() {
     try {
         const { data, error } = await supabaseClient
             .from('usuarios')
-            .select('id, nome, email, tipo, papeis')
+            .select('id, nome, email, tipo, papeis, bloqueado, bloqueado_motivo, auth_id')
             .order('id', { ascending: false })
             .limit(100);
         if (error) throw error;
@@ -39,11 +39,38 @@ async function carregarUsuarios() {
             return;
         }
         box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-            '<th>Nome</th><th>E-mail</th><th>Papéis</th></tr></thead><tbody>' +
+            '<th>Nome</th><th>E-mail</th><th>Papéis</th><th>Status</th><th></th></tr></thead><tbody>' +
             data.map(u => {
                 const papeis = Array.isArray(u.papeis) ? u.papeis.join(', ') : (u.tipo || '');
-                return `<tr><td>${esc(u.nome || '—')}</td><td>${esc(u.email || '—')}</td><td>${esc(papeis)}</td></tr>`;
+                const bloq = !!(u.bloqueado === true || u.bloqueado === 'true' || u.bloqueado === 't');
+                const st = bloq
+                    ? '<span class="badge badge-atrasado">Bloqueado</span>'
+                    : '<span class="badge badge-pago">OK</span>';
+                const btn = bloq
+                    ? '<button type="button" class="btn-sm btn-ok" data-act="desbloquear" data-id="' + u.id + '">Desbloquear</button>'
+                    : '';
+                return `<tr data-id="${u.id}">
+                    <td>${esc(u.nome || '—')}</td>
+                    <td>${esc(u.email || '—')}</td>
+                    <td>${esc(papeis)}</td>
+                    <td>${st}${bloq && u.bloqueado_motivo ? '<br><span class="sub">' + esc(u.bloqueado_motivo) + '</span>' : ''}</td>
+                    <td class="card-actions">${btn}</td>
+                </tr>`;
             }).join('') + '</tbody></table></div>';
+
+        box.querySelectorAll('[data-act="desbloquear"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const { error } = await supabaseClient.from('usuarios').update({
+                    bloqueado: false,
+                    bloqueado_motivo: null,
+                    bloqueado_em: null
+                }).eq('id', id);
+                if (error) return toastMsg('Erro: ' + error.message + ' (SQL 13?)');
+                toastMsg('Usuário desbloqueado');
+                carregarUsuarios();
+            });
+        });
     } catch (e) {
         box.innerHTML = '<p class="erro">' + esc(e.message) + '</p>';
     }
@@ -362,7 +389,12 @@ async function carregarComissoes() {
                 const com = c.valor_comissao != null
                     ? Number(c.valor_comissao).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                     : '—';
-                const st = c.status || 'pendente';
+                let st = c.status || 'pendente';
+                if (st === 'pendente' && c.vencimento && new Date(c.vencimento).getTime() < Date.now()) {
+                    st = 'atrasado';
+                    // fire-and-forget mark
+                    supabaseClient.from('comissoes').update({ status: 'atrasado' }).eq('id', c.id).then(() => {});
+                }
                 const btnPago = st === 'pago'
                     ? ''
                     : '<button type="button" class="btn-sm btn-ok" data-act="comissao-pago">Marcar pago</button>';
@@ -380,13 +412,41 @@ async function carregarComissoes() {
 
         box.querySelectorAll('[data-act="comissao-pago"]').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const id = parseInt(btn.closest('tr').getAttribute('data-id'), 10);
+                const tr = btn.closest('tr');
+                const id = parseInt(tr.getAttribute('data-id'), 10);
+                const row = (data || []).find(c => c.id === id);
                 const { error } = await supabaseClient.from('comissoes')
                     .update({ status: 'pago' })
                     .eq('id', id);
                 if (error) return toastMsg('Erro: ' + error.message);
+                // Limpa bloqueio do vendedor se não restar atraso
+                if (row && row.vendedor_auth_id) {
+                    try {
+                        const { data: rest } = await supabaseClient
+                            .from('comissoes')
+                            .select('id,status,vencimento')
+                            .eq('vendedor_auth_id', row.vendedor_auth_id)
+                            .in('status', ['pendente', 'atrasado'])
+                            .limit(20);
+                        const agora = Date.now();
+                        const aindaAtraso = (rest || []).some(c => {
+                            if (c.id === id) return false;
+                            if (c.status === 'atrasado') return true;
+                            const v = c.vencimento ? new Date(c.vencimento).getTime() : 0;
+                            return c.status === 'pendente' && v && v < agora;
+                        });
+                        if (!aindaAtraso) {
+                            await supabaseClient.from('usuarios').update({
+                                bloqueado: false,
+                                bloqueado_motivo: null,
+                                bloqueado_em: null
+                            }).eq('auth_id', row.vendedor_auth_id);
+                        }
+                    } catch (e) { console.warn('clear block', e); }
+                }
                 toastMsg('Comissão marcada como paga');
                 carregarComissoes();
+                carregarUsuarios();
             });
         });
     } catch (e) {

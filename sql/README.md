@@ -16,3 +16,6 @@ Tabela `comissoes` (1% venda → pendente/pago) + RLS. Idempotent. NÃO wipe.
 ## Pix estático (app) + futuro Nubank API
 O front gera EMV Copia e Cola + QR (`pix-brcode.js`) a partir de `pix_admin`.
 Plano API dinâmica / webhook: ver `docs/nubank-pix-api-plan.md` (fora de escopo agora).
+
+## 13-bloqueio-cotacoes.sql
+Incremental: usuarios.bloqueado / bloqueado_motivo / bloqueado_em; tabela cotacoes_historico + RLS. Idempotente. NÃO wipe.

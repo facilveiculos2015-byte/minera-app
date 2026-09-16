@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Feed</title>
-    <link rel="stylesheet" href="style.css?v=20260916j">
+    <link rel="stylesheet" href="style.css?v=20260916m">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body>
     <div class="container wide">
@@ -48,6 +49,8 @@
                 <a id="link-gold-lbma" href="https://www.lbma.org.uk/prices-and-data/precious-metal-prices" target="_blank" rel="noopener noreferrer">Gold LBMA</a>
             </div>
             <p class="cotacoes-fonte" id="cotacoes-atualizado">Atualizando a cada 60s…</p>
+            <h3 class="hist-heading">Histórico recente</h3>
+            <div id="cotacoes-historico" class="cotacoes-historico"><p class="sub">Carregando…</p></div>
         </section>
 
         <section class="card">
@@ -70,9 +73,9 @@
             <div id="feed" class="loading">Carregando...</div>
         </section>
     </div>
-    <script src="config.js?v=20260916j"></script>
-    <script src="auth-guard.js?v=20260916j"></script>
-    <script src="nav.js?v=20260916j"></script>
-    <script src="inicio.js?v=20260916j"></script>
+    <script src="config.js?v=20260916m"></script>
+    <script src="auth-guard.js?v=20260916m"></script>
+    <script src="nav.js?v=20260916m"></script>
+    <script src="inicio.js?v=20260916m"></script>
 </body>
 </html>

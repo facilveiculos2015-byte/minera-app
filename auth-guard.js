@@ -1,4 +1,4 @@
-/** Sessão + perfil (usuarios.auth_id) + papéis múltiplos */
+/** Sessão + perfil (usuarios.auth_id) + papéis múltiplos + bloqueio + tema */
 
 async function requireSession() {
     const { data: { session }, error } = await supabaseClient.auth.getSession();
@@ -67,6 +67,11 @@ function rotuloPapeis(perfil) {
     return papeis.map(p => labels[p] || p).join(', ');
 }
 
+function usuarioBloqueado(perfil) {
+    if (!perfil) return false;
+    return !!(perfil.bloqueado === true || perfil.bloqueado === 'true' || perfil.bloqueado === 't');
+}
+
 async function getPerfil(session) {
     if (!session || !session.user) return null;
     const uid = session.user.id;
@@ -80,7 +85,10 @@ async function getPerfil(session) {
             nome: data.nome || metaNome || email,
             email: data.email || email,
             tipo: data.tipo || 'operador',
-            papeis: normalizarPapeis(data.papeis, data.tipo)
+            papeis: normalizarPapeis(data.papeis, data.tipo),
+            bloqueado: !!(data.bloqueado === true || data.bloqueado === 'true' || data.bloqueado === 't'),
+            bloqueado_motivo: data.bloqueado_motivo || null,
+            bloqueado_em: data.bloqueado_em || null
         };
     }
 
@@ -91,7 +99,27 @@ async function getPerfil(session) {
             .eq('auth_id', uid)
             .maybeSingle();
         if (error) console.warn('getPerfil:', error.message);
-        if (data) return mapRow(data);
+        if (data) {
+            const perfil = mapRow(data);
+            await verificarInadimplencia(perfil);
+            // re-read bloqueado if check may have updated
+            if (perfil.id) {
+                try {
+                    const { data: d2 } = await supabaseClient
+                        .from('usuarios')
+                        .select('bloqueado,bloqueado_motivo,bloqueado_em')
+                        .eq('id', perfil.id)
+                        .maybeSingle();
+                    if (d2) {
+                        perfil.bloqueado = !!(d2.bloqueado === true || d2.bloqueado === 'true' || d2.bloqueado === 't');
+                        perfil.bloqueado_motivo = d2.bloqueado_motivo || perfil.bloqueado_motivo;
+                        perfil.bloqueado_em = d2.bloqueado_em || perfil.bloqueado_em;
+                    }
+                } catch (e) { /* ignore */ }
+            }
+            mostrarBannerBloqueio(perfil);
+            return perfil;
+        }
     } catch (e) {
         console.warn(e);
     }
@@ -106,7 +134,10 @@ async function getPerfil(session) {
             if (!byEmail.auth_id) {
                 await supabaseClient.from('usuarios').update({ auth_id: uid }).eq('id', byEmail.id);
             }
-            return mapRow(Object.assign({}, byEmail, { auth_id: uid }));
+            const perfil = mapRow(Object.assign({}, byEmail, { auth_id: uid }));
+            await verificarInadimplencia(perfil);
+            mostrarBannerBloqueio(perfil);
+            return perfil;
         }
     } catch (e) {
         console.warn(e);
@@ -118,8 +149,106 @@ async function getPerfil(session) {
         nome: metaNome || email,
         email,
         tipo: 'operador',
-        papeis: []
+        papeis: [],
+        bloqueado: false,
+        bloqueado_motivo: null,
+        bloqueado_em: null
     };
+}
+
+/**
+ * Cron-less: comissões pendentes vencidas → status atrasado + usuario.bloqueado.
+ * Também desbloqueia se não houver mais pendências/atrasos.
+ */
+async function verificarInadimplencia(perfil) {
+    if (!perfil || !perfil.auth_id) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('comissoes')
+            .select('id,status,vencimento,vendedor_auth_id')
+            .eq('vendedor_auth_id', perfil.auth_id)
+            .in('status', ['pendente', 'atrasado'])
+            .limit(50);
+        if (error) {
+            if (/relation|comissoes|schema cache|does not exist/i.test(error.message || '')) return;
+            console.warn('verificarInadimplencia:', error.message);
+            return;
+        }
+        const agora = Date.now();
+        let temAtraso = false;
+        for (const c of (data || [])) {
+            const venc = c.vencimento ? new Date(c.vencimento).getTime() : 0;
+            if ((c.status === 'pendente' || c.status === 'atrasado') && venc && venc < agora) {
+                temAtraso = true;
+                if (c.status !== 'atrasado') {
+                    try {
+                        await supabaseClient.from('comissoes')
+                            .update({ status: 'atrasado' })
+                            .eq('id', c.id);
+                    } catch (e) { console.warn(e); }
+                }
+            } else if (c.status === 'atrasado') {
+                temAtraso = true;
+            }
+        }
+        if (temAtraso && perfil.id && !usuarioBloqueado(perfil)) {
+            const motivo = 'Comissão em atraso — pague via Pix no Perfil para liberar.';
+            await supabaseClient.from('usuarios').update({
+                bloqueado: true,
+                bloqueado_motivo: motivo,
+                bloqueado_em: new Date().toISOString()
+            }).eq('id', perfil.id);
+            perfil.bloqueado = true;
+            perfil.bloqueado_motivo = motivo;
+            perfil.bloqueado_em = new Date().toISOString();
+        } else if (!temAtraso && perfil.id && usuarioBloqueado(perfil)) {
+            // auto-clear only if block was for commission (keep manual admin blocks with other reasons)
+            const motivo = (perfil.bloqueado_motivo || '').toLowerCase();
+            if (!motivo || /comiss[aã]o|atraso|inadimpl/i.test(motivo)) {
+                // still have unpaid? already checked — clear
+                await supabaseClient.from('usuarios').update({
+                    bloqueado: false,
+                    bloqueado_motivo: null,
+                    bloqueado_em: null
+                }).eq('id', perfil.id);
+                perfil.bloqueado = false;
+                perfil.bloqueado_motivo = null;
+                perfil.bloqueado_em = null;
+            }
+        }
+    } catch (e) {
+        console.warn('verificarInadimplencia', e);
+    }
+}
+
+function mostrarBannerBloqueio(perfil) {
+    const old = document.getElementById('banner-bloqueio');
+    if (!usuarioBloqueado(perfil)) {
+        if (old) old.remove();
+        return;
+    }
+    let el = old;
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'banner-bloqueio';
+        el.className = 'banner-bloqueio';
+        document.body.insertBefore(el, document.body.firstChild);
+    }
+    const motivo = perfil.bloqueado_motivo || 'Conta bloqueada por inadimplência.';
+    el.innerHTML = '<strong>Conta bloqueada</strong> — ' +
+        String(motivo).replace(/</g, '&lt;') +
+        ' <a href="' + (typeof APP_ROOT !== 'undefined' ? APP_ROOT : '/minera-app/') +
+        'perfil.html#comissoes">Pagar comissão (Pix)</a>';
+}
+
+/** Bloqueia ações sensíveis; permite Perfil Pix + logout. */
+function exigirDesbloqueado(perfil, acaoLabel) {
+    if (!usuarioBloqueado(perfil)) return true;
+    const msg = 'Conta bloqueada. ' + (perfil.bloqueado_motivo || 'Pague a comissão em atraso no Perfil.') +
+        (acaoLabel ? ' (' + acaoLabel + ' indisponível)' : '');
+    if (typeof toastMsg === 'function') toastMsg(msg);
+    else alert(msg);
+    return false;
 }
 
 async function requireRole(perfil, rolesPermitidos) {
@@ -177,6 +306,8 @@ function statusAmigavel(st) {
     if (s === 'em_processo') return 'Em trânsito';
     if (s === 'expedido') return 'Vendido';
     if (s === 'processado') return 'Processado';
+    if (s === 'atrasado') return 'Atrasado';
+    if (s === 'pago') return 'Pago';
     return s;
 }
 
@@ -197,4 +328,48 @@ function formatPeso(kg) {
 function formatPreco(p) {
     if (p == null || p === '' || isNaN(Number(p))) return null;
     return Number(p).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/* ---- Tema claro/escuro ---- */
+function lerTema() {
+    try {
+        const t = localStorage.getItem('minera_tema');
+        if (t === 'light' || t === 'dark') return t;
+    } catch (e) { /* ignore */ }
+    return 'dark';
+}
+
+function aplicarTema(tema) {
+    const t = tema === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('minera_tema', t); } catch (e) { /* ignore */ }
+    const btn = document.getElementById('btn-tema');
+    if (btn) btn.textContent = t === 'light' ? '🌙 Escuro' : '☀️ Claro';
+}
+
+function alternarTema() {
+    aplicarTema(lerTema() === 'light' ? 'dark' : 'light');
+}
+
+/* apply ASAP (before paint if script late, still ok) */
+(function bootTema() {
+    try {
+        document.documentElement.setAttribute('data-theme', lerTema());
+    } catch (e) { /* ignore */ }
+})();
+
+/* ---- Tutorial first-login ---- */
+function checarTutorialPrimeiroAcesso() {
+    try {
+        if (localStorage.getItem('minera_tutorial_visto') === '1') return;
+        const path = (location.pathname || '');
+        if (/tutorial\.html$/i.test(path)) return;
+        // defer redirect slightly so page can paint
+        setTimeout(() => {
+            try {
+                if (localStorage.getItem('minera_tutorial_visto') === '1') return;
+                irPara('tutorial.html');
+            } catch (e) { /* ignore */ }
+        }, 400);
+    } catch (e) { /* ignore */ }
 }

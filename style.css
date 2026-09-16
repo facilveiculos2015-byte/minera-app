@@ -1,4 +1,4 @@
-:root {
+:root, html[data-theme="dark"] {
     --bg-color: #0f172a;
     --card-bg: #1e293b;
     --text-color: #f8fafc;
@@ -7,6 +7,24 @@
     --muted: #94a3b8;
     --border: #334155;
     --input-bg: #0f172a;
+    --shadow: rgba(0,0,0,0.3);
+    --label: #cbd5e1;
+    --danger: #ef4444;
+    --ok: #4ade80;
+}
+html[data-theme="light"] {
+    --bg-color: #f1f5f9;
+    --card-bg: #ffffff;
+    --text-color: #0f172a;
+    --accent-color: #d97706;
+    --accent-hover: #b45309;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --input-bg: #f8fafc;
+    --shadow: rgba(15,23,42,0.08);
+    --label: #475569;
+    --danger: #dc2626;
+    --ok: #16a34a;
 }
 
 * {
@@ -47,7 +65,7 @@ header h1 {
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 16px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 6px var(--shadow);
 }
 
 .card h2 {
@@ -68,7 +86,7 @@ input, select, textarea {
     border-radius: 8px;
     border: 1px solid #475569;
     background-color: var(--input-bg);
-    color: #fff;
+    color: var(--text-color);
     font-size: 1rem;
     width: 100%;
 }
@@ -117,10 +135,10 @@ a { color: var(--accent-color); }
     color: #000;
     border-color: var(--accent-color);
 }
-label { font-size: 0.9rem; color: #cbd5e1; }
+label { font-size: 0.9rem; color: var(--label); }
 .msg { margin-top: 12px; font-size: 0.95rem; min-height: 1.2em; }
-.msg.ok { color: #4ade80; }
-.msg.erro, .erro { color: #ef4444; }
+.msg.ok { color: var(--ok); }
+.msg.erro, .erro { color: var(--danger); }
 .loading { color: var(--muted); }
 
 .header-row {
@@ -982,3 +1000,107 @@ body.mapa-fs #btn-mapa-fs {
     font-weight: 700;
 }
 .btn-mapa-fs-exit:hover { background: #1e293b; }
+
+
+/* ---- Tema / bloqueio / tutorial / histórico ---- */
+.banner-bloqueio {
+    background: #7f1d1d;
+    color: #fecaca;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 0.92rem;
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    border-bottom: 1px solid #991b1b;
+}
+.banner-bloqueio a { color: #fde68a; font-weight: 700; }
+html[data-theme="light"] .banner-bloqueio {
+    background: #fee2e2;
+    color: #7f1d1d;
+    border-bottom-color: #fecaca;
+}
+html[data-theme="light"] .banner-bloqueio a { color: #b45309; }
+
+.badge-atrasado { background: #7f1d1d; color: #fecaca; }
+.badge-pago { background: #14532d; color: #bbf7d0; }
+html[data-theme="light"] .badge-atrasado { background: #fecaca; color: #7f1d1d; }
+html[data-theme="light"] .badge-pago { background: #bbf7d0; color: #14532d; }
+
+.prefs-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+
+.tutorial-steps {
+    list-style: decimal;
+    padding-left: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 12px 0;
+}
+.tutorial-steps li { border-bottom: none; padding: 4px 0; line-height: 1.4; }
+
+.hist-heading {
+    font-size: 1rem;
+    margin: 16px 0 8px;
+    color: var(--muted);
+    font-weight: 600;
+}
+.cotacoes-historico {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+.hist-block {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+}
+.hist-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; color: var(--accent-color); }
+.hist-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 48px;
+    margin-bottom: 8px;
+}
+.hist-bar {
+    flex: 1;
+    background: var(--accent-color);
+    border-radius: 3px 3px 0 0;
+    min-width: 4px;
+    opacity: 0.85;
+}
+.hist-list { font-size: 0.75rem; color: var(--muted); }
+.hist-list li { border-bottom: 1px solid var(--border); padding: 3px 0; }
+
+html[data-theme="light"] .card {
+    border: 1px solid var(--border);
+}
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+    border-color: var(--border);
+    background: var(--input-bg);
+    color: var(--text-color);
+}
+html[data-theme="light"] .tab {
+    background: #e2e8f0;
+    color: var(--muted);
+    border-color: var(--border);
+}
+html[data-theme="light"] .nav-chips .chip,
+html[data-theme="light"] .bottom-nav {
+    background: #fff;
+    border-color: var(--border);
+}
+html[data-theme="light"] .bn-item { color: var(--muted); }
+html[data-theme="light"] .bn-item.on { color: var(--accent-color); }
+html[data-theme="light"] .btn-sair {
+    border-color: var(--border);
+    color: var(--text-color);
+}
+html[data-theme="light"] .mais-panel {
+    background: var(--card-bg);
+    color: var(--text-color);
+}

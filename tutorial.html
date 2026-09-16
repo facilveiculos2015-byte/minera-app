@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minera App - Tutorial</title>
+    <link rel="stylesheet" href="style.css?v=20260916m">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+    <div class="container wide">
+        <header class="header-row">
+            <div>
+                <h1>Minera App</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+        </header>
+        <nav id="app-nav" class="nav-chips"></nav>
+
+        <section class="card">
+            <h2>Tutorial rápido</h2>
+            <p class="sub">5 passos para usar o Minera App com segurança.</p>
+            <ol class="tutorial-steps">
+                <li>
+                    <strong>Feed</strong> — Veja lotes no marketplace, filtre por tipo/status e abra a negociação.
+                </li>
+                <li>
+                    <strong>Lotes</strong> — Cadastre seus lotes (código, origem, peso, preço, foto). Só você edita os seus.
+                </li>
+                <li>
+                    <strong>Mapa</strong> — Visualize lotes com coordenadas no mapa de satélite (Mais → Mapa).
+                </li>
+                <li>
+                    <strong>Chat</strong> — Negocie <em>dentro do app</em>. Não envie telefone, WhatsApp, Pix ou links externos.
+                </li>
+                <li>
+                    <strong>Pix / Comissão</strong> — Ao marcar vendido, gera 1% de comissão (vence em 7 dias). Pague em Perfil → Pix.
+                </li>
+            </ol>
+            <p class="hint">Dica: use o tema claro/escuro em Perfil. Em atraso de comissão o app trava novos lotes, vendas e chat até o pagamento.</p>
+            <div class="card-actions" style="margin-top:16px">
+                <button type="button" class="btn-ok" id="btn-tutorial-ok">Entendi — ir ao Feed</button>
+            </div>
+        </section>
+    </div>
+    <script src="config.js?v=20260916m"></script>
+    <script src="auth-guard.js?v=20260916m"></script>
+    <script src="nav.js?v=20260916m"></script>
+    <script>
+    (async function () {
+        const session = await requireSession();
+        if (!session) return;
+        const perfil = await getPerfil(session);
+        aplicarUserLabel(perfil);
+        montarNav('perfil', perfil);
+        try { localStorage.setItem('minera_tutorial_visto', '1'); } catch (e) {}
+        document.getElementById('btn-tutorial-ok').addEventListener('click', () => {
+            try { localStorage.setItem('minera_tutorial_visto', '1'); } catch (e) {}
+            irPara('inicio.html');
+        });
+    })();
+    </script>
+</body>
+</html>

@@ -80,6 +80,13 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     aplicarUserLabel(perfilAtual);
     montarNav('perfil', perfilAtual);
     preencherForm(perfilAtual);
+    if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
+    const btnTema = document.getElementById('btn-tema');
+    if (btnTema) btnTema.addEventListener('click', () => {
+        if (typeof alternarTema === 'function') alternarTema();
+    });
+    const btnTut = document.getElementById('btn-abrir-tutorial');
+    if (btnTut) btnTut.addEventListener('click', () => irPara('tutorial.html'));
     await carregarPixUsuario();
     await carregarComissoesPendentes();
     if (location.hash === '#pix' || location.hash === '#comissoes') {
@@ -270,7 +277,7 @@ async function carregarComissoesPendentes() {
         let q = supabaseClient
             .from('comissoes')
             .select('*')
-            .eq('status', 'pendente')
+            .in('status', ['pendente', 'atrasado'])
             .order('criado_em', { ascending: false })
             .limit(30);
         if (perfilAtual.auth_id) q = q.eq('vendedor_auth_id', perfilAtual.auth_id);
@@ -280,19 +287,28 @@ async function carregarComissoesPendentes() {
             box.innerHTML = '<p class="sub">Nenhuma comissão pendente.</p>';
             return;
         }
+        const agora = Date.now();
         box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-            '<th>Lote</th><th>Venda</th><th>Comissão 1%</th><th>Vencimento</th><th></th></tr></thead><tbody>' +
+            '<th>Lote</th><th>Venda</th><th>Comissão 1%</th><th>Vencimento</th><th>Status</th><th></th></tr></thead><tbody>' +
             data.map(c => {
+                let st = c.status || 'pendente';
+                if (st === 'pendente' && c.vencimento && new Date(c.vencimento).getTime() < agora) {
+                    st = 'atrasado';
+                    supabaseClient.from('comissoes').update({ status: 'atrasado' }).eq('id', c.id).then(() => {});
+                }
                 const venc = c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—';
                 return `<tr data-id="${c.id}">
                     <td>#${c.lote_id != null ? c.lote_id : '—'}</td>
                     <td>${fmtBRL(c.valor_venda)}</td>
                     <td><strong>${fmtBRL(c.valor_comissao)}</strong></td>
                     <td>${venc}</td>
+                    <td><span class="badge badge-${st}">${st}</span></td>
                     <td><button type="button" class="btn-sm btn-ok" data-act="pagar-comissao"
                         data-valor="${c.valor_comissao}" data-id="${c.id}">Pagar via Pix</button></td>
                 </tr>`;
             }).join('') + '</tbody></table></div>';
+        if (typeof verificarInadimplencia === 'function') await verificarInadimplencia(perfilAtual);
+        if (typeof mostrarBannerBloqueio === 'function') mostrarBannerBloqueio(perfilAtual);
     } catch (e) {
         box.innerHTML = '<p class="erro">Comissões indisponíveis (rode SQL 12): ' +
             String(e.message || e).replace(/</g, '&lt;') + '</p>';

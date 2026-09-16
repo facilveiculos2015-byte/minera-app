@@ -128,7 +128,7 @@ async function carregarChat() {
             const flag = m.moderacao ? ' · 🚩 ' + esc(m.moderacao) : '';
             return `<div class="bubble ${mine ? 'mine' : 'theirs'}${sched ? ' scheduled' : ''}">
                 <div class="bubble-meta">${esc(m.de_nome || 'Alguém')} · ${when}${agLabel}${flag}</div>
-                ${m.texto ? '<div class="bubble-text">' + esc(m.texto) + '</div>' : ''}
+                ${m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : ''}
                 ${renderMedia(m)}
                 <div class="bubble-status">${esc(st)}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
             </div>`;
@@ -165,6 +165,36 @@ async function enviarMensagem(opts) {
 
     if (loteCtx && texto && !texto.includes(loteCtx)) {
         texto = '[Lote ' + loteCtx + '] ' + texto;
+    }
+
+    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Chat')) {
+        msgEl.textContent = 'Conta bloqueada — pague a comissão no Perfil.';
+        msgEl.className = 'msg erro';
+        return;
+    }
+
+    if (typeof AntiGolpe !== 'undefined') {
+        const chk = AntiGolpe.validarTexto(texto);
+        if (!chk.ok) {
+            msgEl.textContent = chk.motivo;
+            msgEl.className = 'msg erro';
+            if (typeof toastMsg === 'function') toastMsg(chk.motivo);
+            return;
+        }
+        // URL mídia manual: bloquear links de contato externos (wa.me etc.) — data: ok
+        if (urlManual && !urlManual.startsWith('data:')) {
+            const chkU = AntiGolpe.validarTexto(urlManual);
+            if (!chkU.ok || AntiGolpe.contemBloqueio(urlManual)) {
+                // allow pure image CDN urls unless social/phone/email
+                if (/wa\.me|t\.me|instagram|whatsapp|@|tel:/i.test(urlManual) ||
+                    /@/.test(urlManual)) {
+                    msgEl.textContent = AntiGolpe.MSG_BLOQUEIO;
+                    msgEl.className = 'msg erro';
+                    toastMsg(AntiGolpe.MSG_BLOQUEIO);
+                    return;
+                }
+            }
+        }
     }
 
     if (!texto && !midia_url) {

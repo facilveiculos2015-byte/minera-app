@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Perfil</title>
-    <link rel="stylesheet" href="style.css?v=20260916l">
+    <link rel="stylesheet" href="style.css?v=20260916m">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body>
     <div class="container wide">
@@ -43,6 +44,16 @@
         </section>
 
 
+
+        <section class="card" id="card-prefs">
+            <h2>Preferências</h2>
+            <div class="prefs-row">
+                <button type="button" class="btn-sm" id="btn-tema">☀️ Claro</button>
+                <button type="button" class="btn-sm" id="btn-abrir-tutorial">📖 Tutorial</button>
+            </div>
+            <p class="sub">Tema e guia rápido do Minera App.</p>
+        </section>
+
         <section class="card" id="card-comissoes">
             <h2>Comissões pendentes</h2>
             <p class="sub">1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.</p>
@@ -73,10 +84,10 @@
         </section>
 
     </div>
-    <script src="config.js?v=20260916l"></script>
-    <script src="auth-guard.js?v=20260916l"></script>
-    <script src="nav.js?v=20260916l"></script>
-    <script src="pix-brcode.js?v=20260916l"></script>
-    <script src="perfil.js?v=20260916l"></script>
+    <script src="config.js?v=20260916m"></script>
+    <script src="auth-guard.js?v=20260916m"></script>
+    <script src="nav.js?v=20260916m"></script>
+    <script src="pix-brcode.js?v=20260916m"></script>
+    <script src="perfil.js?v=20260916m"></script>
 </body>
 </html>

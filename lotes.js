@@ -118,6 +118,28 @@ async function salvarLote(e) {
         return;
     }
 
+    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Criar/editar lote')) {
+        msgEl.textContent = 'Conta bloqueada — pague a comissão no Perfil.';
+        msgEl.className = 'msg erro';
+        return;
+    }
+
+    if (typeof AntiGolpe !== 'undefined') {
+        const chk = AntiGolpe.validarCampos({
+            codigo_lote, origem, imagem_url: imagem_url || ''
+        }, ['codigo_lote', 'origem', 'imagem_url']);
+        if (!chk.ok) {
+            msgEl.textContent = chk.motivo;
+            msgEl.className = 'msg erro';
+            toastMsg(chk.motivo);
+            return;
+        }
+        // apply cleaned (esp. if strip future)
+        if (chk.campos) {
+            // keep originals unless stripped null
+        }
+    }
+
     const nome = (perfilAtual && perfilAtual.nome) ||
         (sessionAtual && sessionAtual.user && sessionAtual.user.user_metadata && sessionAtual.user.user_metadata.nome) ||
         (sessionAtual && sessionAtual.user && sessionAtual.user.email) || 'Usuário';
@@ -206,6 +228,8 @@ async function criarComissaoVenda(lote) {
     const nome = (perfilAtual && perfilAtual.nome)
         || (lote.criado_por)
         || 'Vendedor';
+    const venc = new Date();
+    venc.setDate(venc.getDate() + 7);
     const row = {
         lote_id: lote.id,
         vendedor_auth_id: uid,
@@ -213,7 +237,8 @@ async function criarComissaoVenda(lote) {
         valor_venda: preco,
         valor_comissao: valor_comissao,
         percentual: percentual,
-        status: 'pendente'
+        status: 'pendente',
+        vencimento: venc.toISOString()
     };
     const { data, error } = await supabaseClient.from('comissoes').insert([row]).select('id').limit(1);
     if (error) {
@@ -233,6 +258,7 @@ async function criarComissaoVenda(lote) {
 }
 
 async function marcarVendido(id) {
+    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Marcar vendido')) return;
     const lote = lotesMeus.find(l => l.id === id) || null;
     const { error } = await supabaseClient.from('lotes').update({ status: 'expedido' }).eq('id', id);
     if (error) {
@@ -256,6 +282,7 @@ async function marcarVendido(id) {
 }
 
 document.getElementById('btn-novo-lote').addEventListener('click', () => {
+    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Novo lote')) return;
     preencherForm(null);
     abrirModal('Novo Lote');
 });
@@ -304,6 +331,8 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
     perfilAtual = await getPerfil(sessionAtual);
     aplicarUserLabel(perfilAtual);
     montarNav('lotes', perfilAtual);
+    if (typeof verificarInadimplencia === 'function') await verificarInadimplencia(perfilAtual);
+    mostrarBannerBloqueio(perfilAtual);
     carregarLotes();
     try {
         const u = new URL(window.location.href);
