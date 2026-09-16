@@ -50,90 +50,6 @@ const COT_LINKS = [
 const LS_OURO = 'minera_cot_ouro_usd';
 const LS_COBRE = 'minera_cot_cobre_usd';
 
-const LS_HIST = 'minera_cot_historico';
-const HIST_MAX = 40;
-
-function lerHistoricoLocal() {
-    try {
-        const raw = localStorage.getItem(LS_HIST);
-        const arr = raw ? JSON.parse(raw) : [];
-        return Array.isArray(arr) ? arr : [];
-    } catch (e) { return []; }
-}
-
-function salvarPontoHistorico(simbolo, valor_usd, valor_brl, fonte) {
-    const ponto = {
-        simbolo: String(simbolo || '').toUpperCase(),
-        valor_usd: valor_usd != null ? Number(valor_usd) : null,
-        valor_brl: valor_brl != null ? Number(valor_brl) : null,
-        fonte: fonte || '',
-        capturado_em: new Date().toISOString()
-    };
-    let arr = lerHistoricoLocal();
-    arr.push(ponto);
-    if (arr.length > HIST_MAX) arr = arr.slice(-HIST_MAX);
-    try { localStorage.setItem(LS_HIST, JSON.stringify(arr)); } catch (e) { /* ignore */ }
-    // optional authenticated insert (SQL 13)
-    try {
-        if (typeof supabaseClient !== 'undefined') {
-            supabaseClient.from('cotacoes_historico').insert([{
-                simbolo: ponto.simbolo,
-                valor_usd: ponto.valor_usd,
-                valor_brl: ponto.valor_brl,
-                fonte: ponto.fonte,
-                capturado_em: ponto.capturado_em
-            }]).then(({ error }) => {
-                if (error && !/relation|schema cache|does not exist|permission/i.test(error.message || '')) {
-                    console.warn('cotacoes_historico', error.message);
-                }
-            });
-        }
-    } catch (e) { /* ignore */ }
-    return ponto;
-}
-
-function renderHistoricoCotacoes() {
-    const box = document.getElementById('cotacoes-historico');
-    if (!box) return;
-    const arr = lerHistoricoLocal().slice().reverse();
-    if (!arr.length) {
-        box.innerHTML = '<p class="sub">Histórico ainda vazio — atualiza a cada refresh de cotação.</p>';
-        return;
-    }
-    const bySym = {};
-    arr.forEach(p => {
-        const s = p.simbolo || '?';
-        if (!bySym[s]) bySym[s] = [];
-        if (bySym[s].length < 8) bySym[s].push(p);
-    });
-    const order = ['USD', 'XAU', 'HG'];
-    const labels = { USD: 'Dólar', XAU: 'Ouro', HG: 'Cobre' };
-    let html = '';
-    order.forEach(sym => {
-        const pts = bySym[sym] || [];
-        if (!pts.length) return;
-        const vals = pts.map(p => Number(sym === 'USD' ? p.valor_brl : p.valor_usd)).filter(n => Number.isFinite(n));
-        const max = vals.length ? Math.max.apply(null, vals) : 1;
-        const min = vals.length ? Math.min.apply(null, vals) : 0;
-        const span = (max - min) || 1;
-        html += '<div class="hist-block"><div class="hist-title">' + (labels[sym] || sym) + '</div>';
-        html += '<div class="hist-bars" aria-hidden="true">' + pts.slice().reverse().map(p => {
-            const v = Number(sym === 'USD' ? p.valor_brl : p.valor_usd);
-            const h = Number.isFinite(v) ? Math.max(8, Math.round(((v - min) / span) * 40)) : 8;
-            return '<span class="hist-bar" style="height:' + h + 'px" title="' +
-                (p.capturado_em ? new Date(p.capturado_em).toLocaleString('pt-BR') : '') + '"></span>';
-        }).join('') + '</div>';
-        html += '<ul class="hist-list">' + pts.slice(0, 5).map(p => {
-            const when = p.capturado_em ? new Date(p.capturado_em).toLocaleString('pt-BR') : '';
-            let val = '—';
-            if (sym === 'USD' && p.valor_brl != null) val = fmtBrl(p.valor_brl);
-            else if (p.valor_usd != null) val = fmtUsd(p.valor_usd);
-            return '<li><span class="log-when">' + when + '</span> ' + val + '</li>';
-        }).join('') + '</ul></div>';
-    });
-    box.innerHTML = html || '<p class="sub">Sem pontos ainda.</p>';
-}
-
 
 const URL_GOLD_API_XAU = 'https://api.gold-api.com/price/XAU';
 const URL_GOLD_API_HG = 'https://api.gold-api.com/price/HG';
@@ -397,13 +313,9 @@ async function atualizarCotacoes() {
     try { ouro = await carregarOuro(); } catch (e) { /* already set */ }
     try { cobre = await carregarCobre(); } catch (e) { /* already set */ }
     garantirLinksCotacoes();
-    if (dolar != null) salvarPontoHistorico('USD', 1, dolar, 'AwesomeAPI');
-    if (ouro != null) salvarPontoHistorico('XAU', ouro, ultimoUsdBrl != null ? ouro * ultimoUsdBrl : null, 'spot');
-    if (cobre != null) salvarPontoHistorico('HG', cobre, ultimoUsdBrl != null ? cobre * ultimoUsdBrl : null, 'COMEX');
-    renderHistoricoCotacoes();
     if (stamp) {
         stamp.textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR') +
-            ' · fontes spot/COMEX/LBMA approx (não LME oficial)';
+            ' · spot approx';
     }
 }
 
@@ -501,7 +413,6 @@ async function carregarFeed() {
     bindChipGroup('filtro-status-chips', 'data-status', v => { filtroStatus = v; });
     const notif = document.getElementById('btn-notif');
     if (notif) notif.addEventListener('click', () => toastMsg('Sem notificações'));
-    renderHistoricoCotacoes();
     atualizarCotacoes();
     cotacaoTimer = setInterval(atualizarCotacoes, 60000);
     carregarFeed();

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Feed</title>
-    <link rel="stylesheet" href="style.css?v=20260916n">
+    <link rel="stylesheet" href="style.css?v=20260916o">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -16,6 +16,11 @@
                 <p id="user-label">Carregando...</p>
             </div>
             <div class="header-actions">
+                <a class="btn-caixa-bank" id="btn-caixa-bank" href="financeiro.html" title="Caixa Minera" aria-label="Caixa Minera">
+                    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">
+                        <path fill="currentColor" d="M12 3L2 9v2h20V9L12 3zm1 6H11v2h2V9zm-4 0H7v2h2V9zm8 0h-2v2h2V9zM4 13v7h3v-5h2v5h2v-5h2v5h2v-5h2v5h3v-7H4z"/>
+                    </svg>
+                </a>
                 <button type="button" class="btn-icon" id="btn-notif" title="Notificações" aria-label="Notificações">🔔</button>
                 <button type="button" class="btn-sair" id="btn-sair">Sair</button>
             </div>
@@ -23,24 +28,26 @@
 
         <nav id="app-nav" class="nav-chips"></nav>
 
-        <section class="card cotacoes-card" id="card-cotacoes">
-            <h2>Cotações</h2>
-            <p class="sub">Spot / COMEX / LBMA aproximados — não é feed oficial da LME</p>
-            <div class="cotacoes-grid" id="cotacoes-grid">
+        <section class="card cotacoes-card cotacoes-compact" id="card-cotacoes">
+            <div class="cotacoes-strip-head">
+                <span class="cotacoes-strip-title">Cotações</span>
+                <span class="cotacoes-fonte" id="cotacoes-atualizado">…</span>
+            </div>
+            <div class="cotacoes-grid cotacoes-strip" id="cotacoes-grid">
                 <div class="cotacao-item">
-                    <div class="c-label">Dólar (USD/BRL)</div>
+                    <div class="c-label">Dólar</div>
                     <div class="c-valor" id="cot-dolar">—</div>
-                    <div class="c-sub" id="cot-dolar-sub">AwesomeAPI</div>
+                    <div class="c-sub" id="cot-dolar-sub">USD/BRL</div>
                 </div>
                 <div class="cotacao-item">
                     <div class="c-label">Ouro</div>
                     <div class="c-valor" id="cot-ouro">—</div>
-                    <div class="c-sub" id="cot-ouro-sub">USD/oz · spot approx</div>
+                    <div class="c-sub" id="cot-ouro-sub">USD/oz</div>
                 </div>
                 <div class="cotacao-item">
                     <div class="c-label">Cobre</div>
                     <div class="c-valor" id="cot-cobre">—</div>
-                    <div class="c-sub" id="cot-cobre-sub">USD · spot approx</div>
+                    <div class="c-sub" id="cot-cobre-sub">USD/lb</div>
                 </div>
             </div>
             <div class="cotacoes-links" id="cotacoes-links">
@@ -48,9 +55,6 @@
                 <a id="link-lme-home" href="https://www.lme.com/" target="_blank" rel="noopener noreferrer">LME Home</a>
                 <a id="link-gold-lbma" href="https://www.lbma.org.uk/prices-and-data/precious-metal-prices" target="_blank" rel="noopener noreferrer">Gold LBMA</a>
             </div>
-            <p class="cotacoes-fonte" id="cotacoes-atualizado">Atualizando a cada 60s…</p>
-            <h3 class="hist-heading">Histórico recente</h3>
-            <div id="cotacoes-historico" class="cotacoes-historico"><p class="sub">Carregando…</p></div>
         </section>
 
         <section class="card">
@@ -73,9 +77,9 @@
             <div id="feed" class="loading">Carregando...</div>
         </section>
     </div>
-    <script src="config.js?v=20260916n"></script>
-    <script src="auth-guard.js?v=20260916n"></script>
-    <script src="nav.js?v=20260916n"></script>
-    <script src="inicio.js?v=20260916n"></script>
+    <script src="config.js?v=20260916o"></script>
+    <script src="auth-guard.js?v=20260916o"></script>
+    <script src="nav.js?v=20260916o"></script>
+    <script src="inicio.js?v=20260916o"></script>
 </body>
 </html>

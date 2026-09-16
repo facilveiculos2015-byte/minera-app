@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Admin</title>
-    <link rel="stylesheet" href="style.css?v=20260916n">
+    <link rel="stylesheet" href="style.css?v=20260916o">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -82,6 +82,19 @@
         </section>
 
 
+
+        <section class="card">
+            <h2>Depósitos pendentes (Caixa)</h2>
+            <p class="sub">Confirmar credita caixa_saldos · rejeitar mantém sem crédito</p>
+            <div id="admin-depositos" class="loading">Carregando...</div>
+        </section>
+
+        <section class="card">
+            <h2>Saques pendentes (Caixa)</h2>
+            <p class="sub">Verificar saldo · marcar pago/processado debita o Caixa</p>
+            <div id="admin-saques" class="loading">Carregando...</div>
+        </section>
+
         <section class="card">
             <h2>Empréstimos</h2>
             <p class="sub">Análise de crédito · aprovar credita Caixa Minera · rejeitar / marcar pago</p>
@@ -106,10 +119,10 @@
             Ou marque Admin em Perfil se você já for admin.</p>
         </section>
     </div>
-    <script src="config.js?v=20260916n"></script>
-    <script src="auth-guard.js?v=20260916n"></script>
-    <script src="nav.js?v=20260916n"></script>
-    <script src="pix-brcode.js?v=20260916n"></script>
-    <script src="admin.js?v=20260916n"></script>
+    <script src="config.js?v=20260916o"></script>
+    <script src="auth-guard.js?v=20260916o"></script>
+    <script src="nav.js?v=20260916o"></script>
+    <script src="pix-brcode.js?v=20260916o"></script>
+    <script src="admin.js?v=20260916o"></script>
 </body>
 </html>

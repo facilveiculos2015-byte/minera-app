@@ -683,36 +683,55 @@ body.has-bottom-nav .app-toast {
     bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
-/* ===== Cotações ===== */
-.cotacoes-card { margin-bottom: 16px; }
+/* ===== Cotações (compact strip) ===== */
+.cotacoes-card { margin-bottom: 10px; padding: 10px 12px !important; }
+.cotacoes-card.cotacoes-compact h2 { display: none; }
+.cotacoes-strip-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.cotacoes-strip-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
 .cotacoes-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 6px;
 }
-.cotacao-item {
+.cotacoes-strip .cotacao-item {
     background: #0f172a;
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px;
+    border-radius: 8px;
+    padding: 6px 8px;
 }
-.cotacao-item .c-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
-.cotacao-item .c-valor { font-size: 1.15rem; font-weight: 800; color: var(--accent-color); margin: 4px 0; }
-.cotacao-item .c-sub { font-size: 0.8rem; color: #cbd5e1; }
-.cotacoes-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.cotacao-item .c-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; }
+.cotacao-item .c-valor { font-size: 0.95rem; font-weight: 800; color: var(--accent-color); margin: 2px 0; line-height: 1.2; }
+.cotacao-item .c-sub { font-size: 0.65rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cotacoes-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .cotacoes-links a {
     display: inline-block;
-    padding: 8px 12px;
+    padding: 3px 8px;
     background: #0f172a;
     border: 1px solid #475569;
-    border-radius: 8px;
+    border-radius: 6px;
     text-decoration: none;
-    font-size: 0.8rem;
+    font-size: 0.68rem;
     font-weight: 600;
 }
 .cotacoes-links a:hover { border-color: var(--accent-color); }
-.cotacoes-fonte { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+.cotacoes-fonte { font-size: 0.65rem; color: var(--muted); margin: 0; }
+@media (max-width: 480px) {
+    .cotacoes-grid { gap: 4px; }
+    .cotacao-item .c-valor { font-size: 0.85rem; }
+}
 
 /* ===== Chat WhatsApp-like ===== */
 .chat-card { min-height: 60vh; }
@@ -1246,3 +1265,72 @@ html[data-theme="light"] .aviso-credito {
     background: #fff7ed;
     color: #92400e;
 }
+
+/* Caixa PIN lock + painéis de ação */
+.caixa-lock-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.92);
+    border-radius: 12px;
+    padding: 20px;
+}
+.caixa-bank-card { position: relative; }
+.caixa-bank-card.caixa-locked .caixa-unlocked-body { filter: blur(4px); pointer-events: none; user-select: none; }
+.caixa-lock-panel {
+    width: 100%;
+    max-width: 360px;
+    background: #0f172a;
+    border: 1px solid #f59e0b;
+    border-radius: 12px;
+    padding: 16px;
+}
+.caixa-lock-panel h3 { margin: 0 0 8px; color: #fef3c7; font-size: 1.05rem; }
+.caixa-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.caixa-actions button { flex: 1; min-width: 100px; }
+.caixa-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(251,191,36,0.25); }
+.caixa-panel.oculto { display: none; }
+.pix-dep-box { margin: 10px 0; }
+.pix-dep-box .pix-qr { display: flex; justify-content: center; margin: 8px 0; }
+.pix-dep-box textarea { width: 100%; font-size: 0.75rem; }
+.caixa-pin-hint { font-size: 0.8rem; color: #94a3b8; margin: 6px 0 10px; }
+
+/* Header Caixa Minera bank icon — more prominent than bell */
+.btn-caixa-bank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #422006, #1e3a5f);
+    border: 1.5px solid #f59e0b;
+    color: #fbbf24;
+    text-decoration: none;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.45), 0 2px 8px rgba(0,0,0,0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    flex-shrink: 0;
+}
+.btn-caixa-bank:hover,
+.btn-caixa-bank:focus {
+    transform: scale(1.08);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.7), 0 2px 10px rgba(0,0,0,0.4);
+    color: #fde68a;
+    outline: none;
+}
+.btn-caixa-bank svg { display: block; }
+.header-actions .btn-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.05rem;
+    opacity: 0.9;
+}
+html[data-theme="light"] .btn-caixa-bank {
+    background: linear-gradient(145deg, #fff7ed, #e0f2fe);
+    color: #b45309;
+    border-color: #f59e0b;
+}
+

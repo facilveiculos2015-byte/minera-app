@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Caixa Minera</title>
-    <link rel="stylesheet" href="style.css?v=20260916n">
+    <link rel="stylesheet" href="style.css?v=20260916o">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body>
@@ -19,36 +20,114 @@
         </header>
         <nav id="app-nav" class="nav-chips"></nav>
 
-        <section class="card caixa-bank-card" id="card-caixa">
-            <div class="caixa-bank-top">
-                <div>
-                    <p class="caixa-bank-eyebrow">Financeiro</p>
-                    <h2>Caixa Minera</h2>
-                    <p class="sub">Guarde saldo na plataforma e acompanhe o rendimento previsto.</p>
+        <section class="card caixa-bank-card caixa-locked" id="card-caixa">
+            <div id="caixa-lock" class="caixa-lock-overlay">
+                <div class="caixa-lock-panel" id="panel-set-pin">
+                    <h3>Defina a senha da Caixa</h3>
+                    <p class="caixa-pin-hint">Senha exclusiva do Caixa Minera (diferente do login). Mínimo 6 caracteres.</p>
+                    <label for="pin-novo">Nova senha da Caixa</label>
+                    <input type="password" id="pin-novo" minlength="6" autocomplete="new-password" placeholder="••••••">
+                    <label for="pin-novo2">Confirmar senha</label>
+                    <input type="password" id="pin-novo2" minlength="6" autocomplete="new-password" placeholder="••••••">
+                    <button type="button" class="btn-ok" id="btn-set-pin">Salvar senha da Caixa</button>
+                    <p id="pin-set-msg" class="msg"></p>
                 </div>
-                <button type="button" class="btn-link btn-saiba-mais" id="btn-saiba-mais">Saiba mais</button>
-            </div>
-            <div class="caixa-saldo-block">
-                <div class="caixa-saldo-label">Saldo disponível</div>
-                <div class="caixa-saldo-valor" id="caixa-saldo">R$ —</div>
-                <div class="caixa-rendimento" id="caixa-rendimento">Rendimento previsto: 0,5%/mês</div>
-            </div>
-            <div class="caixa-actions">
-                <button type="button" class="btn-ok" id="btn-depositar">Depositar</button>
-                <button type="button" class="btn-ghost" id="btn-pegar">Pegar</button>
-            </div>
-            <form id="form-movimento" class="oculto caixa-mov-form">
-                <input type="hidden" id="mov-tipo" value="deposito">
-                <label for="mov-valor">Valor (R$)</label>
-                <input type="number" id="mov-valor" min="0.01" step="0.01" required placeholder="0,00">
-                <label for="mov-obs">Observações (opcional)</label>
-                <input type="text" id="mov-obs" placeholder="Ex: transferência Pix">
-                <div class="modal-actions">
-                    <button type="submit" id="mov-submit">Confirmar</button>
-                    <button type="button" class="btn-ghost" id="mov-cancelar">Cancelar</button>
+                <div class="caixa-lock-panel oculto" id="panel-unlock-pin">
+                    <h3>Desbloquear Caixa</h3>
+                    <p class="caixa-pin-hint">Informe a senha da Caixa para ver saldo e operar.</p>
+                    <label for="pin-unlock">Senha da Caixa</label>
+                    <input type="password" id="pin-unlock" minlength="6" autocomplete="current-password" placeholder="••••••">
+                    <button type="button" class="btn-ok" id="btn-unlock-pin">Desbloquear</button>
+                    <button type="button" class="btn-link" id="btn-forgot-pin">Esqueci a senha da Caixa</button>
+                    <p id="pin-unlock-msg" class="msg"></p>
                 </div>
-            </form>
-            <p id="caixa-msg" class="msg"></p>
+                <div class="caixa-lock-panel oculto" id="panel-forgot-pin">
+                    <h3>Esqueci senha da Caixa</h3>
+                    <p class="caixa-pin-hint">Confirme a senha de login da conta (e-mail atual) ou peça um código OTP por e-mail. Depois defina uma nova senha da Caixa.</p>
+                    <label for="forgot-login-pass">Senha de login</label>
+                    <input type="password" id="forgot-login-pass" autocomplete="current-password" placeholder="Senha da conta">
+                    <button type="button" class="btn-ok" id="btn-reauth-pin">Confirmar login e redefinir</button>
+                    <button type="button" class="btn-ghost" id="btn-otp-pin">Enviar OTP por e-mail</button>
+                    <div id="otp-pin-block" class="oculto" style="margin-top:10px">
+                        <label for="otp-code">Código OTP</label>
+                        <input type="text" id="otp-code" inputmode="numeric" placeholder="Código do e-mail">
+                        <button type="button" class="btn-ok" id="btn-verify-otp-pin">Verificar OTP</button>
+                    </div>
+                    <div id="forgot-new-pin-block" class="oculto" style="margin-top:10px">
+                        <label for="forgot-pin-novo">Nova senha da Caixa</label>
+                        <input type="password" id="forgot-pin-novo" minlength="6" autocomplete="new-password">
+                        <label for="forgot-pin-novo2">Confirmar</label>
+                        <input type="password" id="forgot-pin-novo2" minlength="6" autocomplete="new-password">
+                        <button type="button" class="btn-ok" id="btn-save-forgot-pin">Salvar nova senha</button>
+                    </div>
+                    <button type="button" class="btn-link" id="btn-forgot-back">Voltar</button>
+                    <p id="pin-forgot-msg" class="msg"></p>
+                </div>
+            </div>
+
+            <div class="caixa-unlocked-body">
+                <div class="caixa-bank-top">
+                    <div>
+                        <p class="caixa-bank-eyebrow">Financeiro</p>
+                        <h2>Caixa Minera</h2>
+                        <p class="sub">Depósitos ficam no saldo da plataforma e podem ser sacados via <strong>Sacar</strong>. Não é só para gasto no app.</p>
+                    </div>
+                    <button type="button" class="btn-link btn-saiba-mais" id="btn-saiba-mais">Saiba mais</button>
+                </div>
+                <div class="caixa-saldo-block">
+                    <div class="caixa-saldo-label">Saldo disponível</div>
+                    <div class="caixa-saldo-valor" id="caixa-saldo">R$ —</div>
+                    <div class="caixa-rendimento" id="caixa-rendimento">Rendimento estimado até 5% a.m. conforme cotação da bolsa</div>
+                </div>
+                <div class="caixa-actions">
+                    <button type="button" class="btn-ok" id="btn-emprestimo-goto">Empréstimo</button>
+                    <button type="button" class="btn-ok" id="btn-depositar">Depositar</button>
+                    <button type="button" class="btn-ghost" id="btn-sacar">Sacar</button>
+                </div>
+
+                <!-- Depositar: Pix real -->
+                <div id="panel-depositar" class="caixa-panel oculto">
+                    <h3>Depositar via Pix</h3>
+                    <p class="sub">Pague com a chave Pix da plataforma (titular JeL). Envie o comprovante; o crédito no Caixa ocorre após confirmação do admin.</p>
+                    <label for="dep-valor">Valor (R$)</label>
+                    <input type="number" id="dep-valor" min="0.01" step="0.01" placeholder="0,00">
+                    <button type="button" class="btn-ok" id="btn-gerar-pix-dep">Gerar Pix</button>
+                    <div id="dep-pix-box" class="pix-dep-box oculto">
+                        <p class="sub" id="dep-pix-info"></p>
+                        <div id="dep-pix-qr" class="pix-qr" aria-label="QR Code Pix depósito"></div>
+                        <label for="dep-pix-copia">Pix Copia e Cola</label>
+                        <textarea id="dep-pix-copia" readonly rows="3"></textarea>
+                        <button type="button" class="btn-ok" id="btn-copiar-pix-dep">Copiar Pix</button>
+                        <label for="dep-comprovante">URL do comprovante</label>
+                        <input type="url" id="dep-comprovante" placeholder="https://… ou link do comprovante">
+                        <button type="button" class="btn-ok" id="btn-enviar-dep">Enviar pedido de depósito</button>
+                    </div>
+                    <button type="button" class="btn-ghost" id="dep-cancelar">Fechar</button>
+                    <p id="dep-msg" class="msg"></p>
+                </div>
+
+                <!-- Sacar -->
+                <div id="panel-sacar" class="caixa-panel oculto">
+                    <h3>Sacar</h3>
+                    <p class="sub">O saque pode ser <strong>instantâneo</strong> ou demorar <strong>até 24 horas</strong> para cair na conta, conforme processamento.</p>
+                    <label for="saque-valor">Valor (R$)</label>
+                    <input type="number" id="saque-valor" min="0.01" step="0.01" placeholder="0,00">
+                    <label for="saque-chave">Chave Pix de destino</label>
+                    <input type="text" id="saque-chave" required placeholder="CPF, e-mail, telefone ou aleatória">
+                    <div class="modal-actions">
+                        <button type="button" class="btn-ok" id="btn-enviar-saque">Solicitar saque</button>
+                        <button type="button" class="btn-ghost" id="saque-cancelar">Fechar</button>
+                    </div>
+                    <p id="saque-msg" class="msg"></p>
+                </div>
+
+                <p id="caixa-msg" class="msg"></p>
+            </div>
+        </section>
+
+        <section class="card" id="sec-pedidos">
+            <h2>Pedidos recentes</h2>
+            <div id="caixa-pedidos" class="loading">Carregando...</div>
         </section>
 
         <section class="card">
@@ -56,7 +135,7 @@
             <div id="caixa-movimentos" class="loading">Carregando...</div>
         </section>
 
-        <section class="card">
+        <section class="card" id="sec-emprestimo">
             <h2>Empréstimo</h2>
             <p class="aviso-credito"><strong>Sujeito à análise de crédito</strong></p>
             <form id="form-emprestimo">
@@ -91,14 +170,15 @@
                 <button type="button" class="btn-icon" id="saiba-mais-fechar" aria-label="Fechar">✕</button>
             </div>
             <div class="saiba-mais-body">
-                <p>O <strong>Caixa Minera</strong> permite guardar saldo sob custódia na plataforma e acompanhar o rendimento previsto.</p>
+                <p>O <strong>Caixa Minera</strong> guarda saldo sob custódia na plataforma. Os depósitos ficam no saldo e são <strong>sacáveis</strong> via Sacar — não servem apenas para gasto no app.</p>
                 <ul>
-                    <li><strong>Custódia:</strong> o saldo fica registrado na plataforma para uso nas suas operações no app.</li>
-                    <li><strong>Rendimento previsto:</strong> taxa de referência configurada (ex.: 0,5% ao mês). Trata-se de projeção informativa — não é garantia de rentabilidade.</li>
-                    <li><strong>Empréstimos:</strong> juros de <strong>15%</strong> sobre o valor solicitado no pagamento. Total previsto = valor × 1,15. Toda solicitação está <strong>sujeita à análise de crédito</strong>.</li>
-                    <li><strong>Responsabilidade do usuário:</strong> você permanece responsável pelas próprias obrigações fiscais e legais. O Minera App não substitui orientação contábil ou jurídica.</li>
+                    <li><strong>Depositar:</strong> Pix para a chave da plataforma (titular JeL). Envie o comprovante; o admin confirma e credita o saldo.</li>
+                    <li><strong>Sacar:</strong> informe valor e chave Pix de destino. Pode ser instantâneo ou levar até 24 horas.</li>
+                    <li><strong>Rendimento estimado:</strong> até <strong>5% a.m.</strong> conforme cotação da bolsa (projeção informativa — não é garantia).</li>
+                    <li><strong>Empréstimos:</strong> juros de <strong>15%</strong>. Total previsto = valor × 1,15. <strong>Sujeito à análise de crédito</strong>.</li>
+                    <li><strong>Senha da Caixa:</strong> PIN separado do login. Em “Esqueci a senha”, confirme a senha de login ou use OTP por e-mail.</li>
+                    <li><strong>Obrigações:</strong> você permanece responsável pelas próprias obrigações fiscais e legais. O Minera App não substitui orientação contábil ou jurídica.</li>
                 </ul>
-                <p class="sub">Depositar e Pegar atualizam seu saldo e geram registro de movimentos. Empréstimos aprovados podem creditar o Caixa Minera após análise.</p>
             </div>
             <div class="modal-actions saiba-mais-actions">
                 <label class="check-row"><input type="checkbox" id="saiba-nao-mostrar"> Não mostrar de novo</label>
@@ -107,9 +187,10 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260916n"></script>
-    <script src="auth-guard.js?v=20260916n"></script>
-    <script src="nav.js?v=20260916n"></script>
-    <script src="financeiro.js?v=20260916n"></script>
+    <script src="config.js?v=20260916o"></script>
+    <script src="auth-guard.js?v=20260916o"></script>
+    <script src="nav.js?v=20260916o"></script>
+    <script src="pix-brcode.js?v=20260916o"></script>
+    <script src="financeiro.js?v=20260916o"></script>
 </body>
 </html>

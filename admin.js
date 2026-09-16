@@ -466,7 +466,7 @@ async function creditarCaixaEmprestimo(emp) {
         .maybeSingle();
     if (!row) {
         const ins = await supabaseClient.from('caixa_saldos')
-            .insert([{ auth_id: uid, saldo: 0, taxa_mensal: 0.5 }])
+            .insert([{ auth_id: uid, saldo: 0, taxa_mensal: 5, taxa_yield_max: 5 }])
             .select('*').maybeSingle();
         if (ins.error) throw ins.error;
         row = ins.data;
@@ -486,6 +486,189 @@ async function creditarCaixaEmprestimo(emp) {
         atualizado_em: new Date().toISOString()
     }).eq('auth_id', uid);
     if (upErr) throw upErr;
+}
+
+
+async function creditarCaixaValor(uid, valor, tipo, obs) {
+    if (!uid || !(Number(valor) > 0)) return;
+    let { data: row } = await supabaseClient
+        .from('caixa_saldos').select('*').eq('auth_id', uid).maybeSingle();
+    if (!row) {
+        const ins = await supabaseClient.from('caixa_saldos')
+            .insert([{ auth_id: uid, saldo: 0, taxa_mensal: 5, taxa_yield_max: 5 }])
+            .select('*').maybeSingle();
+        if (ins.error) throw ins.error;
+        row = ins.data;
+    }
+    const saldo = row && row.saldo != null ? Number(row.saldo) : 0;
+    const novo = saldo + Number(valor);
+    const { error: movErr } = await supabaseClient.from('caixa_movimentos').insert([{
+        auth_id: uid, tipo: tipo || 'deposito', valor: Number(valor),
+        saldo_apos: novo, observacao: obs || null
+    }]);
+    if (movErr) throw movErr;
+    const { error: upErr } = await supabaseClient.from('caixa_saldos').update({
+        saldo: novo, atualizado_em: new Date().toISOString()
+    }).eq('auth_id', uid);
+    if (upErr) throw upErr;
+}
+
+async function debitarCaixaValor(uid, valor, obs) {
+    if (!uid || !(Number(valor) > 0)) throw new Error('Valor inválido');
+    let { data: row } = await supabaseClient
+        .from('caixa_saldos').select('*').eq('auth_id', uid).maybeSingle();
+    if (!row) throw new Error('Usuário sem saldo no Caixa');
+    const saldo = row.saldo != null ? Number(row.saldo) : 0;
+    if (Number(valor) > saldo + 1e-9) throw new Error('Saldo insuficiente (' + saldo + ')');
+    const novo = saldo - Number(valor);
+    const { error: movErr } = await supabaseClient.from('caixa_movimentos').insert([{
+        auth_id: uid, tipo: 'saque', valor: Number(valor),
+        saldo_apos: novo, observacao: obs || null
+    }]);
+    if (movErr) throw movErr;
+    const { error: upErr } = await supabaseClient.from('caixa_saldos').update({
+        saldo: novo, atualizado_em: new Date().toISOString()
+    }).eq('auth_id', uid);
+    if (upErr) throw upErr;
+}
+
+async function carregarDepositosAdmin() {
+    const box = document.getElementById('admin-depositos');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('caixa_deposito_pedidos')
+            .select('*')
+            .order('criado_em', { ascending: false })
+            .limit(80);
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p>Nenhum depósito.</p>';
+            return;
+        }
+        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Quando</th><th>Auth</th><th>Valor</th><th>Comprovante</th><th>Status</th><th></th></tr></thead><tbody>' +
+            data.map(d => {
+                const when = d.criado_em ? new Date(d.criado_em).toLocaleString('pt-BR') : '—';
+                const st = String(d.status || 'pendente');
+                let btns = '';
+                if (st === 'pendente') {
+                    btns = '<button type="button" class="btn-sm btn-ok" data-act="dep-ok">Confirmar</button> ' +
+                        '<button type="button" class="btn-sm btn-danger" data-act="dep-no">Rejeitar</button>';
+                }
+                const link = d.comprovante_url
+                    ? '<a href="' + esc(d.comprovante_url) + '" target="_blank" rel="noopener">ver</a>'
+                    : '—';
+                return `<tr data-id="${d.id}">
+                    <td>${esc(when)}</td>
+                    <td class="sub">${esc(String(d.auth_id || '').slice(0, 8))}…</td>
+                    <td>${esc(Number(d.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
+                    <td>${link}</td>
+                    <td><span class="badge">${esc(st)}</span></td>
+                    <td class="card-actions">${btns}</td>
+                </tr>`;
+            }).join('') + '</tbody></table></div>';
+
+        box.querySelectorAll('[data-act]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tr = btn.closest('tr');
+                const id = parseInt(tr.getAttribute('data-id'), 10);
+                const row = (data || []).find(x => x.id === id);
+                const act = btn.getAttribute('data-act');
+                try {
+                    if (act === 'dep-ok') {
+                        await creditarCaixaValor(row.auth_id, row.valor, 'deposito', 'Depósito #' + id + ' confirmado');
+                        const { error } = await supabaseClient.from('caixa_deposito_pedidos').update({
+                            status: 'confirmado',
+                            atualizado_em: new Date().toISOString()
+                        }).eq('id', id);
+                        if (error) throw error;
+                        toastMsg('Depósito confirmado e creditado');
+                    } else if (act === 'dep-no') {
+                        const { error } = await supabaseClient.from('caixa_deposito_pedidos').update({
+                            status: 'rejeitado',
+                            atualizado_em: new Date().toISOString()
+                        }).eq('id', id);
+                        if (error) throw error;
+                        toastMsg('Depósito rejeitado');
+                    }
+                    carregarDepositosAdmin();
+                } catch (e) {
+                    toastMsg('Erro: ' + (e.message || e) + ' (SQL 15?)');
+                }
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 15)</p>';
+    }
+}
+
+async function carregarSaquesAdmin() {
+    const box = document.getElementById('admin-saques');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('caixa_saque_pedidos')
+            .select('*')
+            .order('criado_em', { ascending: false })
+            .limit(80);
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p>Nenhum saque.</p>';
+            return;
+        }
+        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Quando</th><th>Auth</th><th>Valor</th><th>Pix destino</th><th>Status</th><th></th></tr></thead><tbody>' +
+            data.map(s => {
+                const when = s.criado_em ? new Date(s.criado_em).toLocaleString('pt-BR') : '—';
+                const st = String(s.status || 'pendente');
+                let btns = '';
+                if (st === 'pendente') {
+                    btns = '<button type="button" class="btn-sm btn-ok" data-act="saq-pago">Marcar pago</button> ' +
+                        '<button type="button" class="btn-sm btn-danger" data-act="saq-no">Rejeitar</button>';
+                }
+                return `<tr data-id="${s.id}">
+                    <td>${esc(when)}</td>
+                    <td class="sub">${esc(String(s.auth_id || '').slice(0, 8))}…</td>
+                    <td>${esc(Number(s.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</td>
+                    <td>${esc(s.chave_pix_destino || '—')}</td>
+                    <td><span class="badge">${esc(st)}</span></td>
+                    <td class="card-actions">${btns}</td>
+                </tr>`;
+            }).join('') + '</tbody></table></div>';
+
+        box.querySelectorAll('[data-act]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tr = btn.closest('tr');
+                const id = parseInt(tr.getAttribute('data-id'), 10);
+                const row = (data || []).find(x => x.id === id);
+                const act = btn.getAttribute('data-act');
+                try {
+                    if (act === 'saq-pago') {
+                        await debitarCaixaValor(row.auth_id, row.valor, 'Saque #' + id + ' processado');
+                        const { error } = await supabaseClient.from('caixa_saque_pedidos').update({
+                            status: 'pago',
+                            atualizado_em: new Date().toISOString()
+                        }).eq('id', id);
+                        if (error) throw error;
+                        toastMsg('Saque marcado pago e debitado');
+                    } else if (act === 'saq-no') {
+                        const { error } = await supabaseClient.from('caixa_saque_pedidos').update({
+                            status: 'rejeitado',
+                            atualizado_em: new Date().toISOString()
+                        }).eq('id', id);
+                        if (error) throw error;
+                        toastMsg('Saque rejeitado');
+                    }
+                    carregarSaquesAdmin();
+                } catch (e) {
+                    toastMsg('Erro: ' + (e.message || e) + ' (SQL 15?)');
+                }
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 15)</p>';
+    }
 }
 
 async function carregarEmprestimosAdmin() {
@@ -586,6 +769,8 @@ async function carregarEmprestimosAdmin() {
         carregarPixAdmin(),
         carregarPixPagamentos(),
         carregarComissoes(),
+        carregarDepositosAdmin(),
+        carregarSaquesAdmin(),
         carregarEmprestimosAdmin()
     ]);
 })();

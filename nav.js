@@ -106,7 +106,37 @@ function garantirMaisSheet(secundarios) {
     }
 }
 
+
+function garantirHeaderCaixaBtn() {
+    const header = document.querySelector('header.header-row');
+    if (!header) return;
+    let actions = header.querySelector('.header-actions');
+    if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'header-actions';
+        header.appendChild(actions);
+    }
+    let btn = document.getElementById('btn-caixa-bank');
+    const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'financeiro.html';
+    if (!btn) {
+        btn = document.createElement('a');
+        btn.id = 'btn-caixa-bank';
+        btn.className = 'btn-caixa-bank';
+        btn.title = 'Caixa Minera';
+        btn.setAttribute('aria-label', 'Caixa Minera');
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">' +
+            '<path fill="currentColor" d="M12 3L2 9v2h20V9L12 3zm1 6H11v2h2V9zm-4 0H7v2h2V9zm8 0h-2v2h2V9zM4 13v7h3v-5h2v5h2v-5h2v5h2v-5h2v5h3v-7H4z"/></svg>';
+        const notif = document.getElementById('btn-notif');
+        const sair = document.getElementById('btn-sair');
+        if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
+        else if (sair && sair.parentNode === actions) actions.insertBefore(btn, sair);
+        else actions.insertBefore(btn, actions.firstChild);
+    }
+    btn.href = href;
+}
+
 function montarNav(paginaAtiva, perfil) {
+    garantirHeaderCaixaBtn();
     const permitidos = new Set(chipsPermitidos(perfil));
     const body = document.body;
     if (body) body.classList.add('has-bottom-nav');
