@@ -224,11 +224,11 @@ function writeLsNumber(key, n) {
 function showMetal(elValor, elSub, usd, label, viaProxy, fromCache, options) {
     const brl = ultimoUsdBrl != null ? usd * ultimoUsdBrl : null;
     document.getElementById(elValor).textContent = fmtUsd(usd);
+    // Keep subtitle short on mobile strip (long /t + BRL was clipping Cobre)
     let sub = label;
-    if (viaProxy) sub += ' · via proxy';
-    if (fromCache) sub += ' · última conhecida';
-    if (brl != null) sub += ' · ' + fmtBrl(brl);
-    if (options && options.usdPerTon) sub += ' · aprox. ' + fmtUsd(usd * 2204.62) + '/t';
+    if (fromCache) sub = 'cache';
+    else if (viaProxy) sub = 'proxy';
+    else if (brl != null && !(options && options.usdPerTon)) sub += ' · ' + fmtBrl(brl);
     document.getElementById(elSub).textContent = sub;
 }
 
@@ -314,8 +314,8 @@ async function atualizarCotacoes() {
     try { cobre = await carregarCobre(); } catch (e) { /* already set */ }
     garantirLinksCotacoes();
     if (stamp) {
-        stamp.textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR') +
-            ' · spot approx';
+        stamp.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) +
+            ' · spot';
     }
 }
 
