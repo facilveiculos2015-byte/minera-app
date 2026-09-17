@@ -10,7 +10,7 @@ const NAV_PRIMARIOS = [
 
 const NAV_SECUNDARIOS = [
     { id: 'financeiro', label: 'Caixa Minera', href: 'financeiro.html', featured: true },
-    { id: 'mapa', label: 'Mapa de Satélite', href: 'mapa.html' },
+    { id: 'mapa', label: 'Mapa', href: 'mapa.html' },
     { id: 'britagem', label: 'Britagem', href: 'processamento.html' },
     { id: 'frete', label: 'Logística', href: 'frete.html' },
     { id: 'estoque', label: 'Estoque', href: 'estoque.html' },

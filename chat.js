@@ -93,6 +93,61 @@ function lerParaQuery() {
     } catch (e) { return ''; }
 }
 
+
+function lerLocalizacaoQuery() {
+    try {
+        const u = new URL(window.location.href);
+        const lat = parseFloat(u.searchParams.get('lat'));
+        const lng = parseFloat(u.searchParams.get('lng'));
+        const label = (u.searchParams.get('label') || '').trim();
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            // fallback sessionStorage (mapa → chat)
+            try {
+                const raw = sessionStorage.getItem('minera_share_loc');
+                if (!raw) return null;
+                const o = JSON.parse(raw);
+                if (!o || !Number.isFinite(Number(o.lat)) || !Number.isFinite(Number(o.lng))) return null;
+                if (o.ts && Date.now() - o.ts > 30 * 60 * 1000) return null;
+                return {
+                    lat: Number(o.lat),
+                    lng: Number(o.lng),
+                    label: String(o.label || '').trim(),
+                    texto: String(o.texto || '').trim(),
+                    link: String(o.link || '')
+                };
+            } catch (e2) { return null; }
+        }
+        const link = 'https://maps.google.com/?q=' + encodeURIComponent(lat + ',' + lng);
+        const texto =
+            '📍 ' + (label || ('Local ' + lat.toFixed(5) + ', ' + lng.toFixed(5))) + '\n' +
+            'Coords: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '\n' +
+            link;
+        return { lat: lat, lng: lng, label: label, texto: texto, link: link };
+    } catch (e) { return null; }
+}
+
+function preencherLocalizacaoNoComposer(loc) {
+    if (!loc) return;
+    const input = document.getElementById('chat-texto');
+    if (input) {
+        const texto = loc.texto || (
+            '📍 ' + (loc.label || 'Localização') + '\n' +
+            'Coords: ' + Number(loc.lat).toFixed(6) + ', ' + Number(loc.lng).toFixed(6) + '\n' +
+            (loc.link || ('https://maps.google.com/?q=' + loc.lat + ',' + loc.lng))
+        );
+        if (!input.value.trim()) input.value = texto;
+        else if (input.value.indexOf('maps.google.com') === -1) input.value = input.value.trim() + '\n\n' + texto;
+        try { input.focus(); } catch (e) {}
+    }
+    const ctxEl = document.getElementById('chat-lote-ctx');
+    if (ctxEl && !loteCtx) {
+        ctxEl.textContent = 'Localização pronta para enviar — escolha um contato se ainda não houver conversa.';
+        ctxEl.classList.remove('oculto');
+    }
+    try { sessionStorage.removeItem('minera_share_loc'); } catch (e) {}
+}
+
+
 function setAnexoInfo(txt) {
     const el = document.getElementById('chat-anexo-info');
     if (!el) return;
@@ -1812,6 +1867,9 @@ async function apagarHistoricoParaTodos() {
             apelido: p.apelido || null
         });
     }
+
+    // Prefill localização vinda do mapa (?lat=&lng=&label=)
+    preencherLocalizacaoNoComposer(lerLocalizacaoQuery());
 
     pollTimer = setInterval(async () => {
         if (contatoAtivo) await carregarThread(false);

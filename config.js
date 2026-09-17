@@ -7,3 +7,8 @@ function irPara(pagina) {
     const p = String(pagina || '').replace(/^\.\//, '').replace(/^\//, '');
     window.location.replace(APP_ROOT + p);
 }
+
+/** Google Maps JavaScript API key (Maps JS + Geocoding/Directions opcionais).
+ *  Deixe '' até configurar — veja docs/google-maps-key.md
+ *  Alternativa: window.MINERA_GOOGLE_MAPS_KEY = '...' antes dos scripts. */
+const GOOGLE_MAPS_API_KEY = '';
