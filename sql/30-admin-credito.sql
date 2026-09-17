@@ -119,6 +119,9 @@ CREATE POLICY "emp_docs_delete_own" ON storage.objects
   );
 
 -- 4) RPC admin_listar_emprestimos — estende com KYC / docs / vencimento / dias
+DROP FUNCTION IF EXISTS public.admin_listar_emprestimos(integer);
+DROP FUNCTION IF EXISTS public.admin_listar_emprestimos(int);
+
 CREATE OR REPLACE FUNCTION public.admin_listar_emprestimos(p_limit integer DEFAULT 80)
 RETURNS TABLE (
   id integer,
@@ -405,6 +408,8 @@ REVOKE ALL ON FUNCTION public.admin_listar_alertas(integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_listar_alertas(integer) TO authenticated;
 
 -- Contagem pendentes agora inclui alertas de vencimento (mantém nome antigo + novo helper)
+DROP FUNCTION IF EXISTS public.admin_contar_emprestimos_pendentes();
+
 CREATE OR REPLACE FUNCTION public.admin_contar_emprestimos_pendentes()
 RETURNS integer
 LANGUAGE plpgsql
