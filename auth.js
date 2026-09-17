@@ -100,7 +100,12 @@ async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
 async function irSeLogado() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session) irPara('inicio.html');
+        if (!session) return;
+        let dest = 'inicio.html';
+        if (typeof destinoPosLogin === 'function') {
+            dest = await destinoPosLogin(session.user);
+        }
+        irPara(dest);
     } catch (e) {
         console.error(e);
     }
@@ -237,7 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Sem papeis: preserva tipo/admin já gravados no banco
             await upsertUsuarioPerfil(data.user, data.user.user_metadata && data.user.user_metadata.nome);
-            irPara('inicio.html');
+            let dest = 'inicio.html';
+            if (typeof destinoPosLogin === 'function') {
+                dest = await destinoPosLogin(data.user);
+            }
+            irPara(dest);
         } catch (err) {
             console.error(err);
             msg('Falha de conexão no login: ' + (err.message || err), false);

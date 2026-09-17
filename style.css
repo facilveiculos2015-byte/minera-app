@@ -2768,3 +2768,73 @@ body.pagina-admin {
     color: #fbbf24;
     margin: 8px 0;
 }
+
+
+/* ---- Modo UI admin ↔ usuário ---- */
+body.modo-ui-admin .bottom-nav,
+body.modo-ui-admin #app-nav,
+body.modo-ui-admin .nav-chips.nav-secondary,
+body.modo-ui-admin .btn-caixa-bank,
+body.modo-ui-admin #btn-caixa-bank {
+    display: none !important;
+}
+body.modo-ui-admin {
+    padding-bottom: 24px;
+}
+.btn-modo-ui {
+    border: 1px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+.btn-modo-ui:hover,
+.btn-modo-ui:focus {
+    background: #f59e0b;
+    color: #111827;
+}
+.btn-modo-ui.btn-modo-voltar {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    color: #7dd3fc;
+}
+.btn-modo-ui.btn-modo-voltar:hover,
+.btn-modo-ui.btn-modo-voltar:focus {
+    background: #38bdf8;
+    color: #0f172a;
+}
+.modo-ui-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 14px;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid #334155;
+    backdrop-filter: blur(8px);
+}
+.modo-ui-sticky span {
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+html[data-theme="light"] .modo-ui-sticky {
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom-color: #e2e8f0;
+}
+html[data-theme="light"] .modo-ui-sticky span { color: #64748b; }
+html[data-theme="light"] .btn-modo-ui {
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.2);
+}
+@media (max-width: 640px) {
+    .btn-modo-ui { font-size: 0.72rem; padding: 5px 10px; }
+}

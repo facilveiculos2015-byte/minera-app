@@ -280,7 +280,94 @@ function aplicarUserLabel(perfil) {
     el.textContent = 'Olá, ' + (perfil.apelido || perfil.nome || 'Usuário') + ' · ' + rotuloPapeis(perfil);
 }
 
+
+/* ---- Modo UI admin (monitoramento) vs usuário (cliente) ---- */
+const MINERA_MODO_UI_KEY = 'minera_modo_ui';
+
+function lerModoUi() {
+    try {
+        const m = sessionStorage.getItem(MINERA_MODO_UI_KEY);
+        if (m === 'admin' || m === 'usuario') return m;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function gravarModoUi(modo) {
+    try {
+        if (modo === 'admin' || modo === 'usuario') {
+            sessionStorage.setItem(MINERA_MODO_UI_KEY, modo);
+        } else {
+            sessionStorage.removeItem(MINERA_MODO_UI_KEY);
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function limparModoUi() {
+    try { sessionStorage.removeItem(MINERA_MODO_UI_KEY); } catch (e) { /* ignore */ }
+}
+
+/** Se admin e sem modo gravado → default admin. Não-admin limpa o storage. */
+function garantirModoUiPadrao(perfil) {
+    if (!ehAdmin(perfil)) {
+        limparModoUi();
+        return null;
+    }
+    let m = lerModoUi();
+    if (!m) {
+        m = 'admin';
+        gravarModoUi(m);
+    }
+    return m;
+}
+
+function emModoAdminUi(perfil) {
+    return !!(ehAdmin(perfil) && garantirModoUiPadrao(perfil) === 'admin');
+}
+
+function emModoUsuarioUi(perfil) {
+    return !!(ehAdmin(perfil) && garantirModoUiPadrao(perfil) === 'usuario');
+}
+
+/** Páginas permitidas no modo monitoramento (além de admin.html). */
+const ADMIN_MODO_PAGINAS_OK = new Set(['admin', 'chat', 'perfil']);
+
+/**
+ * Em modo admin: redireciona páginas claramente de cliente para admin.html.
+ * Retorna true se redirecionou (caller deve abortar).
+ */
+function enforceAdminModoPagina(perfil, paginaAtiva) {
+    if (!emModoAdminUi(perfil)) return false;
+    const pag = String(paginaAtiva || '').toLowerCase();
+    if (ADMIN_MODO_PAGINAS_OK.has(pag)) return false;
+    irPara('admin.html');
+    return true;
+}
+
+/** Destino pós-login: admin em modo monitoramento → admin.html */
+async function destinoPosLogin(user) {
+    if (!user || !user.id) return 'inicio.html';
+    try {
+        const { data } = await supabaseClient
+            .from('usuarios')
+            .select('tipo,papeis')
+            .eq('auth_id', user.id)
+            .maybeSingle();
+        const stub = data
+            ? { tipo: data.tipo, papeis: normalizarPapeis(data.papeis, data.tipo) }
+            : null;
+        if (ehAdmin(stub)) {
+            const m = garantirModoUiPadrao(stub);
+            if (m === 'usuario') return 'inicio.html';
+            return 'admin.html';
+        }
+    } catch (e) {
+        console.warn('destinoPosLogin', e);
+    }
+    return 'inicio.html';
+}
+
 async function sairApp() {
+    limparModoUi();
     await supabaseClient.auth.signOut();
     irPara('index.html');
 }

@@ -135,22 +135,142 @@ function garantirHeaderCaixaBtn() {
     btn.href = href;
 }
 
+
+function garantirHeaderModoUiBtn(perfil) {
+    const header = document.querySelector('header.header-row');
+    if (!header) return;
+    let actions = header.querySelector('.header-actions');
+    if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'header-actions';
+        header.appendChild(actions);
+    }
+
+    // Remover sticky antigo se não-admin
+    const stickyOld = document.getElementById('modo-ui-sticky');
+    const btnOld = document.getElementById('btn-modo-ui');
+
+    if (!(typeof ehAdmin === 'function' && ehAdmin(perfil))) {
+        if (btnOld) btnOld.remove();
+        if (stickyOld) stickyOld.remove();
+        const bp = document.getElementById('btn-modo-ui-painel');
+        if (bp) bp.remove();
+        return;
+    }
+
+    const adminUi = typeof emModoAdminUi === 'function' && emModoAdminUi(perfil);
+    const usuarioUi = typeof emModoUsuarioUi === 'function' && emModoUsuarioUi(perfil);
+
+    let btn = btnOld;
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'btn-modo-ui';
+        btn.className = 'btn-modo-ui';
+        const notif = document.getElementById('btn-notif');
+        const sair = document.getElementById('btn-sair');
+        if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
+        else if (sair && sair.parentNode === actions) actions.insertBefore(btn, sair);
+        else actions.appendChild(btn);
+    }
+
+    if (adminUi) {
+        btn.textContent = 'Ver como usuário';
+        btn.title = 'Mostrar a interface normal de cliente';
+        btn.setAttribute('aria-label', 'Ver como usuário');
+        btn.classList.remove('btn-modo-voltar');
+        btn.classList.add('btn-modo-ver-user');
+        btn.onclick = () => {
+            if (typeof gravarModoUi === 'function') gravarModoUi('usuario');
+            irPara('inicio.html');
+        };
+        // Em chat/perfil: atalho de volta ao painel
+        let btnPainel = document.getElementById('btn-modo-ui-painel');
+        const onAdminPage = document.body && document.body.classList.contains('pagina-admin');
+        if (!onAdminPage) {
+            if (!btnPainel) {
+                btnPainel = document.createElement('a');
+                btnPainel.id = 'btn-modo-ui-painel';
+                btnPainel.className = 'btn-modo-ui btn-modo-painel';
+                btnPainel.textContent = 'Painel Admin';
+                btnPainel.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html';
+                actions.insertBefore(btnPainel, btn);
+            } else {
+                btnPainel.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html';
+                btnPainel.classList.remove('oculto');
+            }
+        } else if (btnPainel) {
+            btnPainel.remove();
+        }
+        if (stickyOld) stickyOld.remove();
+    } else if (usuarioUi) {
+        const bp = document.getElementById('btn-modo-ui-painel');
+        if (bp) bp.remove();
+        btn.textContent = 'Voltar ao Admin';
+        btn.title = 'Voltar ao painel de monitoramento';
+        btn.setAttribute('aria-label', 'Voltar ao Admin');
+        btn.classList.add('btn-modo-voltar');
+        btn.classList.remove('btn-modo-ver-user');
+        btn.onclick = () => {
+            if (typeof gravarModoUi === 'function') gravarModoUi('admin');
+            irPara('admin.html');
+        };
+        // Sticky bar para ficar visível ao rolar
+        let sticky = stickyOld;
+        if (!sticky) {
+            sticky = document.createElement('div');
+            sticky.id = 'modo-ui-sticky';
+            sticky.className = 'modo-ui-sticky';
+            document.body.insertBefore(sticky, document.body.firstChild);
+        }
+        sticky.innerHTML = '<span>Modo usuário (admin)</span>' +
+            '<button type="button" id="btn-modo-ui-sticky" class="btn-modo-ui btn-modo-voltar">Voltar ao Admin</button>';
+        const sb = document.getElementById('btn-modo-ui-sticky');
+        if (sb) {
+            sb.onclick = () => {
+                if (typeof gravarModoUi === 'function') gravarModoUi('admin');
+                irPara('admin.html');
+            };
+        }
+    } else {
+        btn.remove();
+        if (stickyOld) stickyOld.remove();
+    }
+}
+
 function montarNav(paginaAtiva, perfil) {
     garantirBrandLogo();
     garantirHeaderNotifBtn();
+
+    // Modo UI admin: default + bloqueio de páginas de cliente
+    if (typeof garantirModoUiPadrao === 'function') garantirModoUiPadrao(perfil);
+    if (typeof enforceAdminModoPagina === 'function' && enforceAdminModoPagina(perfil, paginaAtiva)) {
+        return;
+    }
+
+    const adminUi = typeof emModoAdminUi === 'function' && emModoAdminUi(perfil);
+    const usuarioUi = typeof emModoUsuarioUi === 'function' && emModoUsuarioUi(perfil);
     const isAdminPage = paginaAtiva === 'admin'
         || (document.body && document.body.classList.contains('pagina-admin'));
-    if (!isAdminPage) garantirHeaderCaixaBtn();
+    // Chrome de monitoramento: modo admin OU qualquer visita a admin.html
+    const hideClientChrome = adminUi || isAdminPage;
+
+    if (!hideClientChrome) garantirHeaderCaixaBtn();
     else {
         const caixaBtn = document.getElementById('btn-caixa-bank');
         if (caixaBtn) caixaBtn.classList.add('oculto');
     }
+
+    garantirHeaderModoUiBtn(perfil);
+
     const permitidos = new Set(chipsPermitidos(perfil));
     const body = document.body;
     if (body) {
         body.classList.toggle('pagina-chat', paginaAtiva === 'chat');
         body.classList.toggle('pagina-admin', isAdminPage);
-        if (isAdminPage) body.classList.remove('has-bottom-nav');
+        body.classList.toggle('modo-ui-admin', !!adminUi);
+        body.classList.toggle('modo-ui-usuario', !!usuarioUi);
+        if (hideClientChrome) body.classList.remove('has-bottom-nav');
         else body.classList.add('has-bottom-nav');
     }
 
@@ -161,12 +281,12 @@ function montarNav(paginaAtiva, perfil) {
             if (it.adminOnly && !(typeof ehAdmin === 'function' && ehAdmin(perfil))) return false;
             return permitidos.has(it.id);
         });
-        if (paginaAtiva === 'chat' || isAdminPage) {
+        if (paginaAtiva === 'chat' || hideClientChrome) {
             topNav.className = 'nav-chips nav-secondary oculto';
             topNav.innerHTML = '';
             topNav.setAttribute('aria-hidden', 'true');
             topNav.hidden = true;
-            if (!isAdminPage) garantirMaisSheet(secs);
+            if (!hideClientChrome) garantirMaisSheet(secs);
         } else {
             topNav.hidden = false;
             topNav.className = 'nav-chips nav-secondary';
@@ -197,9 +317,9 @@ function montarNav(paginaAtiva, perfil) {
         }
     }
 
-    // Bottom Instagram bar — oculto no Admin (monitoramento)
+    // Bottom Instagram bar — oculto no modo/página admin (monitoramento)
     let bar = document.getElementById('bottom-nav');
-    if (isAdminPage) {
+    if (hideClientChrome) {
         if (bar) {
             bar.classList.add('oculto');
             bar.setAttribute('aria-hidden', 'true');
@@ -207,6 +327,11 @@ function montarNav(paginaAtiva, perfil) {
         }
         const legado = document.getElementById('btn-sair');
         if (legado) legado.classList.remove('oculto');
+        // Esconde Fale conosco / Mais sheet no modo monitoramento
+        const sheet = document.getElementById('mais-sheet');
+        if (sheet) sheet.classList.add('oculto');
+        const fale = document.getElementById('fale-conosco-root') || document.getElementById('btn-fale-conosco');
+        if (fale) fale.classList.add('oculto');
     } else {
         if (!bar) {
             bar = document.createElement('nav');
@@ -239,8 +364,8 @@ function montarNav(paginaAtiva, perfil) {
         if (legado) legado.classList.add('oculto');
     }
 
-    // Fale conosco (Robô Minera) — não no Admin
-    if (!isAdminPage && typeof garantirFaleConosco === 'function') {
+    // Fale conosco (Robô Minera) — não no modo monitoramento admin
+    if (!hideClientChrome && typeof garantirFaleConosco === 'function') {
         garantirFaleConosco(perfil);
     }
 
