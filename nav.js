@@ -10,13 +10,17 @@ const NAV_PRIMARIOS = [
 
 const NAV_SECUNDARIOS = [
     { id: 'mapa', label: 'Mapa', href: 'mapa.html' },
-    { id: 'britagem', label: 'Britagem', href: 'processamento.html' },
-    { id: 'frete', label: 'Logística', href: 'frete.html' },
-    { id: 'estoque', label: 'Estoque', href: 'estoque.html' },
-    { id: 'expedicao', label: 'Expedição', href: 'expedicao.html' },
+    { id: 'britagem', label: 'Britagem', href: 'processamento.html', grupo: 'servicos', icon: '🪨' },
+    { id: 'frete', label: 'Frete / Logística', href: 'frete.html', grupo: 'servicos', icon: '🚛' },
+    { id: 'estoque', label: 'Estoque', href: 'estoque.html', grupo: 'servicos', icon: '📦' },
+    { id: 'expedicao', label: 'Expedição / Carregamento', href: 'expedicao.html', grupo: 'servicos', icon: '🏗️' },
     { id: 'relatorios', label: 'Relatórios', href: 'relatorios.html' },
     { id: 'admin', label: 'Admin', href: 'admin.html', adminOnly: true }
 ];
+
+const NAV_SERVICO_IDS = new Set(
+    NAV_SECUNDARIOS.filter(it => it.grupo === 'servicos').map(it => it.id)
+);
 
 const PAPEIS_CHIPS = {
     minerador: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
@@ -58,8 +62,37 @@ function fecharMaisSheet() {
 }
 
 function abrirMaisSheet() {
+    fecharServicosPanel();
     const sheet = document.getElementById('mais-sheet');
     if (sheet) sheet.classList.remove('oculto');
+}
+
+function fecharServicosPanel() {
+    const panel = document.getElementById('servicos-panel');
+    const btn = document.getElementById('nav-servicos');
+    if (panel) panel.classList.add('oculto');
+    if (btn) {
+        btn.setAttribute('aria-expanded', 'false');
+        btn.classList.remove('open');
+    }
+}
+
+function abrirServicosPanel() {
+    fecharMaisSheet();
+    const panel = document.getElementById('servicos-panel');
+    const btn = document.getElementById('nav-servicos');
+    if (panel) panel.classList.remove('oculto');
+    if (btn) {
+        btn.setAttribute('aria-expanded', 'true');
+        btn.classList.add('open');
+    }
+}
+
+function toggleServicosPanel() {
+    const panel = document.getElementById('servicos-panel');
+    if (!panel) return;
+    if (panel.classList.contains('oculto')) abrirServicosPanel();
+    else fecharServicosPanel();
 }
 
 function garantirMaisSheet(secundarios) {
@@ -282,31 +315,69 @@ function montarNav(paginaAtiva, perfil) {
         else body.classList.add('has-bottom-nav');
     }
 
-    // Top slim secondary row (role extras) — oculto no Chat e no Admin
+    // Top slim secondary row — Mapa + Serviços (dropdown) + Mais; oculto no Chat e no Admin
     const topNav = document.getElementById('app-nav');
     if (topNav) {
         const secs = NAV_SECUNDARIOS.filter(it => {
             if (it.adminOnly && !(typeof ehAdmin === 'function' && ehAdmin(perfil))) return false;
             return permitidos.has(it.id);
         });
+        const pinned = secs.filter(it => it.id === 'mapa' || it.featured);
+        const servicos = secs.filter(it => it.grupo === 'servicos');
+        // Mais sheet: Relatórios / Admin / Tutorial (sem duplicar Serviços nem Mapa)
+        const maisItens = secs.filter(it => it.id !== 'mapa' && !it.grupo);
         if (paginaAtiva === 'chat' || hideClientChrome) {
             topNav.className = 'nav-chips nav-secondary oculto';
             topNav.innerHTML = '';
             topNav.setAttribute('aria-hidden', 'true');
             topNav.hidden = true;
-            if (!hideClientChrome) garantirMaisSheet(secs);
+            if (!hideClientChrome) garantirMaisSheet(maisItens.length ? maisItens : secs);
         } else {
             topNav.hidden = false;
             topNav.className = 'nav-chips nav-secondary';
             topNav.removeAttribute('aria-hidden');
-            let html = secs.map(it => {
+            let html = '';
+            pinned.forEach(it => {
                 const on = it.id === paginaAtiva ? ' on' : '';
                 const feat = it.featured ? ' chip-featured' : '';
-                return '<a class="chip' + feat + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
-            }).join('');
+                html += '<a class="chip' + feat + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
+            });
+            if (servicos.length) {
+                const servOn = NAV_SERVICO_IDS.has(paginaAtiva) ? ' on' : '';
+                html += '<div class="servicos-wrap" id="servicos-wrap">' +
+                    '<button type="button" class="chip chip-servicos' + servOn + '" id="nav-servicos" aria-expanded="false" aria-haspopup="true" aria-controls="servicos-panel">' +
+                    'Serviços <span class="servicos-chevron" aria-hidden="true">▾</span></button>' +
+                    '<div class="servicos-panel oculto" id="servicos-panel" role="menu" aria-label="Serviços">' +
+                    servicos.map(it => {
+                        const on = it.id === paginaAtiva ? ' on' : '';
+                        return '<a class="servicos-item' + on + '" role="menuitem" href="' + APP_ROOT + it.href + '">' +
+                            '<span class="servicos-ico" aria-hidden="true">' + (it.icon || '•') + '</span>' +
+                            '<span>' + it.label + '</span></a>';
+                    }).join('') +
+                    '</div></div>';
+            }
             html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
             html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';
             topNav.innerHTML = html;
+
+            const btnServ = document.getElementById('nav-servicos');
+            if (btnServ) {
+                btnServ.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleServicosPanel();
+                });
+            }
+            if (!document._servicosOutsideBound) {
+                document._servicosOutsideBound = true;
+                document.addEventListener('click', (e) => {
+                    const wrap = document.getElementById('servicos-wrap');
+                    if (!wrap) return;
+                    if (!wrap.contains(e.target)) fecharServicosPanel();
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') fecharServicosPanel();
+                });
+            }
 
             const btnMais = document.getElementById('nav-mais');
             if (btnMais) btnMais.addEventListener('click', abrirMaisSheet);
@@ -321,7 +392,7 @@ function montarNav(paginaAtiva, perfil) {
                     }
                 });
             }
-            garantirMaisSheet(secs);
+            garantirMaisSheet(maisItens.length ? maisItens : secs);
         }
     }
 

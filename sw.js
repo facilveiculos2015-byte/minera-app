@@ -1,13 +1,13 @@
 /* Minera App service worker — cache shell for installability */
-const CACHE = 'minera-shell-20260917d';
+const CACHE = 'minera-shell-20260917e';
 const PRECACHE = [
   './',
   './index.html',
   './inicio.html',
-  './style.css?v=20260917d',
-  './nav.js?v=20260917d',
-  './config.js?v=20260917d',
-  './pwa.js?v=20260917d',
+  './style.css?v=20260917e',
+  './nav.js?v=20260917e',
+  './config.js?v=20260917e',
+  './pwa.js?v=20260917e',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
