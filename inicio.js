@@ -6,8 +6,11 @@ let filtroLocMode = 'todos';
 let filtroEstado = '';
 let filtroCidade = '';
 let filtroDdd = '';
+/** papel / publicado_como: '' | minerador | comprador | transportador | dono_britador | carregamento */
+let filtroServico = '';
 /** geo detectada no open: {cidade, estado, ddd} ou null */
 let geoPerto = null;
+const LS_FILTROS_ABERTOS = 'minera_filtros_abertos';
 let cotacaoTimer = null;
 let ultimoUsdBrl = null;
 
@@ -440,6 +443,78 @@ function setLocStatus(texto) {
     if (el) el.textContent = texto;
 }
 
+function lerFiltrosAbertosPref() {
+    try {
+        const v = localStorage.getItem(LS_FILTROS_ABERTOS);
+        if (v === '1') return true;
+        if (v === '0') return false;
+    } catch (e) { /* ignore */ }
+    return null; // sem preferência → default collapsed
+}
+
+function salvarFiltrosAbertosPref(aberto) {
+    try { localStorage.setItem(LS_FILTROS_ABERTOS, aberto ? '1' : '0'); } catch (e) { /* ignore */ }
+}
+
+function setFiltrosPanelAberto(aberto) {
+    const bar = document.getElementById('loc-bar');
+    const panel = document.getElementById('loc-bar-panel');
+    const btn = document.getElementById('loc-bar-toggle');
+    if (!bar || !panel || !btn) return;
+    bar.classList.toggle('loc-bar-collapsed', !aberto);
+    bar.classList.toggle('loc-bar-expanded', !!aberto);
+    panel.hidden = !aberto;
+    btn.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+}
+
+function bindFiltrosPanelToggle() {
+    const btn = document.getElementById('loc-bar-toggle');
+    if (!btn || btn._boundFiltros) return;
+    btn._boundFiltros = true;
+    btn.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') === 'true';
+        setFiltrosPanelAberto(!open);
+        salvarFiltrosAbertosPref(!open);
+    });
+}
+
+function resumoLocalAtual() {
+    if (filtroLocMode === 'cidade' && filtroCidade) {
+        const uf = (filtroEstado || '').toUpperCase();
+        const label = uf ? (filtroCidade + '-' + uf) : filtroCidade;
+        if (geoPerto && geoPerto.cidade && typeof LocalidadeBR !== 'undefined' &&
+            LocalidadeBR.norm(geoPerto.cidade) === LocalidadeBR.norm(filtroCidade) &&
+            String(geoPerto.estado || '').toUpperCase() === uf) {
+            return 'Perto de você: ' + label;
+        }
+        return 'Cidade: ' + label;
+    }
+    if (filtroLocMode === 'estado' && filtroEstado) {
+        return 'Estado: ' + String(filtroEstado).toUpperCase();
+    }
+    if (filtroLocMode === 'ddd' && filtroDdd) {
+        return 'DDD ' + filtroDdd;
+    }
+    if (geoPerto && geoPerto.cidade && geoPerto.estado) {
+        return 'Perto de você: ' + geoPerto.cidade + '-' + geoPerto.estado + ' (sem filtro)';
+    }
+    return 'Todo o Brasil';
+}
+
+function atualizarResumoLocal() {
+    setLocStatus(resumoLocalAtual());
+}
+
+function matchServico(lote, servico) {
+    if (!servico) return true;
+    const p = String(lote.publicado_como || '').toLowerCase();
+    if (!p) return false;
+    if (servico === 'transportador') {
+        return p === 'transportador' || p.indexOf('transportador_') === 0;
+    }
+    return p === servico;
+}
+
 function syncLocModeChips() {
     const box = document.getElementById('filtro-local-chips');
     if (!box) return;
@@ -520,6 +595,7 @@ function aplicarFiltros() {
         lista = lista.filter(l => String(l.ddd || '') === d);
     }
     if (filtroTipo) lista = lista.filter(l => (l.tipo_minerio || '') === filtroTipo);
+    if (filtroServico) lista = lista.filter(l => matchServico(l, filtroServico));
     if (filtroStatus) {
         lista = lista.filter(l => {
             const s = (l.status || '').toLowerCase();
@@ -598,6 +674,7 @@ async function onLocModeChange(mode) {
         // mantém selects mas não filtra
     }
     persistLocPref();
+    atualizarResumoLocal();
     await carregarFeed();
 }
 
@@ -614,6 +691,7 @@ async function onEstadoChange() {
         syncLocModeChips();
     }
     persistLocPref();
+    atualizarResumoLocal();
     await carregarFeed();
 }
 
@@ -633,6 +711,7 @@ async function onCidadeChange() {
         syncLocModeChips();
     }
     persistLocPref();
+    atualizarResumoLocal();
     await carregarFeed();
 }
 
@@ -644,6 +723,7 @@ async function onDddChange() {
         syncLocModeChips();
     }
     persistLocPref();
+    atualizarResumoLocal();
     await carregarFeed();
 }
 
@@ -702,6 +782,11 @@ async function initLocalidadeUI() {
     if (estSel) estSel.addEventListener('change', () => { onEstadoChange(); });
     if (cidSel) cidSel.addEventListener('change', () => { onCidadeChange(); });
     if (dddSel) dddSel.addEventListener('change', () => { onDddChange(); });
+
+    atualizarResumoLocal();
+    const prefOpen = lerFiltrosAbertosPref();
+    // Default collapsed (esp. após geo); respeita preferência salva
+    setFiltrosPanelAberto(prefOpen === true);
 }
 
 (async function init() {
@@ -715,8 +800,10 @@ async function initLocalidadeUI() {
     }
     if (typeof checarTutorialPrimeiroAcesso === 'function') checarTutorialPrimeiroAcesso();
     if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
+    bindFiltrosPanelToggle();
     bindChipGroup('filtro-tipo-chips', 'data-tipo', v => { filtroTipo = v; });
     bindChipGroup('filtro-status-chips', 'data-status', v => { filtroStatus = v; });
+    bindChipGroup('filtro-servico-chips', 'data-servico', v => { filtroServico = v; });
     // Notificações: MineraNotif (nav.js) liga o sino / badge de DMs
     atualizarCotacoes();
     cotacaoTimer = setInterval(atualizarCotacoes, 60000);

@@ -2536,21 +2536,73 @@ body.pagina-chat .nav-chips.nav-secondary {
     }
 }
 
-/* ===== Localidade Marketplace (20260916ae) ===== */
+/* ===== Localidade Marketplace (20260916af) ===== */
 .loc-bar {
     margin: 0 0 14px;
-    padding: 12px;
+    padding: 0;
     border-radius: 12px;
     border: 1px solid var(--border, #334155);
     background: rgba(15, 23, 42, 0.55);
+    overflow: hidden;
+}
+.loc-bar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin: 0;
+    padding: 10px 12px;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+.loc-bar-toggle:hover,
+.loc-bar-toggle:focus {
+    background: rgba(251, 191, 36, 0.08);
+    outline: none;
+}
+.loc-bar-toggle-title {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #94a3b8;
 }
 .loc-bar-status {
+    flex: 1;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--accent-color, #f59e0b);
-    margin-bottom: 8px;
+    line-height: 1.3;
+    margin: 0;
+    min-width: 0;
 }
-.loc-mode-chips { margin-bottom: 8px; }
+.loc-bar-chevron {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    opacity: 0.85;
+    color: #94a3b8;
+    transition: transform 0.15s ease;
+}
+.loc-bar-expanded .loc-bar-chevron { transform: rotate(180deg); }
+.loc-bar-panel {
+    padding: 0 12px 12px;
+    border-top: 1px solid rgba(148, 163, 184, 0.25);
+}
+.loc-mode-chips { margin: 10px 0 8px; }
+.filtro-grupo-label {
+    margin: 12px 0 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
 .loc-selects {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
