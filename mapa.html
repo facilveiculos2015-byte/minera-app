@@ -4,18 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Mapa</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ag">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ag">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260917a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260917a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260916ag">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzPCf9ltuBmfPSqGp53aX4TrjE=" crossorigin="">
+    <link rel="stylesheet" href="style.css?v=20260917a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
     <style>
-        /* Google Maps page — estilos locais (não depende de Leaflet) */
         .mapa-actions {
             display: flex;
             flex-wrap: wrap;
@@ -46,6 +47,67 @@
             opacity: 0.45;
             cursor: not-allowed;
         }
+        .mapa-busca {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: stretch;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .mapa-busca input[type="search"],
+        .mapa-busca input[type="text"] {
+            flex: 1 1 180px;
+            min-width: 140px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #020617;
+            color: #e2e8f0;
+            font-size: 0.88rem;
+        }
+        .mapa-busca .btn-mapa { flex: 0 0 auto; }
+        .mapa-busca-results {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% - 2px);
+            z-index: 1200;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            max-height: 220px;
+            overflow: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,.45);
+        }
+        .mapa-busca-results.oculto { display: none; }
+        .mapa-busca-results button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            appearance: none;
+            border: 0;
+            border-bottom: 1px solid #1e293b;
+            background: transparent;
+            color: #e2e8f0;
+            padding: 10px 12px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            line-height: 1.35;
+        }
+        .mapa-busca-results button:last-child { border-bottom: 0; }
+        .mapa-busca-results button:hover,
+        .mapa-busca-results button:focus {
+            background: #1e293b;
+            outline: none;
+        }
+        .mapa-busca-results .sub {
+            display: block;
+            color: #94a3b8;
+            font-size: 0.72rem;
+            margin-top: 2px;
+        }
         .mapa-info {
             flex-shrink: 0;
             font-size: 0.8rem;
@@ -59,23 +121,6 @@
         }
         .mapa-info.oculto { display: none; }
         .mapa-info strong { color: var(--accent-color); }
-        .mapa-rota-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            align-items: center;
-            margin-top: 6px;
-        }
-        .mapa-rota-row input {
-            flex: 1 1 140px;
-            min-width: 120px;
-            padding: 6px 8px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: #020617;
-            color: #e2e8f0;
-            font-size: 0.82rem;
-        }
         .mapa-key-panel {
             flex: 1 1 auto;
             min-height: 260px;
@@ -91,21 +136,18 @@
             background: #0b1220;
             color: #e2e8f0;
         }
+        .mapa-key-panel.oculto { display: none; }
         .mapa-key-panel h2 {
             margin: 0;
             font-size: 1.15rem;
             color: var(--accent-color);
         }
         .mapa-key-panel p { margin: 0; color: var(--muted); max-width: 420px; line-height: 1.45; }
-        .mapa-key-panel a {
-            color: var(--accent-color);
-            font-weight: 700;
-            text-decoration: underline;
-        }
         .mapa-canvas { position: relative; }
         .mapa-canvas.oculto { display: none; }
         body.mapa-fs .mapa-actions,
         body.mapa-fs .mapa-info,
+        body.mapa-fs .mapa-busca,
         body.mapa-fs .mapa-key-panel { display: none !important; }
         @media (max-width: 640px) {
             .mapa-actions .btn-mapa { padding: 8px 10px; font-size: 0.78rem; }
@@ -131,51 +173,51 @@
             <label class="mapa-toggle mapa-base-label">
                 Camada
                 <select id="mapa-base" class="mapa-base-select" aria-label="Camada do mapa">
-                    <option value="roadmap" selected>Mapa</option>
-                    <option value="hybrid">Satélite</option>
-                    <option value="satellite">Satélite (sem rótulos)</option>
-                    <option value="terrain">Relevo</option>
+                    <option value="osm" selected>Ruas (OpenStreetMap)</option>
+                    <option value="esri">Satélite (Esri)</option>
                 </select>
             </label>
-            <span class="mapa-toolbar-hint">Toque no mapa para marcar um ponto</span>
+            <span class="mapa-toolbar-hint">Mapa gratuito · busque por cidade ou toque para marcar</span>
+        </div>
+
+        <div class="mapa-busca" id="mapa-busca">
+            <input type="search" id="busca-cidade" placeholder="Buscar cidade (ex.: Parauapebas, PA)" autocomplete="off" enterkeyhint="search" aria-label="Buscar cidade">
+            <button type="button" class="btn-mapa" id="btn-buscar-cidade">🔎 Buscar cidade</button>
+            <div id="busca-cidade-results" class="mapa-busca-results oculto" role="listbox" aria-label="Resultados da busca"></div>
         </div>
 
         <div class="mapa-actions" id="mapa-actions">
             <button type="button" class="btn-mapa" id="btn-minha-loc">📍 Minha localização</button>
             <button type="button" class="btn-mapa" id="btn-marcar" title="Ative e toque no mapa">📌 Marcar ponto</button>
-            <button type="button" class="btn-mapa" id="btn-rota-marcador">🛣️ Rota até o marcador</button>
+            <button type="button" class="btn-mapa" id="btn-rota-simples" title="Linha reta entre minha localização e o marcador">🛣️ Rota simples</button>
             <button type="button" class="btn-mapa" id="btn-enviar-chat" disabled>💬 Enviar no chat</button>
             <button type="button" class="btn-mapa" id="btn-limpar-rota">Limpar rota</button>
         </div>
 
         <div class="mapa-info oculto" id="mapa-info" aria-live="polite"></div>
 
-        <div id="mapa-key-panel" class="mapa-key-panel oculto" role="alert">
-            <h2>Configure a chave Google Maps no config</h2>
+        <div id="mapa-key-panel" class="mapa-key-panel oculto" role="status">
+            <h2>Mapa gratuito ativo</h2>
             <p>
-                Defina <code>GOOGLE_MAPS_API_KEY</code> (ou <code>window.MINERA_GOOGLE_MAPS_KEY</code>)
-                em <code>config.js</code>. Ative <strong>Maps JavaScript API</strong>
-                (e opcionalmente Places / Geocoding / Directions) no Google Cloud.
-            </p>
-            <p>
-                <a href="https://console.cloud.google.com/google/maps-apis/api-list"
-                   target="_blank" rel="noopener">Abrir Google Cloud Console</a>
-                · veja também <code>docs/google-maps-key.md</code>
+                Usando Leaflet + OpenStreetMap (sem chave). Google Maps é opcional
+                e pode ser configurado depois — veja <code>docs/google-maps-key.md</code>.
             </p>
         </div>
 
-        <div id="mapa" class="mapa-canvas" role="application" aria-label="Mapa Google"></div>
+        <div id="mapa" class="mapa-canvas" role="application" aria-label="Mapa"></div>
 
         <p class="mapa-legend" id="mapa-legend">
-            Google Maps · ruas e satélite
+            OpenStreetMap (gratuito) · busca por cidade · sem chave de API
         </p>
     </div>
 
-    <script src="config.js?v=20260916ag"></script>
-    <script src="auth-guard.js?v=20260916ag"></script>
-    <script src="suporte.js?v=20260916ag"></script>
-    <script src="nav.js?v=20260916ag"></script>
-    <script src="mapa.js?v=20260916ag"></script>
-    <script src="pwa.js?v=20260916ag"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="config.js?v=20260917a"></script>
+    <script src="auth-guard.js?v=20260917a"></script>
+    <script src="suporte.js?v=20260917a"></script>
+    <script src="nav.js?v=20260917a"></script>
+    <script src="mapa.js?v=20260917a"></script>
+    <script src="pwa.js?v=20260917a"></script>
 </body>
 </html>

@@ -1,54 +1,58 @@
-# Chave Google Maps (Minera App)
+# Mapa do Minera App (gratuito + Google opcional)
 
-O mapa do app usa a **Google Maps JavaScript API** (ruas, satélite, marcador, rota e envio no chat).
+## Padrão atual: mapa **gratuito** (sem chave)
 
-## 1. Criar a chave
+O app usa **Leaflet** com:
+
+| Camada | Fonte | Chave |
+|--------|-------|-------|
+| Ruas (padrão) | OpenStreetMap tiles | nenhuma |
+| Satélite | Esri World Imagery | nenhuma |
+| Busca de cidade | Nominatim OSM (`countrycodes=br`) via fetch + proxy CORS (`api.allorigins.win`) se necessário | nenhuma |
+| Minha localização | Geolocalização do navegador | nenhuma |
+| Rota simples | Polilinha reta entre localização e marcador (**não** turn-by-turn) | nenhuma |
+| Enviar no chat | `chat.html?lat=&lng=&label=` | nenhuma |
+
+**Não é necessário** ativar faturamento Google Cloud nem preencher `GOOGLE_MAPS_API_KEY`.
+
+### Como testar
+
+1. Abra **Mapa** (usuário logado).
+2. Confirme que o mapa de ruas carrega (sem painel pedindo chave).
+3. Em **Buscar cidade**, digite p.ex. `Parauapebas` → **Buscar cidade** → escolha o resultado (ou o único) → o mapa voa até a cidade e marca o ponto.
+4. **Minha localização** (permita GPS) → pino azul.
+5. Toque no mapa com **Marcar ponto (on)** → **Enviar no chat** abre o chat com lat/lng/label.
+6. Com localização + marcador: **Rota simples** desenha linha reta rotulada “rota simples (sem Google)”.
+7. Troque a camada para **Satélite (Esri)**.
+
+## Google Maps (opcional, depois)
+
+Se no futuro houver billing Google Cloud e quiser Maps JS / Directions:
 
 1. Abra o [Google Cloud Console](https://console.cloud.google.com/).
-2. Crie ou selecione um projeto.
-3. Ative as APIs:
-   - **Maps JavaScript API** (obrigatória)
-   - **Geocoding API** (endereço reverso do pino — recomendada)
-   - **Directions API** (rotas — recomendada)
-   - **Places API** (opcional; carregada no script)
-4. Em **APIs e serviços → Credenciais → Criar credenciais → Chave de API**.
-
-## 2. Restringir a chave (HTTP referrer)
-
-Para GitHub Pages do Minera:
-
-- Tipo de restrição da aplicação: **Referenciadores HTTP (sites)**
-- Referrers sugeridos:
-  - `https://facilveiculos2015-byte.github.io/minera-app/*`
-  - `https://facilveiculos2015-byte.github.io/*`
-  - Em desenvolvimento local (se precisar): `http://localhost/*` e `http://127.0.0.1/*`
-
-Restrição de API: limite às APIs listadas acima.
-
-## 3. Colocar no `config.js`
+2. Ative **Maps JavaScript API** (e opcionalmente Geocoding / Directions / Places).
+3. Crie uma chave de API com restrição HTTP referrer:
+   - `https://facilveiculos2015-byte.github.io/minera-app/*`
+   - `https://facilveiculos2015-byte.github.io/*`
+4. Em `config.js`:
 
 ```js
 const GOOGLE_MAPS_API_KEY = 'SUA_CHAVE_AQUI';
 ```
 
-Alternativa (sem editar o const):
+ou:
 
 ```js
 window.MINERA_GOOGLE_MAPS_KEY = 'SUA_CHAVE_AQUI';
 ```
 
-**Não** faça commit de uma chave de produção sem restrição de referrer. O placeholder no repositório permanece `''`.
+Enquanto a chave estiver vazia (ou billing recusado), o app **não bloqueia**: continua no mapa gratuito Leaflet.
 
-## 4. Faturamento / limites
+**Não** faça commit de chave de produção sem restrição de referrer. O placeholder no repositório permanece `''`.
 
-- Contas Google Cloud exigem faturamento ativo para Maps em produção.
-- Sem chave, billing ou API ativada: o app mostra o painel “Configure a chave Google Maps no config”.
-- Sem Geocoding: o pino ainda funciona (só lat/lng).
-- Sem Directions: botões de rota falham com aviso; mapa e envio no chat continuam ok.
-
-## 5. Enviar localização no chat
+## Enviar localização no chat
 
 1. Abra **Mapa**.
-2. Toque no mapa (**Marcar ponto**) ou use **Minha localização**.
+2. Busque uma cidade, toque no mapa (**Marcar ponto**) ou use **Minha localização**.
 3. Toque **Enviar no chat**.
-4. Se já houver `?com=` (DM), abre a conversa com o texto pré-preenchido; senão, escolha o contato e envie a mensagem (texto + link `https://maps.google.com/?q=lat,lng`).
+4. Se já houver `?com=` (DM), abre a conversa com o texto pré-preenchido; senão, escolha o contato e envie (texto + link OpenStreetMap / coords).
