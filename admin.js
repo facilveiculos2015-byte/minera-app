@@ -688,6 +688,13 @@ function rotuloPapeisEmp(papeis, tipo) {
     return arr.map(p => labels[p] || p).join(', ') || (tipo || '—');
 }
 
+let creditoFilaAtiva = 'analise';
+let creditoCacheRows = [];
+
+function fmtBRL(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 function atualizarBadgeEmprestimos(n) {
     const kpi = document.getElementById('kpi-emprestimos');
     if (kpi) kpi.textContent = String(n);
@@ -707,10 +714,64 @@ function atualizarBadgeEmprestimos(n) {
     } catch (e) { /* ignore */ }
 }
 
+function filaDeEmprestimo(e) {
+    if (e.fila) return String(e.fila);
+    const st = String(e.status || 'analise');
+    if (st === 'analise') return 'analise';
+    if (st === 'rejeitado') return 'recusados';
+    if (st === 'pago') return 'quitados';
+    if (st === 'aprovado') {
+        if (e.dias_atraso != null && Number(e.dias_atraso) > 0) return 'atraso';
+        if (e.vencimento) {
+            const venc = new Date(String(e.vencimento).slice(0, 10) + 'T12:00:00');
+            const hoje = new Date();
+            hoje.setHours(12, 0, 0, 0);
+            const diff = Math.round((venc - hoje) / 86400000);
+            if (diff < 0) return 'atraso';
+            if (diff <= 3) return 'a_vencer';
+        }
+        if (e.dias_restantes != null && Number(e.dias_restantes) <= 3) return 'a_vencer';
+        return 'ativos';
+    }
+    return st;
+}
+
+function checklistDocsHtml(e) {
+    const docs = [
+        ['Energia', e.doc_energia_url],
+        ['Identidade', e.doc_identidade_url],
+        ['CPF', e.doc_cpf_url],
+        ['Selfie', e.doc_selfie_url],
+        ['Extrato', e.doc_extrato_url]
+    ];
+    return '<ul class="doc-checklist">' + docs.map(([lab, url]) => {
+        const ok = !!url;
+        return '<li class="' + (ok ? 'doc-ok' : 'doc-falta') + '">' +
+            (ok ? '✓' : '✗') + ' ' + lab +
+            (ok ? ' <a href="' + esc(url) + '" target="_blank" rel="noopener">ver</a>' : '') +
+            '</li>';
+    }).join('') + '</ul>';
+}
+
+function diasLabel(e) {
+    const fila = filaDeEmprestimo(e);
+    if (fila === 'atraso') {
+        const d = e.dias_atraso != null ? e.dias_atraso : '—';
+        return '<span class="badge badge-atrasado">' + esc(d) + ' dia(s) atraso</span>';
+    }
+    if (fila === 'a_vencer' || fila === 'ativos') {
+        const d = e.dias_restantes != null ? e.dias_restantes : '—';
+        return '<span class="badge badge-pendente">' + esc(d) + ' dia(s) rest.</span>';
+    }
+    if (fila === 'quitados' && e.pago_em) {
+        return '<span class="sub">Quitado ' + esc(new Date(e.pago_em).toLocaleDateString('pt-BR')) + '</span>';
+    }
+    return '<span class="sub">—</span>';
+}
+
 async function buscarEmprestimosAdminRows() {
-    // Prefer RPC (SQL 23) — includes papeis even if RLS join is awkward
     try {
-        const { data, error } = await supabaseClient.rpc('admin_listar_emprestimos', { p_limit: 80 });
+        const { data, error } = await supabaseClient.rpc('admin_listar_emprestimos', { p_limit: 120 });
         if (!error && Array.isArray(data)) return data;
         if (error) console.warn('admin_listar_emprestimos:', error.message);
     } catch (e) {
@@ -720,10 +781,9 @@ async function buscarEmprestimosAdminRows() {
         .from('emprestimos')
         .select('*')
         .order('criado_em', { ascending: false })
-        .limit(80);
+        .limit(120);
     if (error) throw error;
     const rows = data || [];
-    // Enrich with usuarios.papeis when possible
     const ids = [...new Set(rows.map(r => r.auth_id).filter(Boolean))];
     let byAuth = {};
     if (ids.length) {
@@ -733,12 +793,191 @@ async function buscarEmprestimosAdminRows() {
             .in('auth_id', ids);
         (users || []).forEach(u => { byAuth[u.auth_id] = u; });
     }
+    const hoje = new Date();
+    hoje.setHours(12, 0, 0, 0);
     return rows.map(e => {
         const u = byAuth[e.auth_id] || {};
+        let dias_restantes = null, dias_atraso = null;
+        if (e.vencimento && String(e.status) === 'aprovado') {
+            const venc = new Date(String(e.vencimento).slice(0, 10) + 'T12:00:00');
+            const diff = Math.round((venc - hoje) / 86400000);
+            if (diff < 0) dias_atraso = -diff;
+            else dias_restantes = diff;
+        }
         return Object.assign({}, e, {
             usuario_nome: u.nome || null,
             usuario_tipo: u.tipo || null,
-            usuario_papeis: u.papeis || []
+            usuario_papeis: u.papeis || [],
+            dias_restantes,
+            dias_atraso
+        });
+    });
+}
+
+async function carregarCreditoKpis() {
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_credito_kpis');
+        if (!error && data) {
+            const row = Array.isArray(data) ? data[0] : data;
+            if (row) {
+                const set = (id, v, money) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.textContent = money ? fmtBRL(v) : String(v != null ? v : '—');
+                };
+                set('ckpi-analise', row.em_analise);
+                set('ckpi-vencer', row.a_vencer_3d);
+                set('ckpi-atraso', row.atrasados);
+                set('ckpi-aberto', row.total_em_aberto, true);
+                set('ckpi-quitado', row.total_quitado_mes, true);
+                return;
+            }
+        }
+    } catch (e) { console.warn('admin_credito_kpis', e); }
+    const rows = creditoCacheRows || [];
+    let analise = 0, vencer = 0, atraso = 0, aberto = 0, quitado = 0;
+    const hoje = new Date();
+    const mesIni = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    rows.forEach(e => {
+        const f = filaDeEmprestimo(e);
+        if (f === 'analise') analise++;
+        if (f === 'a_vencer') vencer++;
+        if (f === 'atraso') atraso++;
+        if (String(e.status) === 'aprovado') aberto += Number(e.valor) || 0;
+        if (String(e.status) === 'pago') {
+            const when = e.pago_em || e.atualizado_em;
+            if (when && new Date(when) >= mesIni) quitado += Number(e.valor) || 0;
+        }
+    });
+    const set = (id, v, money) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = money ? fmtBRL(v) : String(v);
+    };
+    set('ckpi-analise', analise);
+    set('ckpi-vencer', vencer);
+    set('ckpi-atraso', atraso);
+    set('ckpi-aberto', aberto, true);
+    set('ckpi-quitado', quitado, true);
+}
+
+function renderCreditoLista(rows) {
+    const box = document.getElementById('admin-emprestimos');
+    if (!box) return;
+    const filtered = (rows || []).filter(e => filaDeEmprestimo(e) === creditoFilaAtiva);
+    if (!filtered.length) {
+        box.innerHTML = '<p class="sub">Nenhum empréstimo nesta fila.</p>';
+        return;
+    }
+    const lab = {
+        analise: 'Em análise', aprovado: 'Aprovado', rejeitado: 'Recusado', pago: 'Quitado',
+        a_vencer: 'A vencer', atraso: 'Em atraso', ativos: 'Ativo', quitados: 'Quitado', recusados: 'Recusado'
+    };
+    const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
+    box.innerHTML = filtered.map(e => {
+        const st = String(e.status || 'analise');
+        const fila = filaDeEmprestimo(e);
+        const nomeShow = e.nome || e.usuario_nome || '—';
+        const auth = e.auth_id || '';
+        const chatHref = root + 'chat.html?com=' + encodeURIComponent(auth);
+        const when = e.criado_em ? new Date(e.criado_em).toLocaleString('pt-BR') : '—';
+        const venc = e.vencimento
+            ? new Date(String(e.vencimento).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR')
+            : '—';
+        let btns = '';
+        if (st === 'analise') {
+            btns = '<button type="button" class="btn-sm btn-ok" data-act="aprovar">Aprovar</button> ' +
+                '<button type="button" class="btn-sm btn-danger" data-act="rejeitar">Recusar</button> ';
+        } else if (st === 'aprovado') {
+            btns = '<button type="button" class="btn-sm btn-ok" data-act="quitado">Marcar quitado</button> ';
+        }
+        btns += '<a class="btn-sm btn-ghost" href="' + chatHref + '">Abrir chat</a>';
+        const kycBits = [
+            e.endereco ? ('Endereço: ' + e.endereco) : '',
+            e.empresa ? ('Empresa: ' + e.empresa) : '',
+            e.anos_empresa != null ? ('Anos na empresa: ' + e.anos_empresa) : '',
+            e.comprova_renda != null ? ('Comprova renda: ' + (e.comprova_renda ? 'sim' : 'não')) : '',
+            e.finalidade ? ('Finalidade: ' + e.finalidade) : '',
+            e.telefone ? ('Tel: ' + e.telefone) : '',
+            e.renda_declarada != null ? ('Renda: ' + fmtBRL(e.renda_declarada)) : '',
+            e.observacoes ? ('Obs: ' + e.observacoes) : '',
+            rotuloPapeisEmp(e.usuario_papeis, e.usuario_tipo)
+        ].filter(Boolean).join(' · ') || 'Sem dados KYC';
+        return `<article class="credito-card" data-id="${e.id}">
+            <div class="credito-card-head">
+                <a class="credito-nome" href="${chatHref}" title="Abrir chat"><strong>${esc(nomeShow)}</strong></a>
+                <span class="badge ${fila === 'atraso' ? 'badge-atrasado' : (st === 'analise' ? 'badge-pendente' : (st === 'rejeitado' ? 'badge-atrasado' : 'badge-pago'))}">${esc(lab[fila] || lab[st] || st)}</span>
+            </div>
+            <div class="credito-card-meta">
+                <span>${esc(fmtBRL(e.valor))}</span>
+                <span>Solicitado: ${esc(when)}</span>
+                <span>Vencimento: ${esc(venc)}</span>
+                ${diasLabel(e)}
+            </div>
+            <div class="credito-card-kyc sub">${esc(kycBits)}</div>
+            <div class="credito-card-docs">${checklistDocsHtml(e)}</div>
+            <div class="card-actions">${btns}</div>
+        </article>`;
+    }).join('');
+
+    box.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const card = btn.closest('.credito-card');
+            const id = parseInt(card.getAttribute('data-id'), 10);
+            const row = (creditoCacheRows || []).find(x => x.id === id);
+            const act = btn.getAttribute('data-act');
+            btn.disabled = true;
+            try {
+                if (act === 'aprovar') {
+                    let dias = Number(row && row.prazo_dias) || 30;
+                    const ask = prompt('Prazo até o vencimento (dias):', String(dias));
+                    if (ask === null) { btn.disabled = false; return; }
+                    dias = parseInt(ask, 10);
+                    if (!(dias > 0)) throw new Error('Informe dias válidos');
+                    const venc = new Date();
+                    venc.setDate(venc.getDate() + dias);
+                    const vencStr = venc.toISOString().slice(0, 10);
+                    const { error } = await supabaseClient.from('emprestimos').update({
+                        status: 'aprovado',
+                        vencimento: vencStr,
+                        atualizado_em: new Date().toISOString()
+                    }).eq('id', id);
+                    if (error) throw error;
+                    if (row) await creditarCaixaEmprestimo(row);
+                    toastMsg('Crédito liberado · vencimento ' + new Date(vencStr + 'T12:00:00').toLocaleDateString('pt-BR'));
+                } else if (act === 'rejeitar') {
+                    const { error } = await supabaseClient.from('emprestimos').update({
+                        status: 'rejeitado',
+                        atualizado_em: new Date().toISOString()
+                    }).eq('id', id);
+                    if (error) throw error;
+                    toastMsg('Empréstimo recusado');
+                } else if (act === 'quitado' || act === 'pago') {
+                    const { error } = await supabaseClient.from('emprestimos').update({
+                        status: 'pago',
+                        pago_em: new Date().toISOString(),
+                        atualizado_em: new Date().toISOString()
+                    }).eq('id', id);
+                    if (error) throw error;
+                    toastMsg('Empréstimo marcado como quitado');
+                }
+                carregarEmprestimosAdmin();
+            } catch (e) {
+                btn.disabled = false;
+                toastMsg('Erro: ' + (e.message || e) + ' (SQL 23/30?)');
+            }
+        });
+    });
+}
+
+function bindCreditoFilas() {
+    const wrap = document.getElementById('credito-filas');
+    if (!wrap || wrap._bound) return;
+    wrap._bound = true;
+    wrap.querySelectorAll('[data-fila]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            creditoFilaAtiva = btn.getAttribute('data-fila') || 'analise';
+            wrap.querySelectorAll('[data-fila]').forEach(b => b.classList.toggle('on', b === btn));
+            renderCreditoLista(creditoCacheRows);
         });
     });
 }
@@ -746,99 +985,170 @@ async function buscarEmprestimosAdminRows() {
 async function carregarEmprestimosAdmin() {
     const box = document.getElementById('admin-emprestimos');
     if (!box) return;
+    bindCreditoFilas();
     try {
         const data = await buscarEmprestimosAdminRows();
-        const pendentes = (data || []).filter(e => String(e.status || 'analise') === 'analise').length;
+        creditoCacheRows = data || [];
+        const pendentes = creditoCacheRows.filter(e => filaDeEmprestimo(e) === 'analise').length;
         atualizarBadgeEmprestimos(pendentes);
-        if (!data || !data.length) {
-            box.innerHTML = '<p>Nenhum empréstimo solicitado ainda.</p>';
-            return;
-        }
-        const lab = { analise: 'Em análise', aprovado: 'Aprovado / creditado', rejeitado: 'Recusado', pago: 'Pago' };
-        const pend = (data || []).filter(e => String(e.status || '') === 'analise');
-        const rest = (data || []).filter(e => String(e.status || '') !== 'analise');
-        const ordered = pend.concat(rest);
-        box.innerHTML = (pendentes
-            ? '<p class="aviso-credito"><strong>' + pendentes + '</strong> pedido(s) aguardando análise de crédito.</p>'
-            : '<p class="sub">Nenhum pedido pendente no momento.</p>') +
-            '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-            '<th>Quando</th><th>Solicitante</th><th>Papéis</th><th>Valor / Total</th><th>Prazo</th><th>Formulário</th><th>Status</th><th></th></tr></thead><tbody>' +
-            ordered.map(e => {
-                const when = e.criado_em ? new Date(e.criado_em).toLocaleString('pt-BR') : '—';
-                const st = String(e.status || 'analise');
-                let btns = '';
-                if (st === 'analise') {
-                    btns = '<button type="button" class="btn-sm btn-ok" data-act="aprovar">Liberar crédito</button> ' +
-                        '<button type="button" class="btn-sm btn-danger" data-act="rejeitar">Recusar</button>';
-                } else if (st === 'aprovado') {
-                    btns = '<button type="button" class="btn-sm btn-ok" data-act="pago">Marcar pago</button>';
-                }
-                const nomeShow = e.nome || e.usuario_nome || '—';
-                const papeis = rotuloPapeisEmp(e.usuario_papeis, e.usuario_tipo);
-                const total = Number(e.total_previsto != null ? e.total_previsto : (Number(e.valor) || 0) * (1 + 0.15 * ((Number(e.prazo_dias) || 30) / 30)));
-                const formBits = [
-                    e.finalidade ? ('Finalidade: ' + e.finalidade) : '',
-                    e.telefone ? ('Tel: ' + e.telefone) : '',
-                    e.renda_declarada != null ? ('Renda: ' + Number(e.renda_declarada).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })) : '',
-                    e.observacoes ? ('Obs: ' + e.observacoes) : ''
-                ].filter(Boolean).join(' · ') || '—';
-                const rowCls = st === 'analise' ? ' class="row-pendente"' : '';
-                return `<tr data-id="${e.id}"${rowCls}>
-                    <td>${esc(when)}</td>
-                    <td><strong>${esc(nomeShow)}</strong><br><span class="sub">${esc(String(e.auth_id || '').slice(0, 8))}…</span></td>
-                    <td>${esc(papeis)}</td>
-                    <td>${esc(Number(e.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}<br><span class="sub">prev. ${esc(total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))}</span></td>
-                    <td>${esc(e.prazo_dias)} d</td>
-                    <td class="sub">${esc(formBits)}</td>
-                    <td><span class="badge ${st === 'analise' ? 'badge-pendente' : (st === 'rejeitado' ? 'badge-atrasado' : 'badge-pago')}">${esc(lab[st] || st)}</span></td>
-                    <td class="card-actions">${btns}</td>
-                </tr>`;
-            }).join('') + '</tbody></table></div>';
-
-        box.querySelectorAll('[data-act]').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const tr = btn.closest('tr');
-                const id = parseInt(tr.getAttribute('data-id'), 10);
-                const row = (ordered || []).find(x => x.id === id);
-                const act = btn.getAttribute('data-act');
-                btn.disabled = true;
-                try {
-                    if (act === 'aprovar') {
-                        const { error } = await supabaseClient.from('emprestimos').update({
-                            status: 'aprovado',
-                            atualizado_em: new Date().toISOString()
-                        }).eq('id', id);
-                        if (error) throw error;
-                        if (row) await creditarCaixaEmprestimo(row);
-                        toastMsg('Crédito liberado no Caixa Minera do solicitante');
-                    } else if (act === 'rejeitar') {
-                        const { error } = await supabaseClient.from('emprestimos').update({
-                            status: 'rejeitado',
-                            atualizado_em: new Date().toISOString()
-                        }).eq('id', id);
-                        if (error) throw error;
-                        toastMsg('Empréstimo recusado');
-                    } else if (act === 'pago') {
-                        const { error } = await supabaseClient.from('emprestimos').update({
-                            status: 'pago',
-                            atualizado_em: new Date().toISOString()
-                        }).eq('id', id);
-                        if (error) throw error;
-                        toastMsg('Empréstimo marcado como pago');
-                    }
-                    carregarEmprestimosAdmin();
-                } catch (e) {
-                    btn.disabled = false;
-                    toastMsg('Erro: ' + (e.message || e) + ' (aplique SQL 23?)');
-                }
-            });
-        });
+        await carregarCreditoKpis();
+        renderCreditoLista(creditoCacheRows);
     } catch (e) {
         atualizarBadgeEmprestimos(0);
-        box.innerHTML = '<p class="erro">' + esc(e.message) + ' — aplique sql/23-admin-emprestimos.sql no Supabase.</p>';
+        box.innerHTML = '<p class="erro">' + esc(e.message) +
+            ' — aplique sql/23-admin-emprestimos.sql e sql/30-admin-credito.sql no Supabase.</p>';
     }
 }
 
+function bindAdminTabs() {
+    const tabs = document.getElementById('admin-tabs');
+    if (!tabs || tabs._bound) return;
+    tabs._bound = true;
+    const show = (name) => {
+        document.querySelectorAll('.admin-tab').forEach(t => {
+            const on = t.getAttribute('data-tab') === name;
+            t.classList.toggle('on', on);
+            t.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('.admin-panel').forEach(p => {
+            p.classList.toggle('oculto', p.getAttribute('data-panel') !== name);
+        });
+        try { history.replaceState(null, '', '#' + name); } catch (e) { /* ignore */ }
+    };
+    tabs.querySelectorAll('.admin-tab').forEach(btn => {
+        btn.addEventListener('click', () => show(btn.getAttribute('data-tab') || 'visao'));
+    });
+    const hash = (location.hash || '').replace('#', '');
+    const map = {
+        'sec-admin-emprestimos': 'credito',
+        alertas: 'alertas',
+        credito: 'credito',
+        caixa: 'caixa',
+        usuarios: 'usuarios',
+        chat: 'chat',
+        visao: 'visao'
+    };
+    show(map[hash] || (hash && document.querySelector('.admin-panel[data-panel="' + hash + '"]') ? hash : 'visao'));
+}
+
+async function carregarAlertasAdmin() {
+    const box = document.getElementById('admin-alertas');
+    if (!box) return;
+    try {
+        try { await supabaseClient.rpc('admin_gerar_alertas_credito'); } catch (e) { /* optional */ }
+        let rows = [];
+        try {
+            const { data, error } = await supabaseClient.rpc('admin_listar_alertas', { p_limit: 80 });
+            if (!error && Array.isArray(data)) rows = data;
+            else throw error || new Error('RPC indisponível');
+        } catch (e) {
+            const { data, error } = await supabaseClient
+                .from('admin_alertas')
+                .select('*')
+                .order('criado_em', { ascending: false })
+                .limit(80);
+            if (error) throw error;
+            rows = data || [];
+        }
+        const unread = rows.filter(a => !a.lido).length;
+        const badge = document.getElementById('badge-admin-alertas');
+        if (badge) {
+            if (unread > 0) {
+                badge.textContent = unread > 99 ? '99+' : String(unread);
+                badge.classList.remove('oculto');
+            } else badge.classList.add('oculto');
+        }
+        try {
+            if (typeof MineraNotif !== 'undefined' && MineraNotif.setAdminAlertas) {
+                MineraNotif.setAdminAlertas(unread);
+            }
+        } catch (e) { /* ignore */ }
+
+        if (!rows.length) {
+            // Fallback: show due/overdue from cache
+            const extras = (creditoCacheRows || []).filter(e => {
+                const f = filaDeEmprestimo(e);
+                return f === 'a_vencer' || f === 'atraso';
+            });
+            if (!extras.length) {
+                box.innerHTML = '<p class="sub">Nenhum alerta no momento.</p>';
+                return;
+            }
+            box.innerHTML = extras.map(e => {
+                const f = filaDeEmprestimo(e);
+                const chat = e.auth_id
+                    ? '<a class="btn-sm btn-ghost" href="' + (typeof APP_ROOT === 'string' ? APP_ROOT : '') +
+                      'chat.html?com=' + encodeURIComponent(e.auth_id) + '">Abrir chat</a>'
+                    : '';
+                return `<div class="alerta-item alerta-novo">
+                    <div><strong>${esc(f === 'atraso' ? 'Empréstimo em atraso' : 'Empréstimo a vencer')}</strong></div>
+                    <p>${esc((e.nome || e.usuario_nome || 'Cliente') + ' · ' + fmtBRL(e.valor))}</p>
+                    <div class="card-actions">${chat}</div>
+                </div>`;
+            }).join('');
+            return;
+        }
+
+        const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
+        box.innerHTML = rows.map(a => {
+            const when = a.criado_em ? new Date(a.criado_em).toLocaleString('pt-BR') : '';
+            const chat = a.auth_id
+                ? ('<a class="btn-sm btn-ghost" href="' + root + 'chat.html?com=' + encodeURIComponent(a.auth_id) + '">Abrir chat</a>')
+                : '';
+            const mark = !a.lido
+                ? ('<button type="button" class="btn-sm" data-act="lido" data-id="' + a.id + '">Marcar lido</button>')
+                : '';
+            return `<div class="alerta-item ${a.lido ? 'alerta-lido' : 'alerta-novo'}">
+                <div><strong>${esc(a.titulo || a.tipo)}</strong>
+                <span class="sub">${esc(when)}</span></div>
+                <p>${esc(a.corpo || '')}</p>
+                <div class="card-actions">${mark} ${chat}</div>
+            </div>`;
+        }).join('');
+        box.querySelectorAll('[data-act="lido"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                try {
+                    await supabaseClient.rpc('admin_marcar_alerta_lido', { p_id: Number(id) });
+                } catch (e) {
+                    await supabaseClient.from('admin_alertas').update({ lido: true }).eq('id', id);
+                }
+                carregarAlertasAdmin();
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' — aplique sql/30-admin-credito.sql</p>';
+    }
+}
+
+function bindAlertasBtns() {
+    const g = document.getElementById('btn-gerar-alertas');
+    if (g && !g._bound) {
+        g._bound = true;
+        g.addEventListener('click', async () => {
+            try {
+                await supabaseClient.rpc('admin_gerar_alertas_credito');
+                toastMsg('Alertas atualizados');
+            } catch (e) {
+                toastMsg('Falha ao gerar (SQL 30?): ' + (e.message || e));
+            }
+            carregarAlertasAdmin();
+        });
+    }
+    const m = document.getElementById('btn-marcar-alertas-lidos');
+    if (m && !m._bound) {
+        m._bound = true;
+        m.addEventListener('click', async () => {
+            try {
+                await supabaseClient.from('admin_alertas').update({ lido: true }).eq('lido', false);
+                toastMsg('Alertas marcados como lidos');
+            } catch (e) {
+                toastMsg('Erro: ' + (e.message || e));
+            }
+            carregarAlertasAdmin();
+        });
+    }
+}
 
 async function carregarSuporteAdmin() {
     const box = document.getElementById('admin-suporte');
@@ -943,7 +1253,10 @@ async function carregarSuporteAdmin() {
         irPara('inicio.html');
         return;
     }
+    document.body.classList.add('pagina-admin');
     montarNav('admin', perfilAtual);
+    bindAdminTabs();
+    bindAlertasBtns();
     await Promise.all([
         carregarKpis(),
         carregarUsuarios(),
@@ -955,8 +1268,11 @@ async function carregarSuporteAdmin() {
         carregarDepositosAdmin(),
         carregarSaquesAdmin(),
         carregarEmprestimosAdmin(),
-        carregarSuporteAdmin()
+        carregarSuporteAdmin(),
+        carregarAlertasAdmin()
     ]);
-    // Atualiza pedidos de empréstimo periodicamente (badge + lista)
-    setInterval(() => { try { carregarEmprestimosAdmin(); } catch (e) { /* ignore */ } }, 45000);
+    setInterval(() => {
+        try { carregarEmprestimosAdmin(); } catch (e) { /* ignore */ }
+        try { carregarAlertasAdmin(); } catch (e) { /* ignore */ }
+    }, 45000);
 })();

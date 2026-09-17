@@ -569,6 +569,214 @@ function bindPinUI() {
     });
 }
 
+
+let empWizardStep = 1;
+let empDocUrls = {};
+
+function empShowStep(n) {
+    empWizardStep = n;
+    document.querySelectorAll('#emp-wizard .emp-pane').forEach(p => {
+        p.classList.toggle('oculto', Number(p.getAttribute('data-pane')) !== n);
+    });
+    document.querySelectorAll('#emp-steps .emp-step').forEach(s => {
+        s.classList.toggle('on', Number(s.getAttribute('data-step')) <= n);
+    });
+}
+
+async function empUploadDoc(file, kind) {
+    if (!file) return null;
+    const uid = authId();
+    if (!uid) throw new Error('Sessão inválida');
+    const ext = (file.name || 'doc').split('.').pop() || 'bin';
+    const safe = String(kind).replace(/[^\w\-]+/g, '_');
+    const path = uid + '/' + Date.now() + '_' + safe + '.' + ext;
+    const { data, error } = await supabaseClient.storage
+        .from('emprestimo-docs')
+        .upload(path, file, { upsert: false, contentType: file.type || 'application/octet-stream', cacheControl: '3600' });
+    if (error) throw error;
+    // Bucket privado: guarda path; admin lê via Storage policy. Prefer signed URL for display.
+    const { data: signed, error: sErr } = await supabaseClient.storage
+        .from('emprestimo-docs')
+        .createSignedUrl(data.path || path, 60 * 60 * 24 * 30);
+    if (!sErr && signed && signed.signedUrl) return signed.signedUrl;
+    // Fallback: store storage path
+    return 'emprestimo-docs/' + (data.path || path);
+}
+
+function empCollectPedido() {
+    const valor = parseFloat(document.getElementById('emp-valor').value);
+    const prazo = parseInt(document.getElementById('emp-prazo').value, 10);
+    const finalidade = document.getElementById('emp-finalidade').value.trim();
+    const nome = document.getElementById('emp-nome').value.trim();
+    const telefone = document.getElementById('emp-telefone').value.trim();
+    const rendaRaw = document.getElementById('emp-renda').value;
+    const renda = rendaRaw === '' ? null : parseFloat(rendaRaw);
+    const observacoes = document.getElementById('emp-obs').value.trim();
+    return { valor, prazo, finalidade, nome, telefone, renda, observacoes };
+}
+
+function empCollectKyc() {
+    return {
+        endereco: (document.getElementById('emp-endereco').value || '').trim(),
+        empresa: (document.getElementById('emp-empresa').value || '').trim(),
+        anos_empresa: parseFloat(document.getElementById('emp-anos-empresa').value),
+        comprova_renda: document.getElementById('emp-comprova-renda').value === 'sim'
+    };
+}
+
+function empBuildResumo() {
+    const p = empCollectPedido();
+    const k = empCollectKyc();
+    const total = totalEmprestimoPrevisto(p.valor, p.prazo);
+    const docs = [
+        ['Energia', empDocUrls.energia],
+        ['Identidade', empDocUrls.identidade],
+        ['CPF', empDocUrls.cpf],
+        ['Selfie', empDocUrls.selfie],
+        ['Extrato', empDocUrls.extrato]
+    ].map(([l, u]) => l + ': ' + (u ? 'ok' : 'faltando')).join(' · ');
+    return '<ul class="emp-resumo-list">' +
+        '<li><strong>Valor:</strong> ' + esc(fmtBRL(p.valor)) + '</li>' +
+        '<li><strong>Prazo:</strong> ' + esc(p.prazo) + ' dias</li>' +
+        '<li><strong>Total previsto:</strong> ' + esc(fmtBRL(total)) + '</li>' +
+        '<li><strong>Finalidade:</strong> ' + esc(p.finalidade) + '</li>' +
+        '<li><strong>Endereço:</strong> ' + esc(k.endereco) + '</li>' +
+        '<li><strong>Empresa:</strong> ' + esc(k.empresa) + ' (' + esc(k.anos_empresa) + ' anos)</li>' +
+        '<li><strong>Comprova renda:</strong> ' + (k.comprova_renda ? 'sim' : 'não') + '</li>' +
+        '<li><strong>Docs:</strong> ' + esc(docs) + '</li>' +
+        '</ul><p class="aviso-credito"><strong>Sujeito à análise de crédito</strong></p>';
+}
+
+function bindEmpWizard() {
+    const next1 = document.getElementById('emp-next-1');
+    if (!next1 || next1._bound) return;
+    next1._bound = true;
+
+    next1.addEventListener('click', () => {
+        const p = empCollectPedido();
+        if (!(p.valor > 0) || !(p.prazo > 0) || !p.finalidade || !p.nome) {
+            setEmpMsg('Preencha valor, prazo, finalidade e nome.', false);
+            return;
+        }
+        setEmpMsg('', true);
+        empShowStep(2);
+    });
+    document.getElementById('emp-back-2').addEventListener('click', () => empShowStep(1));
+    document.getElementById('emp-next-2').addEventListener('click', () => {
+        const k = empCollectKyc();
+        if (!k.endereco || !k.empresa || !(k.anos_empresa >= 0) || document.getElementById('emp-comprova-renda').value === '') {
+            setEmpMsg('Responda endereço, empresa, anos e comprovação de renda.', false);
+            return;
+        }
+        setEmpMsg('', true);
+        empShowStep(3);
+    });
+    document.getElementById('emp-back-3').addEventListener('click', () => empShowStep(2));
+    document.getElementById('emp-next-3').addEventListener('click', async () => {
+        const need = [
+            ['energia', 'emp-doc-energia'],
+            ['identidade', 'emp-doc-identidade'],
+            ['cpf', 'emp-doc-cpf'],
+            ['selfie', 'emp-doc-selfie']
+        ];
+        for (const [k, id] of need) {
+            const inp = document.getElementById(id);
+            if (!inp || !inp.files || !inp.files[0]) {
+                setEmpMsg('Envie os documentos obrigatórios (energia, identidade, CPF e selfie).', false);
+                return;
+            }
+        }
+        const st = document.getElementById('emp-upload-status');
+        try {
+            setEmpMsg('Enviando documentos…', true);
+            if (st) st.textContent = 'Upload em andamento…';
+            empDocUrls = {};
+            for (const [k, id] of need) {
+                const f = document.getElementById(id).files[0];
+                if (st) st.textContent = 'Enviando ' + k + '…';
+                empDocUrls[k] = await empUploadDoc(f, k);
+            }
+            const extrato = document.getElementById('emp-doc-extrato');
+            if (extrato && extrato.files && extrato.files[0]) {
+                if (st) st.textContent = 'Enviando extrato…';
+                empDocUrls.extrato = await empUploadDoc(extrato.files[0], 'extrato');
+            }
+            if (st) st.textContent = 'Documentos enviados.';
+            document.getElementById('emp-resumo').innerHTML = empBuildResumo();
+            setEmpMsg('', true);
+            empShowStep(4);
+        } catch (e) {
+            setEmpMsg((e.message || String(e)) + ' (SQL 30 / bucket emprestimo-docs?)', false);
+            if (st) st.textContent = '';
+        }
+    });
+    document.getElementById('emp-back-4').addEventListener('click', () => empShowStep(3));
+    document.getElementById('emp-enviar').addEventListener('click', async () => {
+        const uid = authId();
+        const p = empCollectPedido();
+        const k = empCollectKyc();
+        if (!(p.valor > 0) || !(p.prazo > 0) || !p.finalidade || !p.nome) {
+            setEmpMsg('Dados do pedido incompletos.', false);
+            return;
+        }
+        if (!empDocUrls.energia || !empDocUrls.identidade || !empDocUrls.cpf || !empDocUrls.selfie) {
+            setEmpMsg('Documentos obrigatórios ausentes.', false);
+            return;
+        }
+        const total = totalEmprestimoPrevisto(p.valor, p.prazo);
+        const questionario = {
+            endereco: k.endereco,
+            empresa: k.empresa,
+            anos_empresa: k.anos_empresa,
+            comprova_renda: k.comprova_renda,
+            respondido_em: new Date().toISOString()
+        };
+        try {
+            const { error } = await supabaseClient.from('emprestimos').insert([{
+                auth_id: uid,
+                nome: p.nome,
+                telefone: p.telefone || null,
+                valor: p.valor,
+                prazo_dias: p.prazo,
+                finalidade: p.finalidade,
+                renda_declarada: isFinite(p.renda) ? p.renda : null,
+                observacoes: p.observacoes || null,
+                juros_pct: JUROS_EMPRESTIMO,
+                total_previsto: total,
+                status: 'analise',
+                endereco: k.endereco,
+                empresa: k.empresa,
+                anos_empresa: k.anos_empresa,
+                comprova_renda: k.comprova_renda,
+                doc_energia_url: empDocUrls.energia,
+                doc_identidade_url: empDocUrls.identidade,
+                doc_cpf_url: empDocUrls.cpf,
+                doc_selfie_url: empDocUrls.selfie,
+                doc_extrato_url: empDocUrls.extrato || null,
+                questionario
+            }]);
+            if (error) throw error;
+            empDocUrls = {};
+            ['emp-valor','emp-finalidade','emp-telefone','emp-renda','emp-obs','emp-endereco','emp-empresa','emp-anos-empresa'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            document.getElementById('emp-prazo').value = '30';
+            document.getElementById('emp-comprova-renda').value = '';
+            ['emp-doc-energia','emp-doc-identidade','emp-doc-cpf','emp-doc-selfie','emp-doc-extrato'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            document.getElementById('emp-nome').value = (perfilAtual && perfilAtual.nome) || '';
+            atualizarTotalPrevisto();
+            empShowStep(1);
+            setEmpMsg('Solicitação enviada — sujeita à análise de crédito.', true);
+            if (typeof toastMsg === 'function') toastMsg('Empréstimo em análise');
+            await carregarEmprestimos();
+        } catch (e) {
+            setEmpMsg((e.message || String(e)) + ' (SQL 14/30?)', false);
+        }
+    });
+}
+
 function bindUI() {
     bindPinUI();
 
@@ -603,44 +811,7 @@ function bindUI() {
 
     document.getElementById('emp-valor').addEventListener('input', atualizarTotalPrevisto);
     document.getElementById('emp-prazo').addEventListener('input', atualizarTotalPrevisto);
-    document.getElementById('form-emprestimo').addEventListener('submit', async (ev) => {
-        ev.preventDefault();
-        const uid = authId();
-        const valor = parseFloat(document.getElementById('emp-valor').value);
-        const prazo = parseInt(document.getElementById('emp-prazo').value, 10);
-        const finalidade = document.getElementById('emp-finalidade').value.trim();
-        const nome = document.getElementById('emp-nome').value.trim();
-        const telefone = document.getElementById('emp-telefone').value.trim();
-        const rendaRaw = document.getElementById('emp-renda').value;
-        const renda = rendaRaw === '' ? null : parseFloat(rendaRaw);
-        const observacoes = document.getElementById('emp-obs').value.trim();
-        if (!(valor > 0) || !(prazo > 0) || !finalidade || !nome) {
-            setEmpMsg('Preencha valor, prazo, finalidade e nome.', false);
-            return;
-        }
-        const total = totalEmprestimoPrevisto(valor, prazo);
-        try {
-            const { error } = await supabaseClient.from('emprestimos').insert([{
-                auth_id: uid,
-                nome, telefone: telefone || null,
-                valor, prazo_dias: prazo, finalidade,
-                renda_declarada: isFinite(renda) ? renda : null,
-                observacoes: observacoes || null,
-                juros_pct: JUROS_EMPRESTIMO,
-                total_previsto: total,
-                status: 'analise'
-            }]);
-            if (error) throw error;
-            document.getElementById('form-emprestimo').reset();
-            document.getElementById('emp-nome').value = (perfilAtual && perfilAtual.nome) || '';
-            atualizarTotalPrevisto();
-            setEmpMsg('Solicitação enviada — sujeita à análise de crédito.', true);
-            if (typeof toastMsg === 'function') toastMsg('Empréstimo em análise');
-            await carregarEmprestimos();
-        } catch (e) {
-            setEmpMsg((e.message || String(e)) + ' (SQL 14?)', false);
-        }
-    });
+    bindEmpWizard();
 
     document.getElementById('btn-saiba-mais').addEventListener('click', abrirSaibaMais);
     document.getElementById('saiba-mais-fechar').addEventListener('click', fecharSaibaMais);

@@ -4,142 +4,179 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Admin</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260916af">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916af">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ag">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ag">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260916af">
+    <link rel="stylesheet" href="style.css?v=20260916ag">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
-<body>
+<body class="pagina-admin">
     <div class="container wide">
         <header class="header-row">
             <div class="brand-title">
                 <h1>Minera App</h1>
                 <p id="user-label">Carregando...</p>
+                <span class="admin-badge-pill">Admin</span>
             </div>
             <button type="button" class="btn-sair" id="btn-sair">Sair</button>
         </header>
-        <nav id="app-nav" class="nav-chips"></nav>
+        <nav id="app-nav" class="nav-chips" hidden aria-hidden="true"></nav>
 
-        <section class="card">
-            <h2>Painel Admin</h2>
-            <p class="sub">Visão geral · somente administradores</p>
-            <div class="kpi-grid admin-kpis" id="admin-kpis">
-                <div class="kpi-card"><div class="kpi-value" id="kpi-usuarios">—</div><div class="kpi-label">Usuários</div></div>
-                <div class="kpi-card"><div class="kpi-value" id="kpi-lotes">—</div><div class="kpi-label">Lotes</div></div>
-                <div class="kpi-card"><div class="kpi-value" id="kpi-fretes">—</div><div class="kpi-label">Fretes</div></div>
-                <div class="kpi-card"><div class="kpi-value" id="kpi-msgs">—</div><div class="kpi-label">Mensagens</div></div>
-                <div class="kpi-card kpi-alert"><div class="kpi-value" id="kpi-emprestimos">—</div><div class="kpi-label">Empréstimos em análise</div></div>
-            </div>
-        </section>
+        <nav class="admin-tabs" id="admin-tabs" role="tablist" aria-label="Seções admin">
+            <button type="button" class="admin-tab on" data-tab="visao" role="tab" aria-selected="true">Visão geral</button>
+            <button type="button" class="admin-tab" data-tab="credito" role="tab" aria-selected="false">Crédito <span class="badge badge-pendente oculto" id="badge-emp-pendentes">0</span></button>
+            <button type="button" class="admin-tab" data-tab="caixa" role="tab" aria-selected="false">Caixa/Pix</button>
+            <button type="button" class="admin-tab" data-tab="usuarios" role="tab" aria-selected="false">Usuários</button>
+            <button type="button" class="admin-tab" data-tab="chat" role="tab" aria-selected="false">Chat</button>
+            <button type="button" class="admin-tab" data-tab="alertas" role="tab" aria-selected="false">Alertas <span class="badge badge-atrasado oculto" id="badge-admin-alertas">0</span></button>
+        </nav>
 
-        <section class="card">
-            <h2>Usuários</h2>
-            <div id="admin-usuarios" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card">
-            <h2>Lotes recentes</h2>
-            <div id="admin-lotes" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card" id="sec-admin-emprestimos">
-            <h2>Empréstimos <span class="badge badge-pendente oculto" id="badge-emp-pendentes">0</span></h2>
-            <p class="sub">Pedidos do Caixa Minera · Liberar crédito credita o saldo · Recusar mantém sem crédito · solicitante vê o status em Financeiro</p>
-            <div id="admin-emprestimos" class="loading">Carregando...</div>
-        </section>
-
-
-        <section class="card">
-            <h2>Suporte — Fale conosco</h2>
-            <p class="sub">Inbox de threads · responder como admin (origem admin). Usuário vê no painel Fale conosco.</p>
-            <div id="admin-suporte" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card">
-            <h2>Monitor Chat</h2>
-            <p class="sub">Flag / soft-delete (moderacao / deleted_at)</p>
-            <div id="admin-chat" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card">
-            <h2>Pix (chave admin)</h2>
-            <form id="form-pix-admin">
-                <label for="pix-chave">Chave Pix</label>
-                <input type="text" id="pix-chave" required placeholder="CPF, e-mail, telefone ou aleatória">
-                <label for="pix-tipo">Tipo da chave</label>
-                <select id="pix-tipo">
-                    <option value="aleatoria">Aleatória</option>
-                    <option value="cpf">CPF</option>
-                    <option value="cnpj">CNPJ</option>
-                    <option value="email">E-mail</option>
-                    <option value="telefone">Telefone</option>
-                </select>
-                <label for="pix-titular">Titular</label>
-                <input type="text" id="pix-titular" placeholder="Nome do titular">
-                <label for="pix-instrucoes">Instruções</label>
-                <textarea id="pix-instrucoes" rows="2" placeholder="Ex: Envie o comprovante após o pagamento"></textarea>
-                <label class="check-row"><input type="checkbox" id="pix-ativo" checked> Ativo</label>
-                <button type="submit">Salvar chave Pix</button>
-            </form>
-            <p id="pix-admin-msg" class="msg"></p>
-            <div id="pix-admin-atual" class="pix-box oculto"></div>
-            <div id="pix-admin-preview" class="pix-emv-panel oculto">
-                <h3 class="pix-preview-title">Preview QR (teste R$ 1,00)</h3>
-                <div id="pix-admin-qr" class="pix-qr" aria-label="QR Code Pix preview"></div>
-                <label for="pix-admin-copia">Pix Copia e Cola</label>
-                <textarea id="pix-admin-copia" readonly rows="3"></textarea>
-                <div class="pix-emv-actions">
-                    <button type="button" id="btn-admin-copiar-pix" class="btn-ok">Copiar Pix</button>
+        <div class="admin-panel" data-panel="visao">
+            <section class="card">
+                <h2>Painel Admin</h2>
+                <p class="sub">Visão geral · monitoramento · somente administradores</p>
+                <div class="kpi-grid admin-kpis" id="admin-kpis">
+                    <div class="kpi-card"><div class="kpi-value" id="kpi-usuarios">—</div><div class="kpi-label">Usuários</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="kpi-lotes">—</div><div class="kpi-label">Lotes</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="kpi-fretes">—</div><div class="kpi-label">Fretes</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="kpi-msgs">—</div><div class="kpi-label">Mensagens</div></div>
+                    <div class="kpi-card kpi-alert"><div class="kpi-value" id="kpi-emprestimos">—</div><div class="kpi-label">Empréstimos em análise</div></div>
                 </div>
-                <p class="sub pix-hint">Abra o Nubank → Pix → QR ou Copia e Cola. O app não confirma o pagamento sozinho ainda.</p>
-            </div>
-        </section>
+            </section>
+            <section class="card">
+                <h2>Lotes recentes</h2>
+                <div id="admin-lotes" class="loading">Carregando...</div>
+            </section>
+            <section class="card">
+                <h2>Comissões</h2>
+                <p class="sub">1% sobre vendas · marcar como pago</p>
+                <div id="admin-comissoes" class="loading">Carregando...</div>
+            </section>
+        </div>
 
+        <div class="admin-panel oculto" data-panel="credito" id="sec-admin-emprestimos">
+            <section class="card">
+                <h2>Mesa de Crédito</h2>
+                <p class="sub">Filas · checklist de docs · abrir chat com solicitante · vencimentos</p>
+                <div class="kpi-grid credito-kpis" id="credito-kpis">
+                    <div class="kpi-card"><div class="kpi-value" id="ckpi-analise">—</div><div class="kpi-label">Em análise</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="ckpi-vencer">—</div><div class="kpi-label">A vencer ≤3d</div></div>
+                    <div class="kpi-card kpi-alert"><div class="kpi-value" id="ckpi-atraso">—</div><div class="kpi-label">Atrasados</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="ckpi-aberto">—</div><div class="kpi-label">Total em aberto</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="ckpi-quitado">—</div><div class="kpi-label">Quitado no mês</div></div>
+                </div>
+                <div class="credito-filas" id="credito-filas" role="tablist">
+                    <button type="button" class="chip on" data-fila="analise">Em análise</button>
+                    <button type="button" class="chip" data-fila="ativos">Ativos/aprovados</button>
+                    <button type="button" class="chip" data-fila="a_vencer">A vencer (≤3 dias)</button>
+                    <button type="button" class="chip" data-fila="atraso">Em atraso</button>
+                    <button type="button" class="chip" data-fila="quitados">Quitados</button>
+                    <button type="button" class="chip" data-fila="recusados">Recusados</button>
+                </div>
+                <div id="admin-emprestimos" class="loading">Carregando...</div>
+            </section>
+        </div>
 
+        <div class="admin-panel oculto" data-panel="caixa">
+            <section class="card">
+                <h2>Pix (chave admin)</h2>
+                <form id="form-pix-admin">
+                    <label for="pix-chave">Chave Pix</label>
+                    <input type="text" id="pix-chave" required placeholder="CPF, e-mail, telefone ou aleatória">
+                    <label for="pix-tipo">Tipo da chave</label>
+                    <select id="pix-tipo">
+                        <option value="aleatoria">Aleatória</option>
+                        <option value="cpf">CPF</option>
+                        <option value="cnpj">CNPJ</option>
+                        <option value="email">E-mail</option>
+                        <option value="telefone">Telefone</option>
+                    </select>
+                    <label for="pix-titular">Titular</label>
+                    <input type="text" id="pix-titular" placeholder="Nome do titular">
+                    <label for="pix-instrucoes">Instruções</label>
+                    <textarea id="pix-instrucoes" rows="2" placeholder="Ex: Envie o comprovante após o pagamento"></textarea>
+                    <label class="check-row"><input type="checkbox" id="pix-ativo" checked> Ativo</label>
+                    <button type="submit">Salvar chave Pix</button>
+                </form>
+                <p id="pix-admin-msg" class="msg"></p>
+                <div id="pix-admin-atual" class="pix-box oculto"></div>
+                <div id="pix-admin-preview" class="pix-emv-panel oculto">
+                    <h3 class="pix-preview-title">Preview QR (teste R$ 1,00)</h3>
+                    <div id="pix-admin-qr" class="pix-qr" aria-label="QR Code Pix preview"></div>
+                    <label for="pix-admin-copia">Pix Copia e Cola</label>
+                    <textarea id="pix-admin-copia" readonly rows="3"></textarea>
+                    <div class="pix-emv-actions">
+                        <button type="button" id="btn-admin-copiar-pix" class="btn-ok">Copiar Pix</button>
+                    </div>
+                    <p class="sub pix-hint">Abra o Nubank → Pix → QR ou Copia e Cola. O app não confirma o pagamento sozinho ainda.</p>
+                </div>
+            </section>
+            <section class="card">
+                <h2>Depósitos pendentes (Caixa)</h2>
+                <p class="sub">Confirmar credita caixa_saldos · rejeitar mantém sem crédito</p>
+                <div id="admin-depositos" class="loading">Carregando...</div>
+            </section>
+            <section class="card">
+                <h2>Saques pendentes (Caixa)</h2>
+                <p class="sub">Verificar saldo · marcar pago/processado debita o Caixa</p>
+                <div id="admin-saques" class="loading">Carregando...</div>
+            </section>
+            <section class="card">
+                <h2>Pagamentos Pix</h2>
+                <div id="admin-pix-pag" class="loading">Carregando...</div>
+            </section>
+        </div>
 
-        <section class="card">
-            <h2>Depósitos pendentes (Caixa)</h2>
-            <p class="sub">Confirmar credita caixa_saldos · rejeitar mantém sem crédito</p>
-            <div id="admin-depositos" class="loading">Carregando...</div>
-        </section>
+        <div class="admin-panel oculto" data-panel="usuarios">
+            <section class="card">
+                <h2>Usuários</h2>
+                <div id="admin-usuarios" class="loading">Carregando...</div>
+            </section>
+            <section class="card">
+                <h2>Promover admin</h2>
+                <p class="hint">Primeiro admin: no SQL rode<br>
+                <code>UPDATE usuarios SET tipo='admin', papeis = array_append(COALESCE(papeis,'{}'),'admin') WHERE email='seu@email.com';</code><br>
+                Ou marque Admin em Perfil se você já for admin.</p>
+            </section>
+        </div>
 
-        <section class="card">
-            <h2>Saques pendentes (Caixa)</h2>
-            <p class="sub">Verificar saldo · marcar pago/processado debita o Caixa</p>
-            <div id="admin-saques" class="loading">Carregando...</div>
-        </section>
+        <div class="admin-panel oculto" data-panel="chat">
+            <section class="card">
+                <h2>Suporte — Fale conosco</h2>
+                <p class="sub">Inbox de threads · responder como admin (origem admin). Usuário vê no painel Fale conosco.</p>
+                <div id="admin-suporte" class="loading">Carregando...</div>
+            </section>
+            <section class="card">
+                <h2>Monitor Chat</h2>
+                <p class="sub">Flag / soft-delete (moderacao / deleted_at)</p>
+                <div id="admin-chat" class="loading">Carregando...</div>
+            </section>
+        </div>
 
-        <section class="card">
-            <h2>Comissões</h2>
-            <p class="sub">1% sobre vendas · marcar como pago</p>
-            <div id="admin-comissoes" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card">
-            <h2>Pagamentos Pix</h2>
-            <div id="admin-pix-pag" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card">
-            <h2>Promover admin</h2>
-            <p class="hint">Primeiro admin: no SQL rode<br>
-            <code>UPDATE usuarios SET tipo='admin', papeis = array_append(COALESCE(papeis,'{}'),'admin') WHERE email='seu@email.com';</code><br>
-            Ou marque Admin em Perfil se você já for admin.</p>
-        </section>
+        <div class="admin-panel oculto" data-panel="alertas">
+            <section class="card">
+                <h2>Alertas de crédito</h2>
+                <p class="sub">Vencimento ≤3 dias e empréstimos em atraso · gerados ao abrir o Admin</p>
+                <div class="modal-actions" style="margin-bottom:12px">
+                    <button type="button" class="btn-ok btn-sm" id="btn-gerar-alertas">Atualizar alertas agora</button>
+                    <button type="button" class="btn-ghost btn-sm" id="btn-marcar-alertas-lidos">Marcar todos lidos</button>
+                </div>
+                <div id="admin-alertas" class="loading">Carregando...</div>
+            </section>
+        </div>
     </div>
-    <script src="config.js?v=20260916af"></script>
-    <script src="auth-guard.js?v=20260916af"></script>
-    <script src="suporte.js?v=20260916af"></script>
-    <script src="nav.js?v=20260916af"></script>
-    <script src="pix-brcode.js?v=20260916af"></script>
-    <script src="admin.js?v=20260916af"></script>
-    <script src="pwa.js?v=20260916af"></script>
+    <script src="config.js?v=20260916ag"></script>
+    <script src="auth-guard.js?v=20260916ag"></script>
+    <script src="suporte.js?v=20260916ag"></script>
+    <script src="nav.js?v=20260916ag"></script>
+    <script src="pix-brcode.js?v=20260916ag"></script>
+    <script src="admin.js?v=20260916ag"></script>
+    <script src="pwa.js?v=20260916ag"></script>
 </body>
 </html>

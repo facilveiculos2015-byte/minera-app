@@ -87,3 +87,9 @@ Incremental após 27: colunas `resposta_a_id`, `apagada_para`; tabela `chat_conv
 Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 28 no Supabase SQL Editor após 27.**
 Habilita Responder / Apagar para mim / Apagar para todos / Apagar histórico no chat.
+
+
+## 30-admin-credito.sql
+Incremental após 29: estende `emprestimos` com KYC (endereco, empresa, anos_empresa, comprova_renda), URLs de docs, `vencimento`, `pago_em`, `questionario`; bucket Storage privado `emprestimo-docs` (upload na pasta do próprio auth_id; admin lê); RPCs `admin_listar_emprestimos` (filas/dias), `admin_credito_kpis`, `admin_gerar_alertas_credito`, `admin_listar_alertas`, `admin_contar_alertas_nao_lidos`, `admin_marcar_alerta_lido`; tabela `admin_alertas`. Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 30 no Supabase SQL Editor após 29.**
+Necessário para mesa de crédito admin, wizard KYC do Caixa e alertas de vencimento/atraso.

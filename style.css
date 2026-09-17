@@ -2629,3 +2629,142 @@ body.pagina-chat .nav-chips.nav-secondary {
     .loc-selects { grid-template-columns: 1fr; }
     .loc-form-row { grid-template-columns: 1fr; }
 }
+
+
+/* ===== Admin shell (monitoramento) + mesa de crédito + wizard KYC ===== */
+body.pagina-admin .bottom-nav,
+body.pagina-admin #app-nav,
+body.pagina-admin .nav-chips.nav-secundarios,
+body.pagina-admin .btn-caixa-bank,
+body.pagina-admin #btn-caixa-bank {
+    display: none !important;
+}
+body.pagina-admin {
+    padding-bottom: 24px;
+}
+.admin-badge-pill {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #f59e0b;
+    color: #111827;
+    vertical-align: middle;
+}
+.admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0 16px;
+}
+.admin-tab {
+    border: 1px solid var(--border, #334155);
+    background: var(--card, #0f172a);
+    color: inherit;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font: inherit;
+    cursor: pointer;
+}
+.admin-tab.on {
+    background: #f59e0b;
+    color: #111827;
+    border-color: #f59e0b;
+    font-weight: 700;
+}
+.admin-panel.oculto { display: none !important; }
+
+.credito-filas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0;
+}
+.credito-filas .chip.on {
+    background: #f59e0b;
+    color: #111827;
+    border-color: #f59e0b;
+}
+.credito-card {
+    border: 1px solid var(--border, #334155);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 10px 0;
+    background: rgba(15, 23, 42, 0.5);
+}
+.credito-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.credito-nome {
+    color: #38bdf8;
+    text-decoration: none;
+}
+.credito-nome:hover { text-decoration: underline; }
+.credito-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+}
+.doc-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    font-size: 0.85rem;
+}
+.doc-ok { color: #4ade80; }
+.doc-falta { color: #fca5a5; }
+.alerta-item {
+    border: 1px solid var(--border, #334155);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 8px 0;
+}
+.alerta-item.alerta-novo {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+}
+.alerta-item.alerta-lido { opacity: 0.7; }
+
+.emp-wizard { margin-top: 8px; }
+.emp-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.emp-step {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border, #475569);
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+.emp-step.on {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: #f59e0b;
+    color: #fbbf24;
+    font-weight: 600;
+}
+.bot-bubble {
+    background: rgba(56, 189, 248, 0.12);
+    border-left: 3px solid #38bdf8;
+    padding: 10px 12px;
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 12px;
+}
+.emp-resumo-list { padding-left: 18px; }
+.aviso-credito {
+    color: #fbbf24;
+    margin: 8px 0;
+}

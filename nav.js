@@ -138,28 +138,37 @@ function garantirHeaderCaixaBtn() {
 function montarNav(paginaAtiva, perfil) {
     garantirBrandLogo();
     garantirHeaderNotifBtn();
-    garantirHeaderCaixaBtn();
+    const isAdminPage = paginaAtiva === 'admin'
+        || (document.body && document.body.classList.contains('pagina-admin'));
+    if (!isAdminPage) garantirHeaderCaixaBtn();
+    else {
+        const caixaBtn = document.getElementById('btn-caixa-bank');
+        if (caixaBtn) caixaBtn.classList.add('oculto');
+    }
     const permitidos = new Set(chipsPermitidos(perfil));
     const body = document.body;
     if (body) {
-        body.classList.add('has-bottom-nav');
         body.classList.toggle('pagina-chat', paginaAtiva === 'chat');
+        body.classList.toggle('pagina-admin', isAdminPage);
+        if (isAdminPage) body.classList.remove('has-bottom-nav');
+        else body.classList.add('has-bottom-nav');
     }
 
-    // Top slim secondary row (role extras) — oculto no Chat (WhatsApp-like)
+    // Top slim secondary row (role extras) — oculto no Chat e no Admin
     const topNav = document.getElementById('app-nav');
     if (topNav) {
         const secs = NAV_SECUNDARIOS.filter(it => {
             if (it.adminOnly && !(typeof ehAdmin === 'function' && ehAdmin(perfil))) return false;
             return permitidos.has(it.id);
         });
-        if (paginaAtiva === 'chat') {
+        if (paginaAtiva === 'chat' || isAdminPage) {
             topNav.className = 'nav-chips nav-secondary oculto';
             topNav.innerHTML = '';
             topNav.setAttribute('aria-hidden', 'true');
-            // Mantém sheet "Mais" disponível via outros atalhos se necessário
-            garantirMaisSheet(secs);
+            topNav.hidden = true;
+            if (!isAdminPage) garantirMaisSheet(secs);
         } else {
+            topNav.hidden = false;
             topNav.className = 'nav-chips nav-secondary';
             topNav.removeAttribute('aria-hidden');
             let html = secs.map(it => {
@@ -188,42 +197,54 @@ function montarNav(paginaAtiva, perfil) {
         }
     }
 
-    // Bottom Instagram bar
+    // Bottom Instagram bar — oculto no Admin (monitoramento)
     let bar = document.getElementById('bottom-nav');
-    if (!bar) {
-        bar = document.createElement('nav');
-        bar.id = 'bottom-nav';
-        bar.className = 'bottom-nav';
-        bar.setAttribute('aria-label', 'Navegação principal');
-        document.body.appendChild(bar);
+    if (isAdminPage) {
+        if (bar) {
+            bar.classList.add('oculto');
+            bar.setAttribute('aria-hidden', 'true');
+            bar.innerHTML = '';
+        }
+        const legado = document.getElementById('btn-sair');
+        if (legado) legado.classList.remove('oculto');
+    } else {
+        if (!bar) {
+            bar = document.createElement('nav');
+            bar.id = 'bottom-nav';
+            bar.className = 'bottom-nav';
+            bar.setAttribute('aria-label', 'Navegação principal');
+            document.body.appendChild(bar);
+        }
+        bar.classList.remove('oculto');
+        bar.removeAttribute('aria-hidden');
+
+        const iniciais = iniciaisNome(perfil && perfil.nome);
+        bar.innerHTML = NAV_PRIMARIOS.map(it => {
+            const on = (it.id === paginaAtiva || (it.id === 'lotes' && paginaAtiva === 'novo')) ? ' on' : '';
+            if (it.special) {
+                return '<a class="bn-item bn-novo' + on + '" href="' + APP_ROOT + it.href + '" title="Novo">' +
+                    '<span class="bn-plus">+</span><span class="bn-label">Novo</span></a>';
+            }
+            if (it.avatar) {
+                return '<a class="bn-item bn-perfil' + on + '" href="' + APP_ROOT + it.href + '" title="Perfil">' +
+                    '<span class="bn-avatar" aria-hidden="true">' + iniciais + '</span>' +
+                    '<span class="bn-label">Perfil</span></a>';
+            }
+            return '<a class="bn-item' + on + '" href="' + APP_ROOT + it.href + '">' +
+                '<span class="bn-icon" aria-hidden="true">' + it.icon + '</span>' +
+                '<span class="bn-label">' + it.label + '</span></a>';
+        }).join('');
+
+        const legado = document.getElementById('btn-sair');
+        if (legado) legado.classList.add('oculto');
     }
 
-    const iniciais = iniciaisNome(perfil && perfil.nome);
-    bar.innerHTML = NAV_PRIMARIOS.map(it => {
-        const on = (it.id === paginaAtiva || (it.id === 'lotes' && paginaAtiva === 'novo')) ? ' on' : '';
-        if (it.special) {
-            return '<a class="bn-item bn-novo' + on + '" href="' + APP_ROOT + it.href + '" title="Novo">' +
-                '<span class="bn-plus">+</span><span class="bn-label">Novo</span></a>';
-        }
-        if (it.avatar) {
-            return '<a class="bn-item bn-perfil' + on + '" href="' + APP_ROOT + it.href + '" title="Perfil">' +
-                '<span class="bn-avatar" aria-hidden="true">' + iniciais + '</span>' +
-                '<span class="bn-label">Perfil</span></a>';
-        }
-        return '<a class="bn-item' + on + '" href="' + APP_ROOT + it.href + '">' +
-            '<span class="bn-icon" aria-hidden="true">' + it.icon + '</span>' +
-            '<span class="bn-label">' + it.label + '</span></a>';
-    }).join('');
-
-    const legado = document.getElementById('btn-sair');
-    if (legado) legado.classList.add('oculto');
-
-    // Fale conosco (Robô Minera) — botão pequeno no header / float
-    if (typeof garantirFaleConosco === 'function') {
+    // Fale conosco (Robô Minera) — não no Admin
+    if (!isAdminPage && typeof garantirFaleConosco === 'function') {
         garantirFaleConosco(perfil);
     }
 
-    // Notificações de DM (badge no sino) + empréstimos pendentes (admin)
+    // Notificações de DM (badge no sino) + empréstimos/alertas (admin)
     try {
         const uid = perfil && perfil.auth_id;
         if (uid && typeof MineraNotif !== 'undefined' && MineraNotif.start) {
@@ -237,7 +258,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera App (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260916af';
+    const src = root + 'logo-escavadeira.png?v=20260916ag';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -336,6 +357,7 @@ const MineraNotif = (function () {
     let bootstrapped = false;
     let isAdminUser = false;
     let adminEmpPendentes = 0;
+    let adminAlertasN = 0;
     let lastEmpToastN = -1;
 
     function lsLeituras() {
@@ -368,7 +390,7 @@ const MineraNotif = (function () {
         const badge = document.getElementById('notif-badge');
         const btn = document.getElementById('btn-notif');
         if (!badge) return;
-        const total = dmBadgeCount + (isAdminUser ? adminEmpPendentes : 0);
+        const total = dmBadgeCount + (isAdminUser ? (adminEmpPendentes + adminAlertasN) : 0);
         if (total > 0) {
             badge.textContent = total > 99 ? '99+' : String(total);
             badge.classList.remove('oculto');
@@ -377,6 +399,29 @@ const MineraNotif = (function () {
             badge.classList.add('oculto');
             if (btn) btn.classList.remove('has-unread');
         }
+    }
+
+    function setAdminAlertas(n) {
+        adminAlertasN = Math.max(0, Number(n) || 0);
+        isAdminUser = true;
+        renderCombinedBadge();
+        fillAdminAlertasInDropdown();
+    }
+
+    function fillAdminAlertasInDropdown() {
+        const list = document.getElementById('notif-dd-list');
+        if (!list || !isAdminUser) return;
+        let block = document.getElementById('notif-alerta-block');
+        if (adminAlertasN <= 0) {
+            if (block) block.remove();
+            return;
+        }
+        const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html#alertas';
+        const html = '<a class="notif-dd-item notif-alerta-item" id="notif-alerta-block" href="' + href + '">' +
+            '<strong>Alertas de crédito</strong>' +
+            '<span>' + adminAlertasN + ' alerta(s) — a vencer ou em atraso</span></a>';
+        if (block) block.outerHTML = html;
+        else list.insertAdjacentHTML('afterbegin', html);
     }
 
     function setAdminEmpPendentes(n) {
@@ -441,7 +486,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916af' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916ag' });
             }
         } catch (e) { /* ignore */ }
     }
@@ -511,6 +556,7 @@ const MineraNotif = (function () {
                     }).join('');
                 }
                 fillAdminEmpInDropdown();
+                fillAdminAlertasInDropdown();
             }
             // Admin: poll pending loans for bell badge
             if (isAdminUser) {
@@ -518,6 +564,10 @@ const MineraNotif = (function () {
                     const { data: nEmp, error: empErr } = await supabaseClient.rpc('admin_contar_emprestimos_pendentes');
                     if (!empErr && nEmp != null) setAdminEmpPendentes(Number(nEmp) || 0);
                 } catch (empE) { /* SQL 23 optional until applied */ }
+                try {
+                    const { data: nAl, error: alErr } = await supabaseClient.rpc('admin_contar_alertas_nao_lidos');
+                    if (!alErr && nAl != null) setAdminAlertas(Number(nAl) || 0);
+                } catch (alE) { /* SQL 30 optional until applied */ }
             }
         } catch (e) {
             console.warn('MineraNotif', e);
@@ -561,6 +611,6 @@ const MineraNotif = (function () {
         timer = setInterval(poll, 8000);
     }
 
-    return { start, poll, updateBadge, setAdminEmpPendentes, renderCombinedBadge };
+    return { start, poll, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge };
 })();
 window.MineraNotif = MineraNotif;

@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Caixa Minera</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ah">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ah">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260916ag">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260916ag">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260916ah">
+    <link rel="stylesheet" href="style.css?v=20260916ag">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -145,61 +145,85 @@
         <section class="card" id="sec-emprestimo">
             <h2>Empréstimo</h2>
             <p class="aviso-credito"><strong>Sujeito à análise de crédito</strong></p>
-            <form id="form-emprestimo">
-                <label for="emp-valor">Valor (R$)</label>
-                <input type="number" id="emp-valor" min="1" step="0.01" required placeholder="0,00">
-                <label for="emp-prazo">Prazo (dias)</label>
-                <input type="number" id="emp-prazo" min="1" step="1" required placeholder="30" value="30">
-                <label for="emp-finalidade">Finalidade</label>
-                <input type="text" id="emp-finalidade" required placeholder="Ex: capital de giro">
-                <label for="emp-nome">Nome</label>
-                <input type="text" id="emp-nome" required readonly>
-                <label for="emp-telefone">Telefone (opcional)</label>
-                <input type="tel" id="emp-telefone" placeholder="(00) 00000-0000" autocomplete="tel">
-                <label for="emp-renda">Renda declarada (R$)</label>
-                <input type="number" id="emp-renda" min="0" step="0.01" placeholder="0,00">
-                <label for="emp-obs">Observações</label>
-                <textarea id="emp-obs" rows="2" placeholder="Informações adicionais"></textarea>
-                <p class="sub" id="emp-total-previsto">Total previsto no pagamento (15% a.m.): R$ —</p>
-                <button type="submit">Solicitar empréstimo</button>
-            </form>
+            <p class="sub">Juros de <strong>15% a.m.</strong> · Total previsto = valor × (1 + 0,15 × prazo_dias/30). Complete o questionário e envie os documentos.</p>
+
+            <div id="emp-wizard" class="emp-wizard">
+                <div class="emp-steps" id="emp-steps">
+                    <span class="emp-step on" data-step="1">1. Pedido</span>
+                    <span class="emp-step" data-step="2">2. KYC</span>
+                    <span class="emp-step" data-step="3">3. Docs</span>
+                    <span class="emp-step" data-step="4">4. Revisar</span>
+                </div>
+
+                <div class="emp-pane" data-pane="1">
+                    <label for="emp-valor">Valor (R$)</label>
+                    <input type="number" id="emp-valor" min="1" step="0.01" required placeholder="0,00">
+                    <label for="emp-prazo">Prazo (dias)</label>
+                    <input type="number" id="emp-prazo" min="1" step="1" required placeholder="30" value="30">
+                    <label for="emp-finalidade">Finalidade</label>
+                    <input type="text" id="emp-finalidade" required placeholder="Ex: capital de giro">
+                    <label for="emp-nome">Nome</label>
+                    <input type="text" id="emp-nome" required readonly>
+                    <label for="emp-telefone">Telefone (opcional)</label>
+                    <input type="tel" id="emp-telefone" placeholder="(00) 00000-0000" autocomplete="tel">
+                    <label for="emp-renda">Renda declarada (R$)</label>
+                    <input type="number" id="emp-renda" min="0" step="0.01" placeholder="0,00">
+                    <label for="emp-obs">Observações</label>
+                    <textarea id="emp-obs" rows="2" placeholder="Informações adicionais"></textarea>
+                    <p class="sub" id="emp-total-previsto">Total previsto no pagamento (15% a.m.): R$ —</p>
+                    <button type="button" class="btn-ok" id="emp-next-1">Continuar</button>
+                </div>
+
+                <div class="emp-pane oculto" data-pane="2">
+                    <p class="bot-bubble">Olá! Para analisar seu crédito, preciso de algumas informações.</p>
+                    <label for="emp-endereco">Endereço completo</label>
+                    <textarea id="emp-endereco" rows="2" required placeholder="Rua, número, bairro, cidade, UF, CEP"></textarea>
+                    <label for="emp-empresa">Onde trabalha / empresa</label>
+                    <input type="text" id="emp-empresa" required placeholder="Nome da empresa ou atividade">
+                    <label for="emp-anos-empresa">Quantos anos na empresa?</label>
+                    <input type="number" id="emp-anos-empresa" min="0" step="0.5" required placeholder="Ex: 2">
+                    <label for="emp-comprova-renda">Consegue comprovar renda com extrato?</label>
+                    <select id="emp-comprova-renda" required>
+                        <option value="">Selecione…</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                    </select>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-ghost" id="emp-back-2">Voltar</button>
+                        <button type="button" class="btn-ok" id="emp-next-2">Continuar</button>
+                    </div>
+                </div>
+
+                <div class="emp-pane oculto" data-pane="3">
+                    <p class="bot-bubble">Envie os documentos (imagens ou PDF). Conta de energia, identidade, CPF e selfie ao lado do documento são obrigatórios. Extrato é opcional.</p>
+                    <label for="emp-doc-energia">Conta de energia (no seu nome) *</label>
+                    <input type="file" id="emp-doc-energia" accept="image/*,application/pdf" required>
+                    <label for="emp-doc-identidade">Documento de identidade *</label>
+                    <input type="file" id="emp-doc-identidade" accept="image/*,application/pdf" required>
+                    <label for="emp-doc-cpf">CPF *</label>
+                    <input type="file" id="emp-doc-cpf" accept="image/*,application/pdf" required>
+                    <label for="emp-doc-selfie">Selfie ao lado do documento *</label>
+                    <input type="file" id="emp-doc-selfie" accept="image/*" capture="user" required>
+                    <label for="emp-doc-extrato">Extrato (opcional)</label>
+                    <input type="file" id="emp-doc-extrato" accept="image/*,application/pdf">
+                    <p class="sub" id="emp-upload-status"></p>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-ghost" id="emp-back-3">Voltar</button>
+                        <button type="button" class="btn-ok" id="emp-next-3">Continuar</button>
+                    </div>
+                </div>
+
+                <div class="emp-pane oculto" data-pane="4">
+                    <p class="bot-bubble">Revise e envie. Seu pedido ficará <strong>em análise</strong>.</p>
+                    <div id="emp-resumo" class="emp-resumo sub">—</div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-ghost" id="emp-back-4">Voltar</button>
+                        <button type="button" class="btn-ok" id="emp-enviar">Enviar solicitação</button>
+                    </div>
+                </div>
+            </div>
+
             <p id="emp-msg" class="msg"></p>
             <h3 class="hist-heading">Meus empréstimos</h3>
             <div id="lista-emprestimos" class="loading">Carregando...</div>
         </section>
-    </div>
-
-    <div id="modal-saiba-mais" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="saiba-mais-titulo">
-        <div class="modal-backdrop" data-close-saiba="1"></div>
-        <div class="modal-panel">
-            <div class="modal-head">
-                <h3 id="saiba-mais-titulo">Sobre o Caixa Minera</h3>
-                <button type="button" class="btn-icon" id="saiba-mais-fechar" aria-label="Fechar">✕</button>
-            </div>
-            <div class="saiba-mais-body">
-                <p>O <strong>Caixa Minera</strong> guarda saldo sob custódia na plataforma. Os depósitos ficam no saldo e são <strong>sacáveis</strong> via Sacar — não servem apenas para gasto no app.</p>
-                <ul>
-                    <li><strong>Depositar:</strong> Pix para a chave da plataforma (titular JeL). Envie o comprovante; o admin confirma e credita o saldo.</li>
-                    <li><strong>Sacar:</strong> informe valor e chave Pix de destino. Pode ser instantâneo ou levar até 24 horas.</li>
-                    <li><strong>Rendimento estimado:</strong> até <strong>5% a.m.</strong> conforme cotação da bolsa (projeção informativa — não é garantia).</li>
-                    <li><strong>Empréstimos:</strong> juros de <strong>15% a.m.</strong>. Total previsto = valor × (1 + 0,15 × prazo_dias/30). <strong>Sujeito à análise de crédito</strong>.</li>
-                    <li><strong>Senha da Caixa:</strong> PIN separado do login. Em “Esqueci a senha”, confirme a senha de login ou use OTP por e-mail.</li>
-                    <li><strong>Obrigações:</strong> você permanece responsável pelas próprias obrigações fiscais e legais. O Minera App não substitui orientação contábil ou jurídica.</li>
-                </ul>
-            </div>
-            <div class="modal-actions saiba-mais-actions">
-                <label class="check-row"><input type="checkbox" id="saiba-nao-mostrar"> Não mostrar de novo</label>
-                <button type="button" class="btn-ok" id="saiba-mais-ok">Entendi</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="config.js?v=20260916ah"></script>
-    <script src="auth-guard.js?v=20260916ah"></script>
-    <script src="suporte.js?v=20260916ah"></script>
-    <script src="nav.js?v=20260916ah"></script>
-    <script src="pix-brcode.js?v=20260916ah"></script>
-    <script src="financeiro.js?v=20260916ah"></script>
-    <script src="pwa.js?v=20260916ah"></script>
-</body>
-</html>
