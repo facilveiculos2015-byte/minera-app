@@ -237,17 +237,27 @@ async function carregarSuporteMsgs(force) {
     const { authId } = suporteCtx();
     if (!authId) return;
     try {
-        const { data, error } = await supabaseClient
+        let { data, error } = await supabaseClient
             .from('suporte_mensagens')
-            .select('id, de_auth_id, de_nome, texto, origem, criado_em')
+            .select('id, de_auth_id, de_nome, texto, origem, criado_em, deleted_at, arquivado')
             .eq('thread_auth_id', authId)
             .order('criado_em', { ascending: true })
             .limit(100);
+        if (error && /deleted_at|arquivado|column/i.test(error.message || '')) {
+            const fb = await supabaseClient
+                .from('suporte_mensagens')
+                .select('id, de_auth_id, de_nome, texto, origem, criado_em')
+                .eq('thread_auth_id', authId)
+                .order('criado_em', { ascending: true })
+                .limit(100);
+            data = fb.data;
+            error = fb.error;
+        }
         if (error) {
             if (force) renderSuporteMsgs([]);
             return;
         }
-        const rows = data || [];
+        const rows = (data || []).filter(m => !m.deleted_at && !m.arquivado);
         const maxId = rows.reduce((a, r) => Math.max(a, r.id || 0), 0);
         if (force || maxId !== _suporteLastId) {
             _suporteLastId = maxId;

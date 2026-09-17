@@ -103,61 +103,233 @@ async function carregarLotes() {
     }
 }
 
+function bindAdminAccordion(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-act="toggle-user"]').forEach(btn => {
+        if (btn._boundAcc) return;
+        btn._boundAcc = true;
+        btn.addEventListener('click', () => {
+            const i = btn.getAttribute('data-i');
+            const body = root.querySelector('#chat-user-' + i) ||
+                document.getElementById('chat-user-' + i);
+            if (!body) return;
+            const open = body.classList.toggle('oculto') === false;
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            const chev = btn.querySelector('.admin-acc-chevron');
+            if (chev) chev.textContent = open ? '▾' : '▸';
+        });
+    });
+}
+
+function syncAdminBulkBar(root, scope) {
+    const bar = root.querySelector('.admin-bulk-bar[data-scope="' + scope + '"]');
+    if (!bar) return;
+    const cbs = Array.from(root.querySelectorAll('.admin-sel-cb[data-scope="' + scope + '"]:not(.admin-sel-thread)'));
+    const selected = cbs.filter(c => c.checked);
+    const countEl = bar.querySelector('[data-bulk-count]');
+    if (countEl) countEl.textContent = selected.length + ' selecionado' + (selected.length === 1 ? '' : 's');
+    if (selected.length) bar.classList.remove('oculto');
+    else bar.classList.add('oculto');
+}
+
+function selectedAdminIds(root, scope) {
+    return Array.from(root.querySelectorAll('.admin-sel-cb[data-scope="' + scope + '"]:not(.admin-sel-thread):checked'))
+        .map(c => parseInt(c.value, 10))
+        .filter(n => !isNaN(n));
+}
+
+function bindAdminBulkSelection(root, opts) {
+    const scope = opts.scope;
+    root.querySelectorAll('.admin-sel-cb[data-scope="' + scope + '"]').forEach(cb => {
+        if (cb._boundBulk) return;
+        cb._boundBulk = true;
+        cb.addEventListener('change', () => syncAdminBulkBar(root, scope));
+    });
+    // Clique na linha (exceto no input) também alterna
+    root.querySelectorAll('.admin-sel-row').forEach(row => {
+        if (row._boundRow) return;
+        row._boundRow = true;
+        row.addEventListener('click', (e) => {
+            if (e.target && e.target.closest && e.target.closest('a,button,input,form')) return;
+            const cb = row.querySelector('.admin-sel-cb');
+            if (!cb) return;
+            // label already toggles checkbox; only sync
+            syncAdminBulkBar(root, scope);
+        });
+    });
+    const bar = root.querySelector('.admin-bulk-bar[data-scope="' + scope + '"]');
+    if (!bar || bar._boundActions) return;
+    bar._boundActions = true;
+    bar.addEventListener('click', async (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest('[data-bulk]') : null;
+        if (!btn) return;
+        const act = btn.getAttribute('data-bulk');
+        const cbs = Array.from(root.querySelectorAll('.admin-sel-cb[data-scope="' + scope + '"]:not(.admin-sel-thread)'));
+        if (act === 'marcar-todos') {
+            cbs.forEach(c => { c.checked = true; });
+            root.querySelectorAll('.admin-sel-thread[data-scope="' + scope + '"]').forEach(c => { c.checked = true; });
+            syncAdminBulkBar(root, scope);
+            return;
+        }
+        if (act === 'desmarcar') {
+            cbs.forEach(c => { c.checked = false; });
+            root.querySelectorAll('.admin-sel-thread[data-scope="' + scope + '"]').forEach(c => { c.checked = false; });
+            syncAdminBulkBar(root, scope);
+            return;
+        }
+        const ids = selectedAdminIds(root, scope);
+        if (!ids.length) return toastMsg('Selecione ao menos um item');
+        if (act === 'apagar' && opts.onApagar) return opts.onApagar(ids);
+        if (act === 'flag' && opts.onFlag) return opts.onFlag(ids);
+        if (act === 'arquivar' && opts.onArquivar) return opts.onArquivar(ids);
+        if (act === 'atendido' && opts.onAtendido) return opts.onAtendido(ids);
+    });
+}
+
 async function carregarChatMonitor() {
     const box = document.getElementById('admin-chat');
+    if (!box) return;
     try {
         const { data, error } = await supabaseClient
             .from('chat_mensagens')
-            .select('*')
+            .select('id, de_auth_id, de_nome, para_auth_id, texto, midia_url, status, moderacao, deleted_at, criado_em')
+            .is('deleted_at', null)
             .order('criado_em', { ascending: false })
-            .limit(80);
+            .limit(200);
         if (error) throw error;
         if (!data || !data.length) {
-            box.innerHTML = '<p>Sem mensagens.</p>';
+            box.innerHTML = '<p class="sub">Sem mensagens ativas.</p>';
             return;
         }
-        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-            '<th>Quando</th><th>De</th><th>Texto</th><th>Status</th><th>Mod</th><th></th></tr></thead><tbody>' +
-            data.map(m => {
-                const when = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : '';
-                const del = m.deleted_at ? ' (removida)' : '';
-                return `<tr data-id="${m.id}">
-                    <td>${esc(when)}</td>
-                    <td>${esc(m.de_nome || '—')}</td>
-                    <td>${esc((m.texto || '').slice(0, 80))}${m.midia_url ? ' 📎' : ''}${del}</td>
-                    <td>${esc(m.status || 'enviada')}</td>
-                    <td>${esc(m.moderacao || '—')}</td>
-                    <td class="card-actions">
-                        <button type="button" class="btn-sm" data-act="flag">🚩</button>
-                        <button type="button" class="btn-sm btn-danger" data-act="del">🗑</button>
-                    </td>
-                </tr>`;
-            }).join('') + '</tbody></table></div>';
 
-        box.querySelectorAll('[data-act]').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const tr = btn.closest('tr');
-                const id = parseInt(tr.getAttribute('data-id'), 10);
-                const act = btn.getAttribute('data-act');
-                if (act === 'flag') {
-                    const { error } = await supabaseClient.from('chat_mensagens')
-                        .update({ moderacao: 'sinalizada' }).eq('id', id);
-                    if (error) return toastMsg('Erro: ' + error.message);
-                    toastMsg('Mensagem sinalizada');
-                } else if (act === 'del') {
-                    const { error } = await supabaseClient.from('chat_mensagens')
-                        .update({
-                            deleted_at: new Date().toISOString(),
-                            moderacao: 'removida'
-                        }).eq('id', id);
-                    if (error) return toastMsg('Erro: ' + error.message);
-                    toastMsg('Mensagem removida (soft)');
-                }
+        const authIds = new Set();
+        data.forEach(m => {
+            if (m.de_auth_id) authIds.add(m.de_auth_id);
+            if (m.para_auth_id) authIds.add(m.para_auth_id);
+        });
+        const nomeByAuth = {};
+        data.forEach(m => {
+            if (m.de_auth_id && m.de_nome) nomeByAuth[m.de_auth_id] = m.de_nome;
+        });
+        if (authIds.size) {
+            try {
+                const { data: users } = await supabaseClient
+                    .from('usuarios')
+                    .select('auth_id, nome, apelido')
+                    .in('auth_id', Array.from(authIds));
+                (users || []).forEach(u => {
+                    if (u.auth_id) {
+                        nomeByAuth[u.auth_id] = u.apelido || u.nome || nomeByAuth[u.auth_id] || u.auth_id.slice(0, 8);
+                    }
+                });
+            } catch (_) { /* nomes do próprio chat bastam */ }
+        }
+        const nomeDe = (aid) => (aid && nomeByAuth[aid]) || (aid ? aid.slice(0, 8) : '—');
+
+        // Agrupa por remetente (usuário) → threads por destinatário
+        const byUser = new Map();
+        data.forEach(m => {
+            const uid = m.de_auth_id || 'desconhecido';
+            if (!byUser.has(uid)) {
+                byUser.set(uid, {
+                    uid,
+                    nome: nomeDe(uid) !== '—' ? nomeDe(uid) : (m.de_nome || 'Desconhecido'),
+                    msgs: [],
+                    threads: new Map()
+                });
+            }
+            const u = byUser.get(uid);
+            if (m.de_nome && u.nome === (uid.slice ? uid.slice(0, 8) : u.nome)) u.nome = m.de_nome;
+            u.msgs.push(m);
+            const peer = m.para_auth_id || '_broadcast';
+            if (!u.threads.has(peer)) u.threads.set(peer, []);
+            u.threads.get(peer).push(m);
+        });
+
+        const users = Array.from(byUser.values());
+        users.sort((a, b) => {
+            const ta = a.msgs[0] && a.msgs[0].criado_em ? new Date(a.msgs[0].criado_em) : 0;
+            const tb = b.msgs[0] && b.msgs[0].criado_em ? new Date(b.msgs[0].criado_em) : 0;
+            return tb - ta;
+        });
+
+        const toolbar = `<div class="admin-bulk-bar oculto" id="chat-bulk-bar" data-scope="chat">
+            <span class="admin-bulk-count" data-bulk-count>0 selecionados</span>
+            <button type="button" class="btn-sm btn-ghost" data-bulk="marcar-todos">Marcar todos</button>
+            <button type="button" class="btn-sm btn-ghost" data-bulk="desmarcar">Limpar</button>
+            <button type="button" class="btn-sm" data-bulk="flag">🚩 Sinalizar</button>
+            <button type="button" class="btn-sm btn-danger" data-bulk="apagar">Apagar</button>
+        </div>`;
+
+        const sections = users.map((u, ui) => {
+            const unread = u.msgs.length;
+            const badge = unread
+                ? `<span class="admin-unread-badge">${unread > 99 ? '99+' : unread}</span>`
+                : '';
+            const threadBlocks = Array.from(u.threads.entries()).map(([peer, msgs]) => {
+                const peerLabel = peer === '_broadcast' ? 'Geral' : ('Com ' + nomeDe(peer));
+                const rows = msgs.map(m => {
+                    const when = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : '';
+                    const preview = esc((m.texto || '').slice(0, 120)) + (m.midia_url ? ' 📎' : '');
+                    const mod = m.moderacao && m.moderacao !== '—'
+                        ? `<span class="badge">${esc(m.moderacao)}</span>` : '';
+                    return `<label class="admin-sel-row" data-id="${m.id}">
+                        <span class="admin-bolinha">
+                            <input type="checkbox" class="admin-sel-cb" data-scope="chat" value="${m.id}">
+                            <span class="bolinha" aria-hidden="true"></span>
+                        </span>
+                        <span class="admin-sel-body">
+                            <span class="admin-sel-meta">${esc(when)} · ${esc(m.status || 'enviada')} ${mod}</span>
+                            <span class="admin-sel-text">${preview}</span>
+                        </span>
+                    </label>`;
+                }).join('');
+                return `<div class="admin-thread-block">
+                    <div class="admin-thread-peer">${esc(peerLabel)} <span class="sub">(${msgs.length})</span></div>
+                    ${rows}
+                </div>`;
+            }).join('');
+
+            return `<div class="admin-user-acc" data-uid="${esc(u.uid)}">
+                <button type="button" class="admin-user-acc-head" data-act="toggle-user" data-i="${ui}" aria-expanded="false">
+                    <span class="admin-acc-chevron">▸</span>
+                    <strong>${esc(u.nome)}</strong>
+                    ${badge}
+                    <span class="sub admin-acc-hint">${unread} msg${unread === 1 ? '' : 's'}</span>
+                </button>
+                <div class="admin-user-acc-body oculto" id="chat-user-${ui}">
+                    ${threadBlocks}
+                </div>
+            </div>`;
+        }).join('');
+
+        box.innerHTML = toolbar + '<div class="admin-user-list" id="chat-user-list">' + sections + '</div>';
+        bindAdminAccordion(box);
+        bindAdminBulkSelection(box, {
+            scope: 'chat',
+            onApagar: async (ids) => {
+                if (!ids.length) return;
+                if (!confirm('Apagar (soft-delete) ' + ids.length + ' mensagem(ns) selecionada(s)?')) return;
+                const now = new Date().toISOString();
+                const { error: err } = await supabaseClient.from('chat_mensagens')
+                    .update({ deleted_at: now, moderacao: 'removida' })
+                    .in('id', ids);
+                if (err) return toastMsg('Erro: ' + err.message);
+                toastMsg(ids.length + ' mensagem(ns) apagada(s)');
                 carregarChatMonitor();
-            });
+            },
+            onFlag: async (ids) => {
+                if (!ids.length) return;
+                const { error: err } = await supabaseClient.from('chat_mensagens')
+                    .update({ moderacao: 'sinalizada' })
+                    .in('id', ids);
+                if (err) return toastMsg('Erro: ' + err.message);
+                toastMsg(ids.length + ' sinalizada(s)');
+                carregarChatMonitor();
+            }
         });
     } catch (e) {
-        box.innerHTML = '<p class="erro">' + esc(e.message) + ' — rode SQL 10.</p>';
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' — rode SQL 10/28.</p>';
     }
 }
 
@@ -1154,19 +1326,31 @@ async function carregarSuporteAdmin() {
     const box = document.getElementById('admin-suporte');
     if (!box) return;
     try {
-        const { data, error } = await supabaseClient
+        let q = supabaseClient
             .from('suporte_mensagens')
-            .select('id, de_auth_id, de_nome, texto, origem, thread_auth_id, criado_em, lido_admin')
+            .select('id, de_auth_id, de_nome, texto, origem, thread_auth_id, criado_em, lido_admin, deleted_at, arquivado, atendido_em')
             .order('criado_em', { ascending: false })
-            .limit(200);
+            .limit(300);
+        let { data, error } = await q;
+        if (error && /deleted_at|arquivado|atendido_em|column/i.test(error.message || '')) {
+            const fb = await supabaseClient
+                .from('suporte_mensagens')
+                .select('id, de_auth_id, de_nome, texto, origem, thread_auth_id, criado_em, lido_admin')
+                .order('criado_em', { ascending: false })
+                .limit(300);
+            data = fb.data;
+            error = fb.error;
+        }
         if (error) throw error;
-        if (!data || !data.length) {
-            box.innerHTML = '<p class="sub">Nenhuma mensagem de suporte ainda.</p>';
+        const raw = (data || []).filter(m => !m.deleted_at);
+        const ativos = raw.filter(m => !m.arquivado);
+        if (!ativos.length) {
+            box.innerHTML = '<p class="sub">Nenhuma mensagem de suporte ativa.</p>';
             return;
         }
-        // Agrupa por thread_auth_id
+
         const threads = new Map();
-        data.forEach(m => {
+        ativos.forEach(m => {
             const tid = m.thread_auth_id || m.de_auth_id || '—';
             if (!threads.has(tid)) threads.set(tid, []);
             threads.get(tid).push(m);
@@ -1176,30 +1360,65 @@ async function carregarSuporteAdmin() {
             msgs.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
             const last = msgs[msgs.length - 1];
             const userMsg = msgs.find(x => x.origem === 'user' && x.de_nome);
-            const nome = (userMsg && userMsg.de_nome) || last.de_nome || tid.slice(0, 8);
+            const nome = (userMsg && userMsg.de_nome) || last.de_nome || String(tid).slice(0, 8);
             const pendenteHumano = msgs.some(x => x.origem === 'user' && /falar com humano|aguardando atendimento/i.test(x.texto || ''));
-            list.push({ tid, nome, msgs, last, pendenteHumano });
+            const unread = msgs.filter(x => x.origem === 'user' && !x.lido_admin).length;
+            const ids = msgs.map(m => m.id);
+            list.push({ tid, nome, msgs, last, pendenteHumano, unread, ids });
         });
-        list.sort((a, b) => new Date(b.last.criado_em) - new Date(a.last.criado_em));
+        list.sort((a, b) => {
+            if (a.pendenteHumano !== b.pendenteHumano) return a.pendenteHumano ? -1 : 1;
+            return new Date(b.last.criado_em) - new Date(a.last.criado_em);
+        });
 
-        box.innerHTML = list.map((t, i) => {
+        const toolbar = `<div class="admin-bulk-bar oculto" id="suporte-bulk-bar" data-scope="suporte">
+            <span class="admin-bulk-count" data-bulk-count>0 selecionados</span>
+            <button type="button" class="btn-sm btn-ghost" data-bulk="marcar-todos">Marcar todos</button>
+            <button type="button" class="btn-sm btn-ghost" data-bulk="desmarcar">Limpar</button>
+            <button type="button" class="btn-sm btn-ok" data-bulk="atendido">Marcar atendido</button>
+            <button type="button" class="btn-sm" data-bulk="arquivar">Salvar / Arquivar</button>
+            <button type="button" class="btn-sm btn-danger" data-bulk="apagar">Apagar</button>
+        </div>`;
+
+        const sections = list.map((t, i) => {
             const preview = esc((t.last.texto || '').slice(0, 80));
             const when = t.last.criado_em ? new Date(t.last.criado_em).toLocaleString('pt-BR') : '';
-            const badge = t.pendenteHumano ? '<span class="badge badge-atrasado">Humano</span>' : '';
-            return `<div class="suporte-thread" data-tid="${esc(t.tid)}">
-                <button type="button" class="suporte-thread-head" data-act="toggle-thread" data-i="${i}">
-                    <strong>${esc(t.nome)}</strong> ${badge}
-                    <span class="sub">${esc(when)} · ${preview}</span>
-                </button>
-                <div class="suporte-thread-body oculto" id="suporte-thread-${i}">
-                    <div class="suporte-msgs admin-suporte-msgs">
-                        ${t.msgs.map(m => {
-                            const cls = m.origem === 'user' ? 'user' : (m.origem === 'admin' ? 'admin' : 'bot');
-                            const who = m.origem === 'admin' ? (m.de_nome || 'Admin')
-                                : (m.origem === 'bot' ? 'Robô' : (m.de_nome || 'User'));
-                            return `<div class="suporte-bubble ${cls}"><div class="suporte-meta">${esc(who)}</div><div>${esc(m.texto)}</div></div>`;
-                        }).join('')}
-                    </div>
+            const badgeHumano = t.pendenteHumano ? '<span class="badge badge-atrasado">Humano</span>' : '';
+            const badgeUnread = t.unread
+                ? `<span class="admin-unread-badge">${t.unread > 99 ? '99+' : t.unread}</span>`
+                : '';
+            const msgRows = t.msgs.map(m => {
+                const cls = m.origem === 'user' ? 'user' : (m.origem === 'admin' ? 'admin' : 'bot');
+                const who = m.origem === 'admin' ? (m.de_nome || 'Admin')
+                    : (m.origem === 'bot' ? 'Robô' : (m.de_nome || 'User'));
+                const mw = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : '';
+                return `<label class="admin-sel-row suporte-sel-msg" data-id="${m.id}">
+                    <span class="admin-bolinha">
+                        <input type="checkbox" class="admin-sel-cb" data-scope="suporte" value="${m.id}">
+                        <span class="bolinha" aria-hidden="true"></span>
+                    </span>
+                    <span class="admin-sel-body suporte-bubble ${cls}">
+                        <span class="suporte-meta">${esc(who)} · ${esc(mw)}</span>
+                        <span>${esc(m.texto)}</span>
+                    </span>
+                </label>`;
+            }).join('');
+
+            return `<div class="suporte-thread admin-user-acc" data-tid="${esc(t.tid)}" data-ids="${t.ids.join(',')}">
+                <div class="suporte-thread-head-row">
+                    <label class="admin-bolinha admin-bolinha-thread" title="Selecionar thread">
+                        <input type="checkbox" class="admin-sel-cb admin-sel-thread" data-scope="suporte" data-thread-ids="${t.ids.join(',')}">
+                        <span class="bolinha" aria-hidden="true"></span>
+                    </label>
+                    <button type="button" class="suporte-thread-head admin-user-acc-head" data-act="toggle-thread" data-i="${i}" aria-expanded="false">
+                        <span class="admin-acc-chevron">▸</span>
+                        <strong>${esc(t.nome)}</strong>
+                        ${badgeHumano}${badgeUnread}
+                        <span class="sub">${esc(when)} · ${preview}</span>
+                    </button>
+                </div>
+                <div class="suporte-thread-body admin-user-acc-body oculto" id="suporte-thread-${i}">
+                    <div class="suporte-msgs admin-suporte-msgs">${msgRows}</div>
                     <form class="suporte-admin-reply" data-tid="${esc(t.tid)}">
                         <input type="text" name="reply" placeholder="Responder como admin…" required maxlength="2000">
                         <button type="submit" class="btn-ok btn-sm">Enviar</button>
@@ -1208,13 +1427,32 @@ async function carregarSuporteAdmin() {
             </div>`;
         }).join('');
 
+        box.innerHTML = toolbar + '<div class="admin-user-list" id="suporte-user-list">' + sections + '</div>';
+
         box.querySelectorAll('[data-act="toggle-thread"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const i = btn.getAttribute('data-i');
                 const body = document.getElementById('suporte-thread-' + i);
-                if (body) body.classList.toggle('oculto');
+                if (!body) return;
+                const open = body.classList.toggle('oculto') === false;
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                const chev = btn.querySelector('.admin-acc-chevron');
+                if (chev) chev.textContent = open ? '▾' : '▸';
             });
         });
+
+        // Thread checkbox → marca todas as msgs da thread
+        box.querySelectorAll('.admin-sel-thread').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const ids = (cb.getAttribute('data-thread-ids') || '').split(',').filter(Boolean);
+                ids.forEach(id => {
+                    const msgCb = box.querySelector('.admin-sel-cb[data-scope="suporte"][value="' + id + '"]:not(.admin-sel-thread)');
+                    if (msgCb) msgCb.checked = cb.checked;
+                });
+                syncAdminBulkBar(box, 'suporte');
+            });
+        });
+
         box.querySelectorAll('form.suporte-admin-reply').forEach(form => {
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -1238,10 +1476,45 @@ async function carregarSuporteAdmin() {
                 carregarSuporteAdmin();
             });
         });
+
+        bindAdminBulkSelection(box, {
+            scope: 'suporte',
+            onApagar: async (ids) => {
+                if (!ids.length) return;
+                if (!confirm('Apagar (soft-delete) ' + ids.length + ' mensagem(ns) de suporte?')) return;
+                const now = new Date().toISOString();
+                const { error: err } = await supabaseClient.from('suporte_mensagens')
+                    .update({ deleted_at: now })
+                    .in('id', ids);
+                if (err) return toastMsg('Erro: ' + err.message + ' (SQL 31?)');
+                toastMsg(ids.length + ' apagada(s)');
+                carregarSuporteAdmin();
+            },
+            onArquivar: async (ids) => {
+                if (!ids.length) return;
+                const { error: err } = await supabaseClient.from('suporte_mensagens')
+                    .update({ arquivado: true, lido_admin: true })
+                    .in('id', ids);
+                if (err) return toastMsg('Erro: ' + err.message + ' (SQL 31?)');
+                toastMsg(ids.length + ' arquivada(s)');
+                carregarSuporteAdmin();
+            },
+            onAtendido: async (ids) => {
+                if (!ids.length) return;
+                const now = new Date().toISOString();
+                const { error: err } = await supabaseClient.from('suporte_mensagens')
+                    .update({ lido_admin: true, atendido_em: now })
+                    .in('id', ids);
+                if (err) return toastMsg('Erro: ' + err.message + ' (SQL 31?)');
+                toastMsg(ids.length + ' marcada(s) como atendida(s)');
+                carregarSuporteAdmin();
+            }
+        });
     } catch (e) {
-        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 16)</p>';
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' (SQL 16/31)</p>';
     }
 }
+
 
 (async function init() {
     const session = await requireSession();

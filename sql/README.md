@@ -1,5 +1,5 @@
 Ordem de execução no Supabase SQL Editor (incremental, NÃO wipe):
-… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql → 23-admin-emprestimos.sql → 24-chat-midia-storage.sql → 25-ensure-admin.sql → 26-lotes-publicado-como.sql → 27-chat-audio-fix.sql → 28-chat-msg-acoes.sql
+… → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17-rls-isolamento.sql → 18-chat-contatos-dms.sql → 19-fixes.sql → 20-cleanup-teste.sql → 21-chat-diretorio-rpc.sql → 22-chat-diretorio-sem-email.sql → 23-admin-emprestimos.sql → 24-chat-midia-storage.sql → 25-ensure-admin.sql → 26-lotes-publicado-como.sql → 27-chat-audio-fix.sql → 28-chat-msg-acoes.sql → … → 30 → 31-suporte-soft-delete.sql
 
 ## 10-chat-pix-admin.sql
 Chat: tipo, midia_url, agendado_para, para_auth_id, status, moderacao, deleted_at.
@@ -93,3 +93,8 @@ Habilita Responder / Apagar para mim / Apagar para todos / Apagar histórico no 
 Incremental após 29: estende `emprestimos` com KYC (endereco, empresa, anos_empresa, comprova_renda), URLs de docs, `vencimento`, `pago_em`, `questionario`; bucket Storage privado `emprestimo-docs` (upload na pasta do próprio auth_id; admin lê); RPCs `admin_listar_emprestimos` (filas/dias), `admin_credito_kpis`, `admin_gerar_alertas_credito`, `admin_listar_alertas`, `admin_contar_alertas_nao_lidos`, `admin_marcar_alerta_lido`; tabela `admin_alertas`. Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 30 no Supabase SQL Editor após 29.**
 Necessário para mesa de crédito admin, wizard KYC do Caixa e alertas de vencimento/atraso.
+
+## 31-suporte-soft-delete.sql
+Incremental após 30: `suporte_mensagens.deleted_at`, `arquivado`, `atendido_em` + índices. Soft-delete/arquivo no monitor admin (Fale conosco). Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 31 no Supabase SQL Editor após 30.**
+
