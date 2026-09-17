@@ -9,7 +9,6 @@ const NAV_PRIMARIOS = [
 ];
 
 const NAV_SECUNDARIOS = [
-    { id: 'financeiro', label: 'Caixa Minera', href: 'financeiro.html', featured: true },
     { id: 'mapa', label: 'Mapa', href: 'mapa.html' },
     { id: 'britagem', label: 'Britagem', href: 'processamento.html' },
     { id: 'frete', label: 'Logística', href: 'frete.html' },
@@ -20,14 +19,14 @@ const NAV_SECUNDARIOS = [
 ];
 
 const PAPEIS_CHIPS = {
-    minerador: ['inicio', 'financeiro', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
-    comprador: ['inicio', 'financeiro', 'chat', 'perfil', 'mapa'],
-    transportador: ['inicio', 'financeiro', 'frete', 'chat', 'perfil'],
-    transportador_mina_britador: ['inicio', 'financeiro', 'frete', 'chat', 'perfil'],
-    transportador_britador_porto: ['inicio', 'financeiro', 'frete', 'chat', 'perfil'],
-    dono_britador: ['inicio', 'financeiro', 'britagem', 'estoque', 'chat', 'perfil'],
-    carregamento: ['inicio', 'financeiro', 'expedicao', 'frete', 'chat', 'perfil'],
-    admin: ['inicio', 'financeiro', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'estoque', 'expedicao', 'relatorios', 'admin']
+    minerador: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
+    comprador: ['inicio', 'chat', 'perfil', 'mapa'],
+    transportador: ['inicio', 'frete', 'chat', 'perfil'],
+    transportador_mina_britador: ['inicio', 'frete', 'chat', 'perfil'],
+    transportador_britador_porto: ['inicio', 'frete', 'chat', 'perfil'],
+    dono_britador: ['inicio', 'britagem', 'estoque', 'chat', 'perfil'],
+    carregamento: ['inicio', 'expedicao', 'frete', 'chat', 'perfil'],
+    admin: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'estoque', 'expedicao', 'relatorios', 'admin']
 };
 
 function iniciaisNome(nome) {
@@ -43,7 +42,7 @@ function chipsPermitidos(perfil) {
     if (typeof ehAdmin === 'function' && ehAdmin(perfil)) return allIds;
     const papeis = Array.isArray(perfil.papeis) ? perfil.papeis : [];
     if (!papeis.length) return allIds.filter(id => id !== 'admin');
-    const set = new Set(['perfil', 'inicio', 'chat', 'mapa', 'financeiro']);
+    const set = new Set(['perfil', 'inicio', 'chat', 'mapa']);
     papeis.forEach(p => {
         const key = String(p).toLowerCase();
         const chips = PAPEIS_CHIPS[key];
@@ -122,10 +121,11 @@ function garantirHeaderCaixaBtn() {
         btn = document.createElement('a');
         btn.id = 'btn-caixa-bank';
         btn.className = 'btn-caixa-bank';
-        btn.title = 'Caixa Minera';
-        btn.setAttribute('aria-label', 'Caixa Minera');
+        btn.title = 'Bank — Caixa Minera';
+        btn.setAttribute('aria-label', 'Bank — Caixa Minera');
         btn.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">' +
-            '<path fill="currentColor" d="M12 3L2 9v2h20V9L12 3zm1 6H11v2h2V9zm-4 0H7v2h2V9zm8 0h-2v2h2V9zM4 13v7h3v-5h2v5h2v-5h2v5h2v-5h2v5h3v-7H4z"/></svg>';
+            '<path fill="currentColor" d="M12 3L2 9v2h20V9L12 3zm1 6H11v2h2V9zm-4 0H7v2h2V9zm8 0h-2v2h2V9zM4 13v7h3v-5h2v5h2v-5h2v5h2v-5h2v5h3v-7H4z"/></svg>' +
+            '<span class="btn-caixa-bank-label">Bank</span>';
         const notif = document.getElementById('btn-notif');
         const sair = document.getElementById('btn-sair');
         if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
@@ -133,6 +133,14 @@ function garantirHeaderCaixaBtn() {
         else actions.insertBefore(btn, actions.firstChild);
     }
     btn.href = href;
+    btn.title = 'Bank — Caixa Minera';
+    btn.setAttribute('aria-label', 'Bank — Caixa Minera');
+    if (!btn.querySelector('.btn-caixa-bank-label')) {
+        const label = document.createElement('span');
+        label.className = 'btn-caixa-bank-label';
+        label.textContent = 'Bank';
+        btn.appendChild(label);
+    }
 }
 
 

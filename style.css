@@ -828,7 +828,7 @@ body.has-bottom-nav .app-toast {
     .cotacao-item .c-sub { font-size: 0.58rem; }
     .cotacoes-fonte { font-size: 0.58rem; max-width: 50%; }
     .header-actions { gap: 6px; }
-    .btn-caixa-bank { width: 40px; height: 40px; }
+    .btn-caixa-bank { width: 52px; min-width: 52px; height: 40px; }
     .header-actions .btn-icon { width: 34px; height: 34px; padding: 0; }
     .btn-sair { padding: 6px 10px; font-size: 0.8rem; }
 }
@@ -1415,10 +1415,14 @@ html[data-theme="light"] .aviso-credito {
 /* Header Caixa Minera bank icon — more prominent than bell */
 .btn-caixa-bank {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 44px;
+    gap: 0;
+    width: 54px;
+    min-width: 54px;
     height: 44px;
+    padding: 2px 4px;
     border-radius: 12px;
     background: linear-gradient(145deg, #422006, #1e3a5f);
     border: 1.5px solid #f59e0b;
@@ -1435,7 +1439,14 @@ html[data-theme="light"] .aviso-credito {
     color: #fde68a;
     outline: none;
 }
-.btn-caixa-bank svg { display: block; }
+.btn-caixa-bank svg { display: block; width: 24px; height: 24px; }
+.btn-caixa-bank-label {
+    display: block;
+    font-size: .62rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: .02em;
+}
 .header-actions .btn-icon {
     width: 36px;
     height: 36px;
@@ -2101,7 +2112,9 @@ body, .container, .card, header, nav, section { min-width: 0; }
     .header-row { gap: 8px; align-items: center; }
     .header-row .brand-title { flex-basis: 150px; }
     .header-actions { gap: 5px; flex: 0 1 auto; margin-left: auto; justify-content: flex-end; }
-    .header-actions .btn-caixa-bank { width: 36px; height: 36px; }
+    .header-actions .btn-caixa-bank { width: 52px; min-width: 52px; height: 36px; }
+    .header-actions .btn-caixa-bank svg { width: 20px; height: 20px; }
+    .header-actions .btn-caixa-bank-label { font-size: .58rem; }
     .nav-secondary { gap: 6px; }
     .nav-secondary .chip { flex: 1 1 calc(33.333% - 6px); padding: 6px 7px; }
     .cotacoes-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

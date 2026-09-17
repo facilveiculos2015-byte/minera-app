@@ -30,7 +30,7 @@ const FAQ_INTENTS = [
     {
         id: 'caixa',
         keys: ['caixa', 'depositar', 'deposito', 'depósito', 'sacar', 'saque', 'emprestimo', 'empréstimo', 'saldo', 'yield', 'pin'],
-        reply: '🏦 **Caixa Minera** — Ícone de banco no header ou chip Caixa Minera. Você pode **depositar** (Pix + comprovante), **sacar** (informe chave destino) e solicitar **empréstimo** (análise do admin). Há PIN próprio do Caixa e yield configurável até 5% a.m. conforme cotação/config.'
+        reply: '🏦 **Caixa Minera** — Ícone de banco no header. Você pode **depositar** (Pix + comprovante), **sacar** (informe chave destino) e solicitar **empréstimo** (análise do admin). Há PIN próprio do Caixa e yield configurável até 5% a.m. conforme cotação/config.'
     },
     {
         id: 'chat',
