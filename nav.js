@@ -11,19 +11,19 @@ const NAV_PRIMARIOS = [
 const NAV_SECUNDARIOS = [
     { id: 'mapa', label: 'Mapa', href: 'mapa.html' },
     // Ferramentas (deep-link secundário dentro do catálogo Serviços)
-    { id: 'britagem', label: 'Minha Britagem', href: 'processamento.html', grupo: 'ferramentas', icon: '🪨' },
-    { id: 'frete', label: 'Meus Fretes', href: 'frete.html', grupo: 'ferramentas', icon: '🚛' },
+    { id: 'britagem', label: 'Minha Britagem', href: 'processamento.html', grupo: 'ferramentas', icon: '•' },
+    { id: 'frete', label: 'Meus Fretes', href: 'frete.html', grupo: 'ferramentas', icon: '•' },
     // Estoque / Expedição / Relatórios: HTML mantido (admin/URL direta), ocultos do chrome do cliente
     { id: 'admin', label: 'Admin', href: 'admin.html', adminOnly: true }
 ];
 
 /** Catálogo de serviços no marketplace (papéis → oferta). */
 const SERVICOS_CATALOGO = [
-    { id: 'frete', label: 'Frete', icon: '🚛', match: ['transportador', 'transportador_mina_britador', 'transportador_britador_porto'] },
-    { id: 'britagem', label: 'Britagem', icon: '🪨', match: ['dono_britador'] },
-    { id: 'carregamento', label: 'Carregamento', icon: '🏗️', match: ['carregamento'] },
-    { id: 'minerador', label: 'Minerador', icon: '⛏️', match: ['minerador'] },
-    { id: 'comprador', label: 'Comprador', icon: '🛒', match: ['comprador'] }
+    { id: 'frete', label: 'Frete', icon: '', match: ['transportador', 'transportador_mina_britador', 'transportador_britador_porto'] },
+    { id: 'britagem', label: 'Britagem', icon: '', match: ['dono_britador'] },
+    { id: 'carregamento', label: 'Carregamento', icon: '', match: ['carregamento'] },
+    { id: 'minerador', label: 'Minerador', icon: '', match: ['minerador'] },
+    { id: 'comprador', label: 'Comprador', icon: '', match: ['comprador'] }
 ];
 
 const NAV_SERVICO_IDS = new Set(['frete', 'britagem', 'servicos']);
@@ -184,7 +184,7 @@ function renderServicosCatalogoList() {
         );
     }
     if (!items.length) {
-        box.innerHTML = '<p class="servicos-empty">Ninguém oferecendo esse serviço ainda. 👋 Volte em breve ou amplie o filtro.</p>';
+        box.innerHTML = '<p class="servicos-empty">Nenhum prestador encontrado. Amplie o filtro ou tente outra categoria.</p>';
         return;
     }
     box.innerHTML = items.map(u => {
@@ -193,7 +193,7 @@ function renderServicosCatalogoList() {
         const offs = servicosDoUsuario(u);
         const cidade = String(u.cidade || u.localidade || '').trim();
         const badges = offs.map(s =>
-            '<span class="svc-badge">' + s.icon + ' ' + _escNav(s.label) + '</span>'
+            '<span class="svc-badge">' + _escNav(s.label) + '</span>'
         ).join('');
         const chatHref = (typeof APP_ROOT === 'string' ? APP_ROOT : '') +
             'chat.html?com=' + encodeURIComponent(u.auth_id);
@@ -201,8 +201,9 @@ function renderServicosCatalogoList() {
             '<div class="svc-avatar" aria-hidden="true">' + _escNav(ini) + '</div>' +
             '<div class="svc-body">' +
             '<strong class="svc-nome">' + _escNav(nome) + '</strong>' +
+            '<span class="svc-verificado">Prestador na plataforma</span>' +
             '<div class="svc-badges">' + badges + '</div>' +
-            (cidade ? '<div class="svc-cidade">📍 ' + _escNav(cidade) + '</div>' : '') +
+            (cidade ? '<div class="svc-cidade">' + _escNav(cidade) + '</div>' : '') +
             '</div>' +
             '<a class="btn-sm svc-negociar" href="' + chatHref + '">Negociar</a>' +
             '</article>';
@@ -211,7 +212,7 @@ function renderServicosCatalogoList() {
 
 async function carregarServicosCatalogo() {
     const box = document.getElementById('servicos-dir-list');
-    if (box) box.innerHTML = '<p class="sub">Buscando quem oferece serviços…</p>';
+    if (box) box.innerHTML = '<p class="sub">Carregando prestadores…</p>';
     _servicosDirCache = await rpcServicosDiretorio(_servicosBusca);
     renderServicosCatalogoList();
 }
@@ -228,7 +229,7 @@ function garantirServicosSheet(ferramentas) {
             '<div class="mais-handle"></div>' +
             '<div class="servicos-mkt-head">' +
             '<h3>Serviços</h3>' +
-            '<p class="servicos-mkt-cue">Encontre frete, britagem, carregamento e quem está vendendo ou comprando.</p>' +
+            '<p class="servicos-mkt-cue">Prestadores verificados na sua região</p>' +
             '</div>' +
             '<label class="servicos-busca-wrap"><span class="sr-only">Buscar</span>' +
             '<input type="search" id="servicos-busca" class="servicos-busca" placeholder="Buscar por nome…" autocomplete="off"></label>' +
@@ -251,12 +252,12 @@ function garantirServicosSheet(ferramentas) {
     const filtros = document.getElementById('servicos-filtros');
     if (filtros && !filtros._built) {
         filtros._built = true;
-        const chips = [{ id: '', label: 'Todos', icon: '✨' }].concat(
+        const chips = [{ id: '', label: 'Todos', icon: '' }].concat(
             SERVICOS_CATALOGO.map(s => ({ id: s.id, label: s.label, icon: s.icon }))
         );
         filtros.innerHTML = chips.map(c =>
             '<button type="button" class="fchip svc-fchip' + (!c.id ? ' on' : '') + '" data-svc="' + c.id + '">' +
-            c.icon + ' ' + c.label + '</button>'
+            c.label + '</button>'
         ).join('');
         filtros.addEventListener('click', (e) => {
             const btn = e.target.closest('.svc-fchip');
@@ -551,8 +552,7 @@ function montarNav(paginaAtiva, perfil) {
             // Serviços sempre visível no chrome do cliente (marketplace de pessoas)
             const servOn = (NAV_SERVICO_IDS.has(paginaAtiva) || paginaAtiva === 'servicos') ? ' on' : '';
             html += '<button type="button" class="chip chip-servicos' + servOn + '" id="nav-servicos" aria-expanded="false" aria-haspopup="dialog" aria-controls="servicos-sheet">' +
-                '<span class="servicos-btn-main">✨ Serviços</span>' +
-                '<span class="servicos-btn-cue">frete, britagem…</span></button>';
+                '<span class="servicos-btn-main">Serviços</span></button>';
             html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
             html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';
             topNav.innerHTML = html;

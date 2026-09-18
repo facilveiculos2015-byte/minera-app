@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Feed</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260918c">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918c">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260918b">
+    <link rel="stylesheet" href="style.css?v=20260918c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -65,13 +65,32 @@
             </div>
         </section>
 
-        <section class="card">
-            <h2>Marketplace</h2>
-            <p class="sub">Feed de lotes — negocie e veja detalhes</p>
+        <section class="card mkt-card">
+            <div class="mkt-head">
+                <div>
+                    <h2>Marketplace</h2>
+                    <p class="sub">Lotes publicados · filtre e negocie direto com o anunciante</p>
+                </div>
+            </div>
+
+            <button type="button" class="cta-servicos" id="cta-servicos" aria-haspopup="dialog">
+                <span class="cta-servicos-ico" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+                </span>
+                <span class="cta-servicos-body">
+                    <span class="cta-servicos-title">Serviços na região</span>
+                    <span class="cta-servicos-sub">Frete, britagem, carregamento e compradores verificados</span>
+                </span>
+                <span class="cta-servicos-arrow" aria-hidden="true">›</span>
+            </button>
+
+            <div class="mkt-search">
+                <input type="search" id="mkt-busca" placeholder="Buscar por código, cidade ou minério…" autocomplete="off" aria-label="Buscar no feed">
+            </div>
 
             <div class="loc-bar loc-bar-collapsed" id="loc-bar">
                 <button type="button" class="loc-bar-toggle" id="loc-bar-toggle" aria-expanded="false" aria-controls="loc-bar-panel">
-                    <span class="loc-bar-toggle-title">Filtros</span>
+                    <span class="loc-bar-toggle-title">Local</span>
                     <span class="loc-bar-status" id="loc-status" aria-live="polite">Detectando localização…</span>
                     <span class="loc-bar-chevron" aria-hidden="true">▼</span>
                 </button>
@@ -93,19 +112,19 @@
                             <option value="">DDD</option>
                         </select>
                     </div>
-                    <p class="filtro-grupo-label">Tipo de serviço</p>
-                    <div class="chip-filters" id="filtro-servico-chips" role="group" aria-label="Tipo de serviço">
+                    <p class="filtro-grupo-label">Perfil do anunciante</p>
+                    <div class="chip-filters" id="filtro-servico-chips" role="group" aria-label="Perfil do anunciante">
                         <button type="button" class="fchip on" data-servico="">Todos</button>
                         <button type="button" class="fchip" data-servico="minerador">Minerador</button>
                         <button type="button" class="fchip" data-servico="comprador">Comprador</button>
                         <button type="button" class="fchip" data-servico="transportador">Transportador</button>
-                        <button type="button" class="fchip" data-servico="dono_britador">Dono de Britador</button>
-                        <button type="button" class="fchip" data-servico="carregamento">Carregador</button>
+                        <button type="button" class="fchip" data-servico="dono_britador">Britador</button>
+                        <button type="button" class="fchip" data-servico="carregamento">Carregamento</button>
                     </div>
                 </div>
             </div>
 
-            <div class="chip-filters chip-filters-minerio" id="filtro-tipo-chips" role="group" aria-label="Tipo de minério">
+            <div class="chip-filters chip-filters-minerio seg-minerio" id="filtro-tipo-chips" role="group" aria-label="Tipo de minério">
                 <button type="button" class="fchip on" data-tipo="">Todos</button>
                 <button type="button" class="fchip fchip-mineral fchip-ouro" data-tipo="Ouro"><span class="min-ico" aria-hidden="true"></span>Ouro</button>
                 <button type="button" class="fchip fchip-mineral fchip-ferro" data-tipo="Ferro"><span class="min-ico" aria-hidden="true"></span>Ferro</button>
@@ -122,12 +141,12 @@
             <div id="feed" class="loading">Carregando...</div>
         </section>
     </div>
-    <script src="config.js?v=20260918b"></script>
-    <script src="auth-guard.js?v=20260918b"></script>
-    <script src="suporte.js?v=20260918b"></script>
-    <script src="nav.js?v=20260918b"></script>
-    <script src="localidade.js?v=20260918b"></script>
-    <script src="inicio.js?v=20260918b"></script>
-    <script src="pwa.js?v=20260918b"></script>
+    <script src="config.js?v=20260918c"></script>
+    <script src="auth-guard.js?v=20260918c"></script>
+    <script src="suporte.js?v=20260918c"></script>
+    <script src="nav.js?v=20260918c"></script>
+    <script src="localidade.js?v=20260918c"></script>
+    <script src="inicio.js?v=20260918c"></script>
+    <script src="pwa.js?v=20260918c"></script>
 </body>
 </html>

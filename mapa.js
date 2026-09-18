@@ -93,11 +93,20 @@ function haversineKm(a, b) {
     return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
+function openMapaSheet(open) {
+    const sheet = document.getElementById('mapa-sheet');
+    if (!sheet) return;
+    sheet.classList.toggle('open', !!open);
+}
+
 function updatePinInfo(extraHtml) {
     const btnSend = document.getElementById('btn-enviar-chat');
+    const summary = document.getElementById('mapa-sheet-summary');
     if (!pinLatLng) {
         setInfo(extraHtml || '');
         if (btnSend) btnSend.disabled = true;
+        if (summary) summary.textContent = 'Toque no mapa para marcar um ponto';
+        openMapaSheet(!!extraHtml);
         return;
     }
     const lat = pinLatLng.lat.toFixed(6);
@@ -110,7 +119,12 @@ function updatePinInfo(extraHtml) {
         'Lat: ' + lat + ' · Lng: ' + lng + label;
     if (extraHtml) html += extraHtml;
     setInfo(html);
+    if (summary) {
+        summary.innerHTML = '<strong>Ponto</strong> · ' + lat + ', ' + lng +
+            (pinLabel ? ' · ' + esc(pinLabel) : '');
+    }
     if (btnSend) btnSend.disabled = false;
+    openMapaSheet(true);
 }
 
 function criarOsm() {
@@ -522,7 +536,7 @@ async function onBuscarCidade() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔎 Buscar cidade';
+            btn.textContent = 'Buscar';
         }
     }
 }
@@ -542,9 +556,21 @@ function wireUi() {
         btnMarcar.addEventListener('click', () => {
             marcarAtivo = !marcarAtivo;
             btnMarcar.classList.toggle('on', marcarAtivo);
-            btnMarcar.textContent = marcarAtivo ? '📌 Marcar ponto (on)' : '📌 Marcar ponto';
+            btnMarcar.setAttribute('aria-pressed', marcarAtivo ? 'true' : 'false');
+            btnMarcar.title = marcarAtivo ? 'Marcar ponto (ativo)' : 'Marcar ponto';
         });
-        btnMarcar.textContent = '📌 Marcar ponto (on)';
+    }
+
+    const fabCamada = document.getElementById('fab-camada');
+    if (fabCamada) {
+        fabCamada.addEventListener('click', () => {
+            const sel = document.getElementById('mapa-base');
+            if (!sel) return;
+            sel.value = sel.value === 'esri' ? 'osm' : 'esri';
+            sel.dispatchEvent(new Event('change'));
+            fabCamada.classList.toggle('on', sel.value === 'esri');
+            fabCamada.title = sel.value === 'esri' ? 'Camada: satélite' : 'Camada: ruas';
+        });
     }
 
     const btnRota = document.getElementById('btn-rota-simples');

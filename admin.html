@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Admin</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260918c">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918c">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260918b">
+    <link rel="stylesheet" href="style.css?v=20260918c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -22,14 +22,14 @@
             <div class="brand-title">
                 <h1>Minera App</h1>
                 <p id="user-label">Carregando...</p>
-                <span class="admin-badge-pill">Admin</span>
+                <span class="admin-badge-pill">Ops</span>
             </div>
             <button type="button" class="btn-sair" id="btn-sair">Sair</button>
         </header>
         <nav id="app-nav" class="nav-chips" hidden aria-hidden="true"></nav>
 
         <nav class="admin-tabs" id="admin-tabs" role="tablist" aria-label="Seções admin">
-            <button type="button" class="admin-tab on" data-tab="visao" role="tab" aria-selected="true">Visão geral</button>
+            <button type="button" class="admin-tab on" data-tab="visao" role="tab" aria-selected="true">Visão</button>
             <button type="button" class="admin-tab" data-tab="credito" role="tab" aria-selected="false">Crédito <span class="badge badge-pendente oculto" id="badge-emp-pendentes">0</span></button>
             <button type="button" class="admin-tab" data-tab="caixa" role="tab" aria-selected="false">Caixa/Pix</button>
             <button type="button" class="admin-tab" data-tab="usuarios" role="tab" aria-selected="false">Usuários</button>
@@ -39,8 +39,8 @@
 
         <div class="admin-panel" data-panel="visao">
             <section class="card">
-                <h2>Painel Admin</h2>
-                <p class="sub">Visão geral · monitoramento · somente administradores</p>
+                <h2>Console operacional</h2>
+                <p class="sub">Monitoramento · crédito · Pix · somente administradores</p>
                 <div class="kpi-grid admin-kpis" id="admin-kpis">
                     <div class="kpi-card"><div class="kpi-value" id="kpi-usuarios">—</div><div class="kpi-label">Usuários</div></div>
                     <div class="kpi-card"><div class="kpi-value" id="kpi-lotes">—</div><div class="kpi-label">Lotes</div></div>
@@ -171,12 +171,12 @@
             </section>
         </div>
     </div>
-    <script src="config.js?v=20260918b"></script>
-    <script src="auth-guard.js?v=20260918b"></script>
-    <script src="suporte.js?v=20260918b"></script>
-    <script src="nav.js?v=20260918b"></script>
-    <script src="pix-brcode.js?v=20260918b"></script>
-    <script src="admin.js?v=20260918b"></script>
-    <script src="pwa.js?v=20260918b"></script>
+    <script src="config.js?v=20260918c"></script>
+    <script src="auth-guard.js?v=20260918c"></script>
+    <script src="suporte.js?v=20260918c"></script>
+    <script src="nav.js?v=20260918c"></script>
+    <script src="pix-brcode.js?v=20260918c"></script>
+    <script src="admin.js?v=20260918c"></script>
+    <script src="pwa.js?v=20260918c"></script>
 </body>
 </html>

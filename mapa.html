@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Mapa</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260918c">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918c">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="Minera">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzPCf9ltuBmfPSqGp53aX4TrjE=" crossorigin="">
-    <link rel="stylesheet" href="style.css?v=20260918b">
+    <link rel="stylesheet" href="style.css?v=20260918c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
     <style>
@@ -169,7 +169,7 @@
 
         <nav id="app-nav" class="nav-chips"></nav>
 
-        <div class="mapa-toolbar">
+        <div class="mapa-toolbar" hidden aria-hidden="true">
             <label class="mapa-toggle mapa-base-label">
                 Camada
                 <select id="mapa-base" class="mapa-base-select" aria-label="Camada do mapa">
@@ -177,47 +177,47 @@
                     <option value="esri">Satélite (Esri)</option>
                 </select>
             </label>
-            <span class="mapa-toolbar-hint">Mapa gratuito · busque por cidade ou toque para marcar</span>
         </div>
 
-        <div class="mapa-busca" id="mapa-busca">
-            <input type="search" id="busca-cidade" placeholder="Buscar cidade (ex.: Parauapebas, PA)" autocomplete="off" enterkeyhint="search" aria-label="Buscar cidade">
-            <button type="button" class="btn-mapa" id="btn-buscar-cidade">🔎 Buscar cidade</button>
-            <div id="busca-cidade-results" class="mapa-busca-results oculto" role="listbox" aria-label="Resultados da busca"></div>
+        <div class="mapa-chrome" id="mapa-chrome">
+            <div class="mapa-search-float mapa-busca" id="mapa-busca">
+                <input type="search" id="busca-cidade" placeholder="Buscar cidade ou endereço" autocomplete="off" enterkeyhint="search" aria-label="Buscar cidade">
+                <button type="button" class="btn-mapa" id="btn-buscar-cidade" title="Buscar">Buscar</button>
+                <div id="busca-cidade-results" class="mapa-busca-results oculto" role="listbox" aria-label="Resultados da busca"></div>
+            </div>
+
+            <div class="mapa-fab-col" id="mapa-fab-col">
+                <button type="button" class="mapa-fab" id="fab-camada" title="Alternar camada" aria-label="Alternar camada">◎</button>
+                <button type="button" class="mapa-fab" id="btn-minha-loc" title="Minha localização" aria-label="Minha localização">⌖</button>
+                <button type="button" class="mapa-fab" id="btn-marcar" title="Marcar ponto" aria-label="Marcar ponto">📍</button>
+            </div>
+
+            <div class="mapa-info oculto" id="mapa-info" aria-live="polite"></div>
+            <div id="mapa-key-panel" class="mapa-key-panel oculto" role="status"></div>
+
+            <div id="mapa" class="mapa-canvas" role="application" aria-label="Mapa"></div>
+
+            <div class="mapa-sheet" id="mapa-sheet" aria-label="Ações do ponto">
+                <div class="mapa-sheet-handle"></div>
+                <div id="mapa-sheet-summary" class="sub" style="margin-bottom:8px">Toque no mapa para marcar um ponto</div>
+                <div class="mapa-actions mapa-sheet-actions" id="mapa-actions">
+                    <button type="button" class="btn-mapa" id="btn-rota-simples" title="Linha reta entre minha localização e o marcador">Rota</button>
+                    <button type="button" class="btn-mapa" id="btn-enviar-chat" disabled>Enviar no chat</button>
+                    <button type="button" class="btn-mapa" id="btn-limpar-rota">Limpar</button>
+                </div>
+            </div>
         </div>
 
-        <div class="mapa-actions" id="mapa-actions">
-            <button type="button" class="btn-mapa" id="btn-minha-loc">📍 Minha localização</button>
-            <button type="button" class="btn-mapa" id="btn-marcar" title="Ative e toque no mapa">📌 Marcar ponto</button>
-            <button type="button" class="btn-mapa" id="btn-rota-simples" title="Linha reta entre minha localização e o marcador">🛣️ Rota simples</button>
-            <button type="button" class="btn-mapa" id="btn-enviar-chat" disabled>💬 Enviar no chat</button>
-            <button type="button" class="btn-mapa" id="btn-limpar-rota">Limpar rota</button>
-        </div>
-
-        <div class="mapa-info oculto" id="mapa-info" aria-live="polite"></div>
-
-        <div id="mapa-key-panel" class="mapa-key-panel oculto" role="status">
-            <h2>Mapa gratuito ativo</h2>
-            <p>
-                Usando Leaflet + OpenStreetMap (sem chave). Google Maps é opcional
-                e pode ser configurado depois — veja <code>docs/google-maps-key.md</code>.
-            </p>
-        </div>
-
-        <div id="mapa" class="mapa-canvas" role="application" aria-label="Mapa"></div>
-
-        <p class="mapa-legend" id="mapa-legend">
-            OpenStreetMap (gratuito) · busca por cidade · sem chave de API
-        </p>
+        <p class="mapa-legend" id="mapa-legend">Leaflet · OpenStreetMap / Esri · sem cobrança</p>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="config.js?v=20260918b"></script>
-    <script src="auth-guard.js?v=20260918b"></script>
-    <script src="suporte.js?v=20260918b"></script>
-    <script src="nav.js?v=20260918b"></script>
-    <script src="mapa.js?v=20260918b"></script>
-    <script src="pwa.js?v=20260918b"></script>
+    <script src="config.js?v=20260918c"></script>
+    <script src="auth-guard.js?v=20260918c"></script>
+    <script src="suporte.js?v=20260918c"></script>
+    <script src="nav.js?v=20260918c"></script>
+    <script src="mapa.js?v=20260918c"></script>
+    <script src="pwa.js?v=20260918c"></script>
 </body>
 </html>

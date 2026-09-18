@@ -1,5 +1,6 @@
 let feedCache = [];
 let filtroTipo = '';
+let filtroBusca = '';
 let filtroStatus = '';
 /** modo local: todos | estado | cidade | ddd */
 let filtroLocMode = 'todos';
@@ -34,12 +35,13 @@ function esc(s) {
 }
 
 function imgPlaceholder(tipo) {
-    const t = (tipo || '').toLowerCase();
-    let emoji = '⛏️';
-    if (t === 'ouro') emoji = '🥇';
-    else if (t === 'ferro') emoji = '⚙️';
-    else if (t === 'cobre') emoji = '🔶';
-    return '<div class="lote-img placeholder" aria-hidden="true"><span>' + emoji + '</span></div>';
+    const t = (tipo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    let cls = 'default';
+    if (t === 'ouro') cls = 'ouro';
+    else if (t === 'ferro') cls = 'ferro';
+    else if (t === 'cobre') cls = 'cobre';
+    else if (t === 'niquel') cls = 'niquel';
+    return '<div class="lote-img placeholder" aria-hidden="true"><span class="min-ph ' + cls + '"></span></div>';
 }
 
 function fmtUsd(n, fracDigits) {
@@ -547,16 +549,17 @@ function matchCidade(l, cidade) {
 function renderFeed(lista) {
     const box = document.getElementById('feed');
     if (!lista.length) {
-        box.innerHTML = '<p class="feed-empty">Nada por aqui com esses filtros. ✨ Amplie a busca ou veja <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+        box.innerHTML = '<p class="feed-empty">Nenhum lote encontrado com esses filtros. Amplie a busca ou veja <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
         return;
     }
     box.innerHTML = '<div class="lote-cards">' + lista.map(lote => {
         const codigo = lote.codigo_lote || '';
         const quando = tempoRelativo(lote.data_entrada);
         const preco = formatPreco(lote.preco);
+        const cidade = localLabel(lote);
         let img;
         if (lote.imagem_url) {
-            img = '<div class="lote-img"><img src="' + esc(lote.imagem_url) + '" alt="" loading="lazy" onerror="this.onerror=null;this.parentNode.className=\'lote-img placeholder\';this.parentNode.innerHTML=\'<span>⛏️</span>\';"></div>';
+            img = '<div class="lote-img"><img src="' + esc(lote.imagem_url) + '" alt="" loading="lazy" onerror="this.onerror=null;this.parentNode.className=\'lote-img placeholder\';this.parentNode.innerHTML=\'<span class=\'min-ph default\'></span>\';"></div>';
         } else {
             img = imgPlaceholder(lote.tipo_minerio);
         }
@@ -568,11 +571,17 @@ function renderFeed(lista) {
                     ${lote.publicado_como ? '<span class="lote-papel-badge">' + esc(rotuloPapelFeed(lote.publicado_como)) + '</span>' : ''}
                     <span class="${statusBadgeClass(lote.status)}">${esc(statusAmigavel(lote.status))}</span>
                 </div>
+                ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : '<p class="lote-preco" style="opacity:.55;font-size:.95rem">Sob consulta</p>'}
                 <h3 class="lote-codigo">${esc(codigo)}</h3>
-                <p class="lote-meta">📍 ${esc(localLabel(lote))} · ⚖️ ${esc(formatPeso(lote.peso_bruto_kg))}</p>
-                ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : ''}
-                <p class="lote-who">${esc(lote.criado_por || 'Usuário')}${quando ? ' · ' + quando : ''}</p>
-                <a class="btn-card" href="${APP_ROOT}chat.html?${lote.criado_por_id ? ('com=' + encodeURIComponent(lote.criado_por_id) + '&') : ''}lote=${encodeURIComponent(codigo)}">Negociar / Ver Detalhes</a>
+                <p class="lote-meta">
+                    <span class="meta-item">${esc(cidade)}</span>
+                    <span class="meta-item">${esc(formatPeso(lote.peso_bruto_kg))}</span>
+                </p>
+                <p class="lote-who">
+                    <span class="lote-trust" title="Anunciante na plataforma">Verificado</span>
+                    <span>${esc(lote.criado_por || 'Usuário')}${quando ? ' · ' + quando : ''}</span>
+                </p>
+                <a class="btn-card" href="${APP_ROOT}chat.html?${lote.criado_por_id ? ('com=' + encodeURIComponent(lote.criado_por_id) + '&') : ''}lote=${encodeURIComponent(codigo)}">Negociar</a>
             </div>
         </article>`;
     }).join('') + '</div>';
@@ -593,6 +602,14 @@ function aplicarFiltros() {
     } else if (filtroLocMode === 'ddd' && filtroDdd) {
         const d = String(filtroDdd);
         lista = lista.filter(l => String(l.ddd || '') === d);
+    }
+    if (filtroBusca) {
+        const t = filtroBusca.toLowerCase();
+        lista = lista.filter(l => {
+            const blob = [l.codigo_lote, l.tipo_minerio, l.cidade, l.estado, l.criado_por, localLabel(l)]
+                .map(x => String(x || '').toLowerCase()).join(' ');
+            return blob.includes(t);
+        });
     }
     if (filtroTipo) lista = lista.filter(l => (l.tipo_minerio || '') === filtroTipo);
     if (filtroServico) lista = lista.filter(l => matchServico(l, filtroServico));
@@ -647,7 +664,7 @@ async function carregarFeed() {
                 if (res2.error) throw res2.error;
                 feedCache = res2.data || [];
                 if (box && !feedCache.length) {
-                    box.innerHTML = '<p class="feed-empty">O feed ainda está quieto. 🪨 Seja o primeiro a publicar em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+                    box.innerHTML = '<p class="feed-empty">Ainda não há lotes publicados. Publique o primeiro em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
                     return;
                 }
                 aplicarFiltros();
@@ -657,13 +674,13 @@ async function carregarFeed() {
         }
         feedCache = data || [];
         if (!feedCache.length) {
-            box.innerHTML = '<p class="feed-empty">Ainda não tem lotes por aqui. 👋 Publique o primeiro em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a> ou escolha <b>Todos</b> no filtro.</p>';
+            box.innerHTML = '<p class="feed-empty">Nenhum lote disponível no momento. Publique em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a> ou limpe os filtros.</p>';
             return;
         }
         aplicarFiltros();
     } catch (err) {
         console.error(err);
-        box.innerHTML = '<p class="erro">Não deu pra carregar o feed. Tente sair e entrar de novo.</p>';
+        box.innerHTML = '<p class="erro">Não foi possível carregar o feed. Saia e entre novamente.</p>';
     }
 }
 
@@ -819,3 +836,28 @@ async function initLocalidadeUI() {
 window.addEventListener('beforeunload', () => {
     if (cotacaoTimer) clearInterval(cotacaoTimer);
 });
+
+/* Marketplace search + Serviços CTA */
+(function bindMktChrome() {
+    const busca = document.getElementById('mkt-busca');
+    if (busca && !busca._mktBound) {
+        busca._mktBound = true;
+        let t = null;
+        busca.addEventListener('input', () => {
+            clearTimeout(t);
+            t = setTimeout(() => {
+                filtroBusca = String(busca.value || '').trim();
+                if (typeof aplicarFiltros === 'function') aplicarFiltros();
+            }, 180);
+        });
+    }
+    const cta = document.getElementById('cta-servicos');
+    if (cta && !cta._mktBound) {
+        cta._mktBound = true;
+        cta.addEventListener('click', () => {
+            if (typeof abrirServicosPanel === 'function') abrirServicosPanel();
+            else if (typeof toggleServicosPanel === 'function') toggleServicosPanel();
+        });
+    }
+})();
+

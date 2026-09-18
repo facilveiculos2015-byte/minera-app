@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Caixa Minera</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260918c">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918c">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260918b">
+    <link rel="stylesheet" href="style.css?v=20260918c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -75,9 +75,9 @@
             <div class="caixa-unlocked-body">
                 <div class="caixa-bank-top">
                     <div>
-                        <p class="caixa-bank-eyebrow">Financeiro</p>
+                        <p class="caixa-bank-eyebrow">Bank</p>
                         <h2>Caixa Minera</h2>
-                        <p class="sub">Depósitos ficam no saldo da plataforma e podem ser sacados via <strong>Sacar</strong>. Não é só para gasto no app.</p>
+                        <p class="sub">Saldo sob custódia · Pix · crédito sujeito a análise</p>
                     </div>
                     <button type="button" class="btn-link btn-saiba-mais" id="btn-saiba-mais">Saiba mais</button>
                 </div>
@@ -86,10 +86,25 @@
                     <div class="caixa-saldo-valor" id="caixa-saldo">R$ —</div>
                     <div class="caixa-rendimento" id="caixa-rendimento">Rendimento estimado até 5% a.m. conforme cotação da bolsa</div>
                 </div>
-                <div class="caixa-actions">
-                    <button type="button" class="btn-ok" id="btn-emprestimo-goto">Empréstimo</button>
-                    <button type="button" class="btn-ok" id="btn-depositar">Depositar</button>
-                    <button type="button" class="btn-ghost" id="btn-sacar">Sacar</button>
+                <div class="caixa-bank-actions" role="group" aria-label="Ações da Caixa">
+                    <button type="button" class="bank-tile" id="btn-depositar">
+                        <span class="bank-tile-ico" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+                        </span>
+                        Depositar
+                    </button>
+                    <button type="button" class="bank-tile ghost" id="btn-sacar">
+                        <span class="bank-tile-ico" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 21V9m0 0l4 4m-4-4l-4 4M5 5h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+                        </span>
+                        Sacar
+                    </button>
+                    <button type="button" class="bank-tile" id="btn-emprestimo-goto">
+                        <span class="bank-tile-ico" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 7h16v10H4V7zm2 2h3v2H6V9zm5 0h7v1h-7V9zm0 3h7v1h-7v-1z"/></svg>
+                        </span>
+                        Crédito
+                    </button>
                 </div>
 
                 <!-- Depositar: Pix real -->
@@ -145,14 +160,15 @@
         <section class="card" id="sec-emprestimo">
             <h2>Empréstimo</h2>
             <p class="aviso-credito"><strong>Sujeito à análise de crédito</strong></p>
-            <p class="sub">Juros de <strong>15% a.m.</strong> · Total previsto = valor × (1 + 0,15 × prazo_dias/30). Complete o questionário e envie os documentos.</p>
+            <p class="sub">Juros de <strong>15% a.m.</strong> · Total previsto = valor × (1 + 0,15 × prazo_dias/30). Complete a verificação e envie os documentos.</p>
 
             <div id="emp-wizard" class="emp-wizard">
+                <div class="emp-progress" aria-hidden="true"><div class="emp-progress-bar" id="emp-progress-bar" style="width:25%"></div></div>
                 <div class="emp-steps" id="emp-steps">
-                    <span class="emp-step on" data-step="1">1. Pedido</span>
-                    <span class="emp-step" data-step="2">2. KYC</span>
-                    <span class="emp-step" data-step="3">3. Docs</span>
-                    <span class="emp-step" data-step="4">4. Revisar</span>
+                    <span class="emp-step on" data-step="1">1 · Pedido</span>
+                    <span class="emp-step" data-step="2">2 · Identidade</span>
+                    <span class="emp-step" data-step="3">3 · Documentos</span>
+                    <span class="emp-step" data-step="4">4 · Revisar</span>
                 </div>
 
                 <div class="emp-pane" data-pane="1">
@@ -175,7 +191,7 @@
                 </div>
 
                 <div class="emp-pane oculto" data-pane="2">
-                    <p class="bot-bubble">Olá! Para analisar seu crédito, preciso de algumas informações.</p>
+                    <p class="kyc-hint">Informações para análise de crédito. Preencha com dados reais — a equipe valida antes da liberação.</p>
                     <label for="emp-endereco">Endereço completo</label>
                     <textarea id="emp-endereco" rows="2" required placeholder="Rua, número, bairro, cidade, UF, CEP"></textarea>
                     <label for="emp-empresa">Onde trabalha / empresa</label>
@@ -195,7 +211,7 @@
                 </div>
 
                 <div class="emp-pane oculto" data-pane="3">
-                    <p class="bot-bubble">Envie os documentos (imagens ou PDF). Conta de energia, identidade, CPF e selfie ao lado do documento são obrigatórios. Extrato é opcional.</p>
+                    <p class="kyc-hint">Envie imagens ou PDF: conta de energia, identidade, CPF e selfie com o documento (obrigatórios). Extrato bancário é opcional.</p>
                     <label for="emp-doc-energia">Conta de energia (no seu nome) *</label>
                     <input type="file" id="emp-doc-energia" accept="image/*,application/pdf" required>
                     <label for="emp-doc-identidade">Documento de identidade *</label>
@@ -214,7 +230,7 @@
                 </div>
 
                 <div class="emp-pane oculto" data-pane="4">
-                    <p class="bot-bubble">Revise e envie. Seu pedido ficará <strong>em análise</strong>.</p>
+                    <p class="kyc-hint">Revise os dados. Após o envio, o pedido fica <strong>em análise</strong>.</p>
                     <div id="emp-resumo" class="emp-resumo sub">—</div>
                     <div class="modal-actions">
                         <button type="button" class="btn-ghost" id="emp-back-4">Voltar</button>
@@ -254,12 +270,12 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260918b"></script>
-    <script src="auth-guard.js?v=20260918b"></script>
-    <script src="suporte.js?v=20260918b"></script>
-    <script src="nav.js?v=20260918b"></script>
-    <script src="pix-brcode.js?v=20260918b"></script>
-    <script src="financeiro.js?v=20260918b"></script>
-    <script src="pwa.js?v=20260918b"></script>
+    <script src="config.js?v=20260918c"></script>
+    <script src="auth-guard.js?v=20260918c"></script>
+    <script src="suporte.js?v=20260918c"></script>
+    <script src="nav.js?v=20260918c"></script>
+    <script src="pix-brcode.js?v=20260918c"></script>
+    <script src="financeiro.js?v=20260918c"></script>
+    <script src="pwa.js?v=20260918c"></script>
 </body>
 </html>

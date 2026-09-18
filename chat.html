@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera App - Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260918c">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918c">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#f59e0b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260918b">
+    <link rel="stylesheet" href="style.css?v=20260918c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -33,7 +33,7 @@
             <aside class="chat-contacts-pane" id="chat-contacts-pane">
                 <div class="chat-contacts-head">
                     <h2>Conversas</h2>
-                    <button type="button" class="btn-sm" id="btn-add-contato">＋ Adicionar por nome</button>
+                    <button type="button" class="btn-sm" id="btn-add-contato">Adicionar</button>
                 </div>
                 <input type="search" id="chat-busca-contatos" class="chat-busca" placeholder="Buscar por nome..." autocomplete="off">
                 <div id="chat-contatos-list" class="chat-contatos-list"></div>
@@ -41,10 +41,10 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260918b" alt="" width="72" height="72" decoding="async">
-                    <p class="chat-empty-title">Suas conversas privadas</p>
-                    <p>Selecione um contato à esquerda para abrir o DM.</p>
-                    <p class="hint">Só você e o destinatário veem as mensagens. Use <strong>＋ Adicionar por nome</strong> para achar por <strong>nome ou apelido</strong> (e-mail nunca é exibido).</p>
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260918c" alt="" width="72" height="72" decoding="async">
+                    <p class="chat-empty-title">Mensagens</p>
+                    <p>Selecione uma conversa à esquerda.</p>
+                    <p class="hint">Somente você e o destinatário veem o conteúdo. Use <strong>Adicionar por nome</strong> para localizar por nome ou apelido (e-mail não é exibido).</p>
                 </div>
                 <div id="chat-thread-active" class="chat-thread-active oculto">
                     <div class="chat-thread-head">
@@ -74,14 +74,14 @@
                     <div id="chat-media-preview" class="chat-media-preview oculto"></div>
 
                     <div class="chat-toolbar">
-                        <label class="btn-sm" for="chat-foto">📷 Foto</label>
+                        <label class="btn-sm" for="chat-foto">Foto</label>
                         <input type="file" id="chat-foto" accept="image/*" class="oculto">
-                        <label class="btn-sm" for="chat-video">🎬 Vídeo</label>
+                        <label class="btn-sm" for="chat-video">Vídeo</label>
                         <input type="file" id="chat-video" accept="video/*" class="oculto">
-                        <button type="button" class="btn-sm" id="btn-audio" title="Segure para gravar ou toque para iniciar" aria-label="Gravar áudio">🎙️ Áudio</button>
-                        <label class="btn-sm btn-ghost" for="chat-audio-file" id="btn-anexar-audio" title="Anexar arquivo" aria-label="Anexo">📎 Anexo</label>
+                        <button type="button" class="btn-sm" id="btn-audio" title="Segure para gravar ou toque para iniciar" aria-label="Gravar áudio">Áudio</button>
+                        <label class="btn-sm btn-ghost" for="chat-audio-file" id="btn-anexar-audio" title="Anexar arquivo" aria-label="Anexo">Anexo</label>
                         <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
-                        <button type="button" class="btn-sm" id="btn-toggle-agendar">🗓️ Agendar</button>
+                        <button type="button" class="btn-sm" id="btn-toggle-agendar">Agendar</button>
                     </div>
                     <p id="chat-anexo-info" class="hint oculto"></p>
 
@@ -108,7 +108,7 @@
                     </div>
 
                     <form id="form-chat" class="chat-form" style="margin-top:8px">
-                        <input type="text" id="chat-texto" placeholder="Escreva uma mensagem..." maxlength="2000" autocomplete="off">
+                        <input type="text" id="chat-texto" placeholder="Mensagem" maxlength="2000" autocomplete="off">
                         <button type="submit">Enviar</button>
                     </form>
                     <p id="chat-msg" class="msg"></p>
@@ -143,12 +143,12 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260918b"></script>
-    <script src="auth-guard.js?v=20260918b"></script>
-    <script src="suporte.js?v=20260918b"></script>
-    <script src="nav.js?v=20260918b"></script>
-    <script src="anti-golpe.js?v=20260918b"></script>
-    <script src="chat.js?v=20260918b"></script>
-    <script src="pwa.js?v=20260918b"></script>
+    <script src="config.js?v=20260918c"></script>
+    <script src="auth-guard.js?v=20260918c"></script>
+    <script src="suporte.js?v=20260918c"></script>
+    <script src="nav.js?v=20260918c"></script>
+    <script src="anti-golpe.js?v=20260918c"></script>
+    <script src="chat.js?v=20260918c"></script>
+    <script src="pwa.js?v=20260918c"></script>
 </body>
 </html>

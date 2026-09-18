@@ -574,15 +574,19 @@ let empWizardStep = 1;
 let empDocUrls = {};
 
 function empShowStep(n) {
+    n = Number(n) || 1;
     empWizardStep = n;
     document.querySelectorAll('#emp-wizard .emp-pane').forEach(p => {
         p.classList.toggle('oculto', Number(p.getAttribute('data-pane')) !== n);
     });
     document.querySelectorAll('#emp-steps .emp-step').forEach(s => {
-        s.classList.toggle('on', Number(s.getAttribute('data-step')) <= n);
+        const step = Number(s.getAttribute('data-step'));
+        s.classList.toggle('on', step === n);
+        s.classList.toggle('done', step < n);
     });
+    const bar = document.getElementById('emp-progress-bar');
+    if (bar) bar.style.width = Math.min(100, Math.max(25, n * 25)) + '%';
 }
-
 async function empUploadDoc(file, kind) {
     if (!file) return null;
     const uid = authId();
