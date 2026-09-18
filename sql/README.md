@@ -98,3 +98,7 @@ Necessário para mesa de crédito admin, wizard KYC do Caixa e alertas de vencim
 Incremental após 30: `suporte_mensagens.deleted_at`, `arquivado`, `atendido_em` + índices. Soft-delete/arquivo no monitor admin (Fale conosco). Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 31 no Supabase SQL Editor após 30.**
 
+## 32-security-hardening.sql
+Incremental após 31: reafirma `is_admin()`; endurece RLS de lotes/caixa/emprestimos/chat/suporte; **REVOKE ALL … FROM anon** em tabelas sensíveis; documenta o contrato RLS (assumptions). Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 32 no Supabase SQL Editor após 31.**
+Fortaleza: zero writes anônimos; chat só participante; empréstimos UPDATE só admin; caixa isolado por auth_id.

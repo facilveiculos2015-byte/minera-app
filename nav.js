@@ -651,7 +651,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera App (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260916ag';
+    const src = root + 'logo-escavadeira.png?v=20260918d';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -879,7 +879,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260916ag' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260918d' });
             }
         } catch (e) { /* ignore */ }
     }
@@ -923,7 +923,8 @@ const MineraNotif = (function () {
                 fresh.forEach(m => {
                     knownIds.add(m.id);
                     setSeenGlobal(m.id);
-                    const nome = m.de_nome || 'Alguém';
+                    let nome = m.de_nome || 'Alguém';
+                    if (/@/.test(String(nome))) nome = 'Alguém';
                     const preview = (m.texto || (m.tipo && m.tipo !== 'text' ? '[' + m.tipo + ']' : 'Nova mensagem')).slice(0, 80);
                     if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome);
                     showBrowserNotif('Minera App', nome + ': ' + preview);
@@ -984,7 +985,10 @@ const MineraNotif = (function () {
                 // Ask permission once
                 try {
                     if ('Notification' in window && Notification.permission === 'default') {
-                        Notification.requestPermission();
+                        if (localStorage.getItem('minera_notif_asked') !== '1') {
+                            localStorage.setItem('minera_notif_asked', '1');
+                            Notification.requestPermission();
+                        }
                     }
                 } catch (err) { /* ignore */ }
             }

@@ -539,7 +539,7 @@ function renderContatosList(filtered) {
                     (c.last.texto || (c.last.tipo && c.last.tipo !== 'text' ? '[' + c.last.tipo + ']' : ''))).slice(0, 48)
                 : 'Sem mensagens';
             const on = contatoAtivo && contatoAtivo.auth_id === c.auth_id ? ' on' : '';
-            const badge = c.unread ? '<span class="contact-unread">' + c.unread + '</span>' : '';
+            const badge = c.unread ? '<span class="contact-unread">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '';
             html += '<button type="button" class="chat-contact-item' + on + '" data-auth="' + esc(c.auth_id) + '">' +
                 '<div class="contact-avatar">' + esc((c.nome || '?').slice(0, 1).toUpperCase()) + '</div>' +
                 '<div class="contact-body">' +
@@ -622,6 +622,21 @@ async function carregarContatos(force) {
             extra.forEach(p => { byId[p.auth_id] = p; });
         }
 
+        const unreadByPeer = {};
+        (msgs || []).forEach(m => {
+            if (m.deleted_at) return;
+            if (m.para_auth_id !== meuAuthId) return;
+            if ((m.status || '') === 'agendada') return;
+            const ap = m.apagada_para || [];
+            if (Array.isArray(ap) && ap.indexOf(meuAuthId) >= 0) return;
+            const peer = m.de_auth_id;
+            if (!peer) return;
+            const lastRead = getLeituraLocal(peer);
+            if (Number(m.id) > lastRead) {
+                unreadByPeer[peer] = (unreadByPeer[peer] || 0) + 1;
+            }
+        });
+
         contatosCache = (rows || []).map(r => {
             const p = byId[r.contato_auth_id] || {};
             const last = lastByPeer[r.contato_auth_id];
@@ -633,9 +648,7 @@ async function carregarContatos(force) {
                 tipo: p.tipo || '',
                 apelido: nomePublicoTexto(r.apelido || p.apelido, '') || null,
                 last,
-                unread: last && last.para_auth_id === meuAuthId && last.de_auth_id === r.contato_auth_id
-                    ? (Number(last.id) > getLeituraLocal(r.contato_auth_id) ? 1 : 0)
-                    : 0
+                unread: unreadByPeer[r.contato_auth_id] || 0
             };
         });
 

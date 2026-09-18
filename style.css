@@ -3463,7 +3463,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260918c — industrial premium ===== */
+/* ===== TURBO redesign 20260918d — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3839,3 +3839,84 @@ html[data-theme="light"] .seg-minerio .fchip.on { background: #fff; color: #b453
 body.has-bottom-nav .mapa-layout {
     height: calc(100vh - 8px - 72px - env(safe-area-inset-bottom, 0px));
 }
+
+
+/* === 20260918d — marketplace / bank / habit polish === */
+.mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.btn-anunciar {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 10px 16px; border-radius: 999px;
+  background: #f59e0b; color: #0f172a; font-weight: 800; font-size: .9rem;
+  text-decoration: none; box-shadow: 0 4px 14px rgba(245,158,11,.35);
+}
+.btn-anunciar:hover { filter: brightness(1.05); }
+.mkt-trust-row {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px;
+  font-size: 11px; color: #94a3b8;
+}
+.mkt-trust-row span {
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(148,163,184,.12); border: 1px solid rgba(148,163,184,.2);
+}
+.mkt-cat-rail {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  margin: 8px 0 10px; padding-bottom: 2px;
+}
+.mkt-cat-rail .chip-filters { flex-wrap: nowrap; min-width: max-content; }
+.lote-card-pro {
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(148,163,184,.18);
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.lote-card-pro:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0,0,0,.28);
+}
+.lote-trust-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0; }
+.lote-trust {
+  font-size: 11px; font-weight: 700; color: #34d399;
+  background: rgba(52,211,153,.12); padding: 2px 8px; border-radius: 999px;
+}
+.lote-trust.soft { color: #94a3b8; background: rgba(148,163,184,.12); font-weight: 600; }
+.lote-preco-consulta { opacity: .55; font-size: .95rem; }
+.lote-card-actions {
+  margin-top: auto; padding-top: 8px;
+  position: sticky; bottom: 0;
+  background: linear-gradient(180deg, transparent, var(--card-bg, #1e293b) 40%);
+}
+.btn-negociar-sticky {
+  display: block; text-align: center; width: 100%;
+  font-weight: 800; letter-spacing: .01em;
+}
+.empty-cta {
+  text-align: center; padding: 22px 16px;
+  border: 1px dashed rgba(148,163,184,.35); border-radius: 14px;
+}
+.empty-cta .btn-ok, .empty-cta a.btn-ok {
+  display: inline-flex; margin-top: 10px; text-decoration: none;
+}
+.caixa-credito-status { margin-top: 8px; }
+.cred-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: #e2e8f0;
+  padding: 5px 10px; border-radius: 999px;
+  background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3);
+}
+.cred-pill.aprovado, .cred-pill.pago { background: rgba(52,211,153,.15); border-color: rgba(52,211,153,.35); color: #6ee7b7; }
+.cred-pill.analise { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.35); color: #fbbf24; }
+.cred-pill.rejeitado { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.35); color: #fca5a5; }
+.contact-unread {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px;
+  border-radius: 999px; background: #22c55e; color: #052e16;
+  font-size: 11px; font-weight: 800; vertical-align: middle;
+}
+.chat-contact-item .contact-preview {
+  color: #94a3b8; font-size: 12px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #64748b; }
+html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
+html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }

@@ -549,7 +549,7 @@ function matchCidade(l, cidade) {
 function renderFeed(lista) {
     const box = document.getElementById('feed');
     if (!lista.length) {
-        box.innerHTML = '<p class="feed-empty">Nenhum lote encontrado com esses filtros. Amplie a busca ou veja <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+        box.innerHTML = '<div class="feed-empty empty-cta"><p><strong>Nenhum lote com esses filtros</strong></p><p class="sub">Amplie a busca ou limpe os filtros.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar um lote</a></div>';
         return;
     }
     box.innerHTML = '<div class="lote-cards">' + lista.map(lote => {
@@ -563,7 +563,10 @@ function renderFeed(lista) {
         } else {
             img = imgPlaceholder(lote.tipo_minerio);
         }
-        return `<article class="lote-card">
+        const negoHref = APP_ROOT + 'chat.html?' +
+            (lote.criado_por_id ? ('com=' + encodeURIComponent(lote.criado_por_id) + '&') : '') +
+            'lote=' + encodeURIComponent(codigo);
+        return `<article class="lote-card lote-card-pro">
             ${img}
             <div class="lote-card-body">
                 <div class="lote-card-top">
@@ -571,17 +574,22 @@ function renderFeed(lista) {
                     ${lote.publicado_como ? '<span class="lote-papel-badge">' + esc(rotuloPapelFeed(lote.publicado_como)) + '</span>' : ''}
                     <span class="${statusBadgeClass(lote.status)}">${esc(statusAmigavel(lote.status))}</span>
                 </div>
-                ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : '<p class="lote-preco" style="opacity:.55;font-size:.95rem">Sob consulta</p>'}
+                ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : '<p class="lote-preco lote-preco-consulta">Sob consulta</p>'}
                 <h3 class="lote-codigo">${esc(codigo)}</h3>
                 <p class="lote-meta">
                     <span class="meta-item">${esc(cidade)}</span>
                     <span class="meta-item">${esc(formatPeso(lote.peso_bruto_kg))}</span>
                 </p>
+                <div class="lote-trust-row">
+                    <span class="lote-trust" title="Anunciante na plataforma">✓ Na plataforma</span>
+                    <span class="lote-trust soft">Chat privado</span>
+                </div>
                 <p class="lote-who">
-                    <span class="lote-trust" title="Anunciante na plataforma">Verificado</span>
                     <span>${esc(lote.criado_por || 'Usuário')}${quando ? ' · ' + quando : ''}</span>
                 </p>
-                <a class="btn-card" href="${APP_ROOT}chat.html?${lote.criado_por_id ? ('com=' + encodeURIComponent(lote.criado_por_id) + '&') : ''}lote=${encodeURIComponent(codigo)}">Negociar</a>
+                <div class="lote-card-actions">
+                    <a class="btn-card btn-negociar-sticky" href="${negoHref}">Negociar</a>
+                </div>
             </div>
         </article>`;
     }).join('') + '</div>';
@@ -664,7 +672,7 @@ async function carregarFeed() {
                 if (res2.error) throw res2.error;
                 feedCache = res2.data || [];
                 if (box && !feedCache.length) {
-                    box.innerHTML = '<p class="feed-empty">Ainda não há lotes publicados. Publique o primeiro em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+                    box.innerHTML = '<div class="feed-empty empty-cta"><p><strong>Marketplace vazio</strong></p><p class="sub">Seja o primeiro a anunciar. Quem anuncia, negocia.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Publicar primeiro lote</a></div>';
                     return;
                 }
                 aplicarFiltros();
@@ -674,7 +682,7 @@ async function carregarFeed() {
         }
         feedCache = data || [];
         if (!feedCache.length) {
-            box.innerHTML = '<p class="feed-empty">Nenhum lote disponível no momento. Publique em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a> ou limpe os filtros.</p>';
+            box.innerHTML = '<div class="feed-empty empty-cta"><p><strong>Nenhum lote disponível</strong></p><p class="sub">Publique o seu ou limpe os filtros para ver mais.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
             return;
         }
         aplicarFiltros();
@@ -859,5 +867,10 @@ window.addEventListener('beforeunload', () => {
             else if (typeof toggleServicosPanel === 'function') toggleServicosPanel();
         });
     }
+})();
+
+(function bindAnunciar() {
+    const a = document.getElementById('btn-anunciar');
+    if (a && typeof APP_ROOT === 'string') a.setAttribute('href', APP_ROOT + 'lotes.html');
 })();
 

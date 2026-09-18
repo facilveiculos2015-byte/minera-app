@@ -113,6 +113,32 @@ function estimarRendimentoPct() {
     return Math.min(TAXA_YIELD_MAX, pct);
 }
 
+
+async function renderCreditoStatus() {
+    const el = document.getElementById('caixa-credito-status');
+    if (!el) return;
+    const uid = authId();
+    try {
+        const { data, error } = await supabaseClient
+            .from('emprestimos')
+            .select('status,valor,criado_em')
+            .eq('auth_id', uid)
+            .order('criado_em', { ascending: false })
+            .limit(1);
+        if (error) throw error;
+        if (!data || !data.length) {
+            el.innerHTML = '<span class="cred-pill">Crédito: disponível para solicitar</span>';
+            return;
+        }
+        const e = data[0];
+        const st = statusEmpLabel(e.status);
+        el.innerHTML = '<span class="cred-pill ' + esc(String(e.status || '')) + '">Crédito: ' +
+            esc(st) + (e.valor != null ? ' · ' + esc(fmtBRL(e.valor)) : '') + '</span>';
+    } catch (err) {
+        el.textContent = '';
+    }
+}
+
 function renderSaldo() {
     document.getElementById('caixa-saldo').textContent = fmtBRL(saldoAtual);
     const taxa = estimarRendimentoPct();
@@ -226,7 +252,7 @@ async function carregarMovimentos() {
             .limit(40);
         if (error) throw error;
         if (!data || !data.length) {
-            box.innerHTML = '<p class="sub">Nenhum movimento ainda.</p>';
+            box.innerHTML = '<div class="empty-cta"><p><strong>Seu extrato está vazio</strong></p><p class="sub">Faça seu primeiro depósito via Pix para começar a usar o Caixa Minera.</p><button type="button" class="btn-ok" id="cta-primeiro-dep">Depositar agora</button></div>'; const cta = document.getElementById('cta-primeiro-dep'); if (cta) cta.addEventListener('click', () => { abrirPanel('panel-depositar'); });
             return;
         }
         const labels = {
@@ -273,7 +299,7 @@ async function carregarPedidos() {
         }));
         rows.sort((a, b) => new Date(b.when || 0) - new Date(a.when || 0));
         if (!rows.length) {
-            box.innerHTML = '<p class="sub">Nenhum pedido de depósito/saque ainda.</p>';
+            box.innerHTML = '<div class="empty-cta"><p><strong>Nenhum pedido ainda</strong></p><p class="sub">Depositar ou sacar gera um pedido aqui com status em tempo real.</p></div>';
             return;
         }
         box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
@@ -312,7 +338,7 @@ async function carregarEmprestimos() {
             .limit(40);
         if (error) throw error;
         if (!data || !data.length) {
-            box.innerHTML = '<p class="sub">Nenhuma solicitação ainda.</p>';
+            box.innerHTML = '<div class="empty-cta"><p><strong>Sem pedidos de crédito</strong></p><p class="sub">Solicite crédito sujeito à análise — transparente, sem surpresa.</p></div>';
             return;
         }
         box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
@@ -354,6 +380,7 @@ function abrirPanel(id) {
 }
 
 async function gerarPixDeposito() {
+    if (typeof rateLimitAction === 'function' && !rateLimitAction('pix-dep', 3000, 'Aguarde antes de gerar outro Pix.')) return;
     const valor = parseFloat(document.getElementById('dep-valor').value);
     if (!(valor > 0)) {
         setDepMsg('Informe um valor válido.', false);
@@ -387,6 +414,7 @@ async function gerarPixDeposito() {
 }
 
 async function enviarDeposito() {
+    if (typeof rateLimitAction === 'function' && !rateLimitAction('dep-send', 4000, 'Pedido já enviado — aguarde um momento.')) return;
     const uid = authId();
     const valor = parseFloat(document.getElementById('dep-valor').value);
     const url = (document.getElementById('dep-comprovante').value || '').trim();
@@ -424,6 +452,7 @@ async function enviarDeposito() {
 }
 
 async function enviarSaque() {
+    if (typeof rateLimitAction === 'function' && !rateLimitAction('saque-send', 4000, 'Aguarde antes de solicitar outro saque.')) return;
     const uid = authId();
     const valor = parseFloat(document.getElementById('saque-valor').value);
     const chave = (document.getElementById('saque-chave').value || '').trim();
@@ -716,6 +745,7 @@ function bindEmpWizard() {
     });
     document.getElementById('emp-back-4').addEventListener('click', () => empShowStep(3));
     document.getElementById('emp-enviar').addEventListener('click', async () => {
+        if (typeof rateLimitAction === 'function' && !rateLimitAction('emp-send', 5000, 'Solicitação em andamento — aguarde.')) return;
         const uid = authId();
         const p = empCollectPedido();
         const k = empCollectKyc();
@@ -830,11 +860,14 @@ function bindUI() {
     if (!sessionAtual) return;
     perfilAtual = await getPerfil(sessionAtual);
     aplicarUserLabel(perfilAtual);
+    if (typeof exigirContaAtiva === 'function' && !exigirContaAtiva(perfilAtual)) {
+        /* banner already shown; still allow view of bank for Pix/pay */
+    }
     montarNav('financeiro', perfilAtual);
     document.getElementById('emp-nome').value = (perfilAtual && perfilAtual.nome) || '';
     bindUI();
     atualizarTotalPrevisto();
-    await Promise.all([carregarCaixa(), carregarMovimentos(), carregarEmprestimos(), carregarPedidos()]);
+    await Promise.all([carregarCaixa(), carregarMovimentos(), carregarEmprestimos(), carregarPedidos(), renderCreditoStatus()]);
     if (!saibaDismissed() && isUnlocked()) abrirSaibaMais();
     // Status do empréstimo muda no Admin — atualiza a lista periodicamente
     setInterval(() => { try { carregarEmprestimos(); } catch (e) { /* ignore */ } }, 30000);

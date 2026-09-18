@@ -1,12 +1,72 @@
 /** Sessão + perfil (usuarios.auth_id) + papéis múltiplos + bloqueio + tema */
 
 async function requireSession() {
-    const { data: { session }, error } = await supabaseClient.auth.getSession();
-    if (error || !session) {
-        irPara('index.html');
+    try {
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        if (error) {
+            console.warn('requireSession auth error:', error.message || error);
+            await limparSessaoERedirecionar();
+            return null;
+        }
+        if (!session) {
+            irPara('index.html');
+            return null;
+        }
+        return session;
+    } catch (e) {
+        console.warn('requireSession', e);
+        await limparSessaoERedirecionar();
         return null;
     }
-    return session;
+}
+
+/** Limpa storage de sessão e manda para login (fortress). */
+async function limparSessaoERedirecionar() {
+    try { limparModoUi(); } catch (e) { /* ignore */ }
+    try { await supabaseClient.auth.signOut(); } catch (e) { /* ignore */ }
+    try {
+        Object.keys(localStorage).forEach(k => {
+            if (/^sb-|supabase|minera_caixa_unlocked/i.test(k)) localStorage.removeItem(k);
+        });
+    } catch (e) { /* ignore */ }
+    try { sessionStorage.removeItem('minera_caixa_unlocked'); } catch (e) { /* ignore */ }
+    irPara('index.html');
+}
+
+/** Escape HTML obrigatório para caminhos innerHTML (CSP-friendly). */
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+window.escapeHtml = escapeHtml;
+
+/** Rate-limit UX: retorna false + toast se spam (ms). */
+const _mineraRateMap = Object.create(null);
+function rateLimitAction(key, ms, msg) {
+    const k = String(key || 'action');
+    const wait = Math.max(400, Number(ms) || 2500);
+    const now = Date.now();
+    const prev = _mineraRateMap[k] || 0;
+    if (now - prev < wait) {
+        const texto = msg || 'Aguarde alguns segundos antes de tentar de novo.';
+        if (typeof toastMsg === 'function') toastMsg(texto);
+        return false;
+    }
+    _mineraRateMap[k] = now;
+    return true;
+}
+window.rateLimitAction = rateLimitAction;
+
+/** Conta desabilitada/bloqueada: impede páginas sensíveis (exceto perfil/index). */
+function exigirContaAtiva(perfil) {
+    if (!usuarioBloqueado(perfil)) return true;
+    const path = (location.pathname || '');
+    if (/perfil\.html$/i.test(path) || /index\.html$/i.test(path)) return true;
+    mostrarBannerBloqueio(perfil);
+    if (typeof toastMsg === 'function') {
+        toastMsg('Conta bloqueada. Regularize no Perfil para continuar.');
+    }
+    return false;
 }
 
 function normalizarPapeis(raw, tipo) {
@@ -471,3 +531,27 @@ function checarTutorialPrimeiroAcesso() {
         }, 400);
     } catch (e) { /* ignore */ }
 }
+
+
+/* ---- Fortress: auth errors → clear + redirect; block disabled ---- */
+(function bootAuthFortress() {
+    if (typeof supabaseClient === 'undefined') return;
+    try {
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_OUT') {
+                try { limparModoUi(); } catch (e) { /* ignore */ }
+                const path = (location.pathname || '');
+                if (!/index\.html$/i.test(path) && !/\/$/.test(path)) {
+                    // já em logout — não loop
+                }
+                return;
+            }
+            if (event === 'TOKEN_REFRESHED' && !session) {
+                await limparSessaoERedirecionar();
+            }
+            if (event === 'USER_UPDATED' && session && session.user && session.user.banned_until) {
+                await limparSessaoERedirecionar();
+            }
+        });
+    } catch (e) { console.warn('bootAuthFortress', e); }
+})();
