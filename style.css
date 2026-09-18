@@ -3011,7 +3011,7 @@ html[data-theme="light"] .btn-modo-ui {
 }
 
 
-/* ===== Serviços bottom sheet + mineral filter icons (20260918a) ===== */
+/* ===== Serviços bottom sheet + mineral filter icons (20260918b) ===== */
 .sr-only {
     position: absolute;
     width: 1px;
@@ -3031,12 +3031,26 @@ html[data-theme="light"] .btn-modo-ui {
 }
 .nav-chips .chip.chip-servicos {
     display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #0f172a;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1.15;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #422006 100%);
+    border-color: #f59e0b;
     font-weight: 700;
 }
 .nav-chips .chip.chip-servicos .servicos-btn-main {
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+.nav-chips .chip.chip-servicos .servicos-btn-cue {
+    font-size: 0.65rem;
+    font-weight: 500;
+    opacity: 0.9;
+    color: #fbbf24;
+    letter-spacing: 0.01em;
     white-space: nowrap;
 }
 .nav-chips .chip.chip-servicos.open,
@@ -3248,7 +3262,11 @@ html[data-theme="light"] .btn-modo-ui {
 }
 
 html[data-theme="light"] .nav-chips .chip.chip-servicos {
-    background: #fff;
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    color: #9a3412;
+}
+html[data-theme="light"] .nav-chips .chip.chip-servicos .servicos-btn-cue {
+    color: #b45309;
 }
 html[data-theme="light"] .nav-chips .chip.chip-servicos.open,
 html[data-theme="light"] .nav-chips .chip.chip-servicos[aria-expanded="true"] {

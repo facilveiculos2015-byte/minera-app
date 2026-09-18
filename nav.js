@@ -551,8 +551,8 @@ function montarNav(paginaAtiva, perfil) {
             // Serviços sempre visível no chrome do cliente (marketplace de pessoas)
             const servOn = (NAV_SERVICO_IDS.has(paginaAtiva) || paginaAtiva === 'servicos') ? ' on' : '';
             html += '<button type="button" class="chip chip-servicos' + servOn + '" id="nav-servicos" aria-expanded="false" aria-haspopup="dialog" aria-controls="servicos-sheet">' +
-                '<span class="servicos-btn-main">🔧 Serviços</span>' +
-                '<span class="servicos-chevron" aria-hidden="true">▾</span></button>';
+                '<span class="servicos-btn-main">✨ Serviços</span>' +
+                '<span class="servicos-btn-cue">frete, britagem…</span></button>';
             html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
             html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';
             topNav.innerHTML = html;
