@@ -547,7 +547,7 @@ function matchCidade(l, cidade) {
 function renderFeed(lista) {
     const box = document.getElementById('feed');
     if (!lista.length) {
-        box.innerHTML = '<p>Nenhum lote com esses filtros. Veja <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+        box.innerHTML = '<p class="feed-empty">Nada por aqui com esses filtros. ✨ Amplie a busca ou veja <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
         return;
     }
     box.innerHTML = '<div class="lote-cards">' + lista.map(lote => {
@@ -647,7 +647,7 @@ async function carregarFeed() {
                 if (res2.error) throw res2.error;
                 feedCache = res2.data || [];
                 if (box && !feedCache.length) {
-                    box.innerHTML = '<p>Ninguém postou ainda. Seja o primeiro em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+                    box.innerHTML = '<p class="feed-empty">O feed ainda está quieto. 🪨 Seja o primeiro a publicar em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
                     return;
                 }
                 aplicarFiltros();
@@ -657,7 +657,7 @@ async function carregarFeed() {
         }
         feedCache = data || [];
         if (!feedCache.length) {
-            box.innerHTML = '<p>Nenhum lote com esses filtros de local. Amplie para <b>Todos</b> ou publique em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a>.</p>';
+            box.innerHTML = '<p class="feed-empty">Ainda não tem lotes por aqui. 👋 Publique o primeiro em <a href="' + APP_ROOT + 'lotes.html">Meus Lotes</a> ou escolha <b>Todos</b> no filtro.</p>';
             return;
         }
         aplicarFiltros();

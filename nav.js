@@ -10,27 +10,36 @@ const NAV_PRIMARIOS = [
 
 const NAV_SECUNDARIOS = [
     { id: 'mapa', label: 'Mapa', href: 'mapa.html' },
-    { id: 'britagem', label: 'Britagem', href: 'processamento.html', grupo: 'servicos', icon: '🪨' },
-    { id: 'frete', label: 'Frete / Logística', href: 'frete.html', grupo: 'servicos', icon: '🚛' },
-    { id: 'estoque', label: 'Estoque', href: 'estoque.html', grupo: 'servicos', icon: '📦' },
-    { id: 'expedicao', label: 'Expedição / Carregamento', href: 'expedicao.html', grupo: 'servicos', icon: '🏗️' },
-    { id: 'relatorios', label: 'Relatórios', href: 'relatorios.html' },
+    // Ferramentas (deep-link secundário dentro do catálogo Serviços)
+    { id: 'britagem', label: 'Minha Britagem', href: 'processamento.html', grupo: 'ferramentas', icon: '🪨' },
+    { id: 'frete', label: 'Meus Fretes', href: 'frete.html', grupo: 'ferramentas', icon: '🚛' },
+    // Estoque / Expedição / Relatórios: HTML mantido (admin/URL direta), ocultos do chrome do cliente
     { id: 'admin', label: 'Admin', href: 'admin.html', adminOnly: true }
 ];
 
-const NAV_SERVICO_IDS = new Set(
-    NAV_SECUNDARIOS.filter(it => it.grupo === 'servicos').map(it => it.id)
-);
+/** Catálogo de serviços no marketplace (papéis → oferta). */
+const SERVICOS_CATALOGO = [
+    { id: 'frete', label: 'Frete', icon: '🚛', match: ['transportador', 'transportador_mina_britador', 'transportador_britador_porto'] },
+    { id: 'britagem', label: 'Britagem', icon: '🪨', match: ['dono_britador'] },
+    { id: 'carregamento', label: 'Carregamento', icon: '🏗️', match: ['carregamento'] },
+    { id: 'minerador', label: 'Minerador', icon: '⛏️', match: ['minerador'] },
+    { id: 'comprador', label: 'Comprador', icon: '🛒', match: ['comprador'] }
+];
+
+const NAV_SERVICO_IDS = new Set(['frete', 'britagem', 'servicos']);
+let _servicosDirCache = null;
+let _servicosFiltro = '';
+let _servicosBusca = '';
 
 const PAPEIS_CHIPS = {
     minerador: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
     comprador: ['inicio', 'chat', 'perfil', 'mapa'],
-    transportador: ['inicio', 'frete', 'chat', 'perfil'],
-    transportador_mina_britador: ['inicio', 'frete', 'chat', 'perfil'],
-    transportador_britador_porto: ['inicio', 'frete', 'chat', 'perfil'],
-    dono_britador: ['inicio', 'britagem', 'estoque', 'chat', 'perfil'],
-    carregamento: ['inicio', 'expedicao', 'frete', 'chat', 'perfil'],
-    admin: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'estoque', 'expedicao', 'relatorios', 'admin']
+    transportador: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
+    transportador_mina_britador: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
+    transportador_britador_porto: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
+    dono_britador: ['inicio', 'britagem', 'chat', 'perfil', 'mapa'],
+    carregamento: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
+    admin: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'admin']
 };
 
 function iniciaisNome(nome) {
@@ -67,10 +76,40 @@ function abrirMaisSheet() {
     if (sheet) sheet.classList.remove('oculto');
 }
 
+
+function _escNav(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _looksEmailNav(s) {
+    return /@/.test(String(s || ''));
+}
+
+function displayNomePublico(u) {
+    if (!u) return 'Usuário';
+    const ap = String(u.apelido || '').trim();
+    const no = String(u.nome || '').trim();
+    if (ap && !_looksEmailNav(ap)) return ap;
+    if (no && !_looksEmailNav(no)) return no;
+    return 'Usuário';
+}
+
+function papeisLista(u) {
+    const arr = (Array.isArray(u && u.papeis) ? u.papeis : []).map(p => String(p).toLowerCase());
+    if (!arr.length && u && u.tipo) arr.push(String(u.tipo).toLowerCase());
+    return arr;
+}
+
+function servicosDoUsuario(u) {
+    const papeis = papeisLista(u);
+    return SERVICOS_CATALOGO.filter(s => s.match.some(m => papeis.includes(m)));
+}
+
 function fecharServicosPanel() {
-    const panel = document.getElementById('servicos-panel');
+    const sheet = document.getElementById('servicos-sheet');
     const btn = document.getElementById('nav-servicos');
-    if (panel) panel.classList.add('oculto');
+    if (sheet) sheet.classList.add('oculto');
     if (btn) {
         btn.setAttribute('aria-expanded', 'false');
         btn.classList.remove('open');
@@ -79,20 +118,184 @@ function fecharServicosPanel() {
 
 function abrirServicosPanel() {
     fecharMaisSheet();
-    const panel = document.getElementById('servicos-panel');
+    garantirServicosSheet();
+    const sheet = document.getElementById('servicos-sheet');
     const btn = document.getElementById('nav-servicos');
-    if (panel) panel.classList.remove('oculto');
+    if (sheet) sheet.classList.remove('oculto');
     if (btn) {
         btn.setAttribute('aria-expanded', 'true');
         btn.classList.add('open');
     }
+    carregarServicosCatalogo();
 }
 
 function toggleServicosPanel() {
-    const panel = document.getElementById('servicos-panel');
-    if (!panel) return;
-    if (panel.classList.contains('oculto')) abrirServicosPanel();
+    const sheet = document.getElementById('servicos-sheet');
+    if (!sheet || sheet.classList.contains('oculto')) abrirServicosPanel();
     else fecharServicosPanel();
+}
+
+async function rpcServicosDiretorio(busca) {
+    try {
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) return [];
+        const termo = String(busca || '').trim();
+        if (_looksEmailNav(termo)) return [];
+        let rows = [];
+        if (termo.length >= 1) {
+            const { data, error } = await supabaseClient.rpc('chat_buscar_nome', { p_nome: termo });
+            if (!error && data) rows = data;
+        }
+        if (!rows.length) {
+            const { data, error } = await supabaseClient.rpc('chat_diretorio');
+            if (error) throw error;
+            rows = data || [];
+        }
+        return (rows || []).map(u => {
+            const out = Object.assign({}, u);
+            delete out.email;
+            delete out.Email;
+            if (_looksEmailNav(out.nome)) out.nome = '';
+            if (_looksEmailNav(out.apelido)) out.apelido = '';
+            return out;
+        }).filter(u => servicosDoUsuario(u).length > 0);
+    } catch (e) {
+        console.warn('servicos catalogo', e);
+        return [];
+    }
+}
+
+function renderServicosCatalogoList() {
+    const box = document.getElementById('servicos-dir-list');
+    if (!box) return;
+    let items = (_servicosDirCache || []).slice();
+    if (_servicosFiltro) {
+        const cat = SERVICOS_CATALOGO.find(s => s.id === _servicosFiltro);
+        if (cat) {
+            items = items.filter(u => servicosDoUsuario(u).some(s => s.id === cat.id));
+        }
+    }
+    if (_servicosBusca) {
+        const t = _servicosBusca.toLowerCase();
+        items = items.filter(u =>
+            displayNomePublico(u).toLowerCase().includes(t) ||
+            String(u.nome || '').toLowerCase().includes(t) ||
+            String(u.apelido || '').toLowerCase().includes(t) ||
+            String(u.cidade || '').toLowerCase().includes(t)
+        );
+    }
+    if (!items.length) {
+        box.innerHTML = '<p class="servicos-empty">Ninguém oferecendo esse serviço ainda. 👋 Volte em breve ou amplie o filtro.</p>';
+        return;
+    }
+    box.innerHTML = items.map(u => {
+        const nome = displayNomePublico(u);
+        const ini = iniciaisNome(nome);
+        const offs = servicosDoUsuario(u);
+        const cidade = String(u.cidade || u.localidade || '').trim();
+        const badges = offs.map(s =>
+            '<span class="svc-badge">' + s.icon + ' ' + _escNav(s.label) + '</span>'
+        ).join('');
+        const chatHref = (typeof APP_ROOT === 'string' ? APP_ROOT : '') +
+            'chat.html?com=' + encodeURIComponent(u.auth_id);
+        return '<article class="svc-card">' +
+            '<div class="svc-avatar" aria-hidden="true">' + _escNav(ini) + '</div>' +
+            '<div class="svc-body">' +
+            '<strong class="svc-nome">' + _escNav(nome) + '</strong>' +
+            '<div class="svc-badges">' + badges + '</div>' +
+            (cidade ? '<div class="svc-cidade">📍 ' + _escNav(cidade) + '</div>' : '') +
+            '</div>' +
+            '<a class="btn-sm svc-negociar" href="' + chatHref + '">Negociar</a>' +
+            '</article>';
+    }).join('');
+}
+
+async function carregarServicosCatalogo() {
+    const box = document.getElementById('servicos-dir-list');
+    if (box) box.innerHTML = '<p class="sub">Buscando quem oferece serviços…</p>';
+    _servicosDirCache = await rpcServicosDiretorio(_servicosBusca);
+    renderServicosCatalogoList();
+}
+
+function garantirServicosSheet(ferramentas) {
+    let sheet = document.getElementById('servicos-sheet');
+    if (!sheet) {
+        sheet = document.createElement('div');
+        sheet.id = 'servicos-sheet';
+        sheet.className = 'servicos-sheet oculto';
+        sheet.innerHTML =
+            '<div class="mais-backdrop" data-close-svc="1"></div>' +
+            '<div class="servicos-mkt-panel" role="dialog" aria-label="Catálogo de Serviços">' +
+            '<div class="mais-handle"></div>' +
+            '<div class="servicos-mkt-head">' +
+            '<h3>Serviços</h3>' +
+            '<p class="servicos-mkt-cue">Encontre frete, britagem, carregamento e quem está vendendo ou comprando.</p>' +
+            '</div>' +
+            '<label class="servicos-busca-wrap"><span class="sr-only">Buscar</span>' +
+            '<input type="search" id="servicos-busca" class="servicos-busca" placeholder="Buscar por nome…" autocomplete="off"></label>' +
+            '<div class="servicos-filtros" id="servicos-filtros" role="tablist" aria-label="Filtrar serviços"></div>' +
+            '<div class="servicos-dir-list" id="servicos-dir-list"></div>' +
+            '<div class="servicos-ferramentas" id="servicos-ferramentas"></div>' +
+            '</div>';
+        document.body.appendChild(sheet);
+        sheet.addEventListener('click', (e) => {
+            if (e.target && e.target.getAttribute('data-close-svc') === '1') fecharServicosPanel();
+        });
+        if (!document._servicosEscBound) {
+            document._servicosEscBound = true;
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') fecharServicosPanel();
+            });
+        }
+    }
+
+    const filtros = document.getElementById('servicos-filtros');
+    if (filtros && !filtros._built) {
+        filtros._built = true;
+        const chips = [{ id: '', label: 'Todos', icon: '✨' }].concat(
+            SERVICOS_CATALOGO.map(s => ({ id: s.id, label: s.label, icon: s.icon }))
+        );
+        filtros.innerHTML = chips.map(c =>
+            '<button type="button" class="fchip svc-fchip' + (!c.id ? ' on' : '') + '" data-svc="' + c.id + '">' +
+            c.icon + ' ' + c.label + '</button>'
+        ).join('');
+        filtros.addEventListener('click', (e) => {
+            const btn = e.target.closest('.svc-fchip');
+            if (!btn) return;
+            filtros.querySelectorAll('.svc-fchip').forEach(b => b.classList.remove('on'));
+            btn.classList.add('on');
+            _servicosFiltro = btn.getAttribute('data-svc') || '';
+            renderServicosCatalogoList();
+        });
+    }
+
+    const busca = document.getElementById('servicos-busca');
+    if (busca && !busca._bound) {
+        busca._bound = true;
+        let t = null;
+        busca.addEventListener('input', () => {
+            clearTimeout(t);
+            t = setTimeout(() => {
+                _servicosBusca = String(busca.value || '').trim();
+                carregarServicosCatalogo();
+            }, 280);
+        });
+    }
+
+    const ferrBox = document.getElementById('servicos-ferramentas');
+    if (ferrBox) {
+        const tools = Array.isArray(ferramentas) ? ferramentas : [];
+        if (tools.length) {
+            ferrBox.innerHTML = '<div class="servicos-ferr-title">Minhas ferramentas</div>' +
+                tools.map(it =>
+                    '<a class="servicos-ferr-link" href="' + APP_ROOT + it.href + '">' +
+                    '<span aria-hidden="true">' + (it.icon || '•') + '</span> ' + _escNav(it.label) + '</a>'
+                ).join('');
+            ferrBox.classList.remove('oculto');
+        } else {
+            ferrBox.innerHTML = '';
+            ferrBox.classList.add('oculto');
+        }
+    }
 }
 
 function garantirMaisSheet(secundarios) {
@@ -323,15 +526,18 @@ function montarNav(paginaAtiva, perfil) {
             return permitidos.has(it.id);
         });
         const pinned = secs.filter(it => it.id === 'mapa' || it.featured);
-        const servicos = secs.filter(it => it.grupo === 'servicos');
-        // Mais sheet: Relatórios / Admin / Tutorial (sem duplicar Serviços nem Mapa)
+        const ferramentas = secs.filter(it => it.grupo === 'ferramentas');
+        // Mais sheet: Admin / Tutorial (sem duplicar Mapa / ferramentas / Serviços)
         const maisItens = secs.filter(it => it.id !== 'mapa' && !it.grupo);
         if (paginaAtiva === 'chat' || hideClientChrome) {
             topNav.className = 'nav-chips nav-secondary oculto';
             topNav.innerHTML = '';
             topNav.setAttribute('aria-hidden', 'true');
             topNav.hidden = true;
-            if (!hideClientChrome) garantirMaisSheet(maisItens.length ? maisItens : secs);
+            if (!hideClientChrome) {
+                garantirMaisSheet(maisItens.length ? maisItens : secs.filter(it => !it.grupo));
+                garantirServicosSheet(ferramentas);
+            }
         } else {
             topNav.hidden = false;
             topNav.className = 'nav-chips nav-secondary';
@@ -342,20 +548,11 @@ function montarNav(paginaAtiva, perfil) {
                 const feat = it.featured ? ' chip-featured' : '';
                 html += '<a class="chip' + feat + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
             });
-            if (servicos.length) {
-                const servOn = NAV_SERVICO_IDS.has(paginaAtiva) ? ' on' : '';
-                html += '<div class="servicos-wrap" id="servicos-wrap">' +
-                    '<button type="button" class="chip chip-servicos' + servOn + '" id="nav-servicos" aria-expanded="false" aria-haspopup="true" aria-controls="servicos-panel">' +
-                    'Serviços <span class="servicos-chevron" aria-hidden="true">▾</span></button>' +
-                    '<div class="servicos-panel oculto" id="servicos-panel" role="menu" aria-label="Serviços">' +
-                    servicos.map(it => {
-                        const on = it.id === paginaAtiva ? ' on' : '';
-                        return '<a class="servicos-item' + on + '" role="menuitem" href="' + APP_ROOT + it.href + '">' +
-                            '<span class="servicos-ico" aria-hidden="true">' + (it.icon || '•') + '</span>' +
-                            '<span>' + it.label + '</span></a>';
-                    }).join('') +
-                    '</div></div>';
-            }
+            // Serviços sempre visível no chrome do cliente (marketplace de pessoas)
+            const servOn = (NAV_SERVICO_IDS.has(paginaAtiva) || paginaAtiva === 'servicos') ? ' on' : '';
+            html += '<button type="button" class="chip chip-servicos' + servOn + '" id="nav-servicos" aria-expanded="false" aria-haspopup="dialog" aria-controls="servicos-sheet">' +
+                '<span class="servicos-btn-main">🔧 Serviços</span>' +
+                '<span class="servicos-chevron" aria-hidden="true">▾</span></button>';
             html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
             html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';
             topNav.innerHTML = html;
@@ -365,17 +562,6 @@ function montarNav(paginaAtiva, perfil) {
                 btnServ.addEventListener('click', (e) => {
                     e.stopPropagation();
                     toggleServicosPanel();
-                });
-            }
-            if (!document._servicosOutsideBound) {
-                document._servicosOutsideBound = true;
-                document.addEventListener('click', (e) => {
-                    const wrap = document.getElementById('servicos-wrap');
-                    if (!wrap) return;
-                    if (!wrap.contains(e.target)) fecharServicosPanel();
-                });
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') fecharServicosPanel();
                 });
             }
 
@@ -392,7 +578,8 @@ function montarNav(paginaAtiva, perfil) {
                     }
                 });
             }
-            garantirMaisSheet(maisItens.length ? maisItens : secs);
+            garantirMaisSheet(maisItens.length ? maisItens : secs.filter(it => !it.grupo));
+            garantirServicosSheet(ferramentas);
         }
     }
 
@@ -409,6 +596,8 @@ function montarNav(paginaAtiva, perfil) {
         // Esconde Fale conosco / Mais sheet no modo monitoramento
         const sheet = document.getElementById('mais-sheet');
         if (sheet) sheet.classList.add('oculto');
+        const svcSheet = document.getElementById('servicos-sheet');
+        if (svcSheet) svcSheet.classList.add('oculto');
         const fale = document.getElementById('fale-conosco-root') || document.getElementById('btn-fale-conosco');
         if (fale) fale.classList.add('oculto');
     } else {

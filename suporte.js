@@ -15,7 +15,7 @@ const FAQ_INTENTS = [
     {
         id: 'mapa',
         keys: ['mapa', 'satelite', 'satélite', 'coordenada', 'gps', 'localizacao', 'localização'],
-        reply: '🗺️ **Mapa de Satélite** — Abra em Mais → Mapa. Lotes com lat/lng aparecem no mapa. Ao cadastrar/editar o lote, você pode informar coordenadas para facilitar logística e visita.'
+        reply: '🗺️ **Mapa** — Abra o chip Mapa no topo. Lotes com coordenadas aparecem no mapa. Ao cadastrar/editar o lote, você pode informar lat/lng.'
     },
     {
         id: 'pix',
@@ -40,17 +40,17 @@ const FAQ_INTENTS = [
     {
         id: 'papeis',
         keys: ['papel', 'papeis', 'papéis', 'perfil', 'minerador', 'comprador', 'transportador', 'britador', 'carregamento'],
-        reply: '👤 **Papéis** — Em Perfil você marca um ou mais papéis (minerador, comprador, transportador, dono de britador, carregamento). Cada papel libera chips diferentes na navegação (Lotes, Frete, Britagem, Expedição…).'
+        reply: '👤 **Papéis** — Em Perfil você marca um ou mais papéis (minerador, comprador, transportador, dono de britador…). Isso libera o que faz sentido pra você (Lotes, Frete, Britagem…).'
     },
     {
         id: 'frete',
         keys: ['frete', 'logistica', 'logística', 'transporte', 'caminhao', 'caminhão', 'rota'],
-        reply: '🚛 **Frete / Logística** — Em Mais → Logística você registra fretes (origem, destino, valor, status). Transportadores veem o chip conforme o papel (mina–britador ou britador–porto).'
+        reply: '🚛 **Frete** — Em Serviços → Frete você registra fretes (origem, destino, valor, status). Transportadores veem Frete conforme o papel.'
     },
     {
         id: 'britagem',
         keys: ['britagem', 'britador', 'processamento', 'processar', 'moagem'],
-        reply: '⚙️ **Britagem** — Dono de britador usa Mais → Britagem para configurar e acompanhar processamento dos lotes. Estoque relacionado aparece em Estoque.'
+        reply: '🪨 **Britagem** — Dono de britador usa Serviços → Britagem para configurar e acompanhar o processamento dos lotes.'
     },
     {
         id: 'tutorial',
