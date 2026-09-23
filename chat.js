@@ -13,6 +13,8 @@ let agendarAtivo = false;
 
 /** Contato ativo: { auth_id, nome, papeis, tipo, apelido } — sem email */
 let contatoAtivo = null;
+let filtroListaChat = 'todas'; // todas | nao_lidas | favoritos
+
 let contatosCache = [];
 let diretorioCache = [];
 let lastThreadMsgIds = new Set();
@@ -573,6 +575,22 @@ function contactsSignature(list) {
     ).join('|') + '|' + (contatoAtivo && contatoAtivo.auth_id || '');
 }
 
+
+function aplicarFiltroListaChat(filtro) {
+    filtroListaChat = filtro || 'todas';
+    if (filtroListaChat === 'favoritos') {
+        if (typeof toastMsg === 'function') toastMsg('Favoritos em breve');
+        // Keep visual chip; show all until feature lands
+        filtroListaChat = 'todas';
+        const fav = document.querySelector('#wa-filter-chips .wa-chip[data-wa="favoritos"]');
+        const todas = document.querySelector('#wa-filter-chips .wa-chip[data-wa="todas"]');
+        if (fav) fav.classList.remove('on');
+        if (todas) todas.classList.add('on');
+    }
+    if (typeof carregarContatos === 'function') carregarContatos(true);
+}
+window.aplicarFiltroListaChat = aplicarFiltroListaChat;
+
 function renderContatosList(filtered) {
     const box = document.getElementById('chat-contatos-list');
     if (!filtered.length) {
@@ -738,6 +756,7 @@ async function carregarContatos(force) {
                 const lastT = c.last && c.last.criado_em ? new Date(c.last.criado_em).getTime() : 0;
                 if (lastT <= new Date(ocEm).getTime()) return false;
             }
+            if (filtroListaChat === 'nao_lidas' && !(c.unread > 0)) return false;
             if (!busca) return true;
             return (c.nome || '').toLowerCase().includes(busca) ||
                 (c.apelido || '').toLowerCase().includes(busca) ||
@@ -1199,6 +1218,7 @@ async function pickMidiaArquivo(file, tipo) {
             msgEl.textContent = 'Selecione um contato primeiro.';
             msgEl.className = 'msg erro';
         }
+        if (typeof toastMsg === 'function') toastMsg('Selecione um contato primeiro.');
         return;
     }
     const localUrl = URL.createObjectURL(file);

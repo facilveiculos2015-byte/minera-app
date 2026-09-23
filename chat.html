@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923u">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923u">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923v">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923v">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923u">
+    <link rel="stylesheet" href="style.css?v=20260923v">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -42,12 +42,12 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923u" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923v" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
-                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20260923u">
-                    <div class="wa-thread-head chat-thread-head" data-build="20260923u">
+                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20260923v">
+                    <div class="wa-thread-head chat-thread-head" data-build="20260923v">
                         <button type="button" class="wa-back-chev chat-back" id="btn-chat-back" aria-label="Voltar"><span class="wa-back-ico" aria-hidden="true">‹</span><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
                         <div class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</div>
                         <div class="wa-thread-info chat-thread-head-info">
@@ -169,13 +169,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923u"></script>
-    <script src="auth-guard.js?v=20260923u"></script>
-    <script src="suporte.js?v=20260923u"></script>
-    <script src="nav.js?v=20260923u"></script>
-    <script src="anti-golpe.js?v=20260923u"></script>
-    <script src="chat.js?v=20260923u"></script>
-    <script src="pwa.js?v=20260923u"></script>
+    <script src="config.js?v=20260923v"></script>
+    <script src="auth-guard.js?v=20260923v"></script>
+    <script src="suporte.js?v=20260923v"></script>
+    <script src="nav.js?v=20260923v"></script>
+    <script src="anti-golpe.js?v=20260923v"></script>
+    <script src="chat.js?v=20260923v"></script>
+    <script src="pwa.js?v=20260923v"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); else alert(t); }
@@ -184,6 +184,10 @@
         if (video) video.addEventListener('click', () => toast('Chamada de vídeo em breve'));
         if (phone) phone.addEventListener('click', () => toast('Chamada de voz em breve'));
         function openCameraCapture() {
+            if (typeof contatoAtivo === 'undefined' || !contatoAtivo || !contatoAtivo.auth_id) {
+                toast('Abra uma conversa para enviar foto.');
+                return;
+            }
             const f = document.getElementById('chat-foto');
             if (f) f.click();
         }
@@ -281,10 +285,23 @@
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(b => b.classList.remove('on'));
                 btn.classList.add('on');
+                const f = btn.getAttribute('data-wa') || 'todas';
+                if (typeof aplicarFiltroListaChat === 'function') aplicarFiltroListaChat(f);
+                else if (f === 'favoritos') toast('Favoritos em breve');
+                else if (typeof carregarContatos === 'function') carregarContatos(true);
             });
         });
         const arch = document.getElementById('wa-archived');
         if (arch) arch.addEventListener('click', () => toast('Arquivadas em breve'));
+        const menuList = document.getElementById('btn-chat-menu-list');
+        if (menuList && !menuList._bound) {
+            menuList._bound = true;
+            menuList.addEventListener('click', () => {
+                const add = document.getElementById('btn-add-contato');
+                if (add) add.click();
+                else toast('Use ＋ para nova conversa');
+            });
+        }
         // Update avatar initials when name changes
         const nomeEl = document.getElementById('chat-com-nome');
         const av = document.getElementById('chat-com-av');

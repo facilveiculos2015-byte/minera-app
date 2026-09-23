@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Bank</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923u">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923u">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923v">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923v">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923u">
+    <link rel="stylesheet" href="style.css?v=20260923v">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -81,18 +81,18 @@
                         <div class="nb-strip-top">
                             <div style="display:flex;align-items:center;gap:10px">
                                 <div class="nb-av" id="nb-av">?</div>
-                                <button type="button" class="nb-shortcut" id="nb-shortcut" title="Atalho">▦</button>
+                                <button type="button" class="nb-shortcut" id="nb-shortcut" title="Extrato" data-view="extrato" aria-label="Abrir extrato">▦</button>
                             </div>
                             <div class="nb-strip-right">
                                 <button type="button" class="nb-ico-btn" id="nb-eye" aria-label="Ocultar saldo">👁</button>
                                 <button type="button" class="nb-ico-btn" id="btn-saiba-mais" aria-label="Ajuda">?</button>
-                                <button type="button" class="nb-ico-btn" id="nb-menu" aria-label="Menu">☰</button>
+                                <button type="button" class="nb-ico-btn" id="nb-menu" aria-label="Ajuda e menu" data-view="ajuda">☰</button>
                             </div>
                         </div>
                         <div class="nb-hello" id="nb-hello">Olá</div>
                     </div>
                     <div class="nb-body">
-                        <button type="button" class="nb-saldo" id="btn-saldo-goto" style="width:100%;text-align:left;cursor:pointer">
+                        <button type="button" class="nb-saldo" id="btn-saldo-goto" data-view="extrato" style="width:100%;text-align:left;cursor:pointer" aria-label="Ver extrato">
                             <div class="nb-saldo-label">Saldo em conta <span aria-hidden="true">›</span></div>
                             <div class="nb-saldo-valor" id="caixa-saldo">R$ —</div>
                             <span class="nb-yield" id="caixa-rendimento">Rendimento estimado</span>
@@ -394,13 +394,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923u"></script>
-    <script src="auth-guard.js?v=20260923u"></script>
-    <script src="suporte.js?v=20260923u"></script>
-    <script src="nav.js?v=20260923u"></script>
-    <script src="pix-brcode.js?v=20260923u"></script>
-    <script src="financeiro.js?v=20260923u"></script>
-    <script src="pwa.js?v=20260923u"></script>
+    <script src="config.js?v=20260923v"></script>
+    <script src="auth-guard.js?v=20260923v"></script>
+    <script src="suporte.js?v=20260923v"></script>
+    <script src="nav.js?v=20260923v"></script>
+    <script src="pix-brcode.js?v=20260923v"></script>
+    <script src="financeiro.js?v=20260923v"></script>
+    <script src="pwa.js?v=20260923v"></script>
     <script>
     (function nbNav() {
         function showView(id) {
@@ -446,6 +446,15 @@
             if (m) m.textContent = 'Boleto em breve.';
             if (typeof toastMsg === 'function') toastMsg('Boleto em breve');
         });
+        const pixInfo = document.getElementById('pix-copia-info');
+        if (pixInfo && !pixInfo._bound) {
+            pixInfo._bound = true;
+            pixInfo.addEventListener('click', () => {
+                const msg = 'A área Pix da plataforma usa a chave administrativa (titular JeL). Seu saldo e pedidos ficam só na sua conta. Use Depositar/Sacar acima.';
+                if (typeof toastMsg === 'function') toastMsg(msg);
+                else alert(msg);
+            });
+        }
         window.nbShowView = showView;
     })();
     </script>
