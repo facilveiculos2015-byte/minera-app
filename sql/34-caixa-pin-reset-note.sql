@@ -1,0 +1,74 @@
+-- =====================================================================
+-- MINERA APP - 34 Caixa PIN reset (COMMENTED TEMPLATE ONLY — do not run as-is)
+-- =====================================================================
+-- Context (client app financeiro.js):
+--   Table:  public.caixa_saldos
+--   Columns: pin_hash TEXT, pin_salt TEXT
+--   Algorithm: SHA-256 hex of  (pin_salt || '|' || pin)
+--              NOT bcrypt / NOT Auth login password.
+--   Client: hashPin(pin, salt) => sha256Hex(salt + '|' + pin)
+--           Web Crypto SubtleDigest SHA-256, lowercase hex.
+--
+-- Login password (Supabase Auth) is SEPARATE. Forgot-PIN in the app re-auths
+-- with login password or email OTP, then calls salvarPin() to write a new hash.
+--
+-- Prefer the in-app flow:
+--   1) Desbloquear Caixa → «Esqueci a senha da Caixa»
+--   2) Confirm login password (or OTP) → set new Caixa PIN (min 6 chars)
+-- OR if pin_hash/pin_salt are NULL, the UI shows «Criar senha do Caixa».
+--
+-- Admin one-off in Supabase SQL Editor (replace placeholders; never commit live PINs):
+--
+-- ---------------------------------------------------------------------------
+-- Option A (recommended): CLEAR PIN → user sees «Criar senha do Caixa»
+-- ---------------------------------------------------------------------------
+-- UPDATE public.caixa_saldos cs
+-- SET pin_hash = NULL,
+--     pin_salt = NULL,
+--     atualizado_em = now()
+-- FROM public.usuarios u
+-- WHERE cs.auth_id = u.auth_id
+--   AND lower(u.email) = lower('YOUR_EMAIL@example.com');
+--
+-- -- Verify:
+-- -- SELECT u.email, cs.auth_id, (cs.pin_hash IS NOT NULL) AS has_pin
+-- -- FROM public.caixa_saldos cs
+-- -- JOIN public.usuarios u ON u.auth_id = cs.auth_id
+-- -- WHERE lower(u.email) = lower('YOUR_EMAIL@example.com');
+--
+-- ---------------------------------------------------------------------------
+-- Option B: SET PIN to YOUR_PIN using pgcrypto SHA-256 (matches client)
+-- ---------------------------------------------------------------------------
+-- Requires: CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Pin must be >= 6 characters (app enforces).
+--
+-- CREATE EXTENSION IF NOT EXISTS pgcrypto;
+--
+-- WITH target AS (
+--   SELECT u.auth_id
+--   FROM public.usuarios u
+--   WHERE lower(u.email) = lower('YOUR_EMAIL@example.com')
+--   LIMIT 1
+-- ),
+-- fresh AS (
+--   SELECT encode(gen_random_bytes(16), 'hex') AS salt
+-- )
+-- UPDATE public.caixa_saldos cs
+-- SET pin_salt = fresh.salt,
+--     pin_hash = encode(
+--       digest(convert_to(fresh.salt || '|' || 'YOUR_PIN', 'UTF8'), 'sha256'),
+--       'hex'
+--     ),
+--     atualizado_em = now()
+-- FROM target, fresh
+-- WHERE cs.auth_id = target.auth_id;
+--
+-- -- If no caixa_saldos row exists yet, insert one first (saldo 0), then Option A/B.
+-- -- INSERT INTO public.caixa_saldos (auth_id, saldo, taxa_mensal, taxa_yield_max)
+-- -- SELECT auth_id, 0, 5, 5 FROM public.usuarios
+-- -- WHERE lower(email) = lower('YOUR_EMAIL@example.com')
+-- -- ON CONFLICT DO NOTHING;  -- only if unique(auth_id) exists
+--
+-- NOTE: Do NOT use crypt()/bf for Caixa PIN — the browser verifies SHA-256, not bcrypt.
+-- NOTE: Never paste a real production PIN into git; keep YOUR_PIN / YOUR_EMAIL placeholders.
+-- =====================================================================

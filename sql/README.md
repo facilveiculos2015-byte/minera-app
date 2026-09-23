@@ -108,3 +108,6 @@ Fortaleza: zero writes anônimos; chat só participante; empréstimos UPDATE só
 Incremental após 32: Storage `chat-midia` e `emprestimo-docs` com mutação só em pasta `{auth.uid()}/...`. SELECT público de chat-midia preservado (playback). Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 33 no Supabase SQL Editor após 32.**
 Garante isolamento de arquivos por usuário (admin-as-user não vaza storage alheio via JWT).
+
+## 34-caixa-pin-reset-note.sql
+**COMMENTED TEMPLATE ONLY.** Documents `caixa_saldos.pin_hash` / `pin_salt` (SHA-256 of `salt|pin`, not bcrypt / not Auth login). Prefer in-app «Esqueci a senha» or clear PIN (NULL) so UI shows «Criar senha do Caixa». Do not commit live passwords.

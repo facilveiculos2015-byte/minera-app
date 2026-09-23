@@ -3468,7 +3468,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923b — industrial premium ===== */
+/* ===== TURBO redesign 20260923c — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3846,7 +3846,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923b — marketplace / bank / habit polish === */
+/* === 20260923c — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -3926,7 +3926,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923b — Minerar PARÁ ===== */
+/* ===== FULL REBUILD pillars 20260923c — Minerar PARÁ ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4300,3 +4300,14 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .wa-wave { font-size:0.75rem; letter-spacing:1px; opacity:.75; margin-bottom:4px; font-family:monospace; }
 .wa-row { width:100%; appearance:none; background:transparent; border:0; text-align:left; color:inherit; }
 .chat-contact-item.wa-row.on { background:rgba(245,166,35,.08); }
+
+/* Aliases (product / QA): own/sent bubbles must be orange #F5A623 */
+.msg-sent, .bubble-own {
+  background: var(--accent-color, #F5A623) !important;
+  color: #0b1220 !important;
+  margin-left: auto;
+}
+.msg-sent .bubble-text, .msg-sent .bubble-meta, .msg-sent .bubble-status,
+.bubble-own .bubble-text, .bubble-own .bubble-meta, .bubble-own .bubble-status {
+  color: #0b1220 !important;
+}

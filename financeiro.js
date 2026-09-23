@@ -510,8 +510,21 @@ function bindPinUI() {
     document.getElementById('btn-unlock-pin').addEventListener('click', async () => {
         const pin = document.getElementById('pin-unlock').value;
         try {
+            // Refresh row so missing PIN never fails forever on unlock UI
+            saldoRow = await garantirSaldoRow();
+            const hasPin = !!(saldoRow && saldoRow.pin_hash && saldoRow.pin_salt);
+            if (!hasPin) {
+                applyLockUI(false, false);
+                setMsg('pin-set-msg', 'Nenhuma senha da Caixa definida. Crie uma agora (diferente do login).', true);
+                return;
+            }
             const ok = await verificarPin(pin);
-            if (!ok) { setMsg('pin-unlock-msg', 'Senha incorreta.', false); return; }
+            if (!ok) {
+                setMsg('pin-unlock-msg',
+                    'Senha da Caixa incorreta (não é a senha de login). Use «Esqueci a senha da Caixa».',
+                    false);
+                return;
+            }
             setUnlocked(true);
             applyLockUI(true, true);
             setMsg('pin-unlock-msg', '', true);
