@@ -1781,7 +1781,7 @@ async function carregarShareFlagsAdmin() {
     const defFrase = (typeof SHARE_FRASE_PADRAO_DEFAULT === 'string' && SHARE_FRASE_PADRAO_DEFAULT)
         || 'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
     const defUrl = (typeof SHARE_OG_IMAGE_DEFAULT === 'string' && SHARE_OG_IMAGE_DEFAULT)
-        || 'https://facilveiculos2015-byte.github.io/minera-app/og-familia.png';
+        || 'https://facilveiculos2015-byte.github.io/minera-app/og-familia.png?v=20260923ad';
     try {
         const { data, error } = await supabaseClient
             .from('app_flags')

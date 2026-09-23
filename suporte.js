@@ -339,7 +339,7 @@ function gerarCodigoIndicacao() {
 }
 
 const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
-const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png';
+const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923ad';
 const SHARE_FRASE_PADRAO_DEFAULT =
     'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
 const SHARE_OG_DESC_SEM_NOME =
@@ -572,6 +572,23 @@ async function copiarTextoIndicacao() {
  * Primary CTA: open WhatsApp directly with invite text+link.
  * Desktop: wa.me still opens WhatsApp Web; clipboard only if open fails.
  */
+
+async function familiaShareImageFile() {
+    const url = (_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT || '').split('?')[0];
+    if (!url) return null;
+    try {
+        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923ad';
+        const res = await fetch(bust, { mode: 'cors', cache: 'no-store' });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const type = blob.type || 'image/png';
+        const ext = type.includes('jpeg') || type.includes('jpg') ? 'jpg' : 'png';
+        return new File([blob], 'familia-minera-convite.' + ext, { type: type });
+    } catch (e) {
+        return null;
+    }
+}
+
 async function compartilharNoWhatsApp(perfilOpt) {
     let payload = familiaSharePayload(perfilOpt);
     if ((!payload.codigo || payload.codigo === '…') && perfilOpt && typeof garantirCodigoIndicacao === 'function') {
@@ -603,16 +620,30 @@ async function compartilharNoWhatsApp(perfilOpt) {
 
 async function compartilharIndicacao(opts) {
     opts = opts || {};
-    // Primary: always WhatsApp (user request). navigator.share only if explicit secondary.
-    if (opts && opts.maisOpcoes && navigator.share) {
-        const { text } = familiaSharePayload(opts.perfil);
-        try {
-            await navigator.share({ title: 'Minera Pará', text: text });
+    await carregarShareFlags();
+    const payload = familiaSharePayload(opts.perfil);
+    const text = payload.text || '';
+    const link = payload.codigo ? linkIndicacao(payload.codigo) : '';
+    // Mobile: tenta Web Share com imagem + texto/link (WhatsApp mostra a arte)
+    try {
+        const file = await familiaShareImageFile();
+        if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                title: 'Família Minera · Minera Pará',
+                text: text,
+                url: link || undefined,
+                files: [file]
+            });
+            if (typeof toastMsg === 'function') toastMsg('Convite com imagem compartilhado!');
+            return;
+        }
+        if (opts && opts.maisOpcoes && navigator.share) {
+            await navigator.share({ title: 'Minera Pará', text: text, url: link || undefined });
             if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
             return;
-        } catch (e) {
-            if (e && e.name === 'AbortError') return;
         }
+    } catch (e) {
+        if (e && e.name === 'AbortError') return;
     }
     const ok = await compartilharNoWhatsApp(opts.perfil);
     if (!ok) {
