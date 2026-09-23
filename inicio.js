@@ -41,18 +41,21 @@ function filtrarLotesVisiveis(rows) {
 async function carregarBannersPromos() {
     const track = document.getElementById('olx-banner-track');
     const banner = document.getElementById('olx-banner');
+    const dotsEl = document.getElementById('olx-banner-dots');
     if (!track) return;
-    /* Banner marketing estático (arte Família Minera) — sempre primeiro */
-    const BANNER_MKT = {
+
+    /* Fallback só se zero ativos no DB — admin remove/desativa via app_promos */
+    const BANNER_FALLBACK = {
         tipo: 'banner',
         titulo: '',
         texto: '',
-        imagem_url: 'media/banner-familia-minera.jpg?v=20260923x',
+        imagem_url: 'media/banner-familia-minera.jpg?v=20260923y',
         link: '',
         _full: true
     };
+
     function slideHtml(p) {
-        const full = !!(p._full || (p.imagem_url && !p.titulo && !p.texto));
+        const full = !!(p._full || (p.imagem_url && !(p.titulo || '').trim() && !(p.texto || '').trim()));
         if (full && p.imagem_url) {
             const img = `<img src="${esc(p.imagem_url)}" alt="Minera Pará" class="olx-banner-fullimg" loading="lazy">`;
             if (p.link) return `<a class="olx-banner-slide olx-banner-slide--full" href="${esc(p.link)}">${img}</a>`;
@@ -65,6 +68,98 @@ async function carregarBannersPromos() {
         if (p.link) return `<a class="olx-banner-slide" href="${esc(p.link)}">${inner}</a>`;
         return `<div class="olx-banner-slide">${inner}</div>`;
     }
+
+    function bindCarousel(n) {
+        if (track._promoTimer) {
+            clearInterval(track._promoTimer);
+            track._promoTimer = null;
+        }
+        let i = 0;
+        const go = (idx) => {
+            const total = track.children.length || 1;
+            i = ((idx % total) + total) % total;
+            track.style.transform = 'translateX(-' + (i * 100) + '%)';
+            if (dotsEl) {
+                dotsEl.querySelectorAll('.olx-banner-dot').forEach((d, di) => {
+                    d.classList.toggle('on', di === i);
+                    d.setAttribute('aria-current', di === i ? 'true' : 'false');
+                });
+            }
+        };
+        track.style.transform = 'translateX(0)';
+        go(0);
+
+        if (dotsEl) {
+            if (n > 1) {
+                dotsEl.hidden = false;
+                dotsEl.innerHTML = Array.from({ length: n }, (_, di) =>
+                    `<button type="button" class="olx-banner-dot${di === 0 ? ' on' : ''}" data-i="${di}" aria-label="Slide ${di + 1}" aria-current="${di === 0 ? 'true' : 'false'}"></button>`
+                ).join('');
+                dotsEl.querySelectorAll('.olx-banner-dot').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        pause();
+                        go(parseInt(btn.getAttribute('data-i'), 10) || 0);
+                        resume();
+                    });
+                });
+            } else {
+                dotsEl.hidden = true;
+                dotsEl.innerHTML = '';
+            }
+        }
+
+        function pause() {
+            if (track._promoTimer) {
+                clearInterval(track._promoTimer);
+                track._promoTimer = null;
+            }
+        }
+        function resume() {
+            pause();
+            if ((track.children.length || 0) < 2) return;
+            track._promoTimer = setInterval(() => go(i + 1), 4200);
+        }
+        resume();
+
+        /* Controles atuais no track — swipe/hover não ficam stale em reload */
+        track._promoGo = go;
+        track._promoPause = pause;
+        track._promoResume = resume;
+        track._promoIndex = () => i;
+        track._promoSetIndex = (v) => { i = v; };
+
+        if (!track._swipeBound) {
+            track._swipeBound = true;
+            let startX = 0;
+            let startY = 0;
+            let dragging = false;
+            track.addEventListener('touchstart', (e) => {
+                const t = e.changedTouches && e.changedTouches[0];
+                if (!t) return;
+                startX = t.clientX; startY = t.clientY; dragging = true;
+                if (track._promoPause) track._promoPause();
+            }, { passive: true });
+            track.addEventListener('touchend', (e) => {
+                if (!dragging) return;
+                dragging = false;
+                const t = e.changedTouches && e.changedTouches[0];
+                if (!t) { if (track._promoResume) track._promoResume(); return; }
+                const dx = t.clientX - startX;
+                const dy = t.clientY - startY;
+                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) && track._promoGo) {
+                    const cur = track._promoIndex ? track._promoIndex() : 0;
+                    track._promoGo(cur + (dx < 0 ? 1 : -1));
+                }
+                if (track._promoResume) track._promoResume();
+            }, { passive: true });
+            if (banner) {
+                banner.addEventListener('mouseenter', () => { if (track._promoPause) track._promoPause(); });
+                banner.addEventListener('mouseleave', () => { if (track._promoResume) track._promoResume(); });
+            }
+        }
+    }
+
+    let rows = [];
     try {
         const { data, error } = await supabaseClient
             .from('app_promos')
@@ -73,26 +168,20 @@ async function carregarBannersPromos() {
             .order('ordem', { ascending: true })
             .limit(12);
         if (error) throw error;
-        const rows = [BANNER_MKT].concat(data || []);
-        if (banner) banner.classList.remove('oculto');
-        track.innerHTML = rows.map(slideHtml).join('');
-        if (track._promoTimer) {
-            clearInterval(track._promoTimer);
-            track._promoTimer = null;
-        }
-        let i = 0;
-        track.style.transform = 'translateX(0)';
-        track._promoTimer = setInterval(() => {
-            const n = track.children.length || 1;
-            i = (i + 1) % n;
-            track.style.transform = 'translateX(-' + (i * 100) + '%)';
-        }, 4200);
+        rows = data || [];
+        /* Prefere tipo banner; se nenhum banner, usa todos os ativos */
+        const banners = rows.filter((r) => (r.tipo || '') === 'banner');
+        if (banners.length) rows = banners;
     } catch (e) {
         console.warn('promos', e);
-        /* Mesmo sem app_promos, mostra o banner de marketing */
-        if (banner) banner.classList.remove('oculto');
-        track.innerHTML = slideHtml(BANNER_MKT);
+        rows = [];
     }
+
+    if (!rows.length) rows = [BANNER_FALLBACK];
+
+    if (banner) banner.classList.remove('oculto');
+    track.innerHTML = rows.map(slideHtml).join('');
+    bindCarousel(rows.length);
 }
 
 
@@ -913,6 +1002,7 @@ async function initLocalidadeUI() {
         console.warn('localidade init', e);
         setLocStatus('Escolha estado/cidade');
     }
+    carregarBannersPromos();
     carregarFeed();
 })();
 
@@ -1001,7 +1091,7 @@ window.addEventListener('beforeunload', () => {
             }
         });
     }
-    /* banners: carregarBannersPromos() */
+    /* banners: via init() */
     const fab = document.getElementById('fab-anunciar');
     if (fab && typeof APP_ROOT === 'string') fab.setAttribute('href', APP_ROOT + 'lotes.html');
     /* Categorias: only top olx-tabs (#filtro-tipo-chips) — no quick card */

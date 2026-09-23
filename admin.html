@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Pará - Admin</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923x">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923x">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923y">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923y">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923x">
+    <link rel="stylesheet" href="style.css?v=20260923y">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -175,7 +175,7 @@
         <div class="admin-panel oculto" data-panel="promos">
             <section class="card">
                 <h2>Banners &amp; ofertas</h2>
-                <p class="sub">Home/marketplace lê só ativos, ordenados. Não hardcode no HTML.</p>
+                <p class="sub">Início mostra só <strong>ativos</strong>, ordenados por Ordem (slideshow ~4s). Deixe título e texto vazios + imagem → slide em tela cheia. Desativar ou Apagar remove do carrossel. Vários ativos = slideshow automático.</p>
                 <form id="form-promo" class="promo-form">
                     <input type="hidden" id="promo-id" value="">
                     <label for="promo-tipo">Tipo</label>
@@ -183,17 +183,21 @@
                         <option value="banner">Banner</option>
                         <option value="oferta">Oferta</option>
                     </select>
-                    <label for="promo-titulo">Título</label>
-                    <input type="text" id="promo-titulo" placeholder="Título">
-                    <label for="promo-texto">Texto</label>
-                    <textarea id="promo-texto" rows="2" placeholder="Texto curto"></textarea>
+                    <label for="promo-titulo">Título <span class="sub">(vazio = full-bleed)</span></label>
+                    <input type="text" id="promo-titulo" placeholder="Opcional — vazio com imagem = tela cheia">
+                    <label for="promo-texto">Texto <span class="sub">(vazio = full-bleed)</span></label>
+                    <textarea id="promo-texto" rows="2" placeholder="Opcional — deixe vazio para imagem full-bleed"></textarea>
                     <label for="promo-imagem">URL da imagem</label>
-                    <input type="url" id="promo-imagem" placeholder="https://…">
+                    <input type="text" id="promo-imagem" placeholder="media/banner-familia-minera.jpg ou https://…">
+                    <p class="sub">Ex.: <code>media/banner-familia-minera.jpg</code> (mesmo domínio) ou cole URL do Pages/CDN. Ou envie abaixo (bucket chat-midia).</p>
+                    <label for="promo-imagem-file">Enviar imagem</label>
+                    <input type="file" id="promo-imagem-file" accept="image/*">
+                    <p id="promo-upload-status" class="sub" aria-live="polite"></p>
                     <label for="promo-link">Link</label>
-                    <input type="url" id="promo-link" placeholder="https://… ou caminho">
+                    <input type="text" id="promo-link" placeholder="https://… ou caminho relativo">
                     <label for="promo-ordem">Ordem</label>
                     <input type="number" id="promo-ordem" value="0" step="1">
-                    <label class="check-row"><input type="checkbox" id="promo-ativo" checked> Ativo</label>
+                    <label class="check-row"><input type="checkbox" id="promo-ativo" checked> Ativo (aparece no Início)</label>
                     <div class="modal-actions">
                         <button type="submit" class="btn-ok">Salvar</button>
                         <button type="button" class="btn-ghost" id="btn-promo-limpar">Limpar</button>
@@ -249,12 +253,12 @@
             </div>
         </div>
     </div>
-    <script src="config.js?v=20260923x"></script>
-    <script src="auth-guard.js?v=20260923x"></script>
-    <script src="suporte.js?v=20260923x"></script>
-    <script src="nav.js?v=20260923x"></script>
-    <script src="pix-brcode.js?v=20260923x"></script>
-    <script src="admin.js?v=20260923x"></script>
-    <script src="pwa.js?v=20260923x"></script>
+    <script src="config.js?v=20260923y"></script>
+    <script src="auth-guard.js?v=20260923y"></script>
+    <script src="suporte.js?v=20260923y"></script>
+    <script src="nav.js?v=20260923y"></script>
+    <script src="pix-brcode.js?v=20260923y"></script>
+    <script src="admin.js?v=20260923y"></script>
+    <script src="pwa.js?v=20260923y"></script>
 </body>
 </html>

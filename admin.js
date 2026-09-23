@@ -1620,6 +1620,35 @@ async function carregarPromosAdmin() {
     }
 }
 
+
+async function uploadPromoImagem(file) {
+    if (!file || !(file.type || '').startsWith('image/')) {
+        throw new Error('Selecione uma imagem (image/*).');
+    }
+    let uid = (perfilAtual && perfilAtual.auth_id) || null;
+    if (!uid) {
+        try {
+            const { data: u } = await supabaseClient.auth.getUser();
+            uid = u && u.user && u.user.id;
+        } catch (_) { /* ignore */ }
+    }
+    if (!uid) throw new Error('Faça login de admin para enviar imagem.');
+    const ext = (file.name || 'banner.jpg').split('.').pop() || 'jpg';
+    const safe = String(file.name || 'banner').replace(/[^\w.\-]+/g, '_').replace(/\.[^.]+$/, '');
+    const path = uid + '/banners/' + Date.now() + '_' + safe + '.' + ext.replace(/[^\w]+/g, '');
+    const { data, error } = await supabaseClient.storage
+        .from('chat-midia')
+        .upload(path, file, {
+            upsert: false,
+            contentType: (file.type || 'image/jpeg').split(';')[0],
+            cacheControl: '3600'
+        });
+    if (error) throw error;
+    const { data: pub } = supabaseClient.storage.from('chat-midia').getPublicUrl((data && data.path) || path);
+    if (!pub || !pub.publicUrl) throw new Error('URL pública indisponível');
+    return pub.publicUrl;
+}
+
 function bindPromoForm() {
     const form = document.getElementById('form-promo');
     if (!form || form._bound) return;
@@ -1654,7 +1683,36 @@ function bindPromoForm() {
         }
     });
     const limpar = document.getElementById('btn-promo-limpar');
-    if (limpar) limpar.addEventListener('click', () => { limparFormPromo(); setPromoMsg('', true); });
+    if (limpar) limpar.addEventListener('click', () => {
+        limparFormPromo();
+        const f = document.getElementById('promo-imagem-file');
+        if (f) f.value = '';
+        const st = document.getElementById('promo-upload-status');
+        if (st) st.textContent = '';
+        setPromoMsg('', true);
+    });
+    const fileIn = document.getElementById('promo-imagem-file');
+    if (fileIn && !fileIn._bound) {
+        fileIn._bound = true;
+        fileIn.addEventListener('change', async () => {
+            const file = (fileIn.files && fileIn.files[0]) || null;
+            const st = document.getElementById('promo-upload-status');
+            if (!file) return;
+            if (st) st.textContent = 'Enviando imagem…';
+            try {
+                const url = await uploadPromoImagem(file);
+                const inp = document.getElementById('promo-imagem');
+                if (inp) inp.value = url;
+                if (st) st.textContent = 'Imagem enviada — URL preenchida. Clique Salvar.';
+                setPromoMsg('Imagem pronta. Salve o banner.', true);
+            } catch (e) {
+                if (st) st.textContent = '';
+                setPromoMsg((e && e.message) || String(e), false);
+            } finally {
+                fileIn.value = '';
+            }
+        });
+    }
 }
 
 

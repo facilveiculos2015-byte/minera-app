@@ -469,7 +469,7 @@ function htmlCardFamilia(perfil) {
         '<section class="card familia-card familia-collapsed" id="card-familia-mineira">' +
         '<button type="button" class="familia-bar" id="btn-familia-toggle" aria-expanded="false" aria-controls="familia-panel">' +
         '<span class="familia-bar-icon" aria-hidden="true">⛏️</span>' +
-        '<span class="familia-bar-text">Faça parte da família mineira — venha trabalhar conosco e tenha renda extra</span>' +
+        '<span class="familia-bar-text">Faça parte da Família Minera — venha trabalhar conosco e tenha renda extra</span>' +
         '<span class="familia-bar-chevron" aria-hidden="true">▾</span>' +
         '</button>' +
         '<div class="familia-panel" id="familia-panel" hidden>' +

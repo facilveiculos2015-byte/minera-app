@@ -4551,6 +4551,21 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
   display: block; border: 0;
 }
 .olx-banner a.olx-banner-slide { text-decoration: none; color: inherit; }
+.olx-banner-dots {
+  position: absolute; left: 0; right: 0; bottom: 8px;
+  display: flex; justify-content: center; gap: 6px; z-index: 2;
+  pointer-events: none;
+}
+.olx-banner-dots .olx-banner-dot {
+  pointer-events: auto;
+  width: 8px; height: 8px; border-radius: 50%; border: 0; padding: 0;
+  background: rgba(255,255,255,.45); cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+.olx-banner-dots .olx-banner-dot.on {
+  background: #F5A623; transform: scale(1.15);
+}
+.olx-banner-track { touch-action: pan-y; }
 .admin-log-list { margin: 0; padding-left: 18px; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
