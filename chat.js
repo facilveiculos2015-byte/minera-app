@@ -741,6 +741,8 @@ function showThreadUI(show) {
     if (empty) empty.classList.toggle('oculto', show);
     if (active) active.classList.toggle('oculto', !show);
     if (pane) pane.classList.toggle('thread-open', !!show);
+    // WA mobile: hide bottom nav while inside a thread (CSS: body.chat-thread-open)
+    if (document.body) document.body.classList.toggle('chat-thread-open', !!show);
 }
 
 async function abrirThread(contato) {
@@ -1244,9 +1246,9 @@ function stopAudioTimer() {
 function resetAudioBtn() {
     const btn = document.getElementById('btn-audio');
     if (!btn) return;
-    btn.textContent = '🎙️ Áudio';
+    btn.textContent = '🎤';
     btn.classList.remove('btn-danger', 'recording', 'btn-ok');
-    btn.title = 'Segure para gravar ou toque para iniciar';
+    btn.title = 'Segure para gravar';
 }
 
 function onRecordingReady(blob) {
@@ -1354,7 +1356,7 @@ async function startRecording(fromHold) {
             btn.textContent = '⏹️ 0:00';
             btn.classList.add('btn-danger', 'recording');
         }
-        setAnexoInfo(fromHold ? 'Gravando… solte para parar' : 'Gravando… toque de novo para parar');
+        setAnexoInfo(fromHold ? 'Gravando… solte p/ enviar · ← deslize p/ cancelar' : 'Gravando… toque de novo para parar');
         showMediaPreview(null);
     } catch (err) {
         console.warn(err);
@@ -1557,6 +1559,8 @@ document.getElementById('chat-audio-file').addEventListener('change', async (e) 
     let suppressClick = false;
     let downAt = 0;
     let startPromise = null;
+    let downX = 0;
+    let slidCancel = false;
 
     btn.addEventListener('pointerdown', (e) => {
         if (e.button != null && e.button !== 0) return;
@@ -1564,7 +1568,9 @@ document.getElementById('chat-audio-file').addEventListener('change', async (e) 
         if (gravando) return;
         holdStarted = true;
         pointerDown = true;
+        slidCancel = false;
         downAt = Date.now();
+        downX = e.clientX;
         audioPointerId = e.pointerId;
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         // Inicia no gesto do usuário (não em setTimeout) — evita fallback silencioso ao file picker
@@ -1581,19 +1587,39 @@ document.getElementById('chat-audio-file').addEventListener('change', async (e) 
         });
     });
 
+    btn.addEventListener('pointermove', (e) => {
+        if (!pointerDown || !holdStarted) return;
+        if (audioPointerId != null && e.pointerId !== audioPointerId) return;
+        // WA: slide left to cancel
+        if (downX - e.clientX > 72) {
+            slidCancel = true;
+            if (gravando && audioHoldMode) {
+                stopRecording(true);
+                setAnexoInfo('Gravação cancelada');
+            }
+            pointerDown = false;
+            holdStarted = false;
+            suppressClick = true;
+            audioPointerId = null;
+        }
+    });
+
     const endHold = (e) => {
         if (audioPointerId != null && e.pointerId !== audioPointerId && e.type !== 'pointercancel') return;
         const wasDown = pointerDown;
         pointerDown = false;
-        if (!wasDown || !holdStarted) {
+        if (!wasDown || !holdStarted || slidCancel) {
             holdStarted = false;
             audioPointerId = null;
+            slidCancel = false;
             return;
         }
         const dur = Date.now() - downAt;
         suppressClick = true;
         if (gravando && audioHoldMode) {
             if (dur >= 280) {
+                // release = send (WA hold-to-record)
+                audioAutoSend = true;
                 stopRecording(false);
             } else {
                 // Toque curto: continua gravando até segundo toque (estilo toggle)
@@ -1949,3 +1975,50 @@ window.addEventListener('beforeunload', () => {
     if (contactsPollTimer) clearInterval(contactsPollTimer);
     stopAudioTimer();
 });
+
+
+/* ---- Keyboard-safe composer (visualViewport) — mobile WA feel ---- */
+(function bindChatKeyboardSafe() {
+    function measureComposer() {
+        const form = document.getElementById('form-chat');
+        if (!form || form.classList.contains('oculto')) return;
+        const h = Math.ceil(form.getBoundingClientRect().height) || 58;
+        document.documentElement.style.setProperty('--composer-h', h + 'px');
+    }
+    function syncKbInset() {
+        const vv = window.visualViewport;
+        if (!vv) {
+            document.documentElement.style.setProperty('--kb-inset', '0px');
+            return;
+        }
+        // Distance from layout bottom to visual viewport bottom (= keyboard overlap)
+        const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+        document.documentElement.style.setProperty('--kb-inset', inset + 'px');
+        measureComposer();
+        // Keep latest messages visible above composer
+        const box = document.getElementById('chat-msgs');
+        if (box && document.body.classList.contains('chat-thread-open') && inset > 40) {
+            try { box.scrollTop = box.scrollHeight; } catch (e) { /* ignore */ }
+        }
+    }
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncKbInset);
+        window.visualViewport.addEventListener('scroll', syncKbInset);
+    }
+    window.addEventListener('resize', syncKbInset);
+    window.addEventListener('orientationchange', () => setTimeout(syncKbInset, 120));
+    document.addEventListener('focusin', (e) => {
+        if (e.target && (e.target.id === 'chat-texto' || e.target.classList.contains('wa-comp-input'))) {
+            setTimeout(syncKbInset, 50);
+            setTimeout(syncKbInset, 300);
+        }
+    });
+    document.addEventListener('focusout', () => setTimeout(syncKbInset, 50));
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => { syncKbInset(); measureComposer(); });
+    } else {
+        syncKbInset();
+        measureComposer();
+    }
+})();
+

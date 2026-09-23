@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923g">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923g">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923h">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923h">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923g">
+    <link rel="stylesheet" href="style.css?v=20260923h">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -44,7 +44,7 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923g" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923h" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
@@ -96,12 +96,13 @@
 
                     <form id="form-chat" class="wa-composer chat-form">
                         <button type="button" class="wa-comp-btn" id="btn-chat-plus" aria-label="Anexar">＋</button>
-                        <input type="text" id="chat-texto" class="wa-comp-input" placeholder="Mensagem" maxlength="2000" autocomplete="off">
+                        <input type="text" id="chat-texto" class="wa-comp-input" placeholder="Mensagem" maxlength="2000" autocomplete="off" enterkeyhint="send">
                         <button type="button" class="wa-comp-btn" id="btn-chat-emoji" aria-label="Emoji">😊</button>
-                        <label class="wa-comp-btn" for="chat-foto" id="btn-chat-camera-label" aria-label="Câmera" style="margin:0">📷</label>
+                        <!-- file inputs for + sheet (camera not in composer bar — WA order: + | text | emoji | mic/send) -->
                         <input type="file" id="chat-foto" accept="image/*" capture="environment" class="oculto">
                         <input type="file" id="chat-video" accept="video/*" class="oculto">
-                        <input type="file" id="chat-audio-file" accept="audio/*,application/pdf,.pdf" class="oculto">
+                        <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
+                        <input type="file" id="chat-doc" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,image/*" class="oculto">
                         <button type="button" class="wa-comp-btn mic" id="btn-audio" title="Segure para gravar" aria-label="Gravar áudio">🎤</button>
                         <button type="submit" class="wa-comp-btn mic oculto" id="btn-chat-enviar" aria-label="Enviar">➤</button>
                     </form>
@@ -151,11 +152,11 @@
             <div class="chat-msg-sheet-handle" aria-hidden="true"></div>
             <p style="font-weight:800;margin-bottom:8px">Anexar</p>
             <div class="wa-attach-grid">
-                <button type="button" class="wa-attach-item" data-att="doc"><span class="ai">📄</span>Documento</button>
-                <label class="wa-attach-item" for="chat-foto"><span class="ai">📷</span>Câmera</label>
                 <label class="wa-attach-item" for="chat-foto-gal"><span class="ai">🖼</span>Galeria</label>
-                <label class="wa-attach-item" for="chat-audio-file"><span class="ai">🎵</span>Áudio</label>
+                <label class="wa-attach-item" for="chat-foto"><span class="ai">📷</span>Câmera</label>
+                <label class="wa-attach-item" for="chat-doc"><span class="ai">📄</span>Documento</label>
                 <label class="wa-attach-item" for="chat-video"><span class="ai">🎬</span>Vídeo</label>
+                <label class="wa-attach-item" for="chat-audio-file"><span class="ai">🎵</span>Áudio</label>
                 <button type="button" class="wa-attach-item" id="btn-attach-agendar" data-att="agendar"><span class="ai">🗓</span>Agendar</button>
             </div>
             <input type="file" id="chat-foto-gal" accept="image/*" class="oculto">
@@ -165,13 +166,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923g"></script>
-    <script src="auth-guard.js?v=20260923g"></script>
-    <script src="suporte.js?v=20260923g"></script>
-    <script src="nav.js?v=20260923g"></script>
-    <script src="anti-golpe.js?v=20260923g"></script>
-    <script src="chat.js?v=20260923g"></script>
-    <script src="pwa.js?v=20260923g"></script>
+    <script src="config.js?v=20260923h"></script>
+    <script src="auth-guard.js?v=20260923h"></script>
+    <script src="suporte.js?v=20260923h"></script>
+    <script src="nav.js?v=20260923h"></script>
+    <script src="anti-golpe.js?v=20260923h"></script>
+    <script src="chat.js?v=20260923h"></script>
+    <script src="pwa.js?v=20260923h"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); else alert(t); }
@@ -217,6 +218,25 @@
                 openSheet(false);
             });
         }
+        ['chat-foto', 'chat-video', 'chat-audio-file', 'chat-doc'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el || el._sheetCloseBound) return;
+            el._sheetCloseBound = true;
+            el.addEventListener('change', function () { openSheet(false); });
+        });
+        const docIn = document.getElementById('chat-doc');
+        if (docIn && !docIn._docBound) {
+            docIn._docBound = true;
+            docIn.addEventListener('change', async function (e) {
+                const file = e.target.files && e.target.files[0];
+                e.target.value = '';
+                if (!file) return;
+                if (typeof pickMidiaArquivo === 'function') {
+                    const isImg = /^image\//.test(file.type);
+                    await pickMidiaArquivo(file, isImg ? 'imagem' : 'documento');
+                }
+            });
+        }
         const texto = document.getElementById('chat-texto');
         const mic = document.getElementById('btn-audio');
         const send = document.getElementById('btn-chat-enviar');
@@ -225,8 +245,32 @@
             if (mic) mic.classList.toggle('oculto', has);
             if (send) send.classList.toggle('oculto', !has);
         }
-        if (texto) texto.addEventListener('input', syncSend);
+        if (texto) {
+            texto.addEventListener('input', syncSend);
+            // Keep composer above keyboard when focusing
+            texto.addEventListener('focus', function () {
+                setTimeout(function () {
+                    try {
+                        const box = document.getElementById('chat-msgs');
+                        if (box) box.scrollTop = box.scrollHeight;
+                    } catch (err) {}
+                }, 280);
+            });
+        }
         syncSend();
+        const emojiBtn = document.getElementById('btn-chat-emoji');
+        if (emojiBtn && texto) {
+            emojiBtn.addEventListener('click', function () {
+                const em = '😊';
+                const start = texto.selectionStart || texto.value.length;
+                const end = texto.selectionEnd || start;
+                texto.value = texto.value.slice(0, start) + em + texto.value.slice(end);
+                texto.focus();
+                const pos = start + em.length;
+                try { texto.setSelectionRange(pos, pos); } catch (err) {}
+                syncSend();
+            });
+        }
         document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(b => b.classList.remove('on'));

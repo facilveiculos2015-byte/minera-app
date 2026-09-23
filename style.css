@@ -1587,11 +1587,25 @@ html[data-theme="light"] .btn-caixa-bank {
     .btn-fale-conosco { width: 36px; padding: 0; justify-content: center; }
 }
 .btn-fale-float {
+    /* Mobile-first: bottom-LEFT so it never covers FAB / Novo (+) bottom-right */
     position: fixed;
-    right: 14px;
-    bottom: 78px;
-    z-index: 900;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: auto;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    z-index: 50;
     box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+    max-width: calc(100vw - 88px); /* leave room for FAB on 360px */
+}
+body.pagina-chat #btn-fale-conosco,
+body.pagina-chat .btn-fale-float,
+body.pagina-chat .olx-fab {
+    display: none !important;
+}
+body.pagina-chat.chat-thread-open #bottom-nav {
+    display: none !important;
+}
+body.pagina-chat.chat-thread-open {
+    padding-bottom: 0 !important;
 }
 .suporte-panel { width: min(440px, 100%); display: flex; flex-direction: column; max-height: 85vh; }
 .suporte-intro { margin: 0 0 8px; }
@@ -3673,7 +3687,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
     background: #202c33;
     color: #e9edef;
 }
-.chat-form {
+.chat-form:not(.wa-composer) {
     display: flex;
     gap: 8px;
     align-items: center;
@@ -3682,12 +3696,12 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
     padding: 6px 8px 6px 14px;
     border: 1px solid #2a3942;
 }
-.chat-form input {
+.chat-form:not(.wa-composer) input {
     border: none !important;
     background: transparent !important;
     padding: 8px 0 !important;
 }
-.chat-form button {
+.chat-form:not(.wa-composer) button {
     border-radius: 999px;
     padding: 10px 16px;
     min-width: 72px;
@@ -4143,11 +4157,17 @@ body.pagina-inicio .container.wide { max-width: 640px; padding: 0; }
   padding: 28px 16px; text-align: center; color: var(--muted);
 }
 .olx-fab {
-  position: fixed; right: 18px; bottom: 78px; z-index: 40;
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  z-index: 55; /* primary CTA; Fale stays left at z-index 50 */
   width: 56px; height: 56px; border-radius: 50%; border: 0;
   background: #F5A623; color: #0b1220; font-size: 1.75rem; font-weight: 800;
   box-shadow: 0 8px 24px rgba(245,166,35,.45); cursor: pointer;
   display: flex; align-items: center; justify-content: center; text-decoration: none;
+}
+@media (max-width: 420px) {
+  .olx-fab { width: 52px; height: 52px; font-size: 1.6rem; }
 }
 body.pagina-inicio #app-nav { display: none !important; }
 body.pagina-inicio .header-row { display: none !important; }
@@ -4559,4 +4579,168 @@ html[data-theme="light"] body.pagina-financeiro .nb-strip,
 html[data-theme="light"] body.pagina-financeiro .nb-saldo,
 html[data-theme="light"] body.pagina-financeiro .nb-card {
   color: #0f172a;
+}
+
+/* ===== 20260923h — Fale/FAB clear + WA chat mobile shell ===== */
+:root { --kb-inset: 0px; --composer-h: 58px; }
+
+.wa-row { min-height: 72px; box-sizing: border-box; }
+.wa-av { width: 52px; height: 52px; }
+
+/* Composer: WA order, compact circles (no min-width blow-up) */
+.wa-composer.chat-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin: 0;
+  border-radius: 0;
+  border: 0;
+  border-top: 1px solid var(--border, #334155);
+  background: #0b1220;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+.wa-composer .wa-comp-btn,
+.wa-composer.chat-form .wa-comp-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px !important;
+  max-width: 40px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  flex-shrink: 0;
+}
+.wa-composer .wa-comp-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  max-height: 120px;
+  border-radius: 20px;
+  padding: 8px 14px !important;
+  border: 1px solid var(--border) !important;
+  background: #111827 !important;
+  font-size: 16px; /* iOS: avoid zoom */
+}
+#btn-chat-camera-label { display: none !important; } /* camera lives in + sheet */
+
+.wa-attach-sheet .chat-msg-sheet-panel {
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  width: min(100%, 420px);
+  margin: 0 auto;
+}
+@media (max-width: 420px) {
+  .wa-attach-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .wa-attach-item .ai { width: 48px; height: 48px; font-size: 1.25rem; }
+}
+
+/* Mobile-first chat viewport (390×844 / 360–412) */
+@media (max-width: 800px) {
+  body.pagina-chat {
+    height: 100%;
+    max-width: 100vw;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  body.pagina-chat.has-bottom-nav:not(.chat-thread-open) {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  body.pagina-chat .container.wide {
+    max-width: 100%;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  .chat-wa-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  body.pagina-chat.has-bottom-nav:not(.chat-thread-open) .chat-wa-layout {
+    height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
+  }
+  body.pagina-chat.chat-thread-open .chat-wa-layout {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+  .chat-contacts-pane,
+  .chat-thread-pane {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+  }
+  .chat-contatos-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .chat-thread-active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+  .wa-thread-head.chat-thread-head {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+  }
+  .chat-thread-pane .chat-msgs {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px;
+    padding-bottom: calc(var(--composer-h, 58px) + 12px);
+  }
+  /* Composer stuck above keyboard via --kb-inset from visualViewport */
+  .wa-composer.chat-form {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--kb-inset, 0px);
+    z-index: 40;
+    width: 100%;
+    max-width: 100vw;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  body.pagina-chat.chat-thread-open .wa-composer.chat-form {
+    /* no bottom-nav under thread */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .wa-rec-overlay,
+  .chat-rec-bar.wa-rec-overlay {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--composer-h, 58px) + var(--kb-inset, 0px));
+    z-index: 41;
+  }
+  .chat-reply-bar,
+  .chat-media-preview,
+  .chat-agendar-row {
+    position: relative;
+    z-index: 6;
+    margin: 0 8px 6px;
+  }
+  .chat-msg-sheet {
+    z-index: 1200;
+  }
+}
+
+@media (min-width: 801px) {
+  .wa-composer.chat-form {
+    position: sticky;
+    bottom: 0;
+  }
 }
