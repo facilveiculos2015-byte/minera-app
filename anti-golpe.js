@@ -122,6 +122,24 @@
         return { ok: false, motivo: MSG_BLOQUEIO, limpo: s };
     }
 
+    /** Storage público Supabase (fotos/vídeos de lote) — NÃO aplicar no texto do chat. */
+    function isSupabaseStorageUrl(u) {
+        var s = String(u == null ? '' : u);
+        if (!s) return false;
+        try {
+            var url = new URL(s);
+            if (!/\.supabase\.co$/i.test(url.hostname)) return false;
+            return /\/storage\//i.test(url.pathname);
+        } catch (e) {
+            // fallback: hostname + path sem URL absoluta
+            return /https?:\/\/[a-z0-9.-]+\.supabase\.co\/storage\//i.test(s);
+        }
+    }
+
+    function isLoteMediaField(k) {
+        return k === 'imagem_url' || k === 'video_url' || k === 'fotos' || k === 'fotos_json';
+    }
+
     /** Valida vários campos de uma vez (lote). */
     function validarCampos(obj, keys, opts) {
         opts = opts || {};
@@ -129,21 +147,30 @@
         for (var i = 0; i < keys.length; i++) {
             var k = keys[i];
             if (out[k] == null || out[k] === '') continue;
-            // imagem_url: permitir data: URLs locais; bloquear http externos de contato
-            if (k === 'imagem_url') {
+            // Mídia de lote: data: + *.supabase.co/storage — timestamps nos paths NÃO são telefone
+            if (isLoteMediaField(k)) {
                 var u = String(out[k]);
                 if (u.indexOf('data:') === 0) continue;
-                // URLs de imagem http são comuns — só bloquear se parecer contato (wa.me etc)
-                resetFlags(RE_SOCIAL); resetFlags(RE_EMAIL); resetFlags(RE_PHONE); resetFlags(RE_DIGIT_RUN);
-                if (RE_SOCIAL.test(u) || RE_EMAIL.test(u) || RE_PHONE.test(u) || RE_DIGIT_RUN.test(u) || contemDigitosMisturados(u)) {
-                    resetFlags(RE_SOCIAL); resetFlags(RE_EMAIL); resetFlags(RE_PHONE); resetFlags(RE_DIGIT_RUN);
+                // Pode ser espaço-separado (várias fotos)
+                var parts = u.split(/\s+/).filter(Boolean);
+                var allOk = parts.every(function (part) {
+                    if (part.indexOf('data:') === 0) return true;
+                    if (isSupabaseStorageUrl(part)) return true;
+                    return false;
+                });
+                if (allOk && parts.length) continue;
+                // URL não-supabase: só bloquear se parecer contato (wa.me etc.)
+                resetFlags(RE_SOCIAL); resetFlags(RE_EMAIL); resetFlags(RE_PHONE);
+                if (RE_SOCIAL.test(u) || RE_EMAIL.test(u) || RE_PHONE.test(u)) {
+                    resetFlags(RE_SOCIAL); resetFlags(RE_EMAIL); resetFlags(RE_PHONE);
                     if (opts.strip) {
                         out[k] = null;
                         continue;
                     }
                     return { ok: false, motivo: MSG_BLOQUEIO, campos: out };
                 }
-                resetFlags(RE_SOCIAL); resetFlags(RE_EMAIL); resetFlags(RE_PHONE); resetFlags(RE_DIGIT_RUN);
+                resetFlags(RE_SOCIAL); resetFlags(RE_EMAIL); resetFlags(RE_PHONE);
+                // Digit runs em path de storage já tratados; outras URLs de imagem passam
                 continue;
             }
             var r = validarTexto(out[k], opts);
@@ -158,6 +185,7 @@
         contemBloqueio: contemBloqueio,
         mascarar: mascarar,
         validarTexto: validarTexto,
-        validarCampos: validarCampos
+        validarCampos: validarCampos,
+        isSupabaseStorageUrl: isSupabaseStorageUrl
     };
 })(typeof window !== 'undefined' ? window : this);

@@ -117,3 +117,7 @@ Garante isolamento de arquivos por usuário (admin-as-user não vaza storage alh
 ## 35-admin-promos-bank-flag.sql → 36-share-flags.sql
 `app_promos`, `app_flags` (bank kill switch), `app_bank_block_logs`, lotes.oculto.
 36: seeds `share_frase_padrao` + `share_og_image_url` em app_flags (sem colunas novas).
+
+## 37-lotes-midia-teor.sql
+Incremental: `lotes.fotos` (JSONB), `video_url`, `teor`, `cobre_tipo`. Backfill `imagem_url` → `fotos[]`. Idempotente. NÃO wipe.
+**Parent deve aplicar no Supabase SQL Editor após 36.**

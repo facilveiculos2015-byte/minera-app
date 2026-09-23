@@ -42,24 +42,40 @@
             box.innerHTML = '<p class="erro">Anúncio não encontrado.</p>';
             return;
         }
-        const preco = data.preco != null ? fmtBRL(data.preco) : 'Sob consulta';
+        let fotos = [];
+        if (Array.isArray(data.fotos)) fotos = data.fotos.filter(Boolean);
+        else if (typeof data.fotos === 'string') {
+            try { fotos = JSON.parse(data.fotos) || []; } catch (e) { fotos = []; }
+        }
+        if (!fotos.length && data.imagem_url) fotos = [data.imagem_url];
+        const destaque = (data.teor != null && data.teor !== '')
+            ? ('Teor: ' + String(data.teor) + (String(data.tipo_minerio || '').toLowerCase() === 'cobre' && data.cobre_tipo
+                ? ' (' + (data.cobre_tipo === 'soluvel' ? 'solúvel' : 'total') + ')'
+                : ''))
+            : (data.preco != null ? fmtBRL(data.preco) : 'Sob consulta');
         const locParts = [];
         if (data.cidade && data.estado) locParts.push(data.cidade + '-' + String(data.estado).toUpperCase());
         else if (data.cidade) locParts.push(data.cidade);
         else if (data.estado) locParts.push(String(data.estado).toUpperCase());
         const loc = locParts.join(' · ') || 'Parauapebas, PA';
-        const img = data.imagem_url
-            ? '<img src="' + esc(data.imagem_url) + '" alt="" style="width:100%;border-radius:14px;aspect-ratio:16/9;object-fit:cover;margin-bottom:14px">'
+        const gallery = fotos.length
+            ? '<div class="lote-detalhe-gallery" style="display:flex;gap:8px;overflow-x:auto;margin-bottom:14px">' +
+              fotos.map(function (u, i) {
+                  return '<img src="' + esc(u) + '" alt="Foto ' + (i + 1) + '" style="width:100%;min-width:' + (fotos.length > 1 ? '85%' : '100%') + ';border-radius:14px;aspect-ratio:16/9;object-fit:cover">';
+              }).join('') + '</div>'
+            : '';
+        const video = data.video_url
+            ? '<video controls playsinline src="' + esc(data.video_url) + '" style="width:100%;border-radius:14px;margin-bottom:14px;background:#000"></video>'
             : '';
         const nego = APP_ROOT + 'chat.html?' +
             (data.criado_por_id ? ('com=' + encodeURIComponent(data.criado_por_id) + '&') : '') +
             'lote=' + encodeURIComponent(codigo);
         box.classList.remove('loading');
         box.innerHTML =
-            img +
+            gallery + video +
             '<p class="sub">' + esc(statusLabel(data.status)) + '</p>' +
             '<h2 style="border:0;margin:4px 0 8px">' + esc(data.tipo_minerio || 'Minério') + ' · ' + esc(codigo) + '</h2>' +
-            '<p style="font-size:1.4rem;font-weight:800;color:#F5A623;margin-bottom:8px">' + esc(preco) + '</p>' +
+            '<p style="font-size:1.4rem;font-weight:800;color:#F5A623;margin-bottom:8px">' + esc(destaque) + '</p>' +
             '<p class="sub" style="margin-bottom:12px">' + esc(loc) +
             (data.peso_bruto_kg != null ? ' · ' + esc(String(data.peso_bruto_kg)) + ' kg' : '') + '</p>' +
             '<p style="margin-bottom:16px">Anunciante: <strong>' + esc(data.criado_por || 'Usuário') + '</strong></p>' +

@@ -4106,25 +4106,16 @@ body.pagina-inicio .container.wide { max-width: 640px; padding: 0; }
   background-repeat: no-repeat; background-position: 14px center;
 }
 .olx-quick {
-  display: flex; flex-wrap: nowrap; gap: 10px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
   padding: 8px 16px 12px;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; scroll-snap-type: x proximity;
 }
-.olx-quick::-webkit-scrollbar { display: none; }
 .olx-qcard {
-  flex: 0 0 calc((100% - 40px) / 4.2);
-  min-width: 72px; max-width: 96px;
   aspect-ratio: 1; border-radius: 14px; border: 1px solid var(--border);
   background: #1e293b; color: #f8fafc; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 6px; text-decoration: none;
   font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 8px 4px;
-  scroll-snap-align: start;
 }
 .olx-qcard .qi { font-size: 1.35rem; line-height: 1; color: var(--accent-color); }
-@media (min-width: 420px) {
-  .olx-qcard { flex-basis: calc((100% - 40px) / 5); max-width: none; }
-}
 .olx-banner {
   margin: 0 16px 12px; border-radius: 14px; overflow: hidden;
   aspect-ratio: 16/6; background: linear-gradient(135deg,#1e293b,#0b1220 60%,#F5A62333);
@@ -4874,8 +4865,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923n — Slim WA iOS thread header (no roles, call pill) ===== */
-/* ===== 20260923n — Perfil mobile + share WA + audio harden ===== */
+/* ===== 20260923o — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923o — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5045,7 +5036,7 @@ body.pagina-chat .chat-contacts-pane {
 }
 
 
-/* ===== 20260923n — Perfil mobile shell + Compartilhar WA ===== */
+/* ===== 20260923o — Perfil mobile shell + Compartilhar WA ===== */
 body.pagina-perfil {
   padding: 0 0 88px;
   background: #0b1220;
@@ -5180,7 +5171,7 @@ html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
 }
 
 
-/* ===== 20260923n — quick cards Serviços/Categorias/Banco + sober nav ===== */
+/* ===== 20260923o — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
 .lotes-tabs {
     display: flex;
     gap: 8px;
@@ -5221,82 +5212,21 @@ html[data-theme="light"] .lotes-tab {
 }
 
 
-/* ===== 20260923n — Categorias picker sheet + Serviços chip icons ===== */
-.categorias-sheet {
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+/* ===== 20260923o — lote midia preview + teor/cobre ===== */
+.lote-midia-preview {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px;
 }
-.categorias-sheet.oculto { display: none !important; }
-.categorias-panel {
-  position: relative;
-  z-index: 1;
-  width: min(560px, 100%);
-  background: var(--card-bg, #1e293b);
-  border-radius: 18px 18px 0 0;
-  border: 1px solid var(--border, #334155);
-  border-bottom: none;
-  padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
-  max-height: min(70vh, 520px);
-  overflow-y: auto;
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.lote-midia-thumb {
+  width: 64px; height: 64px; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border); background: #0f172a;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; color: #94a3b8;
 }
-.categorias-head h3 {
-  color: var(--accent-color);
-  margin: 0 0 4px;
-  font-size: 1.15rem;
-}
-.categorias-cue {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--muted, #94a3b8);
-}
-.categorias-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.categorias-item {
-  appearance: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  text-align: left;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border, #334155);
-  background: #0f172a;
-  color: #f8fafc;
-  font-size: 0.95rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-.categorias-item.on {
-  border-color: var(--accent-color);
-  background: rgba(245, 166, 35, 0.14);
-  color: #fde68a;
-}
-.categorias-ico { font-size: 1.25rem; line-height: 1; width: 1.5rem; text-align: center; }
-.categorias-label { flex: 1; }
+.lote-midia-thumb.primary { border-color: var(--accent-color); }
+.lote-midia-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lote-midia-thumb.video { font-weight: 700; color: #fde68a; }
+.lote-field-wrap { margin: 0 0 8px; }
 .svc-fchip-ico { margin-right: 2px; }
-html[data-theme="light"] .categorias-panel { background: #fff; }
-html[data-theme="light"] .categorias-item {
-  background: #f8fafc;
-  color: #0f172a;
-}
-html[data-theme="light"] .categorias-item.on {
-  background: rgba(245, 166, 35, 0.18);
-  color: #92400e;
-}
-html[data-theme="light"] .olx-qcard {
-  background: #fff;
-  color: #0f172a;
-}
+html[data-theme="light"] .olx-qcard { background: #fff; color: #0f172a; }
+html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 

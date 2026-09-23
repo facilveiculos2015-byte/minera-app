@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Pará - Lotes</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923n">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923n">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923o">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923o">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923n">
+    <link rel="stylesheet" href="style.css?v=20260923o">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -92,25 +92,31 @@
                 <p class="hint">Estado e cidade ajudam o Marketplace a mostrar seu lote perto de quem busca. O DDD é preenchido automaticamente quando possível.</p>
                 <label for="peso_bruto">Peso bruto (kg)</label>
                 <input type="number" id="peso_bruto" placeholder="Peso Bruto (kg)" required step="0.01" min="0">
-                <label for="preco">Preço (R$)</label>
-                <input type="number" id="preco" placeholder="Opcional" step="0.01" min="0">
-                <div class="coords-row">
-                    <div>
-                        <label for="lote_lat">Latitude (opcional)</label>
-                        <input type="number" id="lote_lat" placeholder="Ex: -6.05" step="any">
-                    </div>
-                    <div>
-                        <label for="lote_lng">Longitude (opcional)</label>
-                        <input type="number" id="lote_lng" placeholder="Ex: -49.90" step="any">
-                    </div>
+                <div id="wrap-teor" class="lote-field-wrap">
+                    <label for="teor" id="label-teor">Teor do minério</label>
+                    <input type="number" id="teor" placeholder="Ex: 2.5" step="0.0001" min="0">
+                    <p class="hint" id="hint-teor">Informe o teor/grade do minério (ex.: % Au, Fe, Cu).</p>
                 </div>
-                <p class="hint">Coords WGS84 para o Mapa de Satélite. Deixe vazio se não souber.</p>
-                <label for="imagem_file">Foto do lote</label>
-                <input type="file" id="imagem_file" accept="image/*">
-                <p class="hint">Até 8 MB — enviada ao storage (fotos de celular OK). Compressão automática se grande.</p>
-                <label for="imagem_url">URL da imagem (opcional)</label>
-                <input type="url" id="imagem_url" placeholder="https://... ou envie um arquivo acima">
-                <p class="hint">URL manual como fallback. Após upload, o link público preenche este campo.</p>
+                <div id="wrap-preco" class="lote-field-wrap oculto">
+                    <label for="preco" id="label-preco">Preço (R$)</label>
+                    <input type="number" id="preco" placeholder="Opcional" step="0.01" min="0">
+                </div>
+                <div id="wrap-cobre-tipo" class="lote-field-wrap oculto">
+                    <label for="cobre_tipo">Tipo de cobre</label>
+                    <select id="cobre_tipo">
+                        <option value="">Selecione…</option>
+                        <option value="total">Cobre total</option>
+                        <option value="soluvel">Cobre solúvel</option>
+                    </select>
+                    <p class="hint">Obrigatório para anúncios de Cobre.</p>
+                </div>
+                <label for="imagem_file">Fotos e vídeo do lote</label>
+                <input type="file" id="imagem_file" accept="image/*,video/*" multiple>
+                <p class="hint">Até <strong>5 fotos</strong> (≤8&nbsp;MB cada, compressão automática) + <strong>1 vídeo</strong> (≤40&nbsp;MB). Sem lat/lng manual — coords do mapa ficam opcionais se já existirem no lote.</p>
+                <div id="lote-midia-preview" class="lote-midia-preview" aria-live="polite"></div>
+                <input type="hidden" id="imagem_url" value="">
+                <input type="hidden" id="fotos_json" value="">
+                <input type="hidden" id="video_url" value="">
                 <div class="modal-actions">
                     <button type="button" class="btn-ghost" id="modal-lote-cancelar">Cancelar</button>
                     <button type="submit" id="btn-salvar-lote">Salvar</button>
@@ -120,13 +126,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923n"></script>
-    <script src="auth-guard.js?v=20260923n"></script>
-    <script src="suporte.js?v=20260923n"></script>
-    <script src="nav.js?v=20260923n"></script>
-    <script src="anti-golpe.js?v=20260923n"></script>
-    <script src="localidade.js?v=20260923n"></script>
-    <script src="lotes.js?v=20260923n"></script>
-    <script src="pwa.js?v=20260923n"></script>
+    <script src="config.js?v=20260923o"></script>
+    <script src="auth-guard.js?v=20260923o"></script>
+    <script src="suporte.js?v=20260923o"></script>
+    <script src="nav.js?v=20260923o"></script>
+    <script src="anti-golpe.js?v=20260923o"></script>
+    <script src="localidade.js?v=20260923o"></script>
+    <script src="lotes.js?v=20260923o"></script>
+    <script src="pwa.js?v=20260923o"></script>
 </body>
 </html>

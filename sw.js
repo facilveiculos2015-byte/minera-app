@@ -1,10 +1,10 @@
 /* Minera Pará service worker — cache shell for installability */
-const CACHE = 'minera-shell-20260923n';
+const CACHE = 'minera-shell-20260923o';
 const PRECACHE = [
-  './style.css?v=20260923n',
-  './nav.js?v=20260923n',
-  './config.js?v=20260923n',
-  './pwa.js?v=20260923n',
+  './style.css?v=20260923o',
+  './nav.js?v=20260923o',
+  './config.js?v=20260923o',
+  './pwa.js?v=20260923o',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',

@@ -3,14 +3,54 @@ let sessionAtual = null;
 let lotesMeus = [];
 let lotesTodos = [];
 let lotesModo = 'disponiveis'; // disponiveis | meus
-/** URL pública após upload Storage (não data-URL). */
-let imagemUploadUrl = null;
+/** URLs públicas após upload Storage (não data-URL). */
+let imagemUploadUrl = null; // primary (compat imagem_url)
+let fotosUploadUrls = [];   // até 5
+let videoUploadUrl = null;  // 1
 let imagemUploading = false;
 
 const LOTE_IMG_MAX = 8388608; // 8 MB
+const LOTE_VID_MAX = 41943040; // 40 MB
 const LOTE_IMG_COMPRESS_OVER = 1572864; // ~1.5 MB
+const LOTE_MAX_FOTOS = 5;
 const LOTE_STORAGE_BUCKET = 'chat-midia';
 const LOTE_STORAGE_FOLDER = 'lotes';
+
+const TIPOS_MINERAIS = new Set(['Ouro', 'Ferro', 'Cobre', 'Manganês', 'Níquel', 'Outro']);
+
+function ehTipoMineral(tipo) {
+    return TIPOS_MINERAIS.has(String(tipo || '').trim());
+}
+
+function atualizarCamposPorTipo() {
+    const tipo = (document.getElementById('tipo_minerio') || {}).value || '';
+    const wrapTeor = document.getElementById('wrap-teor');
+    const wrapPreco = document.getElementById('wrap-preco');
+    const wrapCobre = document.getElementById('wrap-cobre-tipo');
+    const mineral = ehTipoMineral(tipo);
+    if (wrapTeor) wrapTeor.classList.toggle('oculto', !mineral);
+    if (wrapPreco) wrapPreco.classList.toggle('oculto', mineral);
+    if (wrapCobre) {
+        const isCobre = String(tipo).toLowerCase() === 'cobre';
+        wrapCobre.classList.toggle('oculto', !isCobre);
+        const sel = document.getElementById('cobre_tipo');
+        if (sel) sel.required = isCobre;
+        if (!isCobre && sel) sel.value = '';
+    }
+}
+
+function renderMidiaPreview() {
+    const box = document.getElementById('lote-midia-preview');
+    if (!box) return;
+    const parts = [];
+    fotosUploadUrls.forEach((u, i) => {
+        parts.push('<div class="lote-midia-thumb' + (i === 0 ? ' primary' : '') + '"><img src="' + esc(u) + '" alt="Foto ' + (i + 1) + '"></div>');
+    });
+    if (videoUploadUrl) {
+        parts.push('<div class="lote-midia-thumb video"><span>🎬 vídeo</span></div>');
+    }
+    box.innerHTML = parts.length ? parts.join('') : '';
+}
 
 const PAPEIS_LOTE_LABELS = {
     minerador: 'Minerador',
@@ -116,7 +156,17 @@ function fecharModal() {
     document.getElementById('form-lote').reset();
     document.getElementById('lote-id').value = '';
     imagemUploadUrl = null;
+    fotosUploadUrls = [];
+    videoUploadUrl = null;
     imagemUploading = false;
+    const fj = document.getElementById('fotos_json');
+    const vu = document.getElementById('video_url');
+    const iu = document.getElementById('imagem_url');
+    if (fj) fj.value = '';
+    if (vu) vu.value = '';
+    if (iu) iu.value = '';
+    renderMidiaPreview();
+    atualizarCamposPorTipo();
 }
 
 function ehMeuLote(l) {
@@ -155,7 +205,11 @@ function renderCards(lista) {
     }
     const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
     listaDiv.innerHTML = '<div class="lote-cards">' + lista.map(l => {
-        const preco = formatPreco(l.preco);
+        const preco = (l.teor != null && l.teor !== '')
+            ? ('Teor: ' + String(l.teor) + (String(l.tipo_minerio || '').toLowerCase() === 'cobre' && l.cobre_tipo
+                ? ' (' + (l.cobre_tipo === 'soluvel' ? 'solúvel' : 'total') + ')'
+                : ''))
+            : formatPreco(l.preco);
         const codigo = l.codigo_lote || '';
         const img = l.imagem_url
             ? '<div class="lote-img"><img src="' + esc(l.imagem_url) + '" alt="" loading="lazy"></div>'
@@ -228,11 +282,28 @@ async function preencherForm(lote) {
     document.getElementById('origem').value = lote ? (lote.origem || '') : '';
     document.getElementById('peso_bruto').value = lote ? (lote.peso_bruto_kg || '') : '';
     document.getElementById('preco').value = lote && lote.preco != null ? lote.preco : '';
-    document.getElementById('imagem_url').value = lote ? (lote.imagem_url || '') : '';
-    document.getElementById('lote_lat').value = lote && lote.lat != null ? lote.lat : '';
-    document.getElementById('lote_lng').value = lote && lote.lng != null ? lote.lng : '';
-    imagemUploadUrl = null;
+    const teorEl = document.getElementById('teor');
+    if (teorEl) teorEl.value = lote && lote.teor != null ? lote.teor : '';
+    const cobreEl = document.getElementById('cobre_tipo');
+    if (cobreEl) cobreEl.value = lote && lote.cobre_tipo ? lote.cobre_tipo : '';
+    let fotos = [];
+    if (lote && Array.isArray(lote.fotos)) fotos = lote.fotos.slice();
+    else if (lote && typeof lote.fotos === 'string') {
+        try { fotos = JSON.parse(lote.fotos) || []; } catch (e) { fotos = []; }
+    }
+    if (!fotos.length && lote && lote.imagem_url) fotos = [lote.imagem_url];
+    fotosUploadUrls = fotos.filter(Boolean).slice(0, LOTE_MAX_FOTOS);
+    videoUploadUrl = (lote && lote.video_url) || null;
+    imagemUploadUrl = fotosUploadUrls[0] || (lote && lote.imagem_url) || null;
+    const iu = document.getElementById('imagem_url');
+    if (iu) iu.value = imagemUploadUrl || '';
+    const fj = document.getElementById('fotos_json');
+    if (fj) fj.value = JSON.stringify(fotosUploadUrls);
+    const vu = document.getElementById('video_url');
+    if (vu) vu.value = videoUploadUrl || '';
     document.getElementById('imagem_file').value = '';
+    renderMidiaPreview();
+    atualizarCamposPorTipo();
     montarSelectPublicadoComo(lote ? lote.publicado_como : null);
 
     const uf = lote && lote.estado ? String(lote.estado).toUpperCase() : '';
@@ -257,6 +328,9 @@ function extForMime(mime, fallback) {
     if (m === 'image/png') return 'png';
     if (m === 'image/gif') return 'gif';
     if (m === 'image/webp') return 'webp';
+    if (m === 'video/mp4') return 'mp4';
+    if (m === 'video/webm') return 'webm';
+    if (m === 'video/quicktime') return 'mov';
     return fallback || 'jpg';
 }
 
@@ -334,40 +408,79 @@ async function uploadLoteImagem(file) {
 }
 
 async function onImagemFileChange(e) {
-    const file = e.target.files && e.target.files[0];
-    imagemUploadUrl = null;
-    if (!file) return;
-    if (!file.type || !file.type.startsWith('image/')) {
-        toastMsg('Selecione um arquivo de imagem.');
+    const files = Array.from((e.target.files) || []);
+    if (!files.length) return;
+
+    const imgs = files.filter(f => f.type && f.type.startsWith('image/'));
+    const vids = files.filter(f => f.type && f.type.startsWith('video/'));
+    if (!imgs.length && !vids.length) {
+        toastMsg('Selecione fotos (image/*) ou 1 vídeo.');
         e.target.value = '';
         return;
     }
-    if (file.size > LOTE_IMG_MAX) {
-        toastMsg('Imagem acima de 8 MB — escolha outra ou use URL.');
+    if (vids.length > 1) {
+        toastMsg('Envie no máximo 1 vídeo.');
         e.target.value = '';
         return;
     }
+    const roomFotos = Math.max(0, LOTE_MAX_FOTOS - fotosUploadUrls.length);
+    const imgsTake = imgs.slice(0, roomFotos);
+    if (imgs.length > roomFotos) {
+        toastMsg('Máximo ' + LOTE_MAX_FOTOS + ' fotos — extras ignoradas.');
+    }
+    for (const f of imgsTake) {
+        if (f.size > LOTE_IMG_MAX) {
+            toastMsg('Foto acima de 8 MB ignorada: ' + (f.name || ''));
+        }
+    }
+    const imgsOk = imgsTake.filter(f => f.size <= LOTE_IMG_MAX);
+    let vid = vids[0] || null;
+    if (vid && videoUploadUrl) {
+        toastMsg('Já há 1 vídeo — substituindo.');
+    }
+    if (vid && vid.size > LOTE_VID_MAX) {
+        toastMsg('Vídeo acima de 40 MB.');
+        vid = null;
+    }
+
     imagemUploading = true;
-    toastMsg('Enviando imagem…');
+    toastMsg('Enviando mídia…');
     try {
-        const ready = await comprimirImagemSePreciso(file);
-        if (ready.size > LOTE_IMG_MAX) {
-            toastMsg('Imagem acima de 8 MB — escolha outra ou use URL.');
+        // refresh session before storage (localhost vs Pages)
+        try {
+            const { data: sessPack } = await supabaseClient.auth.getSession();
+            if (sessPack && sessPack.session) sessionAtual = sessPack.session;
+        } catch (e) { /* ignore */ }
+        if (!(sessionAtual && sessionAtual.user && sessionAtual.user.id)) {
+            toastMsg('Você precisa estar logado para enviar mídia.');
             e.target.value = '';
-            imagemUploading = false;
             return;
         }
-        const url = await uploadLoteImagem(ready);
-        imagemUploadUrl = url;
-        document.getElementById('imagem_url').value = url;
-        toastMsg('Imagem enviada');
+        for (const file of imgsOk) {
+            const ready = await comprimirImagemSePreciso(file);
+            if (ready.size > LOTE_IMG_MAX) continue;
+            const url = await uploadLoteImagem(ready);
+            fotosUploadUrls.push(url);
+        }
+        fotosUploadUrls = fotosUploadUrls.slice(0, LOTE_MAX_FOTOS);
+        if (vid) {
+            videoUploadUrl = await uploadLoteImagem(vid);
+        }
+        imagemUploadUrl = fotosUploadUrls[0] || null;
+        const iu = document.getElementById('imagem_url');
+        if (iu) iu.value = imagemUploadUrl || '';
+        const fj = document.getElementById('fotos_json');
+        if (fj) fj.value = JSON.stringify(fotosUploadUrls);
+        const vu = document.getElementById('video_url');
+        if (vu) vu.value = videoUploadUrl || '';
+        renderMidiaPreview();
+        toastMsg('Mídia enviada (' + fotosUploadUrls.length + ' foto(s)' + (videoUploadUrl ? ' + vídeo' : '') + ')');
     } catch (err) {
         console.warn(err);
-        const msg = (err && err.message) ? err.message : String(err);
-        toastMsg('Falha no upload — use URL ou aplique SQL 24/26 (storage).');
-        imagemUploadUrl = null;
+        toastMsg('Falha no upload — aplique SQL 24/26/37 (storage) e faça login novamente.');
     } finally {
         imagemUploading = false;
+        e.target.value = '';
     }
 }
 
@@ -375,35 +488,78 @@ async function salvarLote(e) {
     e.preventDefault();
     const msgEl = document.getElementById('lote-msg');
     if (imagemUploading) {
-        msgEl.textContent = 'Aguarde o envio da imagem…';
+        msgEl.textContent = 'Aguarde o envio da mídia…';
         msgEl.className = 'msg erro';
-        toastMsg('Aguarde o envio da imagem…');
+        toastMsg('Aguarde o envio da mídia…');
         return;
     }
+
+    // Garante sessão/token (localhost:5500 vs Pages) antes do insert/update
+    try {
+        const { data: sessPack, error: sessErr } = await supabaseClient.auth.getSession();
+        if (sessErr) console.warn('getSession', sessErr);
+        if (sessPack && sessPack.session) sessionAtual = sessPack.session;
+    } catch (errSess) {
+        console.warn('sessão', errSess);
+    }
+    if (!(sessionAtual && sessionAtual.user && sessionAtual.user.id)) {
+        msgEl.textContent = 'Você precisa estar logado. Não encontramos sua sessão — faça login novamente.';
+        msgEl.className = 'msg erro';
+        toastMsg('Faça login novamente');
+        return;
+    }
+
     const id = document.getElementById('lote-id').value;
     const codigo_lote = document.getElementById('codigo_lote').value.trim();
     const origem = document.getElementById('origem').value.trim();
     const tipo_minerio = document.getElementById('tipo_minerio').value;
     const peso_bruto_kg = parseFloat(document.getElementById('peso_bruto').value);
+    const mineral = ehTipoMineral(tipo_minerio);
     const precoRaw = document.getElementById('preco').value;
-    const preco = precoRaw === '' ? null : parseFloat(precoRaw);
-    let imagem_url = document.getElementById('imagem_url').value.trim() || null;
-    if (imagemUploadUrl) imagem_url = imagemUploadUrl;
+    let preco = precoRaw === '' ? null : parseFloat(precoRaw);
+    const teorRaw = (document.getElementById('teor') || {}).value;
+    let teor = (teorRaw === '' || teorRaw == null) ? null : parseFloat(teorRaw);
+    const cobre_tipo = ((document.getElementById('cobre_tipo') || {}).value || '').trim().toLowerCase();
+
+    if (mineral) {
+        preco = null; // preço some do formulário mineral → usa teor
+        if (teor != null && !Number.isFinite(teor)) {
+            msgEl.textContent = 'Teor do minério inválido.';
+            msgEl.className = 'msg erro';
+            return;
+        }
+    } else {
+        teor = null;
+        if (preco != null && !Number.isFinite(preco)) {
+            msgEl.textContent = 'Preço inválido.';
+            msgEl.className = 'msg erro';
+            return;
+        }
+    }
+    if (String(tipo_minerio).toLowerCase() === 'cobre') {
+        if (cobre_tipo !== 'total' && cobre_tipo !== 'soluvel') {
+            msgEl.textContent = 'Selecione Cobre total ou Cobre solúvel.';
+            msgEl.className = 'msg erro';
+            toastMsg('Tipo de cobre obrigatório');
+            return;
+        }
+    }
+
+    let fotos = fotosUploadUrls.slice(0, LOTE_MAX_FOTOS);
+    try {
+        const fj = document.getElementById('fotos_json');
+        if ((!fotos.length) && fj && fj.value) fotos = JSON.parse(fj.value) || [];
+    } catch (e) { /* ignore */ }
+    let video_url = videoUploadUrl || ((document.getElementById('video_url') || {}).value || '').trim() || null;
+    let imagem_url = fotos[0] || imagemUploadUrl || ((document.getElementById('imagem_url') || {}).value || '').trim() || null;
+    if (imagemUploadUrl && !fotos.length) {
+        fotos = [imagemUploadUrl];
+        imagem_url = imagemUploadUrl;
+    }
+
     const publicado_como = (document.getElementById('publicado_como').value || '').trim().toLowerCase();
-    const latRaw = document.getElementById('lote_lat').value.trim();
-    const lngRaw = document.getElementById('lote_lng').value.trim();
-    const lat = latRaw === '' ? null : parseFloat(latRaw);
-    const lng = lngRaw === '' ? null : parseFloat(lngRaw);
-    if ((lat != null && !Number.isFinite(lat)) || (lng != null && !Number.isFinite(lng))) {
-        msgEl.textContent = 'Latitude/longitude inválidas.';
-        msgEl.className = 'msg erro';
-        return;
-    }
-    if ((lat == null) !== (lng == null)) {
-        msgEl.textContent = 'Informe lat e lng juntos, ou deixe ambos vazios.';
-        msgEl.className = 'msg erro';
-        return;
-    }
+    // lat/lng: não pedimos no formulário; preserva coords existentes só no update via omit
+    // (não envia lat/lng no payload para não zerar no edit)
 
     const estado = (document.getElementById('lote_estado').value || '').trim().toUpperCase();
     const cidade = (document.getElementById('lote_cidade').value || '').trim();
@@ -444,24 +600,26 @@ async function salvarLote(e) {
     }
 
     if (typeof AntiGolpe !== 'undefined') {
-        const chk = AntiGolpe.validarCampos({
-            codigo_lote, origem, imagem_url: imagem_url || ''
-        }, ['codigo_lote', 'origem', 'imagem_url']);
+        const agObj = {
+            codigo_lote,
+            origem,
+            imagem_url: imagem_url || '',
+            video_url: video_url || '',
+            fotos: fotos.join(' ')
+        };
+        const chk = AntiGolpe.validarCampos(agObj, ['codigo_lote', 'origem', 'imagem_url', 'video_url', 'fotos']);
         if (!chk.ok) {
             msgEl.textContent = chk.motivo;
             msgEl.className = 'msg erro';
             toastMsg(chk.motivo);
             return;
         }
-        if (chk.campos) {
-            // keep originals unless stripped null
-        }
     }
 
     const nome = (perfilAtual && perfilAtual.nome) ||
         (sessionAtual && sessionAtual.user && sessionAtual.user.user_metadata && sessionAtual.user.user_metadata.nome) ||
         'Usuário';
-    const uid = sessionAtual && sessionAtual.user ? sessionAtual.user.id : null;
+    const uid = sessionAtual.user.id;
 
     const payload = {
         codigo_lote,
@@ -469,9 +627,11 @@ async function salvarLote(e) {
         tipo_minerio,
         peso_bruto_kg,
         preco,
+        teor,
+        cobre_tipo: String(tipo_minerio).toLowerCase() === 'cobre' ? cobre_tipo : null,
         imagem_url,
-        lat,
-        lng,
+        fotos: fotos.length ? fotos : null,
+        video_url,
         publicado_como,
         estado,
         cidade,
@@ -496,10 +656,14 @@ async function salvarLote(e) {
             hint = ' — aplique o SQL 26-lotes-publicado-como.sql no Supabase.';
         } else if (/\bestado\b|\bcidade\b|\bddd\b/i.test(error.message || '')) {
             hint = ' — aplique o SQL 29-lotes-localidade.sql no Supabase.';
+        } else if (/teor|fotos|video_url|cobre_tipo/i.test(error.message || '')) {
+            hint = ' — aplique o SQL 37-lotes-midia-teor.sql no Supabase.';
         } else if (error.message.includes('preco') || error.message.includes('imagem')) {
             hint = ' — aplique o SQL 09-ui-marketplace.sql no Supabase.';
         } else if (error.message.includes('lat') || error.message.includes('lng') || error.message.includes('column')) {
-            hint = ' — aplique o SQL 11-mapa-coords.sql (ou 29) no Supabase.';
+            hint = ' — aplique o SQL 11-mapa-coords.sql / 37-lotes-midia-teor.sql no Supabase.';
+        } else if (/JWT|token|not authenticated|login/i.test(error.message || '')) {
+            hint = ' — sessão expirada: faça login novamente.';
         }
         msgEl.textContent = 'Erro: ' + error.message + hint;
         msgEl.className = 'msg erro';
@@ -632,6 +796,12 @@ document.getElementById('modal-lote').addEventListener('click', (e) => {
 });
 
 document.getElementById('imagem_file').addEventListener('change', onImagemFileChange);
+const tipoSel = document.getElementById('tipo_minerio');
+if (tipoSel && !tipoSel._tipoBound) {
+    tipoSel._tipoBound = true;
+    tipoSel.addEventListener('change', atualizarCamposPorTipo);
+}
+atualizarCamposPorTipo();
 
 document.getElementById('form-lote').addEventListener('submit', salvarLote);
 
