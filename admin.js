@@ -1622,9 +1622,9 @@ async function carregarPromosAdmin() {
 
 
 
-/* Banner Início: 16:5 — recorte cover + resize automático no upload */
+/* Banner Início: 16:6 — resize contain (cabe dentro) no upload */
 const BANNER_W = 1200;
-const BANNER_H = 375;
+const BANNER_H = 450;
 
 function redimensionarBannerImagem(file) {
     return new Promise((resolve, reject) => {
@@ -1640,23 +1640,21 @@ function redimensionarBannerImagem(file) {
                 const sw = img.naturalWidth || img.width;
                 const sh = img.naturalHeight || img.height;
                 if (!sw || !sh) throw new Error('Imagem inválida');
-                const target = BANNER_W / BANNER_H;
-                const src = sw / sh;
-                let sx = 0, sy = 0, cw = sw, ch = sh;
-                if (src > target) {
-                    cw = Math.round(sh * target);
-                    sx = Math.floor((sw - cw) / 2);
-                } else if (src < target) {
-                    ch = Math.round(sw / target);
-                    sy = Math.floor((sh - ch) / 3); /* favorece topo (rosto/logo) */
-                }
+                /* contain: imagem inteira cabe no slot 16:6 (sem cortar) */
+                const scale = Math.min(BANNER_W / sw, BANNER_H / sh);
+                const dw = Math.round(sw * scale);
+                const dh = Math.round(sh * scale);
+                const dx = Math.floor((BANNER_W - dw) / 2);
+                const dy = Math.floor((BANNER_H - dh) / 2);
                 const canvas = document.createElement('canvas');
                 canvas.width = BANNER_W;
                 canvas.height = BANNER_H;
                 const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#0b1220';
+                ctx.fillRect(0, 0, BANNER_W, BANNER_H);
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, sx, sy, cw, ch, 0, 0, BANNER_W, BANNER_H);
+                ctx.drawImage(img, 0, 0, sw, sh, dx, dy, dw, dh);
                 canvas.toBlob((blob) => {
                     if (!blob) {
                         reject(new Error('Falha ao redimensionar'));
@@ -1690,7 +1688,7 @@ async function uploadPromoImagem(file) {
         } catch (_) { /* ignore */ }
     }
     if (!uid) throw new Error('Faça login de admin para enviar imagem.');
-    /* Redimensiona automaticamente p/ 1200×375 (slot Início) */
+    /* Redimensiona automaticamente p/ 1200×450 (slot Início) */
     const resized = await redimensionarBannerImagem(file);
     const path = uid + '/banners/' + Date.now() + '_banner.jpg';
     const { data, error } = await supabaseClient.storage
@@ -1760,7 +1758,7 @@ function bindPromoForm() {
                 const url = await uploadPromoImagem(file);
                 const inp = document.getElementById('promo-imagem');
                 if (inp) inp.value = url;
-                if (st) st.textContent = 'Imagem redimensionada (1200×375) e enviada. Clique Salvar.';
+                if (st) st.textContent = 'Imagem redimensionada (1200×450) e enviada. Clique Salvar.';
                 setPromoMsg('Imagem pronta. Salve o banner.', true);
             } catch (e) {
                 if (st) st.textContent = '';
