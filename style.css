@@ -20,8 +20,8 @@
     --radius-md: 12px;
     --radius-lg: 16px;
     --space: 8px;
-    --wa-green: #005c4b;
-    --wa-green-text: #e7ffdb;
+    --wa-green: #F5A623;
+    --wa-green-text: #0b1220;
 }
 html[data-theme="light"] {
     --bg-color: #f1f5f9;
@@ -45,8 +45,8 @@ html[data-theme="light"] {
     --radius-md: 12px;
     --radius-lg: 16px;
     --space: 8px;
-    --wa-green: #dcf8c6;
-    --wa-green-text: #111b21;
+    --wa-green: #F5A623;
+    --wa-green-text: #0b1220;
 }
 
 * {
@@ -316,10 +316,11 @@ label { font-size: 0.9rem; color: var(--label); }
     background: #0f172a;
     border: 1px solid var(--border);
 }
-.bubble.mine {
+.bubble.mine, .bubble.sent {
     align-self: flex-end;
-    background: #422006;
-    border-color: #92400e;
+    background: var(--accent-color, #F5A623);
+    border-color: #c47d12;
+    color: #0b1220;
 }
 .bubble.theirs { align-self: flex-start; }
 .bubble-meta { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
@@ -944,11 +945,12 @@ body.has-bottom-nav .app-toast {
     border: none;
     position: relative;
 }
-.bubble.mine {
+.bubble.mine, .bubble.sent {
     align-self: flex-end;
-    background: #005c4b;
+    background: #F5A623;
     border-color: transparent;
     border-bottom-right-radius: 4px;
+    color: #0b1220;
 }
 .bubble.theirs {
     align-self: flex-start;
@@ -960,7 +962,7 @@ body.has-bottom-nav .app-toast {
     border: 1px dashed #64748b;
 }
 .bubble-meta { font-size: 0.7rem; color: #94a3b8; margin-bottom: 3px; }
-.bubble.mine .bubble-meta { color: #a7f3d0; }
+.bubble.mine .bubble-meta, .bubble.sent .bubble-meta { color: rgba(11,18,32,.72); }
 .bubble-text { font-size: 0.95rem; word-break: break-word; white-space: pre-wrap; }
 .bubble-media { margin-top: 6px; }
 .bubble-media img, .bubble-media video {
@@ -974,6 +976,9 @@ body.has-bottom-nav .app-toast {
     color: #86efac;
     text-align: right;
     margin-top: 2px;
+}
+.bubble.mine .bubble-status, .bubble.sent .bubble-status {
+    color: rgba(11,18,32,.7);
 }
 .chat-toolbar {
     display: flex;
@@ -3463,7 +3468,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923a — industrial premium ===== */
+/* ===== TURBO redesign 20260923b — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3580,9 +3585,9 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
     background: transparent;
     border: none;
 }
-.bubble.mine {
-    background: var(--wa-green, #005c4b);
-    color: #e7ffdb;
+.bubble.mine, .bubble.sent {
+    background: var(--wa-green, #F5A623);
+    color: var(--wa-green-text, #0b1220);
 }
 .bubble.theirs {
     background: #202c33;
@@ -3841,7 +3846,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923a — marketplace / bank / habit polish === */
+/* === 20260923b — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -3921,7 +3926,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923a — Minerar PARÁ ===== */
+/* ===== FULL REBUILD pillars 20260923b — Minerar PARÁ ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4136,12 +4141,21 @@ body.pagina-chat .header-row { display: none !important; }
   background-size: 24px 24px, 48px 48px;
   background-position: 0 0, 12px 12px;
 }
-.bubble.mine {
-  background: #F5A623 !important; color: #0b1220 !important; margin-left: auto;
-  --wa-green: #F5A623; --wa-green-text: #0b1220;
+.bubble.mine, .bubble.sent {
+  background: var(--accent-color, #F5A623) !important;
+  color: #0b1220 !important;
+  margin-left: auto;
+  --wa-green: #F5A623;
+  --wa-green-text: #0b1220;
 }
-.bubble.mine .bubble-text, .bubble.mine .bubble-meta, .bubble.mine .bubble-status { color: #0b1220 !important; }
+.bubble.mine .bubble-text,
+.bubble.mine .bubble-meta,
+.bubble.mine .bubble-status,
+.bubble.sent .bubble-text,
+.bubble.sent .bubble-meta,
+.bubble.sent .bubble-status { color: #0b1220 !important; }
 .bubble.theirs { background: #1e293b !important; color: #f8fafc !important; margin-right: auto; }
+.bubble.theirs .bubble-status { color: #86efac !important; }
 .wa-day-div {
   text-align: center; margin: 12px 0; font-size: 0.72rem; font-weight: 700;
   color: var(--muted);

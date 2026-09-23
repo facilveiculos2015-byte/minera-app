@@ -467,7 +467,7 @@ function bubblesWithDayDividers(lista) {
 }
 
 function bubbleHtml(m) {
-    const mine = m.de_auth_id && m.de_auth_id === meuAuthId;
+    const mine = !!(m.de_auth_id && meuAuthId && String(m.de_auth_id) === String(meuAuthId));
     const when = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : (m._pending ? 'agora' : '');
     const st = (m.status || 'enviada');
     const sched = st === 'agendada';
@@ -492,7 +492,7 @@ function bubbleHtml(m) {
         ? '<div class="bubble-text bubble-deleted">Mensagem apagada</div>'
         : ((m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : '') +
             renderMedia(m));
-    return `<div class="bubble ${mine ? 'mine' : 'theirs'}${sched ? ' scheduled' : ''}${deleted ? ' deleted' : ''}${pendingCls}"${idAttr}${deAttr}>
+    return `<div class="bubble ${mine ? 'mine sent' : 'theirs'}${sched ? ' scheduled' : ''}${deleted ? ' deleted' : ''}${pendingCls}"${idAttr}${deAttr}>
         <div class="bubble-meta">${esc(nomePublicoTexto(m.de_nome, 'Alguém'))} · ${when}${agLabel}${flag}</div>
         ${quoteHtml}
         ${body}
