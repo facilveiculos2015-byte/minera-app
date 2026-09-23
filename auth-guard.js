@@ -498,12 +498,22 @@ function lerTema() {
     return 'dark';
 }
 
+
+function sincronizarBotoesTema(t) {
+    document.querySelectorAll('.tema-opt[data-tema]').forEach((btn) => {
+        const on = btn.getAttribute('data-tema') === t;
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    const legacy = document.getElementById('btn-tema');
+    if (legacy) legacy.textContent = t === 'light' ? '🌙 Escuro' : '☀️ Claro';
+}
+
 function aplicarTema(tema) {
     const t = tema === 'light' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', t);
     try { localStorage.setItem('minera_tema', t); } catch (e) { /* ignore */ }
-    const btn = document.getElementById('btn-tema');
-    if (btn) btn.textContent = t === 'light' ? '🌙 Escuro' : '☀️ Claro';
+    sincronizarBotoesTema(t);
 }
 
 function alternarTema() {
@@ -556,3 +566,13 @@ function checarTutorialPrimeiroAcesso() {
         });
     } catch (e) { console.warn('bootAuthFortress', e); }
 })();
+
+function bindTemaPicker(root) {
+    const scope = root || document;
+    scope.querySelectorAll('.tema-opt[data-tema]').forEach((btn) => {
+        if (btn._temaBound) return;
+        btn._temaBound = true;
+        btn.addEventListener('click', () => aplicarTema(btn.getAttribute('data-tema')));
+    });
+}
+try { document.addEventListener('DOMContentLoaded', () => { aplicarTema(lerTema()); bindTemaPicker(document); }); } catch (e) { /* ignore */ }

@@ -187,10 +187,14 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     await atualizarCardCompartilhar(perfilAtual);
     bindPerfilShare();
     if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
+    if (typeof bindTemaPicker === 'function') bindTemaPicker(document);
     const btnTema = document.getElementById('btn-tema');
-    if (btnTema) btnTema.addEventListener('click', () => {
-        if (typeof alternarTema === 'function') alternarTema();
-    });
+    if (btnTema && !btnTema._temaBound) {
+        btnTema._temaBound = true;
+        btnTema.addEventListener('click', () => {
+            if (typeof alternarTema === 'function') alternarTema();
+        });
+    }
     const btnTut = document.getElementById('btn-abrir-tutorial');
     if (btnTut) btnTut.addEventListener('click', () => irPara('tutorial.html'));
     await carregarPixUsuario();

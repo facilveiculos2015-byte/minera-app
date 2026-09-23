@@ -5307,3 +5307,115 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
 /* ===== 20260923q — quick cards: no flat fill, intuitive themed surfaces ===== */
+
+/* ===== LIGHT THEME TEXT FIX 20260923s ===== */
+/* Nomes/títulos/preços com cor clara fixa sumiam no fundo claro */
+html[data-theme="light"] .olx-card-title,
+html[data-theme="light"] .olx-card-price,
+html[data-theme="light"] .olx-card-body,
+html[data-theme="light"] .olx-card-loc {
+  color: #0f172a;
+}
+html[data-theme="light"] .olx-card-price { color: #b45309; }
+html[data-theme="light"] .olx-card {
+  background: #fff;
+  border-color: #e2e8f0;
+}
+html[data-theme="light"] .olx-banner-slide strong { color: #fff; /* banner escuro ok */ }
+html[data-theme="light"] .wa-thread-info strong#chat-com-nome,
+html[data-theme="light"] .wa-thread-info,
+html[data-theme="light"] #chat-com-nome {
+  color: #0f172a !important;
+}
+html[data-theme="light"] body.pagina-perfil .perfil-hero-nome,
+html[data-theme="light"] body.pagina-perfil .perfil-hero-sub,
+html[data-theme="light"] .perfil-hero-nome {
+  color: #0f172a;
+}
+html[data-theme="light"] .credito-nome,
+html[data-theme="light"] .svc-nome,
+html[data-theme="light"] h1, html[data-theme="light"] h2, html[data-theme="light"] h3 {
+  color: #0f172a;
+}
+html[data-theme="light"] .auth-header h1,
+html[data-theme="light"] .auth-header p,
+html[data-theme="light"] .welcome-card h2,
+html[data-theme="light"] .welcome-card p {
+  color: #0f172a;
+}
+html[data-theme="light"] .welcome-card p { color: #334155; }
+html[data-theme="light"] .sub,
+html[data-theme="light"] .msg,
+html[data-theme="light"] label,
+html[data-theme="light"] legend {
+  color: #334155;
+}
+html[data-theme="light"] .nb-circle,
+html[data-theme="light"] .nb-circle .nci {
+  color: #b45309;
+}
+html[data-theme="light"] .nb-saldo-label,
+html[data-theme="light"] .nb-saldo-valor {
+  color: #0f172a !important;
+  background: none !important;
+  -webkit-text-fill-color: #0f172a;
+  filter: none;
+}
+html[data-theme="light"] .cotacao-card,
+html[data-theme="light"] .cotacao-card strong,
+html[data-theme="light"] .cotacao-card span {
+  color: #0f172a;
+}
+html[data-theme="light"] .bottom-nav,
+html[data-theme="light"] .bn-item { color: #64748b; }
+html[data-theme="light"] .bn-item.on { color: #d97706; }
+
+/* Theme picker (welcome + perfil) */
+.tema-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 0 6px;
+}
+.tema-picker legend {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: var(--text-color);
+}
+.tema-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 10px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-color);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+.tema-opt .tema-ico { font-size: 1.35rem; line-height: 1; }
+.tema-opt[aria-pressed="true"],
+.tema-opt.on {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(245,166,35,.28);
+  background: rgba(245,166,35,.12);
+}
+html[data-theme="light"] .tema-opt {
+  background: #fff;
+  color: #0f172a;
+}
+html[data-theme="light"] .tema-opt.on {
+  background: #fff7ed;
+  border-color: #d97706;
+}
+.prefs-tema-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}

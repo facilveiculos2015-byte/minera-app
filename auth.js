@@ -386,4 +386,8 @@ document.addEventListener('DOMContentLoaded', () => {
         irSeLogado();
     }
     try { setupWelcomeGate(); } catch (e) { console.warn('welcome', e); }
+    try {
+        if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
+        if (typeof bindTemaPicker === 'function') bindTemaPicker(document);
+    } catch (e) { console.warn('tema', e); }
 });
