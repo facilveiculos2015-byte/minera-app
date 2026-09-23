@@ -389,44 +389,73 @@ function garantirHeaderCaixaBtn() {
 
 
 function garantirHeaderModoUiBtn(perfil) {
-    const header = document.querySelector('header.header-row');
-    if (!header) return;
-    let actions = header.querySelector('.header-actions');
-    if (!actions) {
-        actions = document.createElement('div');
-        actions.className = 'header-actions';
-        header.appendChild(actions);
-    }
-
-    // Remover sticky antigo se não-admin
     const stickyOld = document.getElementById('modo-ui-sticky');
     const btnOld = document.getElementById('btn-modo-ui');
+    const bpOld = document.getElementById('btn-modo-ui-painel');
 
-    if (!(typeof ehAdmin === 'function' && ehAdmin(perfil))) {
+    const isAdm = typeof ehAdmin === 'function' && ehAdmin(perfil);
+    if (!isAdm) {
         if (btnOld) btnOld.remove();
         if (stickyOld) stickyOld.remove();
-        const bp = document.getElementById('btn-modo-ui-painel');
-        if (bp) bp.remove();
+        if (bpOld) bpOld.remove();
         return;
     }
 
     const adminUi = typeof emModoAdminUi === 'function' && emModoAdminUi(perfil);
     const usuarioUi = typeof emModoUsuarioUi === 'function' && emModoUsuarioUi(perfil);
 
-    let btn = btnOld;
-    if (!btn) {
-        btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = 'btn-modo-ui';
-        btn.className = 'btn-modo-ui';
-        const notif = document.getElementById('btn-notif');
-        const sair = document.getElementById('btn-sair');
-        if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
-        else if (sair && sair.parentNode === actions) actions.insertBefore(btn, sair);
-        else actions.appendChild(btn);
+    function bindVoltarAdmin(el) {
+        if (!el) return;
+        el.onclick = (ev) => {
+            if (ev) ev.preventDefault();
+            if (typeof gravarModoUi === 'function') gravarModoUi('admin');
+            if (typeof irPara === 'function') irPara('admin.html');
+            else window.location.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html';
+        };
+    }
+
+    /** Sticky SEMPRE no modo usuário — não depende de header.header-row (Início/Chat/Perfil). */
+    function garantirStickyVoltar() {
+        let sticky = document.getElementById('modo-ui-sticky');
+        if (!sticky) {
+            sticky = document.createElement('div');
+            sticky.id = 'modo-ui-sticky';
+            sticky.className = 'modo-ui-sticky';
+            sticky.setAttribute('role', 'region');
+            sticky.setAttribute('aria-label', 'Modo usuário do admin');
+            const parent = document.body || document.documentElement;
+            parent.insertBefore(sticky, parent.firstChild);
+        }
+        sticky.innerHTML =
+            '<span>Modo usuário (admin) — você continua logado como admin</span>' +
+            '<button type="button" id="btn-modo-ui-sticky" class="btn-modo-ui btn-modo-voltar">Voltar ao Admin</button>';
+        bindVoltarAdmin(document.getElementById('btn-modo-ui-sticky'));
+        return sticky;
+    }
+
+    const header = document.querySelector('header.header-row');
+    let actions = header ? header.querySelector('.header-actions') : null;
+    if (header && !actions) {
+        actions = document.createElement('div');
+        actions.className = 'header-actions';
+        header.appendChild(actions);
     }
 
     if (adminUi) {
+        if (stickyOld) stickyOld.remove();
+        if (!actions) return; // painel admin sem header de cliente: ok
+        let btn = btnOld;
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'btn-modo-ui';
+            btn.className = 'btn-modo-ui';
+            const notif = document.getElementById('btn-notif');
+            const sair = document.getElementById('btn-sair');
+            if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
+            else if (sair && sair.parentNode === actions) actions.insertBefore(btn, sair);
+            else actions.appendChild(btn);
+        }
         btn.textContent = 'Ver como usuário';
         btn.title = 'Mostrar a interface normal de cliente';
         btn.setAttribute('aria-label', 'Ver como usuário');
@@ -434,61 +463,65 @@ function garantirHeaderModoUiBtn(perfil) {
         btn.classList.add('btn-modo-ver-user');
         btn.onclick = () => {
             if (typeof gravarModoUi === 'function') gravarModoUi('usuario');
-            irPara('inicio.html');
+            if (typeof irPara === 'function') irPara('inicio.html');
+            else window.location.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'inicio.html';
         };
-        // Em chat/perfil: atalho de volta ao painel
         let btnPainel = document.getElementById('btn-modo-ui-painel');
-        const onAdminPage = document.body && document.body.classList.contains('pagina-admin');
+        const onAdminPage = document.body && (
+            document.body.classList.contains('pagina-admin') ||
+            /admin\.html$/i.test(location.pathname)
+        );
         if (!onAdminPage) {
             if (!btnPainel) {
                 btnPainel = document.createElement('a');
                 btnPainel.id = 'btn-modo-ui-painel';
                 btnPainel.className = 'btn-modo-ui btn-modo-painel';
                 btnPainel.textContent = 'Painel Admin';
-                btnPainel.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html';
                 actions.insertBefore(btnPainel, btn);
-            } else {
-                btnPainel.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html';
-                btnPainel.classList.remove('oculto');
             }
+            btnPainel.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'admin.html';
+            btnPainel.classList.remove('oculto');
         } else if (btnPainel) {
             btnPainel.remove();
         }
-        if (stickyOld) stickyOld.remove();
-    } else if (usuarioUi) {
-        const bp = document.getElementById('btn-modo-ui-painel');
-        if (bp) bp.remove();
-        btn.textContent = 'Voltar ao Admin';
-        btn.title = 'Voltar ao painel de monitoramento';
-        btn.setAttribute('aria-label', 'Voltar ao Admin');
-        btn.classList.add('btn-modo-voltar');
-        btn.classList.remove('btn-modo-ver-user');
-        btn.onclick = () => {
-            if (typeof gravarModoUi === 'function') gravarModoUi('admin');
-            irPara('admin.html');
-        };
-        // Sticky bar para ficar visível ao rolar
-        let sticky = stickyOld;
-        if (!sticky) {
-            sticky = document.createElement('div');
-            sticky.id = 'modo-ui-sticky';
-            sticky.className = 'modo-ui-sticky';
-            document.body.insertBefore(sticky, document.body.firstChild);
-        }
-        sticky.innerHTML = '<span>Modo usuário (admin)</span>' +
-            '<button type="button" id="btn-modo-ui-sticky" class="btn-modo-ui btn-modo-voltar">Voltar ao Admin</button>';
-        const sb = document.getElementById('btn-modo-ui-sticky');
-        if (sb) {
-            sb.onclick = () => {
-                if (typeof gravarModoUi === 'function') gravarModoUi('admin');
-                irPara('admin.html');
-            };
-        }
-    } else {
-        btn.remove();
-        if (stickyOld) stickyOld.remove();
+        return;
     }
+
+    if (usuarioUi) {
+        // Sticky em TODAS as telas de cliente (Início sem header incluso)
+        garantirStickyVoltar();
+        if (bpOld) bpOld.remove();
+
+        if (actions) {
+            let btn = btnOld;
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = 'btn-modo-ui';
+                btn.className = 'btn-modo-ui';
+                const notif = document.getElementById('btn-notif');
+                const sair = document.getElementById('btn-sair');
+                if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
+                else if (sair && sair.parentNode === actions) actions.insertBefore(btn, sair);
+                else actions.appendChild(btn);
+            }
+            btn.textContent = 'Voltar ao Admin';
+            btn.title = 'Voltar ao painel de monitoramento';
+            btn.setAttribute('aria-label', 'Voltar ao Admin');
+            btn.classList.add('btn-modo-voltar');
+            btn.classList.remove('btn-modo-ver-user');
+            bindVoltarAdmin(btn);
+        } else if (btnOld) {
+            btnOld.remove();
+        }
+        return;
+    }
+
+    if (btnOld) btnOld.remove();
+    if (stickyOld) stickyOld.remove();
+    if (bpOld) bpOld.remove();
 }
+
 
 
 /** Sair só no Perfil (#btn-sair). Bind once → sairApp(). */
@@ -635,7 +668,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260923t';
+    const src = root + 'logo-escavadeira.png?v=20260923u';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -863,7 +896,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923t' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923u' });
             }
         } catch (e) { /* ignore */ }
     }

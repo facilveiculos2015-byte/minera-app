@@ -3061,17 +3061,24 @@ body.modo-ui-admin {
     color: #0f172a;
 }
 .modo-ui-sticky {
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 80;
+    left: 0;
+    right: 0;
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 8px 14px;
-    background: rgba(15, 23, 42, 0.95);
-    border-bottom: 1px solid #334155;
-    backdrop-filter: blur(8px);
+    padding: 10px 14px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    background: rgba(11, 18, 32, 0.97);
+    border-bottom: 2px solid #F5A623;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+}
+body.modo-ui-usuario {
+    padding-top: 52px;
 }
 .modo-ui-sticky span {
     font-size: 0.85rem;
