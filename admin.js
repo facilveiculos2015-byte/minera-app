@@ -1621,6 +1621,63 @@ async function carregarPromosAdmin() {
 }
 
 
+
+/* Banner Início: 16:5 — recorte cover + resize automático no upload */
+const BANNER_W = 1200;
+const BANNER_H = 375;
+
+function redimensionarBannerImagem(file) {
+    return new Promise((resolve, reject) => {
+        if (!file || !(file.type || '').startsWith('image/')) {
+            reject(new Error('Selecione uma imagem (image/*).'));
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            try {
+                URL.revokeObjectURL(url);
+                const sw = img.naturalWidth || img.width;
+                const sh = img.naturalHeight || img.height;
+                if (!sw || !sh) throw new Error('Imagem inválida');
+                const target = BANNER_W / BANNER_H;
+                const src = sw / sh;
+                let sx = 0, sy = 0, cw = sw, ch = sh;
+                if (src > target) {
+                    cw = Math.round(sh * target);
+                    sx = Math.floor((sw - cw) / 2);
+                } else if (src < target) {
+                    ch = Math.round(sw / target);
+                    sy = Math.floor((sh - ch) / 3); /* favorece topo (rosto/logo) */
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = BANNER_W;
+                canvas.height = BANNER_H;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, sx, sy, cw, ch, 0, 0, BANNER_W, BANNER_H);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject(new Error('Falha ao redimensionar'));
+                        return;
+                    }
+                    const base = String(file.name || 'banner').replace(/\.[^.]+$/, '') || 'banner';
+                    const out = new File([blob], base + '-banner.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+                    resolve(out);
+                }, 'image/jpeg', 0.88);
+            } catch (e) {
+                reject(e);
+            }
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Não foi possível ler a imagem'));
+        };
+        img.src = url;
+    });
+}
+
 async function uploadPromoImagem(file) {
     if (!file || !(file.type || '').startsWith('image/')) {
         throw new Error('Selecione uma imagem (image/*).');
@@ -1633,14 +1690,14 @@ async function uploadPromoImagem(file) {
         } catch (_) { /* ignore */ }
     }
     if (!uid) throw new Error('Faça login de admin para enviar imagem.');
-    const ext = (file.name || 'banner.jpg').split('.').pop() || 'jpg';
-    const safe = String(file.name || 'banner').replace(/[^\w.\-]+/g, '_').replace(/\.[^.]+$/, '');
-    const path = uid + '/banners/' + Date.now() + '_' + safe + '.' + ext.replace(/[^\w]+/g, '');
+    /* Redimensiona automaticamente p/ 1200×375 (slot Início) */
+    const resized = await redimensionarBannerImagem(file);
+    const path = uid + '/banners/' + Date.now() + '_banner.jpg';
     const { data, error } = await supabaseClient.storage
         .from('chat-midia')
-        .upload(path, file, {
+        .upload(path, resized, {
             upsert: false,
-            contentType: (file.type || 'image/jpeg').split(';')[0],
+            contentType: 'image/jpeg',
             cacheControl: '3600'
         });
     if (error) throw error;
@@ -1698,12 +1755,12 @@ function bindPromoForm() {
             const file = (fileIn.files && fileIn.files[0]) || null;
             const st = document.getElementById('promo-upload-status');
             if (!file) return;
-            if (st) st.textContent = 'Enviando imagem…';
+            if (st) st.textContent = 'Redimensionando e enviando…';
             try {
                 const url = await uploadPromoImagem(file);
                 const inp = document.getElementById('promo-imagem');
                 if (inp) inp.value = url;
-                if (st) st.textContent = 'Imagem enviada — URL preenchida. Clique Salvar.';
+                if (st) st.textContent = 'Imagem redimensionada (1200×375) e enviada. Clique Salvar.';
                 setPromoMsg('Imagem pronta. Salve o banner.', true);
             } catch (e) {
                 if (st) st.textContent = '';

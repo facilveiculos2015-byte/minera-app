@@ -49,7 +49,7 @@ async function carregarBannersPromos() {
         tipo: 'banner',
         titulo: '',
         texto: '',
-        imagem_url: 'media/banner-familia-minera.jpg?v=20260923y',
+        imagem_url: 'media/banner-familia-minera.jpg?v=20260923z',
         link: '',
         _full: true
     };
