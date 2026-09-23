@@ -483,7 +483,7 @@ function htmlCardFamilia(perfil) {
         '</span><span class="familia-stat-lbl">desconto disponível</span></div>' +
         '</div>' +
         '<div class="familia-og-card" aria-hidden="true">' +
-        '<img class="familia-og-logo" src="' + suporteEsc(ogImg) + '?v=20260923p" alt="" width="72" height="72" loading="lazy">' +
+        '<img class="familia-og-logo" src="' + suporteEsc(ogImg) + '?v=20260923q" alt="" width="72" height="72" loading="lazy">' +
         '<div class="familia-og-meta">' +
         '<strong class="familia-og-title">Minera Pará</strong>' +
         '<p class="familia-og-desc" id="familia-og-desc">' + suporteEsc(ogDesc) + '</p>' +
@@ -857,7 +857,7 @@ function mostrarSharePosCadastro(perfil) {
         '<h2 class="familia-panel-title">Convide colegas</h2>' +
         '<p class="sub">Compartilhe seu link da Família Mineira e ganhe pontos.</p>' +
         '<div class="familia-og-card">' +
-        '<img class="familia-og-logo" src="' + suporteEsc((_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT)) + '?v=20260923p" alt="" width="72" height="72">' +
+        '<img class="familia-og-logo" src="' + suporteEsc((_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT)) + '?v=20260923q" alt="" width="72" height="72">' +
         '<div class="familia-og-meta"><strong class="familia-og-title">Minera Pará</strong>' +
         '<p class="familia-og-desc">' + suporteEsc(shareOgDescription(nome)) + '</p></div></div>' +
         '<input type="hidden" id="familia-codigo" value="' + suporteEsc(codigo) + '">' +

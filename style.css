@@ -4110,12 +4110,63 @@ body.pagina-inicio .container.wide { max-width: 640px; padding: 0; }
   padding: 8px 16px 12px;
 }
 .olx-qcard {
-  aspect-ratio: 1; border-radius: 14px; border: 1px solid var(--border);
-  background: #1e293b; color: #f8fafc; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 6px; text-decoration: none;
-  font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 8px 4px;
+  aspect-ratio: 1; border-radius: 16px; border: 1px solid transparent;
+  background: transparent; color: #e8eef7; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; text-decoration: none;
+  font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 8px 4px 10px;
+  position: relative; overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
-.olx-qcard .qi { font-size: 1.35rem; line-height: 1; color: var(--accent-color); }
+.olx-qcard::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  opacity: .95;
+}
+.olx-qcard .qi-wrap {
+  position: relative; z-index: 1;
+  width: 44px; height: 44px; border-radius: 14px;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.olx-qcard .qi-svg { width: 22px; height: 22px; display: block; }
+.olx-qcard .qi { font-size: 1.35rem; line-height: 1; color: var(--accent-color); position: relative; z-index: 1; }
+.olx-qcard > :not(::before) { position: relative; z-index: 1; }
+/* Favoritos — coração / calor */
+.olx-qcard.q-fav { color: #fecaca; border-color: rgba(248,113,113,.28); }
+.olx-qcard.q-fav::before {
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(248,113,113,.35), transparent 55%),
+    linear-gradient(160deg, rgba(127,29,29,.35), rgba(15,23,42,.15));
+}
+.olx-qcard.q-fav .qi-wrap { color: #fb7185; background: rgba(248,113,113,.16); border-color: rgba(251,113,133,.35); }
+/* Mapa — território / azul-teal */
+.olx-qcard.q-mapa { color: #bae6fd; border-color: rgba(56,189,248,.28); }
+.olx-qcard.q-mapa::before {
+  background:
+    radial-gradient(120% 90% at 70% 15%, rgba(56,189,248,.38), transparent 55%),
+    linear-gradient(160deg, rgba(12,74,110,.4), rgba(15,23,42,.12));
+}
+.olx-qcard.q-mapa .qi-wrap { color: #38bdf8; background: rgba(56,189,248,.14); border-color: rgba(56,189,248,.35); }
+/* Serviços — ferramenta / âmbar */
+.olx-qcard.q-serv { color: #fde68a; border-color: rgba(245,166,35,.32); }
+.olx-qcard.q-serv::before {
+  background:
+    radial-gradient(120% 90% at 40% 10%, rgba(245,166,35,.4), transparent 55%),
+    linear-gradient(160deg, rgba(120,53,15,.38), rgba(15,23,42,.12));
+}
+.olx-qcard.q-serv .qi-wrap { color: #F5A623; background: rgba(245,166,35,.16); border-color: rgba(245,166,35,.4); }
+/* Banco — confiança / ouro-vidro */
+.olx-qcard.q-banco { color: #fef3c7; border-color: rgba(251,191,36,.3); }
+.olx-qcard.q-banco::before {
+  background:
+    radial-gradient(120% 90% at 60% 20%, rgba(251,191,36,.36), transparent 55%),
+    linear-gradient(160deg, rgba(66,32,6,.42), rgba(15,23,42,.14));
+}
+.olx-qcard.q-banco .qi-wrap { color: #fbbf24; background: rgba(251,191,36,.14); border-color: rgba(251,191,36,.38); }
+.olx-qcard:active { transform: scale(.97); }
 .olx-banner {
   margin: 0 16px 12px; border-radius: 14px; overflow: hidden;
   aspect-ratio: 16/6; background: linear-gradient(135deg,#1e293b,#0b1220 60%,#F5A62333);
@@ -5227,7 +5278,15 @@ html[data-theme="light"] .lotes-tab {
 .lote-midia-thumb.video { font-weight: 700; color: #fde68a; }
 .lote-field-wrap { margin: 0 0 8px; }
 .svc-fchip-ico { margin-right: 2px; }
-html[data-theme="light"] .olx-qcard { background: #fff; color: #0f172a; }
+html[data-theme="light"] .olx-qcard { background: transparent; color: #0f172a; }
+html[data-theme="light"] .olx-qcard .qi-wrap {
+  background: rgba(255,255,255,.85); border-color: rgba(15,23,42,.08);
+  box-shadow: 0 4px 12px rgba(15,23,42,.08);
+}
+html[data-theme="light"] .olx-qcard.q-fav { color: #9f1239; }
+html[data-theme="light"] .olx-qcard.q-mapa { color: #075985; }
+html[data-theme="light"] .olx-qcard.q-serv { color: #92400e; }
+html[data-theme="light"] .olx-qcard.q-banco { color: #92400e; }
 html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
@@ -5241,3 +5300,6 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 .pagina-inicio .cotacoes-card .cotacoes-strip-title {
     color: #F5A623;
 }
+
+
+/* ===== 20260923q — quick cards: no flat fill, intuitive themed surfaces ===== */

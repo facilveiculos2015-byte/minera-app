@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Pará - Marketplace</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923p">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923p">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923q">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923q">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923p">
+    <link rel="stylesheet" href="style.css?v=20260923q">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -43,10 +43,22 @@
         </div>
 
         <div class="olx-quick" aria-label="Atalhos">
-            <button type="button" class="olx-qcard" id="q-favoritos"><span class="qi">♡</span>Favoritos</button>
-            <button type="button" class="olx-qcard" id="btn-mapa"><span class="qi">🗺</span>Mapa</button>
-            <button type="button" class="olx-qcard" id="cta-servicos"><span class="qi">🛠</span>Serviços</button>
-            <button type="button" class="olx-qcard" id="btn-banco"><span class="qi">🏦</span>Banco</button>
+            <button type="button" class="olx-qcard q-fav" id="q-favoritos" aria-label="Favoritos">
+                <span class="qi-wrap" aria-hidden="true"><svg class="qi-svg" viewBox="0 0 24 24" fill="none"><path d="M12 20.5s-6.5-4.1-8.6-8.1C1.8 9.4 3.1 6.5 6 6.2c1.7-.2 3.2.7 4 2  .8-1.3 2.3-2.2 4-2 2.9.3 4.2 3.2 2.6 6.2-2.1 4-8.6 8.1-8.6 8.1z" fill="currentColor"/></svg></span>
+                Favoritos
+            </button>
+            <button type="button" class="olx-qcard q-mapa" id="btn-mapa" aria-label="Mapa">
+                <span class="qi-wrap" aria-hidden="true"><svg class="qi-svg" viewBox="0 0 24 24" fill="none"><path d="M9.5 4.2 3.8 6.4v13l5.7-2.2 5 2.2 5.7-2.2v-13L14.5 6.4l-5-2.2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 4.2v13M14.5 6.4v13" stroke="currentColor" stroke-width="1.6"/></svg></span>
+                Mapa
+            </button>
+            <button type="button" class="olx-qcard q-serv" id="cta-servicos" aria-label="Serviços">
+                <span class="qi-wrap" aria-hidden="true"><svg class="qi-svg" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a4 4 0 0 0 3 3l1.8-1.8a3 3 0 1 1-3 3L10 17l-3 1 1-3 6.5-6.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 20h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                Serviços
+            </button>
+            <button type="button" class="olx-qcard q-banco" id="btn-banco" aria-label="Banco">
+                <span class="qi-wrap" aria-hidden="true"><svg class="qi-svg" viewBox="0 0 24 24" fill="none"><path d="M4 10h16M6 10v8m4-8v8m4-8v8m4-8v8M3 18h18M12 4l9 5H3l9-5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+                Banco
+            </button>
         </div>
 
         <section class="card cotacoes-card cotacoes-compact" id="card-cotacoes" aria-label="Cotações de mercado">
@@ -100,12 +112,12 @@
         <a class="olx-fab" id="fab-anunciar" href="lotes.html" title="Anunciar" aria-label="Anunciar">＋</a>
         <nav id="app-nav" class="nav-chips oculto"></nav>
     </div>
-    <script src="config.js?v=20260923p"></script>
-    <script src="auth-guard.js?v=20260923p"></script>
-    <script src="suporte.js?v=20260923p"></script>
-    <script src="nav.js?v=20260923p"></script>
-    <script src="localidade.js?v=20260923p"></script>
-    <script src="inicio.js?v=20260923p"></script>
-    <script src="pwa.js?v=20260923p"></script>
+    <script src="config.js?v=20260923q"></script>
+    <script src="auth-guard.js?v=20260923q"></script>
+    <script src="suporte.js?v=20260923q"></script>
+    <script src="nav.js?v=20260923q"></script>
+    <script src="localidade.js?v=20260923q"></script>
+    <script src="inicio.js?v=20260923q"></script>
+    <script src="pwa.js?v=20260923q"></script>
 </body>
 </html>
