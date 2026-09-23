@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923h">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923h">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923i">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923i">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923h">
+    <link rel="stylesheet" href="style.css?v=20260923i">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -29,14 +29,12 @@
                         <button type="button" class="wa-circ-btn accent" id="btn-add-contato" aria-label="Nova conversa">＋</button>
                     </div>
                 </div>
-                <h1 class="wa-title">Minera Chat</h1>
-                <input type="search" id="chat-busca-contatos" class="wa-search" placeholder="Buscar…" autocomplete="off">
+                <h1 class="wa-title">Conversas</h1>
+                <input type="search" id="chat-busca-contatos" class="wa-search" placeholder="Buscar ou pesquisar…" autocomplete="off">
                 <div class="wa-chips" id="wa-filter-chips" role="group" aria-label="Filtros">
                     <button type="button" class="wa-chip on" data-wa="todas">Todas</button>
                     <button type="button" class="wa-chip" data-wa="nao_lidas">Não lidas</button>
                     <button type="button" class="wa-chip" data-wa="favoritos">Favoritos</button>
-                    <button type="button" class="wa-chip" data-wa="compradores">Compradores</button>
-                    <button type="button" class="wa-chip" data-wa="servicos">Serviços</button>
                 </div>
                 <div class="wa-archived" id="wa-archived" role="button" tabindex="0">📁 Arquivadas</div>
                 <div id="chat-contatos-list" class="chat-contatos-list"></div>
@@ -44,7 +42,7 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923h" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923i" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
@@ -95,10 +93,13 @@
                     </div>
 
                     <form id="form-chat" class="wa-composer chat-form">
-                        <button type="button" class="wa-comp-btn" id="btn-chat-plus" aria-label="Anexar">＋</button>
-                        <input type="text" id="chat-texto" class="wa-comp-input" placeholder="Mensagem" maxlength="2000" autocomplete="off" enterkeyhint="send">
-                        <button type="button" class="wa-comp-btn" id="btn-chat-emoji" aria-label="Emoji">😊</button>
-                        <!-- file inputs for + sheet (camera not in composer bar — WA order: + | text | emoji | mic/send) -->
+                        <!-- WA order (≤800px): + | [pill input + emoji INSIDE right] | camera | mic/send -->
+                        <button type="button" class="wa-comp-btn wa-comp-plus" id="btn-chat-plus" aria-label="Anexar">＋</button>
+                        <div class="wa-comp-pill">
+                            <input type="text" id="chat-texto" class="wa-comp-input" placeholder="Mensagem" maxlength="2000" autocomplete="off" enterkeyhint="send">
+                            <button type="button" class="wa-comp-in-emoji" id="btn-chat-emoji" aria-label="Emoji" title="Emoji">😊</button>
+                        </div>
+                        <button type="button" class="wa-comp-btn wa-comp-cam" id="btn-chat-camera" aria-label="Câmera" title="Câmera">📷</button>
                         <input type="file" id="chat-foto" accept="image/*" capture="environment" class="oculto">
                         <input type="file" id="chat-video" accept="video/*" class="oculto">
                         <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
@@ -166,13 +167,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923h"></script>
-    <script src="auth-guard.js?v=20260923h"></script>
-    <script src="suporte.js?v=20260923h"></script>
-    <script src="nav.js?v=20260923h"></script>
-    <script src="anti-golpe.js?v=20260923h"></script>
-    <script src="chat.js?v=20260923h"></script>
-    <script src="pwa.js?v=20260923h"></script>
+    <script src="config.js?v=20260923i"></script>
+    <script src="auth-guard.js?v=20260923i"></script>
+    <script src="suporte.js?v=20260923i"></script>
+    <script src="nav.js?v=20260923i"></script>
+    <script src="anti-golpe.js?v=20260923i"></script>
+    <script src="chat.js?v=20260923i"></script>
+    <script src="pwa.js?v=20260923i"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); else alert(t); }
@@ -180,11 +181,14 @@
         const phone = document.getElementById('btn-chat-phone');
         if (video) video.addEventListener('click', () => toast('Chamada de vídeo em breve'));
         if (phone) phone.addEventListener('click', () => toast('Chamada de voz em breve'));
-        const cam = document.getElementById('btn-chat-cam');
-        if (cam) cam.addEventListener('click', () => {
+        function openCameraCapture() {
             const f = document.getElementById('chat-foto');
             if (f) f.click();
-        });
+        }
+        const cam = document.getElementById('btn-chat-cam');
+        if (cam) cam.addEventListener('click', openCameraCapture);
+        const camBar = document.getElementById('btn-chat-camera');
+        if (camBar) camBar.addEventListener('click', openCameraCapture);
         const plus = document.getElementById('btn-chat-plus');
         const sheet = document.getElementById('wa-attach-sheet');
         function openSheet(o) { if (sheet) sheet.classList.toggle('oculto', !o); }

@@ -4188,10 +4188,11 @@ body.pagina-chat .header-row { display: none !important; }
 }
 .wa-circ-btn.accent { background: #F5A623; color: #0b1220; border-color: transparent; }
 .wa-head-right { display: flex; gap: 8px; }
-.wa-title { font-size: 1.55rem; font-weight: 800; padding: 4px 16px 8px; }
+.wa-title { font-size: 1.75rem; font-weight: 800; padding: 2px 16px 10px; letter-spacing: -0.02em; }
 .wa-search {
-  margin: 0 16px 10px; height: 40px; border-radius: 10px; border: 1px solid var(--border);
-  background: #111827; color: #f8fafc; padding: 0 12px; width: calc(100% - 32px);
+  margin: 0 16px 10px; height: 40px; border-radius: 20px; border: 0;
+  background: #1e293b; color: #f8fafc; padding: 0 14px; width: calc(100% - 32px);
+  font-size: 0.95rem;
 }
 .wa-chips {
   display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 10px; scrollbar-width: none;
@@ -4581,11 +4582,11 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   color: #0f172a;
 }
 
-/* ===== 20260923h — Fale/FAB clear + WA chat mobile shell ===== */
+/* ===== 20260923h/i — Fale/FAB clear + WA chat mobile shell ===== */
 :root { --kb-inset: 0px; --composer-h: 58px; }
 
 .wa-row { min-height: 72px; box-sizing: border-box; }
-.wa-av { width: 52px; height: 52px; }
+.wa-av { width: 56px; height: 56px; }
 
 /* Composer: WA order, compact circles (no min-width blow-up) */
 .wa-composer.chat-form {
@@ -4610,18 +4611,70 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   border-radius: 50% !important;
   flex-shrink: 0;
 }
-.wa-composer .wa-comp-input {
+.wa-composer .wa-comp-pill {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
   height: 40px;
   max-height: 120px;
   border-radius: 20px;
-  padding: 8px 14px !important;
-  border: 1px solid var(--border) !important;
-  background: #111827 !important;
-  font-size: 16px; /* iOS: avoid zoom */
+  background: #111827;
+  border: 1px solid var(--border);
+  padding: 0 2px 0 0;
+  box-sizing: border-box;
 }
-#btn-chat-camera-label { display: none !important; } /* camera lives in + sheet */
+.wa-composer .wa-comp-pill .wa-comp-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  max-height: 120px;
+  border-radius: 20px;
+  padding: 8px 6px 8px 14px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #f8fafc;
+  font-size: 16px; /* iOS: avoid zoom */
+  outline: none;
+  box-shadow: none !important;
+}
+.wa-composer .wa-comp-in-emoji {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 0;
+  line-height: 1;
+}
+.wa-composer .wa-comp-in-emoji:active { opacity: 0.7; }
+.wa-composer .wa-comp-cam,
+.wa-composer .wa-comp-plus {
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 1.35rem;
+}
+.wa-composer .wa-comp-btn.mic {
+  background: #25D366;
+  color: #fff;
+  width: 48px;
+  height: 48px;
+  min-width: 48px !important;
+  max-width: 48px;
+  font-size: 1.25rem;
+}
+#btn-chat-enviar.wa-comp-btn.mic {
+  font-size: 1.15rem;
+}
+/* camera button is ON the composer bar (WA); also in + sheet */
 
 .wa-attach-sheet .chat-msg-sheet-panel {
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -4743,4 +4796,54 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
     position: sticky;
     bottom: 0;
   }
+}
+
+/* ===== 20260923i — WA composer pixel order + Conversas list ===== */
+/* Structure: + | pill[input… emoji] | camera | mic/send */
+.wa-composer.chat-form {
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+.wa-composer .wa-comp-btn.wa-comp-plus,
+.wa-composer .wa-comp-btn.wa-comp-cam {
+  width: 40px;
+  height: 40px;
+  min-width: 40px !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: #f1f5f9;
+}
+.wa-composer .wa-comp-btn.mic {
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.35);
+}
+.wa-unread {
+  background: #25D366;
+  color: #fff;
+}
+.wa-chip.on {
+  background: #25D366;
+  color: #fff;
+}
+.wa-row-name { font-weight: 700; }
+.wa-list-head { padding: 10px 14px 2px; }
+.chat-contacts-pane {
+  background: #000;
+}
+body.pagina-chat .chat-contacts-pane {
+  background: #0b1220;
+}
+@media (max-width: 800px) {
+  .wa-composer.chat-form {
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .wa-composer .wa-comp-pill { height: 42px; border-radius: 21px; }
+  .wa-composer .wa-comp-btn.mic {
+    width: 48px; height: 48px; min-width: 48px !important; max-width: 48px;
+  }
+  .wa-title { font-size: 1.85rem; }
+  .wa-search { border-radius: 22px; height: 42px; }
+  .wa-av { width: 56px; height: 56px; }
+  .wa-row { padding: 10px 14px; gap: 14px; }
 }
