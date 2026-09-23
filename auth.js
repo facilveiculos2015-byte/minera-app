@@ -1,3 +1,42 @@
+
+const WELCOME_SEEN_KEY = 'minera_welcome_seen';
+
+function welcomeJaVisto() {
+    try { return sessionStorage.getItem(WELCOME_SEEN_KEY) === '1'; } catch (e) { return false; }
+}
+function marcarWelcomeVisto() {
+    try { sessionStorage.setItem(WELCOME_SEEN_KEY, '1'); } catch (e) { /* ignore */ }
+}
+function revelarAuthAposWelcome() {
+    const w = document.getElementById('welcome-card');
+    const a = document.getElementById('auth-card');
+    if (w) w.classList.add('oculto');
+    if (a) a.classList.remove('oculto');
+    marcarWelcomeVisto();
+}
+function setupWelcomeGate() {
+    const w = document.getElementById('welcome-card');
+    const a = document.getElementById('auth-card');
+    if (!w || !a) return;
+    if (typeof modoRecuperacao !== 'undefined' && modoRecuperacao) {
+        w.classList.add('oculto');
+        a.classList.remove('oculto');
+        return;
+    }
+    if (welcomeJaVisto()) {
+        w.classList.add('oculto');
+        a.classList.remove('oculto');
+        return;
+    }
+    w.classList.remove('oculto');
+    a.classList.add('oculto');
+    const btn = document.getElementById('btn-welcome-continuar');
+    if (btn && !btn._welcomeBound) {
+        btn._welcomeBound = true;
+        btn.addEventListener('click', revelarAuthAposWelcome);
+    }
+}
+
 const PAPEIS_OPCOES = [
     { id: 'minerador', label: 'Minerador' },
     { id: 'comprador', label: 'Comprador' },
@@ -131,6 +170,10 @@ function limparHashAuth() {
 }
 
 function mostrarFormNovaSenha() {
+    const wc = document.getElementById('welcome-card');
+    if (wc) wc.classList.add('oculto');
+    const ac = document.getElementById('auth-card');
+    if (ac) ac.classList.remove('oculto');
     const tabs = document.querySelector('.tabs');
     if (tabs) tabs.classList.add('oculto');
     const welcome = document.getElementById('cadastro-welcome');
@@ -308,4 +351,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         irSeLogado();
     }
+    try { setupWelcomeGate(); } catch (e) { console.warn('welcome', e); }
 });

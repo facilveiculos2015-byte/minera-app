@@ -3,28 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minerar PARÁ - Entrar</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923c">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923c">
+    <title>Minera Pará - Entrar</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923e">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923e">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minerar PARÁ">
-    <link rel="stylesheet" href="style.css?v=20260923c">
+    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+    <link rel="stylesheet" href="style.css?v=20260923e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
         <header class="auth-header">
             <div class="logo-mark" aria-hidden="true">
-                <img class="brand-logo-lg" src="logo-escavadeira.png?v=20260923c" alt="Minerar PARÁ" width="112" height="112" decoding="async">
+                <img class="brand-logo-lg" src="logo-escavadeira.png?v=20260923e" alt="Minera Pará" width="112" height="112" decoding="async">
             </div>
-            <h1>Minerar PARÁ</h1>
+            <h1>Minera Pará</h1>
             <p>Crie sua conta ou entre para gerenciar lotes</p>
         </header>
 
-        <section class="card">
+        <section class="card welcome-card" id="welcome-card" role="dialog" aria-labelledby="welcome-title" aria-modal="true">
+            <h2 id="welcome-title">Bem-vindo ao Minera Pará</h2>
+            <p>Cada conta vê somente os próprios dados financeiros e conversas. Nos lotes públicos aparece o anúncio — não extrato, limite de crédito nem documentos de outras pessoas.</p>
+            <p>Não misturamos perfis: o que é seu permanece na sua área. O cadastro serve para você acessar a própria conta, não para expor dados pessoais no marketplace.</p>
+            <button type="button" class="btn-ok" id="btn-welcome-continuar">Continuar</button>
+        </section>
+
+        <section class="card oculto" id="auth-card">
             <div class="tabs">
                 <button type="button" class="tab on" id="tab-entrar">Entrar</button>
                 <button type="button" class="tab" id="tab-cadastrar">Criar conta</button>
@@ -78,10 +85,10 @@
             <p id="auth-msg" class="msg"></p>
         </section>
     </div>
-    <script src="config.js?v=20260923c"></script>
-    <script src="auth-guard.js?v=20260923c"></script>
-    <script src="suporte.js?v=20260923c"></script>
-    <script src="auth.js?v=20260923c"></script>
-    <script src="pwa.js?v=20260923c"></script>
+    <script src="config.js?v=20260923e"></script>
+    <script src="auth-guard.js?v=20260923e"></script>
+    <script src="suporte.js?v=20260923e"></script>
+    <script src="auth.js?v=20260923e"></script>
+    <script src="pwa.js?v=20260923e"></script>
 </body>
 </html>

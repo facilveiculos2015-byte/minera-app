@@ -34,6 +34,57 @@ function esc(s) {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function filtrarLotesVisiveis(rows) {
+    return (rows || []).filter(l => !(l.oculto === true || l.oculto === 't' || l.oculto === 'true'));
+}
+
+async function carregarBannersPromos() {
+    const track = document.getElementById('olx-banner-track');
+    const banner = document.getElementById('olx-banner');
+    if (!track) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('app_promos')
+            .select('id,tipo,titulo,texto,imagem_url,link,ordem')
+            .eq('ativo', true)
+            .order('ordem', { ascending: true })
+            .limit(12);
+        if (error) throw error;
+        const rows = data || [];
+        if (!rows.length) {
+            if (banner) banner.classList.add('oculto');
+            track.innerHTML = '';
+            return;
+        }
+        if (banner) banner.classList.remove('oculto');
+        track.innerHTML = rows.map(p => {
+            const title = esc(p.titulo || (p.tipo === 'oferta' ? 'Oferta' : 'Destaque'));
+            const texto = esc(p.texto || '');
+            const img = p.imagem_url ? `<img src="${esc(p.imagem_url)}" alt="" class="olx-banner-img" loading="lazy">` : '';
+            const inner = `${img}<strong>${title}</strong>${texto ? '<span>' + texto + '</span>' : ''}`;
+            if (p.link) {
+                return `<a class="olx-banner-slide" href="${esc(p.link)}">${inner}</a>`;
+            }
+            return `<div class="olx-banner-slide">${inner}</div>`;
+        }).join('');
+        // restart carousel for dynamic count
+        if (!track._promoTimer) {
+            let i = 0;
+            track._promoTimer = setInterval(() => {
+                const n = track.children.length || 1;
+                i = (i + 1) % n;
+                track.style.transform = 'translateX(-' + (i * 100) + '%)';
+            }, 4200);
+        }
+    } catch (e) {
+        console.warn('promos', e);
+        // Sem SQL 35: esconde faixa vazia
+        if (!track.children.length && banner) banner.classList.add('oculto');
+    }
+}
+
+
+
 function imgPlaceholder(tipo) {
     const t = (tipo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let cls = 'default';
@@ -678,11 +729,11 @@ async function carregarFeed() {
         const { data, error } = await q;
         if (error) {
             // Colunas de localidade ausentes → fallback sem filtro SQL
-            if (/estado|cidade|ddd|column|schema cache/i.test(error.message || '')) {
+            if (/estado|cidade|ddd|oculto|column|schema cache/i.test(error.message || '')) {
                 console.warn('localidade columns?', error.message);
                 const res2 = await supabaseClient.from('lotes').select('*').order('id', { ascending: false }).limit(120);
                 if (res2.error) throw res2.error;
-                feedCache = res2.data || [];
+                feedCache = filtrarLotesVisiveis(res2.data || []);
                 if (box && !feedCache.length) {
                     box.classList.add('olx-feed'); box.innerHTML = '<div class="olx-empty"><p><strong>Marketplace vazio</strong></p><p class="sub">Seja o primeiro a anunciar.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
                     return;
@@ -692,7 +743,7 @@ async function carregarFeed() {
             }
             throw error;
         }
-        feedCache = data || [];
+        feedCache = filtrarLotesVisiveis(data || []);
         if (!feedCache.length) {
             box.classList.add('olx-feed'); box.innerHTML = '<div class="olx-empty"><p><strong>Nenhum lote disponível</strong></p><p class="sub">Publique o seu ou limpe os filtros.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
             return;
@@ -918,15 +969,7 @@ window.addEventListener('beforeunload', () => {
             }
         });
     }
-    const track = document.getElementById('olx-banner-track');
-    if (track && !track._olx) {
-        track._olx = true;
-        let i = 0;
-        setInterval(() => {
-            i = (i + 1) % 3;
-            track.style.transform = 'translateX(-' + (i * 100) + '%)';
-        }, 4200);
-    }
+    /* banners: carregarBannersPromos() */
     const fab = document.getElementById('fab-anunciar');
     if (fab && typeof APP_ROOT === 'string') fab.setAttribute('href', APP_ROOT + 'lotes.html');
     const qCat = document.getElementById('q-categorias');

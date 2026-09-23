@@ -3468,7 +3468,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923c — industrial premium ===== */
+/* ===== TURBO redesign 20260923e — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3846,7 +3846,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923c — marketplace / bank / habit polish === */
+/* === 20260923e — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -3926,7 +3926,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923c — Minerar PARÁ ===== */
+/* ===== FULL REBUILD pillars 20260923e — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4197,14 +4197,14 @@ body.pagina-chat .header-row { display: none !important; }
   border-top: 1px solid var(--border); z-index: 8;
 }
 
-/* ===== Nubank Bank ===== */
+/* ===== Nubank Bank (base; glass overrides below) ===== */
 body.pagina-financeiro { padding: 0 0 88px; background: #0b1220; }
 body.pagina-financeiro .container.wide { max-width: 480px; padding: 0; }
 body.pagina-financeiro #app-nav,
 body.pagina-financeiro > .container > .header-row { display: none !important; }
 .nb-strip {
-  background: linear-gradient(180deg, #F5A623 0%, #c47d12 100%);
-  padding: 14px 16px 28px; color: #0b1220;
+  background: transparent;
+  padding: 14px 16px 28px; color: #f8fafc;
 }
 .nb-strip-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .nb-av {
@@ -4223,8 +4223,8 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .nb-hello { margin-top: 18px; font-size: 1.25rem; font-weight: 800; }
 .nb-body { margin-top: -16px; padding: 0 16px 24px; }
 .nb-saldo {
-  background: #0a0a0a; border-radius: 16px; padding: 16px; color: #fff;
-  border: 1px solid #1f1f1f;
+  background: rgba(15, 23, 42, 0.45); border-radius: 16px; padding: 16px; color: #fff;
+  border: 1px solid rgba(255,255,255,0.12);
 }
 .nb-saldo-label { display: flex; align-items: center; gap: 6px; color: #a1a1aa; font-size: 0.88rem; font-weight: 600; }
 .nb-saldo-valor { font-size: 1.6rem; font-weight: 800; margin: 8px 0 6px; }
@@ -4241,16 +4241,19 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
   position: relative;
 }
 .nb-circle .nci {
-  width: 56px; height: 56px; border-radius: 50%; background: #1e293b; border: 1px solid var(--border);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(30, 41, 59, 0.35); border: 1px solid rgba(255,255,255,0.14);
   display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #F5A623;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 .nb-badge-novo {
   position: absolute; top: -2px; right: 4px; background: #F5A623; color: #0b1220;
   font-size: 0.58rem; font-weight: 800; padding: 2px 5px; border-radius: 6px;
 }
 .nb-card {
-  background: #1e293b; border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
-  border: 1px solid var(--border-subtle); color: #f8fafc;
+  background: rgba(30, 41, 59, 0.4); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.1); color: #f8fafc;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
 .nb-card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .nb-list-item {
@@ -4310,4 +4313,170 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .msg-sent .bubble-text, .msg-sent .bubble-meta, .msg-sent .bubble-status,
 .bubble-own .bubble-text, .bubble-own .bubble-meta, .bubble-own .bubble-status {
   color: #0b1220 !important;
+}
+
+
+/* ---- Welcome before login (20260923e) ---- */
+.welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
+.welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
+.welcome-card .btn-ok { width: 100%; margin-top: 8px; }
+
+/* ---- Minera Bank indisponível ---- */
+.bank-indisponivel {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(5, 10, 20, 0.92);
+}
+.bank-indisponivel.oculto { display: none !important; }
+.bank-indisponivel-card {
+  max-width: 420px; width: 100%;
+  background: var(--card, #1e293b); border-radius: 16px;
+  padding: 24px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+}
+.bank-indisponivel-card h2 { margin-top: 0; color: #F5A623; font-size: 1.25rem; }
+.bank-indisponivel-card p { color: var(--muted, #94a3b8); line-height: 1.5; }
+.bank-indisponivel-card .btn-ok { width: 100%; margin-top: 12px; }
+
+/* ---- Admin Grok drawer ---- */
+.btn-grok-bot {
+  position: fixed; right: 16px; bottom: 88px; z-index: 120;
+  background: #F5A623; color: #0b1220; border: 0; border-radius: 999px;
+  padding: 12px 18px; font-weight: 700; box-shadow: 0 6px 20px rgba(245,166,35,.35);
+  cursor: pointer;
+}
+.btn-grok-bot:hover { filter: brightness(1.05); }
+.grok-drawer {
+  position: fixed; inset: 0; z-index: 180;
+  background: rgba(0,0,0,.55); display: flex; justify-content: flex-end;
+}
+.grok-drawer.oculto { display: none !important; }
+.grok-drawer-panel {
+  width: min(420px, 100%); height: 100%; overflow: auto;
+  background: var(--card, #0f172a); padding: 16px 18px 32px;
+  box-shadow: -8px 0 28px rgba(0,0,0,.4);
+}
+.grok-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.grok-drawer-head h2 { margin: 0; font-size: 1.15rem; }
+.grok-history { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.grok-hist-item {
+  background: rgba(255,255,255,.04); border-radius: 10px; padding: 10px;
+}
+.grok-hist-item pre {
+  white-space: pre-wrap; margin: 6px 0 0; font-family: inherit; font-size: .9rem;
+}
+.olx-banner-img { max-height: 48px; width: auto; border-radius: 8px; margin-bottom: 6px; display: block; }
+.olx-banner a.olx-banner-slide { text-decoration: none; color: inherit; }
+.admin-log-list { margin: 0; padding-left: 18px; }
+.promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+
+
+/* ===== Minera Bank glassmorphism 20260923e ===== */
+body.pagina-financeiro {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(56, 120, 200, 0.28), transparent 50%),
+    linear-gradient(165deg, #07111f 0%, #0f1b33 42%, #1a2744 72%, #2a1f14 100%) !important;
+  min-height: 100vh;
+}
+body.pagina-financeiro #card-caixa.caixa-bank-card,
+body.pagina-financeiro .caixa-bank-card {
+  background: rgba(15, 23, 42, 0.28) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  overflow: hidden;
+}
+body.pagina-financeiro .nb-strip {
+  background: linear-gradient(135deg, rgba(15,23,42,0.35) 0%, rgba(245,166,35,0.18) 55%, rgba(15,23,42,0.25) 100%) !important;
+  color: #f8fafc !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+body.pagina-financeiro .nb-av,
+body.pagina-financeiro .nb-shortcut,
+body.pagina-financeiro .nb-ico-btn {
+  background: rgba(255,255,255,0.12) !important;
+  color: #fef3c7 !important;
+  border: 1px solid rgba(255,255,255,0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+}
+body.pagina-financeiro .nb-hello { color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+body.pagina-financeiro .nb-saldo {
+  background: linear-gradient(145deg, rgba(15,23,42,0.55), rgba(30,41,59,0.35)) !important;
+  border: 1px solid rgba(245,166,35,0.22) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.1);
+  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
+  color: #fff !important;
+}
+body.pagina-financeiro .nb-saldo-label { color: rgba(226,232,240,0.85) !important; }
+body.pagina-financeiro .nb-saldo-valor {
+  background: linear-gradient(90deg, #fff 0%, #fde68a 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; /* soft amber sheen, not flat black */
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.35));
+}
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  body.pagina-financeiro .nb-saldo-valor { color: #fff !important; background: none; }
+}
+body.pagina-financeiro .nb-circle .nci {
+  background: linear-gradient(160deg, rgba(255,255,255,0.16), rgba(15,23,42,0.35)) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+body.pagina-financeiro .nb-card,
+body.pagina-financeiro .emp-opt-card {
+  background: rgba(15, 23, 42, 0.38) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.22);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+body.pagina-financeiro .nb-inner-head {
+  background: rgba(11, 18, 32, 0.55) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+}
+body.pagina-financeiro .caixa-lock-panel {
+  background: rgba(15, 23, 42, 0.55) !important;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 16px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+}
+body.pagina-financeiro .nb-dock {
+  background: linear-gradient(135deg, rgba(245,166,35,0.95), rgba(196,125,18,0.9)) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px rgba(245,166,35,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+body.pagina-financeiro .olx-banner {
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(15,23,42,0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+body.pagina-financeiro .bank-indisponivel-card {
+  background: rgba(15,23,42,0.65) !important;
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+html[data-theme="light"] body.pagina-financeiro {
+  background:
+    radial-gradient(1000px 500px at 0% 0%, rgba(245,166,35,0.2), transparent 55%),
+    linear-gradient(165deg, #e8eef8 0%, #d9e4f5 50%, #f5e6c8 100%) !important;
+}
+html[data-theme="light"] body.pagina-financeiro .nb-strip,
+html[data-theme="light"] body.pagina-financeiro .nb-saldo,
+html[data-theme="light"] body.pagina-financeiro .nb-card {
+  color: #0f172a;
 }

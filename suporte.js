@@ -20,7 +20,7 @@ const FAQ_INTENTS = [
     {
         id: 'pix',
         keys: ['pix', 'pagamento', 'pagar', 'qr', 'comprovante', 'nubank', 'comissao pix', 'comissão pix'],
-        reply: '💠 **Pix** — Comissões e depósitos no Caixa usam a chave Pix do admin. Em **Perfil** você gera QR / Copia e Cola e envia o comprovante. Depósitos do Caixa Minerar Seguro também geram Pix e o admin confirma o crédito.'
+        reply: '💠 **Pix** — Comissões e depósitos no Caixa usam a chave Pix do admin. Em **Perfil** você gera QR / Copia e Cola e envia o comprovante. Depósitos do Minera Bank também geram Pix e o admin confirma o crédito.'
     },
     {
         id: 'comissao',
@@ -30,7 +30,7 @@ const FAQ_INTENTS = [
     {
         id: 'caixa',
         keys: ['caixa', 'depositar', 'deposito', 'depósito', 'sacar', 'saque', 'emprestimo', 'empréstimo', 'saldo', 'yield', 'pin'],
-        reply: '🏦 **Caixa Minerar Seguro** — Ícone de banco no header. Você pode **depositar** (Pix + comprovante), **sacar** (informe chave destino) e solicitar **empréstimo** (análise do admin). Há PIN próprio do Caixa e yield configurável até 5% a.m. conforme cotação/config.'
+        reply: '🏦 **Minera Bank** — Ícone de banco no header. Você pode **depositar** (Pix + comprovante), **sacar** (informe chave destino) e solicitar **empréstimo** (análise do admin). Há PIN próprio do Caixa e yield configurável até 5% a.m. conforme cotação/config.'
     },
     {
         id: 'chat',
@@ -55,7 +55,7 @@ const FAQ_INTENTS = [
     {
         id: 'tutorial',
         keys: ['tutorial', 'ajuda', 'como usar', 'primeiros passos', 'guia', 'comecar', 'começar'],
-        reply: '📖 **Tutorial** — Abra Mais → Tutorial (ou o botão no Perfil) para um guia rápido do Minerar PARÁ: lotes, chat, Pix, Caixa e papéis.'
+        reply: '📖 **Tutorial** — Abra Mais → Tutorial (ou o botão no Perfil) para um guia rápido do Minera Pará: lotes, chat, Pix, Caixa e papéis.'
     },
     {
         id: 'indicacao',

@@ -48,7 +48,7 @@ async function carregarUsuarios() {
                     : '<span class="badge badge-pago">OK</span>';
                 const btn = bloq
                     ? '<button type="button" class="btn-sm btn-ok" data-act="desbloquear" data-id="' + u.id + '">Desbloquear</button>'
-                    : '';
+                    : '<button type="button" class="btn-sm btn-danger" data-act="bloquear" data-id="' + u.id + '">Bloquear login</button>';
                 return `<tr data-id="${u.id}">
                     <td>${esc(u.nome || '—')}</td>
                     <td>${esc(u.email || '—')}</td>
@@ -68,6 +68,21 @@ async function carregarUsuarios() {
                 }).eq('id', id);
                 if (error) return toastMsg('Erro: ' + error.message + ' (SQL 13?)');
                 toastMsg('Usuário desbloqueado');
+                carregarUsuarios();
+            });
+        });
+        box.querySelectorAll('[data-act="bloquear"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const motivo = prompt('Motivo do bloqueio de login (visível ao usuário):', 'Conta bloqueada pela administração.');
+                if (motivo === null) return;
+                const { error } = await supabaseClient.from('usuarios').update({
+                    bloqueado: true,
+                    bloqueado_motivo: String(motivo || 'Conta bloqueada pela administração.').slice(0, 500),
+                    bloqueado_em: new Date().toISOString()
+                }).eq('id', id);
+                if (error) return toastMsg('Erro: ' + error.message + ' (SQL 13?)');
+                toastMsg('Login bloqueado');
                 carregarUsuarios();
             });
         });
@@ -1198,6 +1213,7 @@ function bindAdminTabs() {
         caixa: 'caixa',
         usuarios: 'usuarios',
         chat: 'chat',
+        promos: 'promos',
         visao: 'visao'
     };
     show(map[hash] || (hash && document.querySelector('.admin-panel[data-panel="' + hash + '"]') ? hash : 'visao'));
@@ -1516,6 +1532,323 @@ async function carregarSuporteAdmin() {
 }
 
 
+
+
+/* ===== Banners / Bank flag / Grok / Lotes oculto (SQL 35) ===== */
+const GROK_LS_KEY = 'minera_admin_grok_history';
+
+function setPromoMsg(texto, ok) {
+    const el = document.getElementById('promo-msg');
+    if (!el) return;
+    el.textContent = texto || '';
+    el.className = 'msg' + (texto ? (ok ? ' ok' : ' erro') : '');
+}
+function setBankFlagMsg(texto, ok) {
+    const el = document.getElementById('bank-flag-msg');
+    if (!el) return;
+    el.textContent = texto || '';
+    el.className = 'msg' + (texto ? (ok ? ' ok' : ' erro') : '');
+}
+
+function limparFormPromo() {
+    const id = document.getElementById('promo-id');
+    if (id) id.value = '';
+    const tipo = document.getElementById('promo-tipo');
+    if (tipo) tipo.value = 'banner';
+    ['promo-titulo','promo-texto','promo-imagem','promo-link'].forEach(i => {
+        const el = document.getElementById(i);
+        if (el) el.value = '';
+    });
+    const ord = document.getElementById('promo-ordem');
+    if (ord) ord.value = '0';
+    const at = document.getElementById('promo-ativo');
+    if (at) at.checked = true;
+}
+
+async function carregarPromosAdmin() {
+    const box = document.getElementById('admin-promos');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('app_promos')
+            .select('*')
+            .order('ordem', { ascending: true });
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p class="sub">Nenhum banner/oferta. Crie acima (tabela app_promos — SQL 35).</p>';
+            return;
+        }
+        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Tipo</th><th>Título</th><th>Ativo</th><th>Ordem</th><th></th></tr></thead><tbody>' +
+            data.map(p => `<tr data-id="${esc(p.id)}">
+                <td>${esc(p.tipo)}</td>
+                <td>${esc(p.titulo || '—')}<br><span class="sub">${esc((p.texto || '').slice(0, 80))}</span></td>
+                <td>${p.ativo ? '<span class="badge badge-pago">Sim</span>' : '<span class="badge">Não</span>'}</td>
+                <td>${esc(p.ordem)}</td>
+                <td class="card-actions">
+                    <button type="button" class="btn-sm" data-act="promo-edit" data-id="${esc(p.id)}">Editar</button>
+                    <button type="button" class="btn-sm btn-danger" data-act="promo-del" data-id="${esc(p.id)}">Apagar</button>
+                </td>
+            </tr>`).join('') + '</tbody></table></div>';
+
+        box.querySelectorAll('[data-act="promo-edit"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const row = data.find(x => x.id === btn.getAttribute('data-id'));
+                if (!row) return;
+                document.getElementById('promo-id').value = row.id;
+                document.getElementById('promo-tipo').value = row.tipo || 'banner';
+                document.getElementById('promo-titulo').value = row.titulo || '';
+                document.getElementById('promo-texto').value = row.texto || '';
+                document.getElementById('promo-imagem').value = row.imagem_url || '';
+                document.getElementById('promo-link').value = row.link || '';
+                document.getElementById('promo-ordem').value = row.ordem != null ? row.ordem : 0;
+                document.getElementById('promo-ativo').checked = !!row.ativo;
+                setPromoMsg('Editando…', true);
+            });
+        });
+        box.querySelectorAll('[data-act="promo-del"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Apagar este banner/oferta?')) return;
+                const { error } = await supabaseClient.from('app_promos').delete().eq('id', btn.getAttribute('data-id'));
+                if (error) return setPromoMsg(error.message + ' (SQL 35?)', false);
+                setPromoMsg('Removido.', true);
+                carregarPromosAdmin();
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' — aplique sql/35-admin-promos-bank-flag.sql</p>';
+    }
+}
+
+function bindPromoForm() {
+    const form = document.getElementById('form-promo');
+    if (!form || form._bound) return;
+    form._bound = true;
+    form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const id = (document.getElementById('promo-id') || {}).value || '';
+        const payload = {
+            tipo: document.getElementById('promo-tipo').value || 'banner',
+            titulo: document.getElementById('promo-titulo').value.trim() || null,
+            texto: document.getElementById('promo-texto').value.trim() || null,
+            imagem_url: document.getElementById('promo-imagem').value.trim() || null,
+            link: document.getElementById('promo-link').value.trim() || null,
+            ordem: parseInt(document.getElementById('promo-ordem').value, 10) || 0,
+            ativo: !!(document.getElementById('promo-ativo') || {}).checked,
+            updated_at: new Date().toISOString(),
+            updated_by: (perfilAtual && perfilAtual.auth_id) || null
+        };
+        try {
+            let error;
+            if (id) {
+                ({ error } = await supabaseClient.from('app_promos').update(payload).eq('id', id));
+            } else {
+                ({ error } = await supabaseClient.from('app_promos').insert([payload]));
+            }
+            if (error) throw error;
+            setPromoMsg('Salvo.', true);
+            limparFormPromo();
+            carregarPromosAdmin();
+        } catch (e) {
+            setPromoMsg((e.message || String(e)) + ' (SQL 35 / is_admin?)', false);
+        }
+    });
+    const limpar = document.getElementById('btn-promo-limpar');
+    if (limpar) limpar.addEventListener('click', () => { limparFormPromo(); setPromoMsg('', true); });
+}
+
+async function carregarBankFlagAdmin() {
+    const chk = document.getElementById('flag-bank-enabled');
+    const motivo = document.getElementById('flag-bank-motivo');
+    const logs = document.getElementById('admin-bank-logs');
+    try {
+        const { data, error } = await supabaseClient.from('app_flags').select('key,value_bool,value_text').in('key', ['minera_bank_enabled', 'minera_bank_block_motivo']);
+        if (error) throw error;
+        const map = {};
+        (data || []).forEach(r => { map[r.key] = r; });
+        if (chk) chk.checked = map.minera_bank_enabled ? map.minera_bank_enabled.value_bool !== false : true;
+        if (motivo) motivo.value = (map.minera_bank_block_motivo && map.minera_bank_block_motivo.value_text) || '';
+    } catch (e) {
+        setBankFlagMsg((e.message || String(e)) + ' — SQL 35?', false);
+    }
+    if (logs) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('app_bank_block_logs')
+                .select('enabled,motivo,created_at')
+                .order('created_at', { ascending: false })
+                .limit(8);
+            if (error) throw error;
+            if (!data || !data.length) logs.innerHTML = '<p class="sub">Sem logs ainda.</p>';
+            else logs.innerHTML = '<ul class="admin-log-list">' + data.map(l =>
+                `<li>${l.enabled ? 'ON' : 'OFF'} · ${esc(l.motivo || '—')} · <span class="sub">${esc(l.created_at || '')}</span></li>`
+            ).join('') + '</ul>';
+        } catch (e) {
+            logs.innerHTML = '<p class="sub">Logs indisponíveis (SQL 35).</p>';
+        }
+    }
+}
+
+function bindBankFlagAdmin() {
+    const btn = document.getElementById('btn-salvar-bank-flag');
+    if (!btn || btn._bound) return;
+    btn._bound = true;
+    btn.addEventListener('click', async () => {
+        const enabled = !!(document.getElementById('flag-bank-enabled') || {}).checked;
+        const motivo = ((document.getElementById('flag-bank-motivo') || {}).value || '').trim();
+        const uid = (perfilAtual && perfilAtual.auth_id) || null;
+        const now = new Date().toISOString();
+        try {
+            const ups = [
+                { key: 'minera_bank_enabled', value_bool: enabled, value_text: null, updated_by: uid, updated_at: now },
+                { key: 'minera_bank_block_motivo', value_bool: null, value_text: motivo || null, updated_by: uid, updated_at: now }
+            ];
+            const { error } = await supabaseClient.from('app_flags').upsert(ups, { onConflict: 'key' });
+            if (error) throw error;
+            const { error: e2 } = await supabaseClient.from('app_bank_block_logs').insert([{
+                enabled,
+                motivo: motivo || null,
+                by_auth_id: uid
+            }]);
+            if (e2) console.warn('bank log', e2);
+            setBankFlagMsg(enabled ? 'Minera Bank liberado.' : 'Minera Bank pausado para usuários.', true);
+            carregarBankFlagAdmin();
+        } catch (e) {
+            setBankFlagMsg((e.message || String(e)) + ' (SQL 35?)', false);
+        }
+    });
+}
+
+async function carregarLotesOcultoAdmin() {
+    const box = document.getElementById('admin-lotes-oculto');
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('lotes')
+            .select('id, codigo_lote, tipo_minerio, status, oculto, criado_por')
+            .order('id', { ascending: false })
+            .limit(40);
+        if (error) throw error;
+        if (!data || !data.length) {
+            box.innerHTML = '<p class="sub">Nenhum lote.</p>';
+            return;
+        }
+        box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Código</th><th>Tipo</th><th>Status</th><th>Oculto</th><th></th></tr></thead><tbody>' +
+            data.map(l => {
+                const oc = !!(l.oculto === true || l.oculto === 't' || l.oculto === 'true');
+                const btn = oc
+                    ? '<button type="button" class="btn-sm btn-ok" data-act="lote-show" data-id="' + l.id + '">Mostrar</button>'
+                    : '<button type="button" class="btn-sm btn-danger" data-act="lote-hide" data-id="' + l.id + '">Ocultar</button>';
+                return `<tr>
+                    <td>${esc(l.codigo_lote)}</td>
+                    <td>${esc(l.tipo_minerio || '—')}</td>
+                    <td>${esc(l.status || '—')}</td>
+                    <td>${oc ? 'Sim' : 'Não'}</td>
+                    <td class="card-actions">${btn}</td>
+                </tr>`;
+            }).join('') + '</tbody></table></div>';
+        box.querySelectorAll('[data-act="lote-hide"],[data-act="lote-show"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = parseInt(btn.getAttribute('data-id'), 10);
+                const hide = btn.getAttribute('data-act') === 'lote-hide';
+                const { error } = await supabaseClient.from('lotes').update({ oculto: hide }).eq('id', id);
+                if (error) return toastMsg('Erro: ' + error.message + ' (SQL 35 oculto?)');
+                toastMsg(hide ? 'Lote oculto no marketplace' : 'Lote visível no marketplace');
+                carregarLotesOcultoAdmin();
+            });
+        });
+    } catch (e) {
+        box.innerHTML = '<p class="erro">' + esc(e.message) + ' — coluna oculto? Aplique SQL 35.</p>';
+    }
+}
+
+function loadGrokHistory() {
+    try {
+        const raw = localStorage.getItem(GROK_LS_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+}
+function saveGrokHistory(arr) {
+    try { localStorage.setItem(GROK_LS_KEY, JSON.stringify(arr.slice(-40))); } catch (e) { /* ignore */ }
+}
+function renderGrokHistory() {
+    const box = document.getElementById('grok-history');
+    if (!box) return;
+    const arr = loadGrokHistory();
+    if (!arr.length) {
+        box.innerHTML = '<p class="sub">Sem notas nesta sessão do navegador.</p>';
+        return;
+    }
+    box.innerHTML = arr.slice().reverse().map(it =>
+        `<div class="grok-hist-item"><span class="sub">${esc(it.ts || '')}</span><pre>${esc(it.text || '')}</pre></div>`
+    ).join('');
+}
+function buildGrokSystemContext() {
+    const bankChk = document.getElementById('flag-bank-enabled');
+    const bankOn = bankChk ? !!bankChk.checked : true;
+    const email = (perfilAtual && perfilAtual.email) || '';
+    const screen = (location.hash || '#visao').replace('#', '') || 'visao';
+    return [
+        'Contexto Minera Pará (admin)',
+        'App: Minera Pará',
+        'Tela admin atual: ' + screen,
+        'Minera Bank flag: ' + (bankOn ? 'ON' : 'OFF'),
+        'Admin e-mail: ' + email,
+        'Instrução do admin:',
+        ((document.getElementById('grok-input') || {}).value || '').trim() || '(vazio)'
+    ].join('\n');
+}
+function bindGrokDrawer() {
+    const openBtn = document.getElementById('btn-chamar-grok');
+    const drawer = document.getElementById('grok-drawer');
+    const closeBtn = document.getElementById('btn-grok-fechar');
+    const copyBtn = document.getElementById('btn-grok-copy-ctx');
+    const saveBtn = document.getElementById('btn-grok-salvar');
+    const msg = document.getElementById('grok-msg');
+    if (!openBtn || !drawer) return;
+    if (openBtn._bound) return;
+    openBtn._bound = true;
+    const setMsg = (t, ok) => {
+        if (!msg) return;
+        msg.textContent = t || '';
+        msg.className = 'msg' + (t ? (ok ? ' ok' : ' erro') : '');
+    };
+    openBtn.addEventListener('click', () => {
+        drawer.classList.remove('oculto');
+        renderGrokHistory();
+    });
+    if (closeBtn) closeBtn.addEventListener('click', () => drawer.classList.add('oculto'));
+    drawer.addEventListener('click', (e) => {
+        if (e.target === drawer) drawer.classList.add('oculto');
+    });
+    if (copyBtn) copyBtn.addEventListener('click', async () => {
+        const ctx = buildGrokSystemContext();
+        try {
+            if (navigator.clipboard) await navigator.clipboard.writeText(ctx);
+            else {
+                const ta = document.createElement('textarea');
+                ta.value = ctx; document.body.appendChild(ta); ta.select();
+                document.execCommand('copy'); ta.remove();
+            }
+            setMsg('Contexto copiado. Cole no Grok Bot e traga a resposta para o campo de notas.', true);
+        } catch (e) {
+            setMsg('Não foi possível copiar.', false);
+        }
+    });
+    if (saveBtn) saveBtn.addEventListener('click', () => {
+        const text = ((document.getElementById('grok-input') || {}).value || '').trim();
+        if (!text) return setMsg('Escreva algo para salvar.', false);
+        const arr = loadGrokHistory();
+        arr.push({ ts: new Date().toLocaleString('pt-BR'), text });
+        saveGrokHistory(arr);
+        setMsg('Salvo no histórico local da sessão admin.', true);
+        renderGrokHistory();
+    });
+}
+
+
 (async function init() {
     const session = await requireSession();
     if (!session) return;
@@ -1530,6 +1863,9 @@ async function carregarSuporteAdmin() {
     montarNav('admin', perfilAtual);
     bindAdminTabs();
     bindAlertasBtns();
+    bindPromoForm();
+    bindBankFlagAdmin();
+    bindGrokDrawer();
     await Promise.all([
         carregarKpis(),
         carregarUsuarios(),
@@ -1542,7 +1878,10 @@ async function carregarSuporteAdmin() {
         carregarSaquesAdmin(),
         carregarEmprestimosAdmin(),
         carregarSuporteAdmin(),
-        carregarAlertasAdmin()
+        carregarAlertasAdmin(),
+        carregarPromosAdmin(),
+        carregarBankFlagAdmin(),
+        carregarLotesOcultoAdmin()
     ]);
     setInterval(() => {
         try { carregarEmprestimosAdmin(); } catch (e) { /* ignore */ }

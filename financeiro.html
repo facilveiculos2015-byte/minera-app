@@ -3,30 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minerar PARÁ - Caixa Minerar Seguro</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923c">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923c">
+    <title>Minera Bank</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923e">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923e">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minerar PARÁ">
-    <link rel="stylesheet" href="style.css?v=20260923c">
+    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+    <link rel="stylesheet" href="style.css?v=20260923e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body class="pagina-financeiro">
+    <div id="bank-indisponivel" class="bank-indisponivel oculto" role="dialog" aria-modal="true" aria-labelledby="bank-indisp-title">
+        <div class="bank-indisponivel-card">
+            <h2 id="bank-indisp-title">Minera Bank indisponível no momento</h2>
+            <p>Estamos trabalhando em melhorias no Minera Bank. Depósito e saque estão pausados para deixar o sistema mais seguro. Seus dados e seu histórico continuam na sua conta. Assim que terminar, a opção Banco será liberada de novo.</p>
+            <button type="button" class="btn-ok" id="btn-bank-entendi">Entendi</button>
+        </div>
+    </div>
     <div class="container wide">
         <p id="user-label" class="oculto"></p>
         <nav id="app-nav" class="nav-chips oculto"></nav>
 
         <!-- PIN lock (preserved) -->
-        <section class="card caixa-bank-card caixa-locked" id="card-caixa" style="margin:12px;border-radius:16px">
+        <section class="card caixa-bank-card caixa-locked mb-glass" id="card-caixa" style="margin:12px;border-radius:16px">
             <div id="caixa-lock" class="caixa-lock-overlay">
                 <div class="caixa-lock-panel" id="panel-set-pin">
                     <h3>Criar senha do Caixa</h3>
-                    <p class="caixa-pin-hint">Senha exclusiva do Caixa Minerar Seguro (diferente do login). Mínimo 6 caracteres.</p>
+                    <p class="caixa-pin-hint">Senha exclusiva do Minera Bank (diferente do login). Mínimo 6 caracteres.</p>
                     <label for="pin-novo">Nova senha da Caixa</label>
                     <input type="password" id="pin-novo" minlength="6" autocomplete="new-password" placeholder="••••••">
                     <label for="pin-novo2">Confirmar senha</label>
@@ -102,20 +109,20 @@
 
                         <div class="nb-card">
                             <div class="nb-card-row"><strong>Meus cartões</strong><span class="chev">›</span></div>
-                            <p class="sub" style="margin-top:6px">Cartão virtual Minerar Seguro · em breve</p>
+                            <p class="sub" style="margin-top:6px">Cartão virtual Minera Bank · em breve</p>
                         </div>
 
                         <div class="olx-banner" style="margin:0 0 12px;aspect-ratio:16/5">
                             <div class="olx-banner-track" id="nb-promo-track">
-                                <div class="olx-banner-slide"><strong>Empréstimos Minerar Seguro</strong><span>Capital de giro · 15% a.m.</span></div>
-                                <div class="olx-banner-slide"><strong>Caixa Minerar Seguro</strong><span>Saldo sacável via Pix</span></div>
+                                <div class="olx-banner-slide"><strong>Empréstimos Minera Bank</strong><span>Capital de giro · 15% a.m.</span></div>
+                                <div class="olx-banner-slide"><strong>Minera Bank</strong><span>Saldo sacável via Pix</span></div>
                             </div>
                         </div>
 
                         <div class="nb-card">
                             <button type="button" class="nb-list-item" data-view="extrato">Extrato <span class="chev">›</span></button>
                             <button type="button" class="nb-list-item" id="btn-sacar" data-view="sacar">Sacar <span class="chev">›</span></button>
-                            <button type="button" class="nb-list-item" data-view="emprestimos">Empréstimos Minerar Seguro <span class="chev">›</span></button>
+                            <button type="button" class="nb-list-item" data-view="emprestimos">Empréstimos Minera Bank <span class="chev">›</span></button>
                             <button type="button" class="nb-list-item" id="nb-list-pedidos" data-view="pedidos">Pedidos recentes <span class="chev">›</span></button>
                         </div>
                         <p id="caixa-msg" class="msg"></p>
@@ -127,7 +134,7 @@
                 <div class="nb-view" id="view-emprestimos">
                     <div class="nb-inner-head">
                         <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
-                        <h2>Empréstimos Minerar Seguro</h2>
+                        <h2>Empréstimos Minera Bank</h2>
                     </div>
                     <div class="nb-inner-body">
                         <p class="sub" id="emp-opcoes-count">2 opções</p>
@@ -356,7 +363,7 @@
                         <h2>Ajuda</h2>
                     </div>
                     <div class="nb-inner-body">
-                        <p>O <strong>Caixa Minerar Seguro</strong> guarda saldo sob custódia. Empréstimos Minerar Seguro: juros 15% a.m., sujeitos à análise.</p>
+                        <p>O <strong>Minera Bank</strong> guarda saldo sob custódia. Empréstimos Minera Bank: juros 15% a.m., sujeitos à análise.</p>
                         <button type="button" class="btn-ok" id="btn-saiba-mais-2" style="margin-top:12px">Saiba mais</button>
                     </div>
                 </div>
@@ -368,16 +375,16 @@
         <div class="modal-backdrop" data-close-saiba="1"></div>
         <div class="modal-panel">
             <div class="modal-head">
-                <h3 id="saiba-mais-titulo">Sobre o Caixa Minerar Seguro</h3>
+                <h3 id="saiba-mais-titulo">Sobre o Minera Bank</h3>
                 <button type="button" class="btn-icon" id="saiba-mais-fechar" aria-label="Fechar">✕</button>
             </div>
             <div class="saiba-mais-body">
-                <p>O <strong>Caixa Minerar Seguro</strong> guarda saldo sob custódia na plataforma.</p>
+                <p>O <strong>Minera Bank</strong> guarda saldo sob custódia na plataforma.</p>
                 <ul>
                     <li><strong>Depositar:</strong> Pix para a chave da plataforma. Admin confirma e credita.</li>
                     <li><strong>Sacar:</strong> informe valor e chave Pix. Pode levar até 24h.</li>
                     <li><strong>Rendimento estimado:</strong> até <strong>5% a.m.</strong> (projeção informativa).</li>
-                    <li><strong>Empréstimos Minerar Seguro:</strong> 15% a.m. Total = valor × (1 + 0,15 × prazo_dias/30). Sujeito à análise.</li>
+                    <li><strong>Empréstimos Minera Bank:</strong> 15% a.m. Total = valor × (1 + 0,15 × prazo_dias/30). Sujeito à análise.</li>
                 </ul>
             </div>
             <div class="modal-actions saiba-mais-actions">
@@ -387,13 +394,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923c"></script>
-    <script src="auth-guard.js?v=20260923c"></script>
-    <script src="suporte.js?v=20260923c"></script>
-    <script src="nav.js?v=20260923c"></script>
-    <script src="pix-brcode.js?v=20260923c"></script>
-    <script src="financeiro.js?v=20260923c"></script>
-    <script src="pwa.js?v=20260923c"></script>
+    <script src="config.js?v=20260923e"></script>
+    <script src="auth-guard.js?v=20260923e"></script>
+    <script src="suporte.js?v=20260923e"></script>
+    <script src="nav.js?v=20260923e"></script>
+    <script src="pix-brcode.js?v=20260923e"></script>
+    <script src="financeiro.js?v=20260923e"></script>
+    <script src="pwa.js?v=20260923e"></script>
     <script>
     (function nbNav() {
         function showView(id) {

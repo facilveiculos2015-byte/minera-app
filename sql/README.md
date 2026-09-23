@@ -111,3 +111,5 @@ Garante isolamento de arquivos por usuário (admin-as-user não vaza storage alh
 
 ## 34-caixa-pin-reset-note.sql
 **COMMENTED TEMPLATE ONLY.** Documents `caixa_saldos.pin_hash` / `pin_salt` (SHA-256 of `salt|pin`, not bcrypt / not Auth login). Prefer in-app «Esqueci a senha» or clear PIN (NULL) so UI shows «Criar senha do Caixa». Do not commit live passwords.
+
+- `35-admin-promos-bank-flag.sql` — app_promos, app_flags (Minera Bank kill switch), lotes.oculto, chat RLS reaffirm (20260923d/e)

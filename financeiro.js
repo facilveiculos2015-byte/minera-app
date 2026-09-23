@@ -1,4 +1,4 @@
-/** Caixa Minerar Seguro — banco UX: Empréstimo / Depositar / Sacar + PIN */
+/** Minera Bank — banco UX: Empréstimo / Depositar / Sacar + PIN */
 const TAXA_YIELD_MAX = 5;
 const JUROS_EMPRESTIMO = 15;
 const SAIBA_KEY = 'minera_saiba_mais_caixa';
@@ -11,6 +11,51 @@ let taxaYieldMax = TAXA_YIELD_MAX;
 let saldoRow = null;
 let pixAtivoCache = null;
 let forgotVerified = false;
+let mineraBankEnabled = true;
+
+async function carregarMineraBankFlag() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('app_flags')
+            .select('key,value_bool')
+            .eq('key', 'minera_bank_enabled')
+            .maybeSingle();
+        if (error) throw error;
+        if (data && typeof data.value_bool === 'boolean') mineraBankEnabled = data.value_bool;
+        else mineraBankEnabled = true;
+    } catch (e) {
+        console.warn('bank flag', e);
+        mineraBankEnabled = true; // fail-open se SQL 35 ainda não aplicado
+    }
+    return mineraBankEnabled;
+}
+
+function mostrarBankIndisponivel() {
+    const ov = document.getElementById('bank-indisponivel');
+    if (ov) ov.classList.remove('oculto');
+    const cont = document.querySelector('body.pagina-financeiro .container.wide');
+    if (cont) cont.classList.add('oculto');
+    const btn = document.getElementById('btn-bank-entendi');
+    if (btn && !btn._bound) {
+        btn._bound = true;
+        btn.addEventListener('click', () => {
+            if (typeof irPara === 'function') irPara('inicio.html');
+            else location.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'inicio.html';
+        });
+    }
+}
+
+function bankActionsDisabledMsg() {
+    return 'Minera Bank está em manutenção. Depósito, saque, Pix e crédito estão pausados. Seu extrato continua disponível quando o banco for liberado.';
+}
+
+function guardBankAction(acao) {
+    if (mineraBankEnabled) return true;
+    if (typeof toastMsg === 'function') toastMsg(bankActionsDisabledMsg());
+    setCaixaMsg(bankActionsDisabledMsg(), false);
+    return false;
+}
+
 
 function esc(s) {
     return String(s == null ? '' : s)
@@ -252,7 +297,7 @@ async function carregarMovimentos() {
             .limit(40);
         if (error) throw error;
         if (!data || !data.length) {
-            box.innerHTML = '<div class="empty-cta"><p><strong>Seu extrato está vazio</strong></p><p class="sub">Faça seu primeiro depósito via Pix para começar a usar o Caixa Minerar Seguro.</p><button type="button" class="btn-ok" id="cta-primeiro-dep">Depositar agora</button></div>'; const cta = document.getElementById('cta-primeiro-dep'); if (cta) cta.addEventListener('click', () => { abrirPanel('panel-depositar'); });
+            box.innerHTML = '<div class="empty-cta"><p><strong>Seu extrato está vazio</strong></p><p class="sub">Faça seu primeiro depósito via Pix para começar a usar o Minera Bank.</p><button type="button" class="btn-ok" id="cta-primeiro-dep">Depositar agora</button></div>'; const cta = document.getElementById('cta-primeiro-dep'); if (cta) cta.addEventListener('click', () => { abrirPanel('panel-depositar'); });
             return;
         }
         const labels = {
@@ -380,6 +425,7 @@ function abrirPanel(id) {
 }
 
 async function gerarPixDeposito() {
+    if (!guardBankAction("depositar")) return;
     if (typeof rateLimitAction === 'function' && !rateLimitAction('pix-dep', 3000, 'Aguarde antes de gerar outro Pix.')) return;
     const valor = parseFloat(document.getElementById('dep-valor').value);
     if (!(valor > 0)) {
@@ -414,6 +460,7 @@ async function gerarPixDeposito() {
 }
 
 async function enviarDeposito() {
+    if (!guardBankAction("depositar")) return;
     if (typeof rateLimitAction === 'function' && !rateLimitAction('dep-send', 4000, 'Pedido já enviado — aguarde um momento.')) return;
     const uid = authId();
     const valor = parseFloat(document.getElementById('dep-valor').value);
@@ -452,6 +499,7 @@ async function enviarDeposito() {
 }
 
 async function enviarSaque() {
+    if (!guardBankAction("sacar")) return;
     if (typeof rateLimitAction === 'function' && !rateLimitAction('saque-send', 4000, 'Aguarde antes de solicitar outro saque.')) return;
     const uid = authId();
     const valor = parseFloat(document.getElementById('saque-valor').value);
@@ -831,9 +879,20 @@ function bindUI() {
     bindPinUI();
 
     const empBtn = document.getElementById('btn-emprestimo-goto');
-    if (empBtn) empBtn.addEventListener('click', () => { nbGo('emprestimos'); });
+    if (empBtn) empBtn.addEventListener('click', () => {
+        if (!guardBankAction('credito')) return;
+        nbGo('emprestimos');
+    });
+    const pixBtn = document.getElementById('btn-pix');
+    if (pixBtn && !pixBtn._bankGuard) {
+        pixBtn._bankGuard = true;
+        pixBtn.addEventListener('click', (e) => {
+            if (!guardBankAction('pix')) { e.stopImmediatePropagation(); e.preventDefault(); }
+        }, true);
+    }
     const depBtn = document.getElementById('btn-depositar');
     if (depBtn) depBtn.addEventListener('click', () => {
+        if (!guardBankAction('depositar')) return;
         nbGo('depositar');
         const p = document.getElementById('panel-depositar');
         if (p) p.classList.remove('oculto');
@@ -841,6 +900,7 @@ function bindUI() {
     });
     const saqBtn = document.getElementById('btn-sacar');
     if (saqBtn) saqBtn.addEventListener('click', () => {
+        if (!guardBankAction('sacar')) return;
         nbGo('sacar');
         const p = document.getElementById('panel-sacar');
         if (p) p.classList.remove('oculto');
@@ -883,6 +943,12 @@ function bindUI() {
     aplicarUserLabel(perfilAtual);
     if (typeof exigirContaAtiva === 'function' && !exigirContaAtiva(perfilAtual)) {
         /* banner already shown; still allow view of bank for Pix/pay */
+    }
+    await carregarMineraBankFlag();
+    if (!mineraBankEnabled) {
+        montarNav('financeiro', perfilAtual);
+        mostrarBankIndisponivel();
+        return;
     }
     montarNav('financeiro', perfilAtual);
     const nomePub = (perfilAtual && (perfilAtual.apelido || perfilAtual.nome)) || 'Usuário';

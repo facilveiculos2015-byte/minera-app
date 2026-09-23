@@ -1,12 +1,12 @@
 /**
  * Anti-golpe: bloqueia / mascara contato externo no chat e anúncios.
- * Negociações devem ficar no Minerar PARÁ.
+ * Negociações devem ficar no Minera Pará.
  */
 (function (global) {
     'use strict';
 
     var MSG_BLOQUEIO =
-        'Negociações devem ficar no Minerar PARÁ. Não envie telefone, WhatsApp, Pix, e-mail ou links externos.';
+        'Negociações devem ficar no Minera Pará. Não envie telefone, WhatsApp, Pix, e-mail ou links externos.';
 
     // Telefone BR formatado: +55, DDD, 8–9 dígitos com espaços/traços/parênteses
     var RE_PHONE =

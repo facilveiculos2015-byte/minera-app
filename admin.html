@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minerar PARÁ - Admin</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923c">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923c">
+    <title>Minera Pará - Admin</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923e">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923e">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minerar PARÁ">
-    <link rel="stylesheet" href="style.css?v=20260923c">
+    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+    <link rel="stylesheet" href="style.css?v=20260923e">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -20,7 +20,7 @@
     <div class="container wide">
         <header class="header-row">
             <div class="brand-title">
-                <h1>Minerar PARÁ</h1>
+                <h1>Minera Pará</h1>
                 <p id="user-label">Carregando...</p>
                 <span class="admin-badge-pill">Ops</span>
             </div>
@@ -35,6 +35,7 @@
             <button type="button" class="admin-tab" data-tab="usuarios" role="tab" aria-selected="false">Usuários</button>
             <button type="button" class="admin-tab" data-tab="chat" role="tab" aria-selected="false">Chat</button>
             <button type="button" class="admin-tab" data-tab="alertas" role="tab" aria-selected="false">Alertas <span class="badge badge-atrasado oculto" id="badge-admin-alertas">0</span></button>
+            <button type="button" class="admin-tab" data-tab="promos" role="tab" aria-selected="false">Banners/Bank</button>
         </nav>
 
         <div class="admin-panel" data-panel="visao">
@@ -170,13 +171,80 @@
                 <div id="admin-alertas" class="loading">Carregando...</div>
             </section>
         </div>
+
+        <div class="admin-panel oculto" data-panel="promos">
+            <section class="card">
+                <h2>Banners &amp; ofertas</h2>
+                <p class="sub">Home/marketplace lê só ativos, ordenados. Não hardcode no HTML.</p>
+                <form id="form-promo" class="promo-form">
+                    <input type="hidden" id="promo-id" value="">
+                    <label for="promo-tipo">Tipo</label>
+                    <select id="promo-tipo">
+                        <option value="banner">Banner</option>
+                        <option value="oferta">Oferta</option>
+                    </select>
+                    <label for="promo-titulo">Título</label>
+                    <input type="text" id="promo-titulo" placeholder="Título">
+                    <label for="promo-texto">Texto</label>
+                    <textarea id="promo-texto" rows="2" placeholder="Texto curto"></textarea>
+                    <label for="promo-imagem">URL da imagem</label>
+                    <input type="url" id="promo-imagem" placeholder="https://…">
+                    <label for="promo-link">Link</label>
+                    <input type="url" id="promo-link" placeholder="https://… ou caminho">
+                    <label for="promo-ordem">Ordem</label>
+                    <input type="number" id="promo-ordem" value="0" step="1">
+                    <label class="check-row"><input type="checkbox" id="promo-ativo" checked> Ativo</label>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-ok">Salvar</button>
+                        <button type="button" class="btn-ghost" id="btn-promo-limpar">Limpar</button>
+                    </div>
+                </form>
+                <p id="promo-msg" class="msg"></p>
+                <div id="admin-promos" class="loading">Carregando...</div>
+            </section>
+            <section class="card">
+                <h2>Minera Bank — disponibilidade</h2>
+                <p class="sub">Kill switch: pausa depósito, saque, Pix e crédito. Extrato próprio continua legível.</p>
+                <label class="check-row"><input type="checkbox" id="flag-bank-enabled" checked> Minera Bank disponível</label>
+                <label for="flag-bank-motivo">Motivo (opcional, interno)</label>
+                <textarea id="flag-bank-motivo" rows="2" placeholder="Ex.: manutenção preventiva"></textarea>
+                <button type="button" class="btn-ok" id="btn-salvar-bank-flag">Salvar flag + log</button>
+                <p id="bank-flag-msg" class="msg"></p>
+                <div id="admin-bank-logs" class="sub" style="margin-top:12px"></div>
+            </section>
+            <section class="card">
+                <h2>Lotes ocultos</h2>
+                <p class="sub">Marque irregular como oculto — some do marketplace (SQL 35 <code>oculto</code>).</p>
+                <div id="admin-lotes-oculto" class="loading">Carregando...</div>
+            </section>
+        </div>
+
+        <button type="button" class="btn-grok-bot" id="btn-chamar-grok" title="Chamar Grok Bot">Chamar Grok Bot</button>
+        <div id="grok-drawer" class="grok-drawer oculto" role="dialog" aria-labelledby="grok-drawer-title" aria-modal="true">
+            <div class="grok-drawer-panel">
+                <div class="grok-drawer-head">
+                    <h2 id="grok-drawer-title">Grok Bot</h2>
+                    <button type="button" class="btn-ghost btn-sm" id="btn-grok-fechar" aria-label="Fechar">Fechar</button>
+                </div>
+                <p class="sub">Cole aqui o recado / instrução para o Grok Bot. Sem endpoint configurado — copie o contexto, cole no Grok Bot e traga a resposta para anotar abaixo.</p>
+                <label for="grok-input">Instrução / notas</label>
+                <textarea id="grok-input" rows="5" placeholder="Escreva o recado ou cole a resposta do Grok Bot…"></textarea>
+                <div class="modal-actions">
+                    <button type="button" class="btn-ok" id="btn-grok-copy-ctx">Copiar contexto do sistema</button>
+                    <button type="button" class="btn-ghost" id="btn-grok-salvar">Salvar na sessão</button>
+                </div>
+                <p id="grok-msg" class="msg"></p>
+                <h3 class="sub" style="margin-top:12px">Histórico da sessão</h3>
+                <div id="grok-history" class="grok-history"></div>
+            </div>
+        </div>
     </div>
-    <script src="config.js?v=20260923c"></script>
-    <script src="auth-guard.js?v=20260923c"></script>
-    <script src="suporte.js?v=20260923c"></script>
-    <script src="nav.js?v=20260923c"></script>
-    <script src="pix-brcode.js?v=20260923c"></script>
-    <script src="admin.js?v=20260923c"></script>
-    <script src="pwa.js?v=20260923c"></script>
+    <script src="config.js?v=20260923e"></script>
+    <script src="auth-guard.js?v=20260923e"></script>
+    <script src="suporte.js?v=20260923e"></script>
+    <script src="nav.js?v=20260923e"></script>
+    <script src="pix-brcode.js?v=20260923e"></script>
+    <script src="admin.js?v=20260923e"></script>
+    <script src="pwa.js?v=20260923e"></script>
 </body>
 </html>
