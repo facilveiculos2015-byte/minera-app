@@ -42,6 +42,29 @@ async function carregarBannersPromos() {
     const track = document.getElementById('olx-banner-track');
     const banner = document.getElementById('olx-banner');
     if (!track) return;
+    /* Banner marketing estático (arte Família Minera) — sempre primeiro */
+    const BANNER_MKT = {
+        tipo: 'banner',
+        titulo: '',
+        texto: '',
+        imagem_url: 'media/banner-familia-minera.jpg?v=20260923x',
+        link: '',
+        _full: true
+    };
+    function slideHtml(p) {
+        const full = !!(p._full || (p.imagem_url && !p.titulo && !p.texto));
+        if (full && p.imagem_url) {
+            const img = `<img src="${esc(p.imagem_url)}" alt="Minera Pará" class="olx-banner-fullimg" loading="lazy">`;
+            if (p.link) return `<a class="olx-banner-slide olx-banner-slide--full" href="${esc(p.link)}">${img}</a>`;
+            return `<div class="olx-banner-slide olx-banner-slide--full">${img}</div>`;
+        }
+        const title = esc(p.titulo || (p.tipo === 'oferta' ? 'Oferta' : 'Destaque'));
+        const texto = esc(p.texto || '');
+        const img = p.imagem_url ? `<img src="${esc(p.imagem_url)}" alt="" class="olx-banner-img" loading="lazy">` : '';
+        const inner = `${img}<strong>${title}</strong>${texto ? '<span>' + texto + '</span>' : ''}`;
+        if (p.link) return `<a class="olx-banner-slide" href="${esc(p.link)}">${inner}</a>`;
+        return `<div class="olx-banner-slide">${inner}</div>`;
+    }
     try {
         const { data, error } = await supabaseClient
             .from('app_promos')
@@ -50,36 +73,25 @@ async function carregarBannersPromos() {
             .order('ordem', { ascending: true })
             .limit(12);
         if (error) throw error;
-        const rows = data || [];
-        if (!rows.length) {
-            if (banner) banner.classList.add('oculto');
-            track.innerHTML = '';
-            return;
-        }
+        const rows = [BANNER_MKT].concat(data || []);
         if (banner) banner.classList.remove('oculto');
-        track.innerHTML = rows.map(p => {
-            const title = esc(p.titulo || (p.tipo === 'oferta' ? 'Oferta' : 'Destaque'));
-            const texto = esc(p.texto || '');
-            const img = p.imagem_url ? `<img src="${esc(p.imagem_url)}" alt="" class="olx-banner-img" loading="lazy">` : '';
-            const inner = `${img}<strong>${title}</strong>${texto ? '<span>' + texto + '</span>' : ''}`;
-            if (p.link) {
-                return `<a class="olx-banner-slide" href="${esc(p.link)}">${inner}</a>`;
-            }
-            return `<div class="olx-banner-slide">${inner}</div>`;
-        }).join('');
-        // restart carousel for dynamic count
-        if (!track._promoTimer) {
-            let i = 0;
-            track._promoTimer = setInterval(() => {
-                const n = track.children.length || 1;
-                i = (i + 1) % n;
-                track.style.transform = 'translateX(-' + (i * 100) + '%)';
-            }, 4200);
+        track.innerHTML = rows.map(slideHtml).join('');
+        if (track._promoTimer) {
+            clearInterval(track._promoTimer);
+            track._promoTimer = null;
         }
+        let i = 0;
+        track.style.transform = 'translateX(0)';
+        track._promoTimer = setInterval(() => {
+            const n = track.children.length || 1;
+            i = (i + 1) % n;
+            track.style.transform = 'translateX(-' + (i * 100) + '%)';
+        }, 4200);
     } catch (e) {
         console.warn('promos', e);
-        // Sem SQL 35: esconde faixa vazia
-        if (!track.children.length && banner) banner.classList.add('oculto');
+        /* Mesmo sem app_promos, mostra o banner de marketing */
+        if (banner) banner.classList.remove('oculto');
+        track.innerHTML = slideHtml(BANNER_MKT);
     }
 }
 
