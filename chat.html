@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923i">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923i">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923j">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923j">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923i">
+    <link rel="stylesheet" href="style.css?v=20260923j">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -42,22 +42,24 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923i" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923j" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
                 <div id="chat-thread-active" class="chat-thread-active oculto">
                     <div class="wa-thread-head chat-thread-head">
-                        <button type="button" class="btn-voltar-round chat-back" id="btn-chat-back" aria-label="Voltar"><span class="vb-ico">←</span> Voltar</button>
-                        <div class="wa-av" id="chat-com-av" aria-hidden="true">?</div>
+                        <button type="button" class="wa-back-chev chat-back" id="btn-chat-back" aria-label="Voltar"><span class="wa-back-ico" aria-hidden="true">‹</span><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
+                        <div class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</div>
                         <div class="wa-thread-info chat-thread-head-info">
-                            <strong id="chat-com-nome">—</strong>
-                            <p id="chat-com-papel" class="sub"></p>
+                            <strong id="chat-com-nome" class="wa-thread-name">—</strong>
+                            <p id="chat-com-papel" class="sub wa-thread-papel" hidden aria-hidden="true"></p>
                         </div>
                         <div class="wa-call-btns chat-thread-head-actions">
-                            <button type="button" class="wa-circ-btn" id="btn-chat-video" title="Vídeo" aria-label="Vídeo">📹</button>
-                            <button type="button" class="wa-circ-btn" id="btn-chat-phone" title="Ligar" aria-label="Ligar">📞</button>
-                            <button type="button" class="wa-circ-btn" id="btn-chat-menu" title="Opções" aria-label="Opções" aria-haspopup="menu">⋮</button>
+                            <div class="wa-call-pill" role="group" aria-label="Chamadas">
+                                <button type="button" class="wa-call-ico" id="btn-chat-video" title="Vídeo" aria-label="Vídeo">📹</button>
+                                <button type="button" class="wa-call-ico" id="btn-chat-phone" title="Ligar" aria-label="Ligar">📞</button>
+                            </div>
+                            <button type="button" class="wa-menu-btn" id="btn-chat-menu" title="Opções" aria-label="Opções" aria-haspopup="menu">⋮</button>
                         </div>
                     </div>
                     <div id="chat-head-menu" class="chat-head-menu oculto" role="menu">
@@ -167,13 +169,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923i"></script>
-    <script src="auth-guard.js?v=20260923i"></script>
-    <script src="suporte.js?v=20260923i"></script>
-    <script src="nav.js?v=20260923i"></script>
-    <script src="anti-golpe.js?v=20260923i"></script>
-    <script src="chat.js?v=20260923i"></script>
-    <script src="pwa.js?v=20260923i"></script>
+    <script src="config.js?v=20260923j"></script>
+    <script src="auth-guard.js?v=20260923j"></script>
+    <script src="suporte.js?v=20260923j"></script>
+    <script src="nav.js?v=20260923j"></script>
+    <script src="anti-golpe.js?v=20260923j"></script>
+    <script src="chat.js?v=20260923j"></script>
+    <script src="pwa.js?v=20260923j"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); else alert(t); }

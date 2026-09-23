@@ -468,7 +468,9 @@ function bubblesWithDayDividers(lista) {
 
 function bubbleHtml(m) {
     const mine = !!(m.de_auth_id && meuAuthId && String(m.de_auth_id) === String(meuAuthId));
-    const when = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : (m._pending ? 'agora' : '');
+    const when = m.criado_em
+        ? new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        : (m._pending ? 'agora' : '');
     const st = (m.status || 'enviada');
     const sched = st === 'agendada';
     const agLabel = sched && m.agendado_para
@@ -493,10 +495,10 @@ function bubbleHtml(m) {
         : ((m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : '') +
             renderMedia(m));
     return `<div class="bubble ${mine ? 'mine sent' : 'theirs'}${sched ? ' scheduled' : ''}${deleted ? ' deleted' : ''}${pendingCls}"${idAttr}${deAttr}>
-        <div class="bubble-meta">${esc(nomePublicoTexto(m.de_nome, 'Alguém'))} · ${when}${agLabel}${flag}</div>
+        ${mine ? '' : `<div class="bubble-meta">${esc(nomePublicoTexto(m.de_nome, 'Alguém'))}</div>`}
         ${quoteHtml}
         ${body}
-        <div class="bubble-status">${esc(deleted ? 'apagada' : (m._loading ? 'enviando' : st))}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
+        <div class="bubble-status"><span class="bubble-clock">${when}</span> ${esc(deleted ? 'apagada' : (m._loading ? 'enviando' : st))}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
     </div>`;
 }
 
@@ -751,7 +753,8 @@ async function abrirThread(contato) {
     fecharChatHeadMenu();
     showThreadUI(true);
     document.getElementById('chat-com-nome').textContent = displayNome(contato);
-    document.getElementById('chat-com-papel').textContent = labelPapelCurto(contato.papeis, contato.tipo);
+    const papelEl = document.getElementById('chat-com-papel');
+    if (papelEl) { papelEl.textContent = ''; papelEl.hidden = true; }
     lastThreadMsgIds = new Set();
     renderedMsgOrder = [];
     renderedMsgSigs = new Map();
