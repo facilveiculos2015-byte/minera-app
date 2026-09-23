@@ -1623,9 +1623,10 @@ async function carregarPromosAdmin() {
 
 
 
-/* Moldura Início = 16:6. Upload NÃO corta: só reduz se for grande; CSS object-fit:contain encaixa. */
-const BANNER_MAX_W = 1600;
-const BANNER_MAX_H = 900;
+/* Moldura Início = 16:6. Upload letterbox (contain): NUNCA corta; preenche a proporção com fundo da marca. */
+const BANNER_SLOT_W = 1600;
+const BANNER_SLOT_H = 600; /* 16:6 exato */
+const BANNER_PAD_RGB = '#0b1220';
 
 function redimensionarBannerImagem(file) {
     return new Promise((resolve, reject) => {
@@ -1641,17 +1642,21 @@ function redimensionarBannerImagem(file) {
                 const sw = img.naturalWidth || img.width;
                 const sh = img.naturalHeight || img.height;
                 if (!sw || !sh) throw new Error('Imagem inválida');
-                /* Só encolhe se passar do teto — proporção intacta, sem cortar */
-                const scale = Math.min(1, BANNER_MAX_W / sw, BANNER_MAX_H / sh);
+                /* contain → escala uniforme pra caber inteira; laterais/topo recebem pad (sem crop) */
+                const scale = Math.min(BANNER_SLOT_W / sw, BANNER_SLOT_H / sh);
                 const dw = Math.max(1, Math.round(sw * scale));
                 const dh = Math.max(1, Math.round(sh * scale));
+                const ox = Math.floor((BANNER_SLOT_W - dw) / 2);
+                const oy = Math.floor((BANNER_SLOT_H - dh) / 2);
                 const canvas = document.createElement('canvas');
-                canvas.width = dw;
-                canvas.height = dh;
+                canvas.width = BANNER_SLOT_W;
+                canvas.height = BANNER_SLOT_H;
                 const ctx = canvas.getContext('2d');
+                ctx.fillStyle = BANNER_PAD_RGB;
+                ctx.fillRect(0, 0, BANNER_SLOT_W, BANNER_SLOT_H);
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, 0, 0, sw, sh, 0, 0, dw, dh);
+                ctx.drawImage(img, 0, 0, sw, sh, ox, oy, dw, dh);
                 canvas.toBlob((blob) => {
                     if (!blob) {
                         reject(new Error('Falha ao redimensionar'));
@@ -1659,7 +1664,7 @@ function redimensionarBannerImagem(file) {
                     }
                     const base = String(file.name || 'banner').replace(/\.[^.]+$/, '') || 'banner';
                     resolve(new File([blob], base + '-banner.jpg', { type: 'image/jpeg', lastModified: Date.now() }));
-                }, 'image/jpeg', 0.9);
+                }, 'image/jpeg', 0.92);
             } catch (e) {
                 reject(e);
             }
@@ -1781,7 +1786,7 @@ async function carregarShareFlagsAdmin() {
     const defFrase = (typeof SHARE_FRASE_PADRAO_DEFAULT === 'string' && SHARE_FRASE_PADRAO_DEFAULT)
         || 'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
     const defUrl = (typeof SHARE_OG_IMAGE_DEFAULT === 'string' && SHARE_OG_IMAGE_DEFAULT)
-        || 'https://facilveiculos2015-byte.github.io/minera-app/og-familia.png?v=20260923ad';
+        || 'https://facilveiculos2015-byte.github.io/minera-app/og-familia.png?v=20260923ae';
     try {
         const { data, error } = await supabaseClient
             .from('app_flags')

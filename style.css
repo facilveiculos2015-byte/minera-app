@@ -4558,7 +4558,9 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .olx-banner-fullimg {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
-  object-fit: contain; object-position: center;
+  /* contain: nunca corta. Arte 16:6 (letterbox no upload) preenche a moldura. */
+  object-fit: contain !important;
+  object-position: center center;
   display: block; border: 0; background: #0b1220;
 }
 .olx-banner a.olx-banner-slide { text-decoration: none; color: inherit; }
