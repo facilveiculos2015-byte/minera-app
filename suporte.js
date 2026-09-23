@@ -483,7 +483,7 @@ function htmlCardFamilia(perfil) {
         '</span><span class="familia-stat-lbl">desconto disponível</span></div>' +
         '</div>' +
         '<div class="familia-og-card" aria-hidden="true">' +
-        '<img class="familia-og-logo" src="' + suporteEsc(ogImg) + '?v=20260923k" alt="" width="72" height="72" loading="lazy">' +
+        '<img class="familia-og-logo" src="' + suporteEsc(ogImg) + '?v=20260923l" alt="" width="72" height="72" loading="lazy">' +
         '<div class="familia-og-meta">' +
         '<strong class="familia-og-title">Minera Pará</strong>' +
         '<p class="familia-og-desc" id="familia-og-desc">' + suporteEsc(ogDesc) + '</p>' +
@@ -494,7 +494,7 @@ function htmlCardFamilia(perfil) {
         '<label for="familia-codigo">Seu código</label>' +
         '<div class="familia-share-row">' +
         '<input type="text" id="familia-codigo" readonly value="' + suporteEsc(codigo) + '">' +
-        '<button type="button" class="btn-sm btn-ok" id="btn-compartilhar-ref">Compartilhar</button>' +
+        '<button type="button" class="btn-sm btn-ok btn-wa-share" id="btn-compartilhar-ref">Compartilhar no WhatsApp</button>' +
         '<button type="button" class="btn-sm" id="btn-copiar-ref">Copiar texto</button>' +
         '</div>' +
         '<input type="hidden" id="familia-link" value="' + suporteEsc(link) + '">' +
@@ -519,11 +519,22 @@ function setFamiliaExpanded(expanded) {
     btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
 }
 
-function familiaSharePayload() {
-    const codigo = ((document.getElementById('familia-codigo') || {}).value || '').trim().toUpperCase();
-    const link = (document.getElementById('familia-link') || {}).value || linkIndicacao(codigo);
-    const nome = ((document.getElementById('familia-nome') || {}).value || '').trim();
+function familiaSharePayload(perfilOpt) {
+    let codigo = ((document.getElementById('familia-codigo') || {}).value || '').trim().toUpperCase();
+    let link = (document.getElementById('familia-link') || {}).value || '';
+    let nome = ((document.getElementById('familia-nome') || {}).value || '').trim();
     const mensagem = ((document.getElementById('familia-msg-custom') || {}).value || '').trim();
+    const shareCard = document.getElementById('card-compartilhar');
+    if ((!codigo || codigo === '…') && shareCard) {
+        codigo = (shareCard.getAttribute('data-codigo') || '').trim().toUpperCase() || codigo;
+        link = shareCard.getAttribute('data-link') || link;
+        nome = (shareCard.getAttribute('data-nome') || nome || '').trim();
+    }
+    if ((!codigo || codigo === '…') && perfilOpt) {
+        codigo = String(perfilOpt.codigo_indicacao || '').trim().toUpperCase();
+        nome = nome || shareNomeFromPerfil(perfilOpt);
+    }
+    if (!link) link = linkIndicacao(codigo);
     const text = textoCompartilharIndicacao(codigo, { nome: nome, mensagem: mensagem });
     return { codigo, link, text, nome, mensagem };
 }
@@ -557,30 +568,57 @@ async function copiarTextoIndicacao() {
     }
 }
 
-async function compartilharIndicacao() {
-    const { text } = familiaSharePayload();
-    if (navigator.share) {
+/**
+ * Primary CTA: open WhatsApp directly with invite text+link.
+ * Desktop: wa.me still opens WhatsApp Web; clipboard only if open fails.
+ */
+async function compartilharNoWhatsApp(perfilOpt) {
+    let payload = familiaSharePayload(perfilOpt);
+    if ((!payload.codigo || payload.codigo === '…') && perfilOpt && typeof garantirCodigoIndicacao === 'function') {
         try {
-            // Só text (URL já no final do template) — evita apps colocarem link no início
-            await navigator.share({
-                title: 'Minera Pará',
-                text: text
-            });
+            const p = await garantirCodigoIndicacao(perfilOpt);
+            payload = familiaSharePayload(p);
+        } catch (e) { /* ignore */ }
+    }
+    const text = payload.text || '';
+    if (!text || !payload.codigo || payload.codigo === '…') {
+        if (typeof toastMsg === 'function') toastMsg('Código de indicação ainda não pronto. Abra Perfil e tente de novo.');
+        else alert('Código de indicação ainda não pronto.');
+        return false;
+    }
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(text);
+    try {
+        const w = window.open(wa, '_blank', 'noopener');
+        if (!w) {
+            // popup blocked → navigate same tab
+            window.location.href = wa;
+        }
+        if (typeof toastMsg === 'function') toastMsg('Abrindo WhatsApp…');
+        return true;
+    } catch (e) {
+        await copiarTextoIndicacao();
+        return false;
+    }
+}
+
+async function compartilharIndicacao(opts) {
+    opts = opts || {};
+    // Primary: always WhatsApp (user request). navigator.share only if explicit secondary.
+    if (opts && opts.maisOpcoes && navigator.share) {
+        const { text } = familiaSharePayload(opts.perfil);
+        try {
+            await navigator.share({ title: 'Minera Pará', text: text });
             if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
             return;
         } catch (e) {
             if (e && e.name === 'AbortError') return;
-            /* fallback abaixo */
         }
     }
-    // Fallback: WhatsApp se mobile-ish, senão clipboard
-    const wa = 'https://wa.me/?text=' + encodeURIComponent(text);
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-    if (isMobile) {
-        window.open(wa, '_blank', 'noopener');
-        return;
+    const ok = await compartilharNoWhatsApp(opts.perfil);
+    if (!ok) {
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        if (!isMobile) await copiarTextoIndicacao();
     }
-    await copiarTextoIndicacao();
 }
 
 function bindCardFamilia() {
@@ -643,9 +681,13 @@ async function montarCardFamilia(container, perfil, where) {
             if (cot && cot.parentNode) cot.parentNode.insertBefore(host, cot.nextSibling);
             else container.insertBefore(host, container.firstChild);
         } else if (where === 'perfil') {
-            const prefs = document.getElementById('card-prefs');
-            if (prefs && prefs.parentNode) prefs.parentNode.insertBefore(host, prefs);
-            else container.appendChild(host);
+            const comissoes = document.getElementById('card-comissoes');
+            if (comissoes && comissoes.parentNode) comissoes.parentNode.insertBefore(host, comissoes);
+            else {
+                const prefs = document.getElementById('card-prefs');
+                if (prefs && prefs.parentNode) prefs.parentNode.insertBefore(host, prefs.nextSibling);
+                else container.appendChild(host);
+            }
         } else {
             container.appendChild(host);
         }
@@ -815,7 +857,7 @@ function mostrarSharePosCadastro(perfil) {
         '<h2 class="familia-panel-title">Convide colegas</h2>' +
         '<p class="sub">Compartilhe seu link da Família Mineira e ganhe pontos.</p>' +
         '<div class="familia-og-card">' +
-        '<img class="familia-og-logo" src="' + suporteEsc((_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT)) + '?v=20260923k" alt="" width="72" height="72">' +
+        '<img class="familia-og-logo" src="' + suporteEsc((_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT)) + '?v=20260923l" alt="" width="72" height="72">' +
         '<div class="familia-og-meta"><strong class="familia-og-title">Minera Pará</strong>' +
         '<p class="familia-og-desc">' + suporteEsc(shareOgDescription(nome)) + '</p></div></div>' +
         '<input type="hidden" id="familia-codigo" value="' + suporteEsc(codigo) + '">' +
@@ -823,7 +865,7 @@ function mostrarSharePosCadastro(perfil) {
         '<input type="hidden" id="familia-nome" value="' + suporteEsc(nome) + '">' +
         '<textarea id="familia-msg-custom" rows="2" maxlength="500" placeholder="Mensagem opcional…"></textarea>' +
         '<div class="familia-share-row" style="margin-top:8px">' +
-        '<button type="button" class="btn-sm btn-ok" id="btn-compartilhar-ref">Compartilhar</button>' +
+        '<button type="button" class="btn-sm btn-ok btn-wa-share" id="btn-compartilhar-ref">Compartilhar no WhatsApp</button>' +
         '<button type="button" class="btn-sm" id="btn-copiar-ref">Copiar texto</button>' +
         '</div>' +
         '<pre class="familia-share-text" id="familia-share-text">' + suporteEsc(text) + '</pre>' +
@@ -843,6 +885,10 @@ window.linkIndicacao = linkIndicacao;
 window.textoCompartilharIndicacao = textoCompartilharIndicacao;
 window.processarIndicacaoNoCadastro = processarIndicacaoNoCadastro;
 window.garantirCodigoIndicacao = garantirCodigoIndicacao;
+window.familiaSharePayload = familiaSharePayload;
+window.compartilharIndicacao = compartilharIndicacao;
+window.compartilharNoWhatsApp = compartilharNoWhatsApp;
+window.copiarTextoIndicacao = copiarTextoIndicacao;
 window.carregarShareFlags = carregarShareFlags;
 window.SHARE_FRASE_PADRAO_DEFAULT = SHARE_FRASE_PADRAO_DEFAULT;
 window.SHARE_OG_IMAGE_DEFAULT = SHARE_OG_IMAGE_DEFAULT;

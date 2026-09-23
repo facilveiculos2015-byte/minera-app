@@ -16,6 +16,92 @@ let perfilAtual = null;
 /** @type {object|null} active pix_admin row */
 let pixAtivoCache = null;
 
+function iniciaisSimples(nome) {
+    const parts = String(nome || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function atualizarPerfilHero(perfil) {
+    if (!perfil) return;
+    const nome = (perfil.apelido || perfil.nome || perfil.email || 'Você').trim();
+    const elN = document.getElementById('perfil-hero-nome');
+    const elS = document.getElementById('perfil-hero-sub');
+    const elA = document.getElementById('perfil-hero-av');
+    if (elN) elN.textContent = nome;
+    if (elS) {
+        const papeis = Array.isArray(perfil.papeis) ? perfil.papeis.join(', ') : '';
+        elS.textContent = papeis ? ('Papéis: ' + papeis) : (perfil.email || 'Atualize seus dados');
+    }
+    if (elA) elA.textContent = iniciaisSimples(nome);
+}
+
+async function atualizarCardCompartilhar(perfil) {
+    const card = document.getElementById('card-compartilhar');
+    if (!card || !perfil) return;
+    if (typeof garantirCodigoIndicacao === 'function') {
+        perfil = await garantirCodigoIndicacao(perfil) || perfil;
+    }
+    const codigo = (perfil.codigo_indicacao || '').trim().toUpperCase() || '…';
+    const link = (typeof linkIndicacao === 'function') ? linkIndicacao(codigo) : '';
+    const nome = (perfil.apelido || perfil.nome || '').trim();
+    card.setAttribute('data-codigo', codigo === '…' ? '' : codigo);
+    card.setAttribute('data-link', link);
+    card.setAttribute('data-nome', nome);
+    const txt = document.getElementById('compartilhar-codigo-txt');
+    if (txt) txt.textContent = codigo;
+    const sub = document.getElementById('compartilhar-sub');
+    if (sub && link) {
+        sub.textContent = 'Seu link: ' + link;
+    }
+    // Sync hidden familia fields if present
+    const fc = document.getElementById('familia-codigo');
+    const fl = document.getElementById('familia-link');
+    const fn = document.getElementById('familia-nome');
+    if (fc && codigo && codigo !== '…') fc.value = codigo;
+    if (fl && link) fl.value = link;
+    if (fn && nome) fn.value = nome;
+    return perfil;
+}
+
+function bindPerfilShare() {
+    const btnWa = document.getElementById('btn-compartilhar-whatsapp');
+    if (btnWa && !btnWa._bound) {
+        btnWa._bound = true;
+        btnWa.addEventListener('click', async () => {
+            try {
+                if (typeof compartilharNoWhatsApp === 'function') {
+                    await compartilharNoWhatsApp(perfilAtual);
+                } else if (typeof compartilharIndicacao === 'function') {
+                    await compartilharIndicacao({ perfil: perfilAtual });
+                }
+            } catch (e) {
+                console.warn('share wa', e);
+            }
+        });
+    }
+    const btnCopy = document.getElementById('btn-copiar-link-perfil');
+    if (btnCopy && !btnCopy._bound) {
+        btnCopy._bound = true;
+        btnCopy.addEventListener('click', async () => {
+            const card = document.getElementById('card-compartilhar');
+            const link = (card && card.getAttribute('data-link')) || '';
+            const codigo = (card && card.getAttribute('data-codigo')) || '';
+            const text = (typeof textoCompartilharIndicacao === 'function')
+                ? textoCompartilharIndicacao(codigo, { nome: (card && card.getAttribute('data-nome')) || '' })
+                : link;
+            try {
+                await navigator.clipboard.writeText(text || link);
+                if (typeof toastMsg === 'function') toastMsg('Link/código copiado!');
+            } catch (e) {
+                prompt('Copie o link:', link || text);
+            }
+        });
+    }
+}
+
+
 function lerPapeisForm() {
     return PAPEIS_EDIT.filter(id => {
         const el = document.getElementById('perfil-papel-' + id);
@@ -76,6 +162,9 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     perfilAtual.tipo = tipo;
     aplicarUserLabel(perfilAtual);
     montarNav('perfil', perfilAtual);
+    atualizarPerfilHero(perfilAtual);
+    const sairTop2 = document.getElementById('btn-sair');
+    if (sairTop2) sairTop2.classList.remove('oculto');
     msgEl.textContent = 'Perfil salvo!';
     msgEl.className = 'msg ok';
     await registrarLog('perfil_atualizar', { papeis }, perfilAtual);
@@ -88,9 +177,15 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     aplicarUserLabel(perfilAtual);
     montarNav('perfil', perfilAtual);
     preencherForm(perfilAtual);
+    atualizarPerfilHero(perfilAtual);
+    // Keep slim topbar Sair visible (nav.js hides legado #btn-sair with bottom-nav)
+    const sairTop = document.getElementById('btn-sair');
+    if (sairTop) sairTop.classList.remove('oculto');
     if (typeof montarCardFamilia === 'function') {
         perfilAtual = await montarCardFamilia(document.querySelector('.container'), perfilAtual, 'perfil') || perfilAtual;
     }
+    await atualizarCardCompartilhar(perfilAtual);
+    bindPerfilShare();
     if (typeof aplicarTema === 'function') aplicarTema(typeof lerTema === 'function' ? lerTema() : 'dark');
     const btnTema = document.getElementById('btn-tema');
     if (btnTema) btnTema.addEventListener('click', () => {

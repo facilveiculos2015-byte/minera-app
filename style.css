@@ -4848,7 +4848,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923k — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923l — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923l — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5015,4 +5016,139 @@ body.pagina-chat .chat-contacts-pane {
 }
 @media (min-width: 801px) {
   .wa-thread-head.chat-thread-head { padding-left: 10px; }
+}
+
+
+/* ===== 20260923l — Perfil mobile shell + Compartilhar WA ===== */
+body.pagina-perfil {
+  padding: 0 0 88px;
+  background: #0b1220;
+}
+body.pagina-perfil .container.wide {
+  max-width: 480px;
+  padding: 12px 12px 24px;
+  margin: 0 auto;
+}
+body.pagina-perfil #app-nav,
+body.pagina-perfil > .container > .header-row {
+  display: none !important;
+}
+body.pagina-perfil .perfil-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 4px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(180deg, rgba(11,18,32,0.98), rgba(11,18,32,0.85));
+  backdrop-filter: blur(8px);
+}
+body.pagina-perfil .perfil-topbar-nome {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70vw;
+}
+body.pagina-perfil .perfil-topbar #btn-sair {
+  display: inline-flex !important;
+  flex-shrink: 0;
+  margin: 0;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+body.pagina-perfil .perfil-topbar #btn-sair.oculto {
+  display: inline-flex !important;
+}
+body.pagina-perfil .card {
+  border-radius: 16px;
+  margin: 0 0 12px;
+  padding: 14px 14px 16px;
+}
+body.pagina-perfil .perfil-hero-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(245,166,35,0.25);
+}
+.perfil-hero-av {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #F5A623;
+  color: #0b1220;
+  font-weight: 800;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.perfil-hero-nome {
+  margin: 0 0 2px;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+.perfil-hero-sub { margin: 0; }
+.card-compartilhar {
+  border: 1px solid rgba(37, 211, 102, 0.35);
+  background: linear-gradient(180deg, rgba(37,211,102,0.08), transparent);
+}
+.card-compartilhar h2 { margin-top: 0; }
+.compartilhar-codigo-line {
+  margin: 8px 0 12px;
+  font-size: 0.95rem;
+}
+.compartilhar-lbl { opacity: 0.75; margin-right: 4px; }
+.btn-wa-share,
+.btn-wa-share-lg {
+  background: #25D366 !important;
+  color: #062816 !important;
+  border: none !important;
+  font-weight: 800;
+}
+.btn-wa-share:hover,
+.btn-wa-share-lg:hover { filter: brightness(1.06); }
+.btn-wa-share-lg {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 1.02rem;
+  margin-bottom: 8px;
+}
+#btn-copiar-link-perfil {
+  display: block;
+  width: 100%;
+  text-align: center;
+  opacity: 0.9;
+}
+html[data-theme="light"] body.pagina-perfil {
+  background: #f1f5f9;
+}
+html[data-theme="light"] body.pagina-perfil .perfil-topbar {
+  background: linear-gradient(180deg, rgba(241,245,249,0.98), rgba(241,245,249,0.85));
+}
+html[data-theme="light"] body.pagina-perfil .perfil-topbar-nome { color: #0f172a; }
+html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
+  background: #fff;
+  border-color: rgba(245,166,35,0.35);
+}
+
+/* Mic: keep round glyph while recording — timer on overlay */
+#btn-audio[data-recording="1"] {
+  background: #7f1d1d;
+  color: #fecaca;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.35);
+}
+.bubble-audio-dl {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.78rem;
 }

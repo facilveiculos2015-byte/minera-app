@@ -251,7 +251,19 @@ function pickRecorderMime() {
     if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
         return '';
     }
-    const candidates = [
+    const ua = navigator.userAgent || '';
+    const isAppleTouch = /iPhone|iPad|iPod/i.test(ua);
+    const isSafari = (/Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|Firefox|FxiOS|OPR/i.test(ua)) || isAppleTouch;
+    const appleFirst = [
+        'audio/mp4',
+        'audio/aac',
+        'audio/mp4;codecs=mp4a.40.2',
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg'
+    ];
+    const webFirst = [
         'audio/webm;codecs=opus',
         'audio/webm',
         'audio/ogg;codecs=opus',
@@ -259,6 +271,7 @@ function pickRecorderMime() {
         'audio/mp4',
         'audio/aac'
     ];
+    const candidates = (isSafari || isAppleTouch) ? appleFirst : webFirst;
     for (let i = 0; i < candidates.length; i++) {
         try {
             if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
@@ -400,11 +413,20 @@ function renderMedia(m) {
     if (tipo === 'audio') {
         const amime = mimeFromMediaUrl(url);
         const typeAttr = amime ? ' type="' + esc(amime) + '"' : '';
-        return '<div class="bubble-media bubble-audio">' +
+        const isWebm = amime === 'audio/webm' || /\.webm($|\?)/i.test(String(url));
+        const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+        let html = '<div class="bubble-media bubble-audio">' +
             '<div class="wa-wave" aria-hidden="true">▁▂▃▅▃▂▅▆▄▂▃▅▂▁</div>' +
-            '<audio controls preload="metadata" playsinline webkit-playsinline>' +
+            '<audio controls preload="metadata" playsinline webkit-playsinline' +
+            (isWebm && isIos ? ' data-ios-webm="1"' : '') + '>' +
             '<source src="' + esc(url) + '"' + typeAttr + '>' +
-            '</audio></div>';
+            '</audio>';
+        if (isWebm) {
+            html += '<a class="btn-sm bubble-audio-dl' + (isIos ? '' : ' oculto') +
+                '" href="' + esc(url) + '" download target="_blank" rel="noopener">Baixar áudio</a>';
+        }
+        html += '</div>';
+        return html;
     }
     if (tipo === 'documento' || tipo === 'doc' || tipo === 'pdf' || /\.pdf($|\?)/i.test(url) || String(url).indexOf('application/pdf') >= 0) {
         const name = (m.texto || 'Documento.pdf').slice(0, 40);
@@ -1207,6 +1229,7 @@ let audioCancelado = false;
 let audioHoldMode = false;
 let audioPointerId = null;
 let audioAutoSend = false;
+let audioRecStartedAt = 0;
 
 function formatAudioTimer(sec) {
     const s = Math.max(0, Math.floor(sec));
@@ -1226,8 +1249,12 @@ function updateRecTimer() {
     const label = formatAudioTimer(audioSeconds);
     if (t) t.textContent = label;
     if (btn && gravando) {
-        btn.textContent = '⏹️ ' + label;
+        // Keep 🎤 glyph stable — timer lives on #chat-rec-timer
+        btn.setAttribute('data-recording', '1');
         btn.classList.add('recording', 'btn-danger');
+        if (btn.textContent.indexOf('🎤') < 0 && btn.textContent.indexOf('➤') < 0) {
+            btn.textContent = '🎤';
+        }
     }
 }
 
@@ -1250,6 +1277,7 @@ function resetAudioBtn() {
     const btn = document.getElementById('btn-audio');
     if (!btn) return;
     btn.textContent = '🎤';
+    btn.removeAttribute('data-recording');
     btn.classList.remove('btn-danger', 'recording', 'btn-ok');
     btn.title = 'Segure para gravar';
 }
@@ -1336,15 +1364,21 @@ async function startRecording(fromHold) {
             gravando = false;
             if (audioCancelado) {
                 audioChunks = [];
+                audioRecStartedAt = 0;
                 resetAudioBtn();
                 setAnexoInfo('');
                 return;
             }
             const blobType = baseMime(mediaRecorder.mimeType) || baseMime(mime) || 'audio/webm';
             const blob = new Blob(audioChunks, { type: blobType });
-            if (!blob.size) {
+            const elapsed = audioRecStartedAt ? (Date.now() - audioRecStartedAt) : 0;
+            audioRecStartedAt = 0;
+            // Reject empty / too-short taps (empty blob bug + accidental taps)
+            if (!blob.size || blob.size < 500 || elapsed < 400) {
+                audioChunks = [];
+                audioAutoSend = false;
                 resetAudioBtn();
-                setAnexoInfo('Áudio vazio — tente de novo.');
+                toastAudio('Segure um pouco mais');
                 return;
             }
             onRecordingReady(blob);
@@ -1352,11 +1386,13 @@ async function startRecording(fromHold) {
         // timeslice garante chunks em browsers que só emitem no stop com atraso
         try { mediaRecorder.start(250); } catch (eStart) { mediaRecorder.start(); }
         gravando = true;
+        audioRecStartedAt = Date.now();
         startAudioTimer();
         showRecBar(true);
         const btn = document.getElementById('btn-audio');
         if (btn) {
-            btn.textContent = '⏹️ 0:00';
+            btn.textContent = '🎤';
+            btn.setAttribute('data-recording', '1');
             btn.classList.add('btn-danger', 'recording');
         }
         setAnexoInfo(fromHold ? 'Gravando… solte p/ enviar · ← deslize p/ cancelar' : 'Gravando… toque de novo para parar');
@@ -1392,7 +1428,13 @@ function stopRecording(cancel) {
     showRecBar(false);
     stopAudioTimer();
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        try { mediaRecorder.stop(); } catch (e) { /* ignore */ }
+        try {
+            // Flush last chunk before stop (fixes empty blob on some browsers)
+            if (typeof mediaRecorder.requestData === 'function') {
+                try { mediaRecorder.requestData(); } catch (eReq) { /* ignore */ }
+            }
+            mediaRecorder.stop();
+        } catch (e) { /* ignore */ }
     } else if (cancel) {
         resetAudioBtn();
     }

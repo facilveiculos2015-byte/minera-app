@@ -4,30 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Pará - Perfil</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923k">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923k">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923l">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923l">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923k">
+    <link rel="stylesheet" href="style.css?v=20260923l">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
-<body>
+<body class="pagina-perfil">
     <div class="container wide">
-        <header class="header-row">
-            <div class="brand-title">
-                <h1>Minera Pará</h1>
-                <p id="user-label">Carregando...</p>
+        <header class="perfil-topbar">
+            <div class="perfil-topbar-id">
+                <p id="user-label" class="perfil-topbar-nome">Carregando...</p>
             </div>
-            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
+            <button type="button" class="btn-sair btn-sm" id="btn-sair">Sair</button>
         </header>
-        <nav id="app-nav" class="nav-chips"></nav>
+        <!-- legacy nav mount (hidden); bottom-nav from nav.js -->
+        <nav id="app-nav" class="nav-chips oculto"></nav>
 
-        <section class="card">
+        <!-- 1. Hero / identity -->
+        <section class="card perfil-hero-card" id="card-perfil-hero">
+            <div class="perfil-hero-av" id="perfil-hero-av" aria-hidden="true">?</div>
+            <div class="perfil-hero-meta">
+                <h1 class="perfil-hero-nome" id="perfil-hero-nome">Meu perfil</h1>
+                <p class="sub perfil-hero-sub" id="perfil-hero-sub">Atualize seus dados e papéis</p>
+            </div>
+        </section>
+
+        <!-- 2. Compartilhar no WhatsApp (always visible) -->
+        <section class="card card-compartilhar" id="card-compartilhar" data-codigo="" data-link="" data-nome="">
+            <h2>Convidar amigos</h2>
+            <p class="sub" id="compartilhar-sub">Compartilhe seu link/código e ganhe pontos quando amigos se cadastrarem.</p>
+            <p class="compartilhar-codigo-line"><span class="compartilhar-lbl">Código:</span> <strong id="compartilhar-codigo-txt">…</strong></p>
+            <button type="button" class="btn-ok btn-wa-share btn-wa-share-lg" id="btn-compartilhar-whatsapp">Compartilhar no WhatsApp</button>
+            <button type="button" class="btn-sm btn-link" id="btn-copiar-link-perfil">Copiar link</button>
+        </section>
+
+        <!-- 3. Meu perfil (form) -->
+        <section class="card" id="card-meu-perfil">
             <h2>Meu perfil</h2>
             <p class="sub">Atualize nome e papéis. Vários papéis liberam chips diferentes na navegação.</p>
             <form id="form-perfil">
@@ -52,8 +71,7 @@
             <p id="perfil-msg" class="msg"></p>
         </section>
 
-
-
+        <!-- 4. Preferências -->
         <section class="card" id="card-prefs">
             <h2>Preferências</h2>
             <div class="prefs-row">
@@ -63,6 +81,9 @@
             <p class="sub">Tema e guia rápido do Minera Pará.</p>
         </section>
 
+        <!-- 5. Família Mineira injected by montarCardFamilia before #card-comissoes -->
+
+        <!-- 6. Comissões / Pix -->
         <section class="card" id="card-comissoes">
             <h2>Comissões pendentes</h2>
             <p class="sub">1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.</p>
@@ -93,12 +114,12 @@
         </section>
 
     </div>
-    <script src="config.js?v=20260923k"></script>
-    <script src="auth-guard.js?v=20260923k"></script>
-    <script src="suporte.js?v=20260923k"></script>
-    <script src="nav.js?v=20260923k"></script>
-    <script src="pix-brcode.js?v=20260923k"></script>
-    <script src="perfil.js?v=20260923k"></script>
-    <script src="pwa.js?v=20260923k"></script>
+    <script src="config.js?v=20260923l"></script>
+    <script src="auth-guard.js?v=20260923l"></script>
+    <script src="suporte.js?v=20260923l"></script>
+    <script src="nav.js?v=20260923l"></script>
+    <script src="pix-brcode.js?v=20260923l"></script>
+    <script src="perfil.js?v=20260923l"></script>
+    <script src="pwa.js?v=20260923l"></script>
 </body>
 </html>

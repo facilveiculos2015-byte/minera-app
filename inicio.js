@@ -933,8 +933,26 @@ window.addEventListener('beforeunload', () => {
 })();
 
 (function bindAnunciar() {
-    const a = document.getElementById('btn-anunciar');
-    if (a && typeof APP_ROOT === 'string') a.setAttribute('href', APP_ROOT + 'lotes.html');
+    /* FAB Anunciar keeps lotes.html; quick card is Convidar → WhatsApp */
+    const fab = document.getElementById('fab-anunciar');
+    if (fab && typeof APP_ROOT === 'string') fab.setAttribute('href', APP_ROOT + 'lotes.html');
+    const conv = document.getElementById('btn-convidar');
+    if (conv && !conv._boundConvidar) {
+        conv._boundConvidar = true;
+        conv.addEventListener('click', async () => {
+            try {
+                if (typeof compartilharNoWhatsApp === 'function') {
+                    await compartilharNoWhatsApp();
+                } else if (typeof compartilharIndicacao === 'function') {
+                    await compartilharIndicacao();
+                } else {
+                    alert('Compartilhar indisponível no momento.');
+                }
+            } catch (e) {
+                console.warn('convidar', e);
+            }
+        });
+    }
 })();
 
 
