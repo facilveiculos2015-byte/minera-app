@@ -4848,7 +4848,7 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923j — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923k — Slim WA iOS thread header (no roles, call pill) ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;

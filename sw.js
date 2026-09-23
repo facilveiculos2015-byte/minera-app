@@ -1,21 +1,28 @@
 /* Minera Pará service worker — cache shell for installability */
-const CACHE = 'minera-shell-20260923j';
+const CACHE = 'minera-shell-20260923k';
 const PRECACHE = [
-  './',
-  './index.html',
-  './inicio.html',
-  './style.css?v=20260923j',
-  './nav.js?v=20260923j',
-  './config.js?v=20260923j',
-  './pwa.js?v=20260923j',
+  './style.css?v=20260923k',
+  './nav.js?v=20260923k',
+  './config.js?v=20260923k',
+  './pwa.js?v=20260923k',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png',
   './og-familia.png',
-  './404.html',
   './manifest.webmanifest'
 ];
+
+function isHtmlRequest(req) {
+  if (req.mode === 'navigate') return true;
+  if (req.destination === 'document') return true;
+  try {
+    const u = new URL(req.url);
+    return /\.html(?:$|\?)/i.test(u.pathname) || u.pathname.endsWith('/');
+  } catch (e) {
+    return false;
+  }
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -43,11 +50,24 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  // HTML / navigations: network-only — never write into cache (stale chat.html fix)
+  if (isHtmlRequest(req)) {
+    event.respondWith(
+      fetch(req).catch(() =>
+        caches.match(req).then((cached) => cached || caches.match('./index.html'))
+      )
+    );
+    return;
+  }
+
+  // Other assets: network-first, then cache
   event.respondWith(
     fetch(req)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() =>

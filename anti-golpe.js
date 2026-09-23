@@ -38,6 +38,10 @@
     // Chave Pix telefone isolada (já coberta por RE_PHONE); label "pix:" + token
     var RE_PIX_LABEL = /\b(?:chave\s*)?pix\b[\s:#\-]+[^\s]{5,}/gi;
 
+    // Intent keywords even WITHOUT phone digits (fala no whatsapp / me chama no zap)
+    var RE_WA_INTENT =
+        /\b(?:whats?\.?\s*app|zap|zapp|wpp|whts|telegram|só\s+no\s+zap|fala\s+no\s+whats?app|chama\s+no\s+zap|me\s+chama\s+no\s+zap)\b/i;
+
     var ALL_BLOCK = [
         RE_PHONE,
         RE_DIGIT_RUN,
@@ -48,7 +52,8 @@
         RE_EMAIL,
         RE_HTTP,
         RE_SOCIAL,
-        RE_PIX_LABEL
+        RE_PIX_LABEL,
+        RE_WA_INTENT
     ];
 
     function resetFlags(re) {

@@ -8,9 +8,57 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
+  var ASSET_V = '20260923k';
+  var RELOAD_FLAG = 'minera_reloaded_k';
+
+  function forceAssetRefreshOnce() {
+    try {
+      if (localStorage.getItem('minera_asset_v') === ASSET_V) return;
+      if (sessionStorage.getItem(RELOAD_FLAG) === '1') {
+        try { localStorage.setItem('minera_asset_v', ASSET_V); } catch (e) {}
+        return;
+      }
+      sessionStorage.setItem(RELOAD_FLAG, '1');
+      localStorage.setItem('minera_asset_v', ASSET_V);
+      var wipe = Promise.resolve();
+      if (typeof caches !== 'undefined' && caches.keys) {
+        wipe = caches.keys().then(function (keys) {
+          return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+        }).catch(function () {});
+      }
+      var unreg = Promise.resolve();
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        unreg = navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.map(function (r) { return r.unregister(); }));
+        }).catch(function () {});
+      }
+      Promise.all([wipe, unreg]).then(function () {
+        location.reload();
+      }).catch(function () {
+        location.reload();
+      });
+    } catch (e) {
+      try { location.reload(); } catch (e2) {}
+    }
+  }
+
   if (canRegister) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js').catch(function () {});
+      navigator.serviceWorker
+        .register('./sw.js?v=' + ASSET_V)
+        .then(function () {
+          forceAssetRefreshOnce();
+        })
+        .catch(function () {
+          forceAssetRefreshOnce();
+        });
+    });
+  } else {
+    // Still bump asset marker offline / non-SW contexts once
+    window.addEventListener('load', function () {
+      try {
+        if (localStorage.getItem('minera_asset_v') !== ASSET_V) forceAssetRefreshOnce();
+      } catch (e) {}
     });
   }
 

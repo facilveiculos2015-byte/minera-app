@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const CACHE = '20260923h';
+const CACHE = '20260923k';
 let fails = 0;
 let warns = 0;
 
