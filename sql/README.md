@@ -102,3 +102,9 @@ Incremental após 30: `suporte_mensagens.deleted_at`, `arquivado`, `atendido_em`
 Incremental após 31: reafirma `is_admin()`; endurece RLS de lotes/caixa/emprestimos/chat/suporte; **REVOKE ALL … FROM anon** em tabelas sensíveis; documenta o contrato RLS (assumptions). Idempotente. NÃO wipe.
 **Parent deve aplicar o SQL 32 no Supabase SQL Editor após 31.**
 Fortaleza: zero writes anônimos; chat só participante; empréstimos UPDATE só admin; caixa isolado por auth_id.
+
+
+## 33-storage-user-paths.sql
+Incremental após 32: Storage `chat-midia` e `emprestimo-docs` com mutação só em pasta `{auth.uid()}/...`. SELECT público de chat-midia preservado (playback). Idempotente. NÃO wipe.
+**Parent deve aplicar o SQL 33 no Supabase SQL Editor após 32.**
+Garante isolamento de arquivos por usuário (admin-as-user não vaza storage alheio via JWT).

@@ -337,7 +337,8 @@ async function requireRole(perfil, rolesPermitidos) {
 function aplicarUserLabel(perfil) {
     const el = document.getElementById('user-label');
     if (!el || !perfil) return;
-    el.textContent = 'Olá, ' + (perfil.apelido || perfil.nome || 'Usuário') + ' · ' + rotuloPapeis(perfil);
+    const nome = (perfil.apelido || perfil.nome || 'Usuário');
+    el.textContent = 'Olá, ' + nome;
 }
 
 

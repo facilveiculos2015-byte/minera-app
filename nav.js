@@ -358,8 +358,8 @@ function garantirHeaderCaixaBtn() {
         btn = document.createElement('a');
         btn.id = 'btn-caixa-bank';
         btn.className = 'btn-caixa-bank';
-        btn.title = 'Bank — Caixa Minera';
-        btn.setAttribute('aria-label', 'Bank — Caixa Minera');
+        btn.title = 'Bank — Caixa Minerar Seguro';
+        btn.setAttribute('aria-label', 'Bank — Caixa Minerar Seguro');
         btn.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">' +
             '<path fill="currentColor" d="M12 3L2 9v2h20V9L12 3zm1 6H11v2h2V9zm-4 0H7v2h2V9zm8 0h-2v2h2V9zM4 13v7h3v-5h2v5h2v-5h2v5h2v-5h2v5h3v-7H4z"/></svg>' +
             '<span class="btn-caixa-bank-label">Bank</span>';
@@ -370,8 +370,8 @@ function garantirHeaderCaixaBtn() {
         else actions.insertBefore(btn, actions.firstChild);
     }
     btn.href = href;
-    btn.title = 'Bank — Caixa Minera';
-    btn.setAttribute('aria-label', 'Bank — Caixa Minera');
+    btn.title = 'Bank — Caixa Minerar Seguro';
+    btn.setAttribute('aria-label', 'Bank — Caixa Minerar Seguro');
     if (!btn.querySelector('.btn-caixa-bank-label')) {
         const label = document.createElement('span');
         label.className = 'btn-caixa-bank-label';
@@ -648,10 +648,10 @@ function montarNav(paginaAtiva, perfil) {
 }
 
 
-/** Logo escavadeira ao lado do título Minera App (toda página autenticada) */
+/** Logo escavadeira ao lado do título Minerar PARÁ (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260918d';
+    const src = root + 'logo-escavadeira.png?v=20260923a';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -671,9 +671,9 @@ function garantirBrandLogo() {
         const img = document.createElement('img');
         img.className = 'brand-logo';
         img.src = src;
-        img.alt = 'Minera App';
-        img.width = 40;
-        img.height = 40;
+        img.alt = 'Minerar PARÁ';
+        img.width = 56;
+        img.height = 56;
         img.decoding = 'async';
         if (!wrap.classList.contains('brand-row')) {
             const row = document.createElement('div');
@@ -696,9 +696,9 @@ function garantirBrandLogo() {
         img = document.createElement('img');
         img.className = 'brand-logo-lg';
         img.src = src;
-        img.alt = 'Minera App';
-        img.width = 72;
-        img.height = 72;
+        img.alt = 'Minerar PARÁ';
+        img.width = 96;
+        img.height = 96;
         img.decoding = 'async';
         mark.appendChild(img);
     });
@@ -827,7 +827,7 @@ const MineraNotif = (function () {
                 if (typeof toastMsg === 'function') {
                     toastMsg(adminEmpPendentes + ' empréstimo(s) aguardando análise');
                 }
-                showBrowserNotif('Minera App — Empréstimos', adminEmpPendentes + ' pedido(s) em análise');
+                showBrowserNotif('Minerar PARÁ — Empréstimos', adminEmpPendentes + ' pedido(s) em análise');
             }
             lastEmpToastN = adminEmpPendentes;
         }
@@ -879,7 +879,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260918d' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923a' });
             }
         } catch (e) { /* ignore */ }
     }
@@ -927,7 +927,7 @@ const MineraNotif = (function () {
                     if (/@/.test(String(nome))) nome = 'Alguém';
                     const preview = (m.texto || (m.tipo && m.tipo !== 'text' ? '[' + m.tipo + ']' : 'Nova mensagem')).slice(0, 80);
                     if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome);
-                    showBrowserNotif('Minera App', nome + ': ' + preview);
+                    showBrowserNotif('Minerar PARÁ', nome + ': ' + preview);
                 });
             }
 

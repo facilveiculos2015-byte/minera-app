@@ -3,157 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera App - Feed</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918d">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918d">
+    <title>Minerar PARÁ - Marketplace</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923a">
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#f59e0b">
+    <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260918d">
+    <meta name="apple-mobile-web-app-title" content="Minerar PARÁ">
+    <link rel="stylesheet" href="style.css?v=20260923a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
-<body>
+<body class="pagina-inicio">
     <div class="container wide">
-        <header class="header-row">
-            <div class="brand-title">
-                <h1>Minera App</h1>
-                <p id="user-label">Carregando...</p>
-            </div>
-            <div class="header-actions">
-                <a class="btn-caixa-bank" id="btn-caixa-bank" href="financeiro.html" title="Bank — Caixa Minera" aria-label="Bank — Caixa Minera">
-                    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">
-                        <path fill="currentColor" d="M12 3L2 9v2h20V9L12 3zm1 6H11v2h2V9zm-4 0H7v2h2V9zm8 0h-2v2h2V9zM4 13v7h3v-5h2v5h2v-5h2v5h2v-5h2v5h3v-7H4z"/>
-                    </svg>
-                    <span class="btn-caixa-bank-label">Bank</span>
-                </a>
-                <button type="button" class="btn-icon" id="btn-notif" title="Notificações" aria-label="Notificações">🔔<span class="notif-badge oculto" id="notif-badge">0</span></button>
-                <button type="button" class="btn-sair" id="btn-sair">Sair</button>
-            </div>
-        </header>
+        <p id="user-label" class="oculto" aria-hidden="true"></p>
 
-        <nav id="app-nav" class="nav-chips"></nav>
-
-        <section class="card cotacoes-card cotacoes-compact" id="card-cotacoes">
-            <div class="cotacoes-strip-head">
-                <span class="cotacoes-strip-title">Cotações</span>
-                <span class="cotacoes-fonte" id="cotacoes-atualizado">…</span>
-            </div>
-            <div class="cotacoes-grid cotacoes-strip" id="cotacoes-grid">
-                <div class="cotacao-item">
-                    <div class="c-label">Dólar</div>
-                    <div class="c-valor" id="cot-dolar">—</div>
-                    <div class="c-sub" id="cot-dolar-sub">USD/BRL</div>
-                </div>
-                <div class="cotacao-item">
-                    <div class="c-label">Ouro</div>
-                    <div class="c-valor" id="cot-ouro">—</div>
-                    <div class="c-sub" id="cot-ouro-sub">USD/g</div>
-                </div>
-                <div class="cotacao-item">
-                    <div class="c-label">Cobre</div>
-                    <div class="c-valor" id="cot-cobre">—</div>
-                    <div class="c-sub" id="cot-cobre-sub">USD/t</div>
-                </div>
-            </div>
-            <div class="cotacoes-links" id="cotacoes-links">
-                <a id="link-lme-copper" href="https://www.lme.com/en/Metals/Non-ferrous/LME-Copper" target="_blank" rel="noopener noreferrer">LME Copper</a>
-                <a id="link-lme-home" href="https://www.lme.com/" target="_blank" rel="noopener noreferrer">LME Home</a>
-                <a id="link-gold-lbma" href="https://www.lbma.org.uk/prices-and-data/precious-metal-prices" target="_blank" rel="noopener noreferrer">Gold LBMA</a>
-            </div>
-        </section>
-
-        <section class="card mkt-card">
-            <div class="mkt-head">
-                <div>
-                    <h2>Marketplace</h2>
-                    <p class="sub">Lotes publicados · filtre e negocie direto com o anunciante</p>
-                </div>
-                <a class="btn-anunciar" id="btn-anunciar" href="lotes.html">＋ Anunciar</a>
-            </div>
-            <div class="mkt-trust-row" aria-label="Confiança">
-                <span>Negociação direta</span>
-                <span>Chat privado</span>
-                <span>Anunciantes na plataforma</span>
-            </div>
-
-            <button type="button" class="cta-servicos" id="cta-servicos" aria-haspopup="dialog">
-                <span class="cta-servicos-ico" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-                </span>
-                <span class="cta-servicos-body">
-                    <span class="cta-servicos-title">Serviços na região</span>
-                    <span class="cta-servicos-sub">Frete, britagem, carregamento e compradores verificados</span>
-                </span>
-                <span class="cta-servicos-arrow" aria-hidden="true">›</span>
+        <div class="olx-top">
+            <button type="button" class="olx-loc" id="olx-loc-btn" aria-label="Cidade">
+                <span class="pin" aria-hidden="true">📍</span>
+                <span id="olx-city">Parauapebas</span>
+                <span class="chev" aria-hidden="true">▾</span>
             </button>
+            <button type="button" class="olx-bell" id="btn-notif" title="Notificações" aria-label="Notificações">
+                🔔<span class="notif-badge oculto" id="notif-badge">0</span>
+            </button>
+        </div>
 
-            <div class="mkt-search">
-                <input type="search" id="mkt-busca" placeholder="Buscar por código, cidade ou minério…" autocomplete="off" aria-label="Buscar no feed">
+        <div class="olx-tabs" id="filtro-tipo-chips" role="tablist" aria-label="Categorias">
+            <button type="button" class="olx-tab on" data-tipo="" role="tab">Todos</button>
+            <button type="button" class="olx-tab" data-tipo="Ouro" role="tab">Ouro</button>
+            <button type="button" class="olx-tab" data-tipo="Ferro" role="tab">Ferro</button>
+            <button type="button" class="olx-tab" data-tipo="Cobre" role="tab">Cobre</button>
+            <button type="button" class="olx-tab" data-tipo="Níquel" role="tab">Níquel</button>
+        </div>
+
+        <div class="olx-search-wrap">
+            <input type="search" id="mkt-busca" class="olx-search" placeholder="Buscar minério, código ou cidade…" autocomplete="off" aria-label="Buscar">
+        </div>
+
+        <div class="olx-quick" aria-label="Atalhos">
+            <button type="button" class="olx-qcard" id="q-favoritos"><span class="qi">♡</span>Favoritos</button>
+            <button type="button" class="olx-qcard" id="cta-servicos"><span class="qi">🛠</span>Serviços</button>
+            <a class="olx-qcard" id="btn-anunciar" href="lotes.html"><span class="qi">＋</span>Anunciar</a>
+            <button type="button" class="olx-qcard" id="q-categorias"><span class="qi">▦</span>Categorias</button>
+        </div>
+
+        <div class="olx-banner" id="olx-banner" aria-label="Destaques">
+            <div class="olx-banner-track" id="olx-banner-track">
+                <div class="olx-banner-slide"><strong>Caixa Minerar Seguro</strong><span>Saldo, Pix e rendimento estimado</span></div>
+                <div class="olx-banner-slide"><strong>Empréstimos Minerar Seguro</strong><span>Capital de giro · 15% a.m.</span></div>
+                <div class="olx-banner-slide"><strong>Negocie no Chat</strong><span>Mensagens privadas entre as partes</span></div>
             </div>
+        </div>
+        <div class="olx-promo">Promo: anuncie seu lote e negocie direto com compradores da região.</div>
 
-            <div class="loc-bar loc-bar-collapsed" id="loc-bar">
-                <button type="button" class="loc-bar-toggle" id="loc-bar-toggle" aria-expanded="false" aria-controls="loc-bar-panel">
-                    <span class="loc-bar-toggle-title">Local</span>
-                    <span class="loc-bar-status" id="loc-status" aria-live="polite">Detectando localização…</span>
-                    <span class="loc-bar-chevron" aria-hidden="true">▼</span>
-                </button>
-                <div class="loc-bar-panel" id="loc-bar-panel" hidden>
-                    <div class="chip-filters loc-mode-chips" id="filtro-local-chips" role="group" aria-label="Filtro de localidade">
-                        <button type="button" class="fchip on" data-loc="todos">Todos</button>
-                        <button type="button" class="fchip" data-loc="estado">Estado</button>
-                        <button type="button" class="fchip" data-loc="cidade">Cidade</button>
-                        <button type="button" class="fchip" data-loc="ddd">DDD</button>
-                    </div>
-                    <div class="loc-selects" id="loc-selects">
-                        <select id="filtro-estado" aria-label="Estado" class="loc-select">
-                            <option value="">Estado (UF)</option>
-                        </select>
-                        <select id="filtro-cidade" aria-label="Cidade" class="loc-select" disabled>
-                            <option value="">Cidade</option>
-                        </select>
-                        <select id="filtro-ddd" aria-label="DDD" class="loc-select">
-                            <option value="">DDD</option>
-                        </select>
-                    </div>
-                    <p class="filtro-grupo-label">Perfil do anunciante</p>
-                    <div class="chip-filters" id="filtro-servico-chips" role="group" aria-label="Perfil do anunciante">
-                        <button type="button" class="fchip on" data-servico="">Todos</button>
-                        <button type="button" class="fchip" data-servico="minerador">Minerador</button>
-                        <button type="button" class="fchip" data-servico="comprador">Comprador</button>
-                        <button type="button" class="fchip" data-servico="transportador">Transportador</button>
-                        <button type="button" class="fchip" data-servico="dono_britador">Britador</button>
-                        <button type="button" class="fchip" data-servico="carregamento">Carregamento</button>
-                    </div>
+        <!-- Hidden filters kept for JS compatibility -->
+        <div class="oculto" aria-hidden="true">
+            <div id="loc-bar"><button type="button" id="loc-bar-toggle" aria-expanded="false"></button>
+                <div id="loc-bar-panel" hidden>
+                    <div id="filtro-local-chips"><button class="fchip on" data-loc="todos"></button></div>
+                    <select id="filtro-estado"></select><select id="filtro-cidade"></select><select id="filtro-ddd"></select>
+                    <div id="filtro-servico-chips"><button class="fchip on" data-servico=""></button></div>
                 </div>
             </div>
+            <div id="filtro-status-chips"><button class="fchip on" data-status=""></button></div>
+            <span id="loc-status"></span>
+            <div id="card-cotacoes"><div id="cotacoes-grid">
+                <div class="c-valor" id="cot-dolar"></div><div class="c-sub" id="cot-dolar-sub"></div>
+                <div class="c-valor" id="cot-ouro"></div><div class="c-sub" id="cot-ouro-sub"></div>
+                <div class="c-valor" id="cot-cobre"></div><div class="c-sub" id="cot-cobre-sub"></div>
+            </div><span id="cotacoes-atualizado"></span><div class="cotacoes-links"></div></div>
+        </div>
 
-            <div class="mkt-cat-rail" aria-label="Categorias"><div class="chip-filters chip-filters-minerio seg-minerio" id="filtro-tipo-chips" role="group" aria-label="Tipo de minério">
-                <button type="button" class="fchip on" data-tipo="">Todos</button>
-                <button type="button" class="fchip fchip-mineral fchip-ouro" data-tipo="Ouro"><span class="min-ico" aria-hidden="true"></span>Ouro</button>
-                <button type="button" class="fchip fchip-mineral fchip-ferro" data-tipo="Ferro"><span class="min-ico" aria-hidden="true"></span>Ferro</button>
-                <button type="button" class="fchip fchip-mineral fchip-cobre" data-tipo="Cobre"><span class="min-ico" aria-hidden="true"></span>Cobre</button>
-                <button type="button" class="fchip fchip-mineral fchip-niquel" data-tipo="Níquel"><span class="min-ico" aria-hidden="true"></span>Níquel</button>
-            </div>
-            </div>
-            <div class="chip-filters" id="filtro-status-chips" role="group" aria-label="Status">
-                <button type="button" class="fchip on" data-status="">Todos</button>
-                <button type="button" class="fchip" data-status="pendente">Disponível</button>
-                <button type="button" class="fchip" data-status="em_processo">Em trânsito</button>
-                <button type="button" class="fchip" data-status="expedido">Vendido</button>
-            </div>
-
-            <div id="feed" class="loading">Carregando...</div>
-        </section>
+        <div id="feed" class="olx-feed loading">Carregando...</div>
+        <a class="olx-fab" id="fab-anunciar" href="lotes.html" title="Anunciar" aria-label="Anunciar">＋</a>
+        <nav id="app-nav" class="nav-chips oculto"></nav>
     </div>
-    <script src="config.js?v=20260918d"></script>
-    <script src="auth-guard.js?v=20260918d"></script>
-    <script src="suporte.js?v=20260918d"></script>
-    <script src="nav.js?v=20260918d"></script>
-    <script src="localidade.js?v=20260918d"></script>
-    <script src="inicio.js?v=20260918d"></script>
-    <script src="pwa.js?v=20260918d"></script>
+    <script src="config.js?v=20260923a"></script>
+    <script src="auth-guard.js?v=20260923a"></script>
+    <script src="suporte.js?v=20260923a"></script>
+    <script src="nav.js?v=20260923a"></script>
+    <script src="localidade.js?v=20260923a"></script>
+    <script src="inicio.js?v=20260923a"></script>
+    <script src="pwa.js?v=20260923a"></script>
 </body>
 </html>

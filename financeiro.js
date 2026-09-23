@@ -1,4 +1,4 @@
-/** Caixa Minera — banco UX: Empréstimo / Depositar / Sacar + PIN */
+/** Caixa Minerar Seguro — banco UX: Empréstimo / Depositar / Sacar + PIN */
 const TAXA_YIELD_MAX = 5;
 const JUROS_EMPRESTIMO = 15;
 const SAIBA_KEY = 'minera_saiba_mais_caixa';
@@ -252,7 +252,7 @@ async function carregarMovimentos() {
             .limit(40);
         if (error) throw error;
         if (!data || !data.length) {
-            box.innerHTML = '<div class="empty-cta"><p><strong>Seu extrato está vazio</strong></p><p class="sub">Faça seu primeiro depósito via Pix para começar a usar o Caixa Minera.</p><button type="button" class="btn-ok" id="cta-primeiro-dep">Depositar agora</button></div>'; const cta = document.getElementById('cta-primeiro-dep'); if (cta) cta.addEventListener('click', () => { abrirPanel('panel-depositar'); });
+            box.innerHTML = '<div class="empty-cta"><p><strong>Seu extrato está vazio</strong></p><p class="sub">Faça seu primeiro depósito via Pix para começar a usar o Caixa Minerar Seguro.</p><button type="button" class="btn-ok" id="cta-primeiro-dep">Depositar agora</button></div>'; const cta = document.getElementById('cta-primeiro-dep'); if (cta) cta.addEventListener('click', () => { abrirPanel('panel-depositar'); });
             return;
         }
         const labels = {
@@ -811,24 +811,32 @@ function bindEmpWizard() {
     });
 }
 
+function nbGo(view) {
+    if (typeof window.nbShowView === 'function') window.nbShowView(view);
+}
 function bindUI() {
     bindPinUI();
 
-    document.getElementById('btn-emprestimo-goto').addEventListener('click', () => {
-        fecharPaineisAcao();
-        const sec = document.getElementById('sec-emprestimo');
-        if (sec) sec.scrollIntoView({ behavior: 'smooth' });
-    });
-    document.getElementById('btn-depositar').addEventListener('click', () => {
-        abrirPanel('panel-depositar');
+    const empBtn = document.getElementById('btn-emprestimo-goto');
+    if (empBtn) empBtn.addEventListener('click', () => { nbGo('emprestimos'); });
+    const depBtn = document.getElementById('btn-depositar');
+    if (depBtn) depBtn.addEventListener('click', () => {
+        nbGo('depositar');
+        const p = document.getElementById('panel-depositar');
+        if (p) p.classList.remove('oculto');
         setDepMsg('', true);
     });
-    document.getElementById('btn-sacar').addEventListener('click', () => {
-        abrirPanel('panel-sacar');
+    const saqBtn = document.getElementById('btn-sacar');
+    if (saqBtn) saqBtn.addEventListener('click', () => {
+        nbGo('sacar');
+        const p = document.getElementById('panel-sacar');
+        if (p) p.classList.remove('oculto');
         setSaqueMsg('', true);
     });
-    document.getElementById('dep-cancelar').addEventListener('click', fecharPaineisAcao);
-    document.getElementById('saque-cancelar').addEventListener('click', fecharPaineisAcao);
+    const depCancel = document.getElementById('dep-cancelar');
+    if (depCancel) depCancel.addEventListener('click', () => nbGo('home'));
+    const saqCancel = document.getElementById('saque-cancelar');
+    if (saqCancel) saqCancel.addEventListener('click', () => nbGo('home'));
     document.getElementById('btn-gerar-pix-dep').addEventListener('click', gerarPixDeposito);
     document.getElementById('btn-enviar-dep').addEventListener('click', enviarDeposito);
     document.getElementById('btn-enviar-saque').addEventListener('click', enviarSaque);
@@ -864,10 +872,20 @@ function bindUI() {
         /* banner already shown; still allow view of bank for Pix/pay */
     }
     montarNav('financeiro', perfilAtual);
-    document.getElementById('emp-nome').value = (perfilAtual && perfilAtual.nome) || '';
+    const nomePub = (perfilAtual && (perfilAtual.apelido || perfilAtual.nome)) || 'Usuário';
+    const hello = document.getElementById('nb-hello');
+    if (hello) hello.textContent = 'Olá, ' + nomePub;
+    const av = document.getElementById('nb-av');
+    if (av) {
+        const parts = String(nomePub).trim().split(/\s+/).filter(Boolean);
+        av.textContent = parts.length > 1 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : String(nomePub).slice(0,2).toUpperCase();
+    }
+    const empNome = document.getElementById('emp-nome');
+    if (empNome) empNome.value = (perfilAtual && perfilAtual.nome) || '';
     bindUI();
     atualizarTotalPrevisto();
     await Promise.all([carregarCaixa(), carregarMovimentos(), carregarEmprestimos(), carregarPedidos(), renderCreditoStatus()]);
+    if (isUnlocked()) { const lock = document.getElementById('card-caixa'); if (lock) lock.classList.remove('caixa-locked'); }
     if (!saibaDismissed() && isUnlocked()) abrirSaibaMais();
     // Status do empréstimo muda no Admin — atualiza a lista periodicamente
     setInterval(() => { try { carregarEmprestimos(); } catch (e) { /* ignore */ } }, 30000);

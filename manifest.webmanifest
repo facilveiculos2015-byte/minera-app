@@ -1,6 +1,6 @@
 {
-  "name": "Minera App",
-  "short_name": "Minera",
+  "name": "Minerar PARÁ",
+  "short_name": "Minerar PARÁ",
   "description": "Gerencie lotes, frete, britagem e caixa com segurança.",
   "lang": "pt-BR",
   "dir": "ltr",
@@ -8,8 +8,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f172a",
-  "theme_color": "#f59e0b",
+  "background_color": "#0b1220",
+  "theme_color": "#F5A623",
   "icons": [
     {
       "src": "./icon-192.png",

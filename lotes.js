@@ -271,7 +271,7 @@ async function uploadLoteImagem(file) {
     const mime = (file.type || 'image/jpeg').split(';')[0];
     const ext = extForMime(mime, (file.name || '').split('.').pop() || 'jpg');
     const uid = (sessionAtual && sessionAtual.user && sessionAtual.user.id) || 'anon';
-    const path = LOTE_STORAGE_FOLDER + '/' + uid + '/' + Date.now() + '_' +
+    const path = uid + '/' + LOTE_STORAGE_FOLDER + '/' + Date.now() + '_' +
         String(file.name || ('lote.' + ext)).replace(/[^\w.\-]+/g, '_').replace(/\.[^.]+$/, '') + '.' + ext;
     const { data, error } = await supabaseClient.storage
         .from(LOTE_STORAGE_BUCKET)

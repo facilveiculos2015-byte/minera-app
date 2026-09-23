@@ -1,4 +1,4 @@
-/* Minera App — PWA register + soft install (1×/semana) + notif ask once + welcome strip */
+/* Minerar PARÁ — PWA register + soft install (1×/semana) + notif ask once + welcome strip */
 (function () {
   'use strict';
 
@@ -69,10 +69,10 @@
     var bar = document.createElement('div');
     bar.id = 'minera-pwa-install';
     bar.setAttribute('role', 'dialog');
-    bar.setAttribute('aria-label', 'Instalar Minera App');
+    bar.setAttribute('aria-label', 'Instalar Minerar PARÁ');
     bar.innerHTML =
       '<img src="icon-192.png" alt="" width="36" height="36">' +
-      '<div class="pwa-txt"><strong>Instalar Minera App</strong><br><span style="color:#94a3b8;font-size:12px">Acesso rápido na tela inicial · pode fechar e ver de novo em 7 dias</span></div>' +
+      '<div class="pwa-txt"><strong>Instalar Minerar PARÁ</strong><br><span style="color:#94a3b8;font-size:12px">Acesso rápido na tela inicial · pode fechar e ver de novo em 7 dias</span></div>' +
       '<button type="button" class="pwa-no" aria-label="Agora não">Agora não</button>' +
       '<button type="button" class="pwa-go">Instalar</button>';
     document.body.appendChild(bar);

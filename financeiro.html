@@ -3,35 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera App - Caixa Minera</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918d">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918d">
+    <title>Minerar PARÁ - Caixa Minerar Seguro</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923a">
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#f59e0b">
+    <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260918d">
+    <meta name="apple-mobile-web-app-title" content="Minerar PARÁ">
+    <link rel="stylesheet" href="style.css?v=20260923a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
-<body>
+<body class="pagina-financeiro">
     <div class="container wide">
-        <header class="header-row">
-            <div class="brand-title">
-                <h1>Minera App</h1>
-                <p id="user-label">Carregando...</p>
-            </div>
-            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
-        </header>
-        <nav id="app-nav" class="nav-chips"></nav>
+        <p id="user-label" class="oculto"></p>
+        <nav id="app-nav" class="nav-chips oculto"></nav>
 
-        <section class="card caixa-bank-card caixa-locked" id="card-caixa">
+        <!-- PIN lock (preserved) -->
+        <section class="card caixa-bank-card caixa-locked" id="card-caixa" style="margin:12px;border-radius:16px">
             <div id="caixa-lock" class="caixa-lock-overlay">
                 <div class="caixa-lock-panel" id="panel-set-pin">
                     <h3>Defina a senha da Caixa</h3>
-                    <p class="caixa-pin-hint">Senha exclusiva do Caixa Minera (diferente do login). Mínimo 6 caracteres.</p>
+                    <p class="caixa-pin-hint">Senha exclusiva do Caixa Minerar Seguro (diferente do login). Mínimo 6 caracteres.</p>
                     <label for="pin-novo">Nova senha da Caixa</label>
                     <input type="password" id="pin-novo" minlength="6" autocomplete="new-password" placeholder="••••••">
                     <label for="pin-novo2">Confirmar senha</label>
@@ -50,7 +45,7 @@
                 </div>
                 <div class="caixa-lock-panel oculto" id="panel-forgot-pin">
                     <h3>Esqueci senha da Caixa</h3>
-                    <p class="caixa-pin-hint">Confirme a senha de login da conta (e-mail atual) ou peça um código OTP por e-mail. Depois defina uma nova senha da Caixa.</p>
+                    <p class="caixa-pin-hint">Confirme a senha de login da conta ou peça OTP por e-mail.</p>
                     <label for="forgot-login-pass">Senha de login</label>
                     <input type="password" id="forgot-login-pass" autocomplete="current-password" placeholder="Senha da conta">
                     <button type="button" class="btn-ok" id="btn-reauth-pin">Confirmar login e redefinir</button>
@@ -72,177 +67,300 @@
                 </div>
             </div>
 
-            <div class="caixa-unlocked-body">
-                <div class="caixa-bank-top">
-                    <div>
-                        <p class="caixa-bank-eyebrow">Bank</p>
-                        <h2>Caixa Minera</h2>
-                        <p class="sub">Saldo sob custódia · Pix · crédito sujeito a análise</p>
+            <div class="caixa-unlocked-body" style="padding:0;background:transparent;border:0;box-shadow:none">
+                <!-- HOME Nubank -->
+                <div class="nb-view on" id="view-home">
+                    <div class="nb-strip">
+                        <div class="nb-strip-top">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <div class="nb-av" id="nb-av">?</div>
+                                <button type="button" class="nb-shortcut" id="nb-shortcut" title="Atalho">▦</button>
+                            </div>
+                            <div class="nb-strip-right">
+                                <button type="button" class="nb-ico-btn" id="nb-eye" aria-label="Ocultar saldo">👁</button>
+                                <button type="button" class="nb-ico-btn" id="btn-saiba-mais" aria-label="Ajuda">?</button>
+                                <button type="button" class="nb-ico-btn" id="nb-menu" aria-label="Menu">☰</button>
+                            </div>
+                        </div>
+                        <div class="nb-hello" id="nb-hello">Olá</div>
                     </div>
-                    <button type="button" class="btn-link btn-saiba-mais" id="btn-saiba-mais">Saiba mais</button>
-                </div>
-                <div class="caixa-saldo-block">
-                    <div class="caixa-saldo-label">Saldo disponível</div>
-                    <div class="caixa-saldo-valor" id="caixa-saldo">R$ —</div>
-                    <div class="caixa-rendimento" id="caixa-rendimento">Rendimento estimado até 5% a.m. conforme cotação da bolsa · projeção informativa</div>
-                    <div class="caixa-credito-status" id="caixa-credito-status" aria-live="polite"></div>
-                </div>
-                <div class="caixa-bank-actions" role="group" aria-label="Ações da Caixa">
-                    <button type="button" class="bank-tile" id="btn-depositar">
-                        <span class="bank-tile-ico" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
-                        </span>
-                        Depositar
-                    </button>
-                    <button type="button" class="bank-tile ghost" id="btn-sacar">
-                        <span class="bank-tile-ico" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 21V9m0 0l4 4m-4-4l-4 4M5 5h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
-                        </span>
-                        Sacar
-                    </button>
-                    <button type="button" class="bank-tile" id="btn-emprestimo-goto">
-                        <span class="bank-tile-ico" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 7h16v10H4V7zm2 2h3v2H6V9zm5 0h7v1h-7V9zm0 3h7v1h-7v-1z"/></svg>
-                        </span>
-                        Crédito
-                    </button>
+                    <div class="nb-body">
+                        <button type="button" class="nb-saldo" id="btn-saldo-goto" style="width:100%;text-align:left;cursor:pointer">
+                            <div class="nb-saldo-label">Saldo em conta <span aria-hidden="true">›</span></div>
+                            <div class="nb-saldo-valor" id="caixa-saldo">R$ —</div>
+                            <span class="nb-yield" id="caixa-rendimento">Rendimento estimado</span>
+                            <div class="caixa-credito-status" id="caixa-credito-status" aria-live="polite"></div>
+                        </button>
+
+                        <div class="nb-circles" role="group" aria-label="Ações">
+                            <button type="button" class="nb-circle" id="btn-pix" data-view="pix"><span class="nci">◇</span>Pix/Transferir</button>
+                            <button type="button" class="nb-circle" id="btn-depositar" data-view="depositar"><span class="nci">↓</span>Depositar</button>
+                            <button type="button" class="nb-circle" id="btn-pagar" data-view="pagar"><span class="nci">▦</span>Pagar</button>
+                            <button type="button" class="nb-circle" id="btn-emprestimo-goto" data-view="emprestimos"><span class="nci">$</span>Pegar emprestado<span class="nb-badge-novo">Novo</span></button>
+                            <button type="button" class="nb-circle" id="btn-ajuda" data-view="ajuda"><span class="nci">?</span>Ajuda</button>
+                        </div>
+
+                        <div class="nb-card">
+                            <div class="nb-card-row"><strong>Meus cartões</strong><span class="chev">›</span></div>
+                            <p class="sub" style="margin-top:6px">Cartão virtual Minerar Seguro · em breve</p>
+                        </div>
+
+                        <div class="olx-banner" style="margin:0 0 12px;aspect-ratio:16/5">
+                            <div class="olx-banner-track" id="nb-promo-track">
+                                <div class="olx-banner-slide"><strong>Empréstimos Minerar Seguro</strong><span>Capital de giro · 15% a.m.</span></div>
+                                <div class="olx-banner-slide"><strong>Caixa Minerar Seguro</strong><span>Saldo sacável via Pix</span></div>
+                            </div>
+                        </div>
+
+                        <div class="nb-card">
+                            <button type="button" class="nb-list-item" data-view="extrato">Extrato <span class="chev">›</span></button>
+                            <button type="button" class="nb-list-item" id="btn-sacar" data-view="sacar">Sacar <span class="chev">›</span></button>
+                            <button type="button" class="nb-list-item" data-view="emprestimos">Empréstimos Minerar Seguro <span class="chev">›</span></button>
+                            <button type="button" class="nb-list-item" id="nb-list-pedidos" data-view="pedidos">Pedidos recentes <span class="chev">›</span></button>
+                        </div>
+                        <p id="caixa-msg" class="msg"></p>
+                    </div>
+                    <button type="button" class="nb-dock" id="nb-dock" data-view="emprestimos">$ Empréstimos</button>
                 </div>
 
-                <!-- Depositar: Pix real -->
-                <div id="panel-depositar" class="caixa-panel oculto">
-                    <h3>Depositar via Pix</h3>
-                    <p class="sub">Pague com a chave Pix da plataforma (titular JeL). Envie o comprovante; o crédito no Caixa ocorre após confirmação do admin.</p>
-                    <label for="dep-valor">Valor (R$)</label>
-                    <input type="number" id="dep-valor" min="0.01" step="0.01" placeholder="0,00">
-                    <button type="button" class="btn-ok" id="btn-gerar-pix-dep">Gerar Pix</button>
-                    <div id="dep-pix-box" class="pix-dep-box oculto">
-                        <p class="sub" id="dep-pix-info"></p>
-                        <div id="dep-pix-qr" class="pix-qr" aria-label="QR Code Pix depósito"></div>
-                        <label for="dep-pix-copia">Pix Copia e Cola</label>
-                        <textarea id="dep-pix-copia" readonly rows="3"></textarea>
-                        <button type="button" class="btn-ok" id="btn-copiar-pix-dep">Copiar Pix</button>
-                        <label for="dep-comprovante">URL do comprovante</label>
-                        <input type="url" id="dep-comprovante" placeholder="https://… ou link do comprovante">
-                        <button type="button" class="btn-ok" id="btn-enviar-dep">Enviar pedido de depósito</button>
+                <!-- EMPRÉSTIMOS -->
+                <div class="nb-view" id="view-emprestimos">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Empréstimos Minerar Seguro</h2>
                     </div>
-                    <button type="button" class="btn-ghost" id="dep-cancelar">Fechar</button>
-                    <p id="dep-msg" class="msg"></p>
+                    <div class="nb-inner-body">
+                        <p class="sub" id="emp-opcoes-count">2 opções</p>
+                        <div class="emp-opt-card">
+                            <div class="nb-card-row">
+                                <div>
+                                    <h3>Capital de giro</h3>
+                                    <p class="rate">15% a.m.</p>
+                                    <p class="sub">Total = valor × (1 + 0,15 × prazo_dias/30)</p>
+                                </div>
+                                <button type="button" class="btn-ok" data-view="simular" data-prod="giro">Simular</button>
+                            </div>
+                        </div>
+                        <div class="emp-opt-card">
+                            <div class="nb-card-row">
+                                <div>
+                                    <h3>Adiantamento de lote</h3>
+                                    <p class="rate">15% a.m.</p>
+                                    <p class="sub">Antecipe recebíveis de lotes publicados</p>
+                                </div>
+                                <button type="button" class="btn-ok" data-view="simular" data-prod="lote">Simular</button>
+                            </div>
+                        </div>
+                        <h3 style="margin:16px 0 8px">Aumente suas chances</h3>
+                        <div class="emp-chance-grid">
+                            <div class="emp-chance">Envie documentos nítidos (RG, CPF, selfie)</div>
+                            <div class="emp-chance">Comprove renda com extrato recente</div>
+                            <div class="emp-chance">Mantenha dados cadastrais atualizados</div>
+                            <div class="emp-chance">Histórico positivo no marketplace ajuda</div>
+                        </div>
+                        <h3 class="hist-heading">Meus empréstimos</h3>
+                        <div id="lista-emprestimos" class="loading">Carregando...</div>
+                    </div>
                 </div>
 
-                <!-- Sacar -->
-                <div id="panel-sacar" class="caixa-panel oculto">
-                    <h3>Sacar</h3>
-                    <p class="sub">O saque pode ser <strong>instantâneo</strong> ou demorar <strong>até 24 horas</strong> para cair na conta, conforme processamento.</p>
-                    <label for="saque-valor">Valor (R$)</label>
-                    <input type="number" id="saque-valor" min="0.01" step="0.01" placeholder="0,00">
-                    <label for="saque-chave">Chave Pix de destino</label>
-                    <input type="text" id="saque-chave" required placeholder="CPF, e-mail, telefone ou aleatória">
-                    <div class="modal-actions">
-                        <button type="button" class="btn-ok" id="btn-enviar-saque">Solicitar saque</button>
-                        <button type="button" class="btn-ghost" id="saque-cancelar">Fechar</button>
+                <!-- SIMULAR wizard -->
+                <div class="nb-view" id="view-simular">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="emprestimos"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Simular empréstimo</h2>
                     </div>
-                    <p id="saque-msg" class="msg"></p>
+                    <div class="nb-inner-body">
+                        <div id="emp-wizard" class="emp-wizard">
+                            <div class="emp-progress" aria-hidden="true"><div class="emp-progress-bar" id="emp-progress-bar" style="width:25%"></div></div>
+                            <div class="emp-steps" id="emp-steps">
+                                <span class="emp-step on" data-step="1">1 · Pedido</span>
+                                <span class="emp-step" data-step="2">2 · Identidade</span>
+                                <span class="emp-step" data-step="3">3 · Documentos</span>
+                                <span class="emp-step" data-step="4">4 · Revisar</span>
+                            </div>
+                            <div class="emp-pane" data-pane="1">
+                                <label for="emp-valor">Valor (R$)</label>
+                                <input type="number" id="emp-valor" min="1" step="0.01" required placeholder="0,00">
+                                <label for="emp-prazo">Prazo (dias)</label>
+                                <input type="number" id="emp-prazo" min="1" step="1" required placeholder="30" value="30">
+                                <label for="emp-finalidade">Finalidade</label>
+                                <input type="text" id="emp-finalidade" required placeholder="Ex: capital de giro">
+                                <label for="emp-nome">Nome</label>
+                                <input type="text" id="emp-nome" required readonly>
+                                <label for="emp-telefone">Telefone (opcional)</label>
+                                <input type="tel" id="emp-telefone" placeholder="(00) 00000-0000" autocomplete="tel">
+                                <label for="emp-renda">Renda declarada (R$)</label>
+                                <input type="number" id="emp-renda" min="0" step="0.01" placeholder="0,00">
+                                <label for="emp-obs">Observações</label>
+                                <textarea id="emp-obs" rows="2" placeholder="Informações adicionais"></textarea>
+                                <p class="sub" id="emp-total-previsto">Total previsto no pagamento (15% a.m.): R$ —</p>
+                                <button type="button" class="btn-ok" id="emp-next-1">Continuar</button>
+                            </div>
+                            <div class="emp-pane oculto" data-pane="2">
+                                <p class="kyc-hint">Informações para análise de crédito.</p>
+                                <label for="emp-endereco">Endereço completo</label>
+                                <textarea id="emp-endereco" rows="2" required placeholder="Rua, número, bairro, cidade, UF, CEP"></textarea>
+                                <label for="emp-empresa">Onde trabalha / empresa</label>
+                                <input type="text" id="emp-empresa" required placeholder="Nome da empresa ou atividade">
+                                <label for="emp-anos-empresa">Quantos anos na empresa?</label>
+                                <input type="number" id="emp-anos-empresa" min="0" step="0.5" required placeholder="Ex: 2">
+                                <label for="emp-comprova-renda">Consegue comprovar renda com extrato?</label>
+                                <select id="emp-comprova-renda" required>
+                                    <option value="">Selecione…</option>
+                                    <option value="sim">Sim</option>
+                                    <option value="nao">Não</option>
+                                </select>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn-ghost" id="emp-back-2">Voltar</button>
+                                    <button type="button" class="btn-ok" id="emp-next-2">Continuar</button>
+                                </div>
+                            </div>
+                            <div class="emp-pane oculto" data-pane="3">
+                                <p class="kyc-hint">Envie imagens ou PDF: conta de energia, identidade, CPF e selfie.</p>
+                                <label for="emp-doc-energia">Conta de energia *</label>
+                                <input type="file" id="emp-doc-energia" accept="image/*,application/pdf" required>
+                                <label for="emp-doc-identidade">Documento de identidade *</label>
+                                <input type="file" id="emp-doc-identidade" accept="image/*,application/pdf" required>
+                                <label for="emp-doc-cpf">CPF *</label>
+                                <input type="file" id="emp-doc-cpf" accept="image/*,application/pdf" required>
+                                <label for="emp-doc-selfie">Selfie ao lado do documento *</label>
+                                <input type="file" id="emp-doc-selfie" accept="image/*" capture="user" required>
+                                <label for="emp-doc-extrato">Extrato (opcional)</label>
+                                <input type="file" id="emp-doc-extrato" accept="image/*,application/pdf">
+                                <p class="sub" id="emp-upload-status"></p>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn-ghost" id="emp-back-3">Voltar</button>
+                                    <button type="button" class="btn-ok" id="emp-next-3">Continuar</button>
+                                </div>
+                            </div>
+                            <div class="emp-pane oculto" data-pane="4">
+                                <p class="kyc-hint">Revise os dados. Após o envio, o pedido fica <strong>em análise</strong>.</p>
+                                <div id="emp-resumo" class="emp-resumo sub">—</div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn-ghost" id="emp-back-4">Voltar</button>
+                                    <button type="button" class="btn-ok" id="emp-enviar">Enviar solicitação</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="emp-msg" class="msg"></p>
+                    </div>
                 </div>
 
-                <p id="caixa-msg" class="msg"></p>
+                <!-- PIX -->
+                <div class="nb-view" id="view-pix">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Pix / Transferir</h2>
+                    </div>
+                    <div class="nb-inner-body">
+                        <div class="nb-card">
+                            <button type="button" class="nb-list-item" data-view="depositar">Transferir para Caixa (depósito) <span class="chev">›</span></button>
+                            <button type="button" class="nb-list-item" data-view="sacar">Transferir para sua chave (saque) <span class="chev">›</span></button>
+                            <button type="button" class="nb-list-item" id="pix-copia-info">Minha área Pix <span class="chev">›</span></button>
+                        </div>
+                        <p class="sub">Fluxo Pix da plataforma via chave administrativa (titular JeL).</p>
+                    </div>
+                </div>
+
+                <!-- DEPOSITAR -->
+                <div class="nb-view" id="view-depositar">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Depositar</h2>
+                    </div>
+                    <div class="nb-inner-body">
+                        <div id="panel-depositar" class="caixa-panel">
+                            <p class="sub">Pague com a chave Pix da plataforma. Envie o comprovante; o crédito ocorre após confirmação do admin.</p>
+                            <label for="dep-valor">Valor (R$)</label>
+                            <input type="number" id="dep-valor" min="0.01" step="0.01" placeholder="0,00">
+                            <button type="button" class="btn-ok" id="btn-gerar-pix-dep">Gerar Pix</button>
+                            <div id="dep-pix-box" class="pix-dep-box oculto">
+                                <p class="sub" id="dep-pix-info"></p>
+                                <div id="dep-pix-qr" class="pix-qr" aria-label="QR Code Pix depósito"></div>
+                                <label for="dep-pix-copia">Pix Copia e Cola</label>
+                                <textarea id="dep-pix-copia" readonly rows="3"></textarea>
+                                <button type="button" class="btn-ok" id="btn-copiar-pix-dep">Copiar Pix</button>
+                                <label for="dep-comprovante">URL do comprovante</label>
+                                <input type="url" id="dep-comprovante" placeholder="https://…">
+                                <button type="button" class="btn-ok" id="btn-enviar-dep">Enviar pedido de depósito</button>
+                            </div>
+                            <button type="button" class="btn-ghost" id="dep-cancelar" data-view="home">Fechar</button>
+                            <p id="dep-msg" class="msg"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAGAR -->
+                <div class="nb-view" id="view-pagar">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Pagar</h2>
+                    </div>
+                    <div class="nb-inner-body">
+                        <div class="nb-card">
+                            <button type="button" class="nb-list-item" id="pagar-boleto">Boleto <span class="chev">›</span></button>
+                            <button type="button" class="nb-list-item" data-view="sacar">Pix para terceiros (saque) <span class="chev">›</span></button>
+                        </div>
+                        <p class="sub" id="pagar-msg">Pagamentos de boleto em breve.</p>
+                    </div>
+                </div>
+
+                <!-- EXTRATO -->
+                <div class="nb-view" id="view-extrato">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Extrato</h2>
+                    </div>
+                    <div class="nb-inner-body">
+                        <div id="caixa-movimentos" class="loading">Carregando...</div>
+                    </div>
+                </div>
+
+                <!-- SACAR -->
+                <div class="nb-view" id="view-sacar">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Sacar</h2>
+                    </div>
+                    <div class="nb-inner-body">
+                        <div id="panel-sacar" class="caixa-panel">
+                            <p class="sub">O saque pode ser <strong>instantâneo</strong> ou demorar <strong>até 24 horas</strong>.</p>
+                            <label for="saque-valor">Valor (R$)</label>
+                            <input type="number" id="saque-valor" min="0.01" step="0.01" placeholder="0,00">
+                            <label for="saque-chave">Chave Pix de destino</label>
+                            <input type="text" id="saque-chave" required placeholder="CPF, e-mail, telefone ou aleatória">
+                            <div class="modal-actions">
+                                <button type="button" class="btn-ok" id="btn-enviar-saque">Solicitar saque</button>
+                                <button type="button" class="btn-ghost" id="saque-cancelar" data-view="home">Fechar</button>
+                            </div>
+                            <p id="saque-msg" class="msg"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PEDIDOS -->
+                <div class="nb-view" id="view-pedidos">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Pedidos recentes</h2>
+                    </div>
+                    <div class="nb-inner-body">
+                        <div id="caixa-pedidos" class="loading">Carregando...</div>
+                    </div>
+                </div>
+
+                <!-- AJUDA -->
+                <div class="nb-view" id="view-ajuda">
+                    <div class="nb-inner-head">
+                        <button type="button" class="btn-voltar-round" data-view="home"><span class="vb-ico">←</span> Voltar</button>
+                        <h2>Ajuda</h2>
+                    </div>
+                    <div class="nb-inner-body">
+                        <p>O <strong>Caixa Minerar Seguro</strong> guarda saldo sob custódia. Empréstimos Minerar Seguro: juros 15% a.m., sujeitos à análise.</p>
+                        <button type="button" class="btn-ok" id="btn-saiba-mais-2" style="margin-top:12px">Saiba mais</button>
+                    </div>
+                </div>
             </div>
-        </section>
-
-        <section class="card" id="sec-pedidos">
-            <h2>Pedidos recentes</h2>
-            <div id="caixa-pedidos" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card">
-            <h2>Movimentos</h2>
-            <div id="caixa-movimentos" class="loading">Carregando...</div>
-        </section>
-
-        <section class="card" id="sec-emprestimo">
-            <h2>Empréstimo</h2>
-            <p class="aviso-credito"><strong>Sujeito à análise de crédito</strong></p>
-            <p class="sub">Juros de <strong>15% a.m.</strong> · Total previsto = valor × (1 + 0,15 × prazo_dias/30). Complete a verificação e envie os documentos.</p>
-
-            <div id="emp-wizard" class="emp-wizard">
-                <div class="emp-progress" aria-hidden="true"><div class="emp-progress-bar" id="emp-progress-bar" style="width:25%"></div></div>
-                <div class="emp-steps" id="emp-steps">
-                    <span class="emp-step on" data-step="1">1 · Pedido</span>
-                    <span class="emp-step" data-step="2">2 · Identidade</span>
-                    <span class="emp-step" data-step="3">3 · Documentos</span>
-                    <span class="emp-step" data-step="4">4 · Revisar</span>
-                </div>
-
-                <div class="emp-pane" data-pane="1">
-                    <label for="emp-valor">Valor (R$)</label>
-                    <input type="number" id="emp-valor" min="1" step="0.01" required placeholder="0,00">
-                    <label for="emp-prazo">Prazo (dias)</label>
-                    <input type="number" id="emp-prazo" min="1" step="1" required placeholder="30" value="30">
-                    <label for="emp-finalidade">Finalidade</label>
-                    <input type="text" id="emp-finalidade" required placeholder="Ex: capital de giro">
-                    <label for="emp-nome">Nome</label>
-                    <input type="text" id="emp-nome" required readonly>
-                    <label for="emp-telefone">Telefone (opcional)</label>
-                    <input type="tel" id="emp-telefone" placeholder="(00) 00000-0000" autocomplete="tel">
-                    <label for="emp-renda">Renda declarada (R$)</label>
-                    <input type="number" id="emp-renda" min="0" step="0.01" placeholder="0,00">
-                    <label for="emp-obs">Observações</label>
-                    <textarea id="emp-obs" rows="2" placeholder="Informações adicionais"></textarea>
-                    <p class="sub" id="emp-total-previsto">Total previsto no pagamento (15% a.m.): R$ —</p>
-                    <button type="button" class="btn-ok" id="emp-next-1">Continuar</button>
-                </div>
-
-                <div class="emp-pane oculto" data-pane="2">
-                    <p class="kyc-hint">Informações para análise de crédito. Preencha com dados reais — a equipe valida antes da liberação.</p>
-                    <label for="emp-endereco">Endereço completo</label>
-                    <textarea id="emp-endereco" rows="2" required placeholder="Rua, número, bairro, cidade, UF, CEP"></textarea>
-                    <label for="emp-empresa">Onde trabalha / empresa</label>
-                    <input type="text" id="emp-empresa" required placeholder="Nome da empresa ou atividade">
-                    <label for="emp-anos-empresa">Quantos anos na empresa?</label>
-                    <input type="number" id="emp-anos-empresa" min="0" step="0.5" required placeholder="Ex: 2">
-                    <label for="emp-comprova-renda">Consegue comprovar renda com extrato?</label>
-                    <select id="emp-comprova-renda" required>
-                        <option value="">Selecione…</option>
-                        <option value="sim">Sim</option>
-                        <option value="nao">Não</option>
-                    </select>
-                    <div class="modal-actions">
-                        <button type="button" class="btn-ghost" id="emp-back-2">Voltar</button>
-                        <button type="button" class="btn-ok" id="emp-next-2">Continuar</button>
-                    </div>
-                </div>
-
-                <div class="emp-pane oculto" data-pane="3">
-                    <p class="kyc-hint">Envie imagens ou PDF: conta de energia, identidade, CPF e selfie com o documento (obrigatórios). Extrato bancário é opcional.</p>
-                    <label for="emp-doc-energia">Conta de energia (no seu nome) *</label>
-                    <input type="file" id="emp-doc-energia" accept="image/*,application/pdf" required>
-                    <label for="emp-doc-identidade">Documento de identidade *</label>
-                    <input type="file" id="emp-doc-identidade" accept="image/*,application/pdf" required>
-                    <label for="emp-doc-cpf">CPF *</label>
-                    <input type="file" id="emp-doc-cpf" accept="image/*,application/pdf" required>
-                    <label for="emp-doc-selfie">Selfie ao lado do documento *</label>
-                    <input type="file" id="emp-doc-selfie" accept="image/*" capture="user" required>
-                    <label for="emp-doc-extrato">Extrato (opcional)</label>
-                    <input type="file" id="emp-doc-extrato" accept="image/*,application/pdf">
-                    <p class="sub" id="emp-upload-status"></p>
-                    <div class="modal-actions">
-                        <button type="button" class="btn-ghost" id="emp-back-3">Voltar</button>
-                        <button type="button" class="btn-ok" id="emp-next-3">Continuar</button>
-                    </div>
-                </div>
-
-                <div class="emp-pane oculto" data-pane="4">
-                    <p class="kyc-hint">Revise os dados. Após o envio, o pedido fica <strong>em análise</strong>.</p>
-                    <div id="emp-resumo" class="emp-resumo sub">—</div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn-ghost" id="emp-back-4">Voltar</button>
-                        <button type="button" class="btn-ok" id="emp-enviar">Enviar solicitação</button>
-                    </div>
-                </div>
-            </div>
-
-            <p id="emp-msg" class="msg"></p>
-            <h3 class="hist-heading">Meus empréstimos</h3>
-            <div id="lista-emprestimos" class="loading">Carregando...</div>
         </section>
     </div>
 
@@ -250,18 +368,16 @@
         <div class="modal-backdrop" data-close-saiba="1"></div>
         <div class="modal-panel">
             <div class="modal-head">
-                <h3 id="saiba-mais-titulo">Sobre o Caixa Minera</h3>
+                <h3 id="saiba-mais-titulo">Sobre o Caixa Minerar Seguro</h3>
                 <button type="button" class="btn-icon" id="saiba-mais-fechar" aria-label="Fechar">✕</button>
             </div>
             <div class="saiba-mais-body">
-                <p>O <strong>Caixa Minera</strong> guarda saldo sob custódia na plataforma. Os depósitos ficam no saldo e são <strong>sacáveis</strong> via Sacar — não servem apenas para gasto no app.</p>
+                <p>O <strong>Caixa Minerar Seguro</strong> guarda saldo sob custódia na plataforma.</p>
                 <ul>
-                    <li><strong>Depositar:</strong> Pix para a chave da plataforma (titular JeL). Envie o comprovante; o admin confirma e credita o saldo.</li>
-                    <li><strong>Sacar:</strong> informe valor e chave Pix de destino. Pode ser instantâneo ou levar até 24 horas.</li>
-                    <li><strong>Rendimento estimado:</strong> até <strong>5% a.m.</strong> conforme cotação da bolsa (projeção informativa — não é garantia).</li>
-                    <li><strong>Empréstimos:</strong> juros de <strong>15% a.m.</strong>. Total previsto = valor × (1 + 0,15 × prazo_dias/30). <strong>Sujeito à análise de crédito</strong>.</li>
-                    <li><strong>Senha da Caixa:</strong> PIN separado do login. Em “Esqueci a senha”, confirme a senha de login ou use OTP por e-mail.</li>
-                    <li><strong>Obrigações:</strong> você permanece responsável pelas próprias obrigações fiscais e legais. O Minera App não substitui orientação contábil ou jurídica.</li>
+                    <li><strong>Depositar:</strong> Pix para a chave da plataforma. Admin confirma e credita.</li>
+                    <li><strong>Sacar:</strong> informe valor e chave Pix. Pode levar até 24h.</li>
+                    <li><strong>Rendimento estimado:</strong> até <strong>5% a.m.</strong> (projeção informativa).</li>
+                    <li><strong>Empréstimos Minerar Seguro:</strong> 15% a.m. Total = valor × (1 + 0,15 × prazo_dias/30). Sujeito à análise.</li>
                 </ul>
             </div>
             <div class="modal-actions saiba-mais-actions">
@@ -271,12 +387,60 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260918d"></script>
-    <script src="auth-guard.js?v=20260918d"></script>
-    <script src="suporte.js?v=20260918d"></script>
-    <script src="nav.js?v=20260918d"></script>
-    <script src="pix-brcode.js?v=20260918d"></script>
-    <script src="financeiro.js?v=20260918d"></script>
-    <script src="pwa.js?v=20260918d"></script>
+    <script src="config.js?v=20260923a"></script>
+    <script src="auth-guard.js?v=20260923a"></script>
+    <script src="suporte.js?v=20260923a"></script>
+    <script src="nav.js?v=20260923a"></script>
+    <script src="pix-brcode.js?v=20260923a"></script>
+    <script src="financeiro.js?v=20260923a"></script>
+    <script src="pwa.js?v=20260923a"></script>
+    <script>
+    (function nbNav() {
+        function showView(id) {
+            document.querySelectorAll('.nb-view').forEach(v => v.classList.toggle('on', v.id === 'view-' + id));
+            if (id === 'depositar') {
+                const p = document.getElementById('panel-depositar');
+                if (p) p.classList.remove('oculto');
+            }
+            if (id === 'sacar') {
+                const p = document.getElementById('panel-sacar');
+                if (p) p.classList.remove('oculto');
+            }
+            window.scrollTo(0, 0);
+        }
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-view]');
+            if (!el) return;
+            const v = el.getAttribute('data-view');
+            if (!v) return;
+            e.preventDefault();
+            showView(v);
+        });
+        const eye = document.getElementById('nb-eye');
+        let hide = false;
+        if (eye) eye.addEventListener('click', () => {
+            hide = !hide;
+            const s = document.getElementById('caixa-saldo');
+            if (s) s.style.filter = hide ? 'blur(8px)' : '';
+        });
+        const track = document.getElementById('nb-promo-track');
+        if (track) {
+            let i = 0;
+            setInterval(() => { i = (i + 1) % 2; track.style.transform = 'translateX(-' + (i * 100) + '%)'; }, 4000);
+        }
+        const s2 = document.getElementById('btn-saiba-mais-2');
+        if (s2) s2.addEventListener('click', () => {
+            const b = document.getElementById('btn-saiba-mais');
+            if (b) b.click();
+        });
+        const pagar = document.getElementById('pagar-boleto');
+        if (pagar) pagar.addEventListener('click', () => {
+            const m = document.getElementById('pagar-msg');
+            if (m) m.textContent = 'Boleto em breve.';
+            if (typeof toastMsg === 'function') toastMsg('Boleto em breve');
+        });
+        window.nbShowView = showView;
+    })();
+    </script>
 </body>
 </html>

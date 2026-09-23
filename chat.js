@@ -276,7 +276,8 @@ async function uploadMidia(file, pasta) {
     const ext = extForMime(mime, (file.name || '').split('.').pop() || 'bin');
     const safeName = String(file.name || ('arquivo.' + ext)).replace(/[^\w.\-]/g, '_');
     const stem = safeName.replace(/\.[^.]+$/, '') || 'arquivo';
-    const path = (pasta || 'geral') + '/' + Date.now() + '_' + stem + '.' + ext;
+    const uid = (typeof meuAuthId !== 'undefined' && meuAuthId) ? String(meuAuthId) : 'anon';
+    const path = uid + '/' + (pasta || 'geral') + '/' + Date.now() + '_' + stem + '.' + ext;
     // Re-wrap so Content-Type never carries ";codecs=..." (Storage/CDN often rejects it)
     let payload = file;
     try {
@@ -399,11 +400,19 @@ function renderMedia(m) {
     if (tipo === 'audio') {
         const amime = mimeFromMediaUrl(url);
         const typeAttr = amime ? ' type="' + esc(amime) + '"' : '';
-        // Prefer remote/public URL; blob/data still play. playsinline for mobile Chrome/Android.
         return '<div class="bubble-media bubble-audio">' +
+            '<div class="wa-wave" aria-hidden="true">▁▂▃▅▃▂▅▆▄▂▃▅▂▁</div>' +
             '<audio controls preload="metadata" playsinline webkit-playsinline>' +
             '<source src="' + esc(url) + '"' + typeAttr + '>' +
             '</audio></div>';
+    }
+    if (tipo === 'documento' || tipo === 'doc' || tipo === 'pdf' || /\.pdf($|\?)/i.test(url) || String(url).indexOf('application/pdf') >= 0) {
+        const name = (m.texto || 'Documento.pdf').slice(0, 40);
+        return '<div class="bubble-media bubble-doc">' +
+            '<div class="bubble-doc-ico">📄</div>' +
+            '<div class="bubble-doc-body"><strong>' + esc(name) + '</strong>' +
+            '<span class="sub">PDF · toque para abrir</span></div>' +
+            '<a class="btn-sm" href="' + esc(url) + '" target="_blank" rel="noopener">Abrir</a></div>';
     }
     return '<div class="bubble-media"><a href="' + esc(url) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
 }
@@ -426,6 +435,35 @@ function snippetMsg(m) {
     if (m.tipo === 'video') return '🎬 Vídeo';
     if (m.tipo && m.tipo !== 'text') return '[' + m.tipo + ']';
     return '(sem texto)';
+}
+
+
+function dayKey(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+}
+function dayLabel(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    if (dayKey(iso) === dayKey(now.toISOString())) return 'Hoje';
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    if (dayKey(iso) === dayKey(y.toISOString())) return 'Ontem';
+    return d.toLocaleDateString('pt-BR');
+}
+function bubblesWithDayDividers(lista) {
+    let last = null;
+    let html = '';
+    (lista || []).forEach(m => {
+        const k = dayKey(m.criado_em);
+        if (k && k !== last) {
+            last = k;
+            html += '<div class="wa-day-div"><span>' + dayLabel(m.criado_em) + '</span></div>';
+        }
+        html += bubbleHtml(m);
+    });
+    return html;
 }
 
 function bubbleHtml(m) {
@@ -528,29 +566,41 @@ function renderContatosList(filtered) {
         (grouped[gid] || grouped.outros).push(c);
     });
 
+    function initials(n) {
+        const parts = String(n || '?').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return '?';
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    function timeRight(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const now = new Date();
+        const same = d.toDateString() === now.toDateString();
+        if (same) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    }
     let html = '';
+    // Flat WhatsApp-style list (keep group order but no heavy headers)
     ROLE_GROUPS.forEach(g => {
         const list = grouped[g.id] || [];
-        if (!list.length) return;
-        html += '<div class="chat-group"><div class="chat-group-title">' + esc(g.title) + '</div>';
         list.forEach(c => {
             const preview = c.last
                 ? ((c.last.de_auth_id === meuAuthId ? 'Você: ' : '') +
-                    (c.last.texto || (c.last.tipo && c.last.tipo !== 'text' ? '[' + c.last.tipo + ']' : ''))).slice(0, 48)
+                    (c.last.texto || (c.last.tipo && c.last.tipo !== 'text' ? '[' + c.last.tipo + ']' : ''))).slice(0, 56)
                 : 'Sem mensagens';
             const on = contatoAtivo && contatoAtivo.auth_id === c.auth_id ? ' on' : '';
-            const badge = c.unread ? '<span class="contact-unread">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '';
-            html += '<button type="button" class="chat-contact-item' + on + '" data-auth="' + esc(c.auth_id) + '">' +
-                '<div class="contact-avatar">' + esc((c.nome || '?').slice(0, 1).toUpperCase()) + '</div>' +
-                '<div class="contact-body">' +
-                '<div class="contact-name">' + esc(c.nome) + badge + '</div>' +
-                '<div class="contact-preview">' + esc(preview) + '</div>' +
-                '<div class="contact-role">' + esc(labelPapelCurto(c.papeis, c.tipo)) + '</div>' +
-                '</div></button>';
+            const badge = c.unread ? '<span class="wa-unread">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '';
+            const t = timeRight(c.last && c.last.criado_em);
+            html += '<button type="button" class="wa-row chat-contact-item' + on + '" data-auth="' + esc(c.auth_id) + '">' +
+                '<div class="wa-av">' + esc(initials(c.nome)) + '</div>' +
+                '<div class="wa-row-mid">' +
+                '<div class="wa-row-name">' + esc(c.nome) + '</div>' +
+                '<div class="wa-row-prev">' + esc(preview) + '</div>' +
+                '</div><div class="wa-row-right"><span class="wa-row-time">' + esc(t) + '</span>' + badge + '</div></button>';
         });
-        html += '</div>';
     });
-    box.innerHTML = html;
+    box.innerHTML = html || '<div class="chat-contacts-empty"><p><strong>Nenhuma conversa ainda</strong></p></div>';
     box.querySelectorAll('.chat-contact-item').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-auth');
@@ -748,7 +798,7 @@ function applyThreadDiff(box, lista, forceFull) {
         }
         // Preserve pending optimistic bubbles (temp)
         const pendings = Array.from(box.querySelectorAll('[data-temp-id]'));
-        box.innerHTML = lista.map(bubbleHtml).join('');
+        box.innerHTML = bubblesWithDayDividers(lista);
         pendings.forEach(p => box.appendChild(p));
         renderedMsgOrder = lista.map(m => String(m.id));
         renderedMsgSigs = new Map(lista.map(m => [String(m.id), messageSignature(m)]));
@@ -784,7 +834,7 @@ function applyThreadDiff(box, lista, forceFull) {
 
     if (!onlyAppend) {
         const pendings = Array.from(box.querySelectorAll('[data-temp-id]'));
-        box.innerHTML = lista.map(bubbleHtml).join('');
+        box.innerHTML = bubblesWithDayDividers(lista);
         pendings.forEach(p => box.appendChild(p));
         renderedMsgOrder = incomingIds;
         renderedMsgSigs = new Map(lista.map(m => [String(m.id), messageSignature(m)]));

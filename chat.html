@@ -3,58 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera App - Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260918d">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260918d">
+    <title>Minerar PARÁ - Chat</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923a">
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#f59e0b">
+    <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minera">
-    <link rel="stylesheet" href="style.css?v=20260918d">
+    <meta name="apple-mobile-web-app-title" content="Minerar PARÁ">
+    <link rel="stylesheet" href="style.css?v=20260923a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body class="pagina-chat">
     <div class="container wide">
-        <header class="header-row">
-            <div class="brand-title">
-                <h1>Minera App</h1>
-                <p id="user-label">Carregando...</p>
-            </div>
-            <div class="header-actions">
-                <button type="button" class="btn-icon" id="btn-notif" title="Notificações" aria-label="Notificações">🔔<span class="notif-badge oculto" id="notif-badge">0</span></button>
-                <button type="button" class="btn-sair" id="btn-sair">Sair</button>
-            </div>
-        </header>
-        <nav id="app-nav" class="nav-chips"></nav>
+        <p id="user-label" class="oculto"></p>
+        <nav id="app-nav" class="nav-chips oculto"></nav>
 
-        <section class="card chat-wa-layout" id="chat-wa">
+        <section class="card chat-wa-layout" id="chat-wa" style="border:0;background:transparent;box-shadow:none;padding:0;margin:0">
             <aside class="chat-contacts-pane" id="chat-contacts-pane">
-                <div class="chat-contacts-head">
-                    <h2>Conversas</h2>
-                    <button type="button" class="btn-sm" id="btn-add-contato">Adicionar</button>
+                <div class="wa-list-head">
+                    <button type="button" class="wa-circ-btn" id="btn-chat-menu-list" aria-label="Menu">⋮</button>
+                    <div class="wa-head-right">
+                        <button type="button" class="wa-circ-btn" id="btn-chat-cam" aria-label="Câmera">📷</button>
+                        <button type="button" class="wa-circ-btn accent" id="btn-add-contato" aria-label="Nova conversa">＋</button>
+                    </div>
                 </div>
-                <input type="search" id="chat-busca-contatos" class="chat-busca" placeholder="Buscar por nome..." autocomplete="off">
+                <h1 class="wa-title">Conversas</h1>
+                <input type="search" id="chat-busca-contatos" class="wa-search" placeholder="Buscar…" autocomplete="off">
+                <div class="wa-chips" id="wa-filter-chips" role="group" aria-label="Filtros">
+                    <button type="button" class="wa-chip on" data-wa="todas">Todas</button>
+                    <button type="button" class="wa-chip" data-wa="nao_lidas">Não lidas</button>
+                    <button type="button" class="wa-chip" data-wa="favoritos">Favoritos</button>
+                    <button type="button" class="wa-chip" data-wa="compradores">Compradores</button>
+                    <button type="button" class="wa-chip" data-wa="servicos">Serviços</button>
+                </div>
+                <div class="wa-archived" id="wa-archived" role="button" tabindex="0">📁 Arquivadas</div>
                 <div id="chat-contatos-list" class="chat-contatos-list"></div>
             </aside>
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260918d" alt="" width="72" height="72" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923a" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Mensagens</p>
-                    <p>Selecione uma conversa à esquerda.</p>
-                    <p class="hint">Somente você e o destinatário veem o conteúdo. Use <strong>Adicionar por nome</strong> para localizar por nome ou apelido (e-mail não é exibido).</p>
+                    <p>Selecione uma conversa.</p>
                 </div>
                 <div id="chat-thread-active" class="chat-thread-active oculto">
-                    <div class="chat-thread-head">
-                        <button type="button" class="btn-sm chat-back" id="btn-chat-back" aria-label="Voltar">←</button>
-                        <div class="chat-thread-head-info">
+                    <div class="wa-thread-head chat-thread-head">
+                        <button type="button" class="btn-voltar-round chat-back" id="btn-chat-back" aria-label="Voltar"><span class="vb-ico">←</span> Voltar</button>
+                        <div class="wa-av" id="chat-com-av" aria-hidden="true">?</div>
+                        <div class="wa-thread-info chat-thread-head-info">
                             <strong id="chat-com-nome">—</strong>
                             <p id="chat-com-papel" class="sub"></p>
                         </div>
-                        <div class="chat-thread-head-actions">
-                            <button type="button" class="btn-icon" id="btn-chat-menu" title="Opções da conversa" aria-label="Opções da conversa" aria-haspopup="menu">⋮</button>
+                        <div class="wa-call-btns chat-thread-head-actions">
+                            <button type="button" class="wa-circ-btn" id="btn-chat-video" title="Vídeo" aria-label="Vídeo">📹</button>
+                            <button type="button" class="wa-circ-btn" id="btn-chat-phone" title="Ligar" aria-label="Ligar">📞</button>
+                            <button type="button" class="wa-circ-btn" id="btn-chat-menu" title="Opções" aria-label="Opções" aria-haspopup="menu">⋮</button>
                         </div>
                     </div>
                     <div id="chat-head-menu" class="chat-head-menu oculto" role="menu">
@@ -64,38 +69,20 @@
                     <p id="chat-lote-ctx" class="sub oculto"></p>
                     <div id="chat-msgs" class="chat-msgs"></div>
 
-                    <div id="chat-rec-bar" class="chat-rec-bar oculto" role="status" aria-live="polite">
+                    <div id="chat-rec-bar" class="chat-rec-bar wa-rec-overlay oculto" role="status" aria-live="polite">
                         <span class="rec-dot" aria-hidden="true"></span>
                         <span id="chat-rec-timer" class="chat-rec-timer">00:00</span>
-                        <span class="chat-rec-wave" aria-hidden="true"></span>
-                        <button type="button" class="btn-sm btn-danger" id="btn-cancel-rec">Cancelar</button>
+                        <span class="chat-rec-wave" aria-hidden="true">〰〰〰</span>
+                        <button type="button" class="btn-sm btn-danger" id="btn-cancel-rec">Deslize p/ cancelar</button>
                     </div>
 
                     <div id="chat-media-preview" class="chat-media-preview oculto"></div>
-
-                    <div class="chat-toolbar">
-                        <label class="btn-sm" for="chat-foto">Foto</label>
-                        <input type="file" id="chat-foto" accept="image/*" class="oculto">
-                        <label class="btn-sm" for="chat-video">Vídeo</label>
-                        <input type="file" id="chat-video" accept="video/*" class="oculto">
-                        <button type="button" class="btn-sm" id="btn-audio" title="Segure para gravar ou toque para iniciar" aria-label="Gravar áudio">Áudio</button>
-                        <label class="btn-sm btn-ghost" for="chat-audio-file" id="btn-anexar-audio" title="Anexar arquivo" aria-label="Anexo">Anexo</label>
-                        <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
-                        <button type="button" class="btn-sm" id="btn-toggle-agendar">Agendar</button>
-                    </div>
                     <p id="chat-anexo-info" class="hint oculto"></p>
 
                     <div id="chat-agendar-box" class="chat-agendar-row oculto">
                         <div style="flex:1">
                             <label for="chat-agendar-em">Enviar em</label>
                             <input type="datetime-local" id="chat-agendar-em">
-                        </div>
-                    </div>
-
-                    <div class="chat-extra">
-                        <div style="flex:1;min-width:160px">
-                            <label for="chat-url-midia">Ou cole URL da mídia</label>
-                            <input type="url" id="chat-url-midia" placeholder="https://... (opcional)">
                         </div>
                     </div>
 
@@ -107,10 +94,25 @@
                         <button type="button" class="chat-reply-cancel" id="btn-cancel-reply" title="Cancelar resposta" aria-label="Cancelar resposta">×</button>
                     </div>
 
-                    <form id="form-chat" class="chat-form" style="margin-top:8px">
-                        <input type="text" id="chat-texto" placeholder="Mensagem" maxlength="2000" autocomplete="off">
-                        <button type="submit">Enviar</button>
+                    <form id="form-chat" class="wa-composer chat-form">
+                        <button type="button" class="wa-comp-btn" id="btn-chat-plus" aria-label="Anexar">＋</button>
+                        <input type="text" id="chat-texto" class="wa-comp-input" placeholder="Mensagem" maxlength="2000" autocomplete="off">
+                        <button type="button" class="wa-comp-btn" id="btn-chat-emoji" aria-label="Emoji">😊</button>
+                        <label class="wa-comp-btn" for="chat-foto" id="btn-chat-camera-label" aria-label="Câmera" style="margin:0">📷</label>
+                        <input type="file" id="chat-foto" accept="image/*" capture="environment" class="oculto">
+                        <input type="file" id="chat-video" accept="video/*" class="oculto">
+                        <input type="file" id="chat-audio-file" accept="audio/*,application/pdf,.pdf" class="oculto">
+                        <button type="button" class="wa-comp-btn mic" id="btn-audio" title="Segure para gravar" aria-label="Gravar áudio">🎤</button>
+                        <button type="submit" class="wa-comp-btn mic oculto" id="btn-chat-enviar" aria-label="Enviar">➤</button>
                     </form>
+                    <!-- legacy toolbar hooks (hidden) -->
+                    <div class="chat-toolbar oculto" aria-hidden="true">
+                        <button type="button" id="btn-toggle-agendar">Agendar</button>
+                        <label for="chat-audio-file" id="btn-anexar-audio">Anexo</label>
+                    </div>
+                    <div class="chat-extra oculto" aria-hidden="true">
+                        <input type="url" id="chat-url-midia" placeholder="https://...">
+                    </div>
                     <p id="chat-msg" class="msg"></p>
                 </div>
             </div>
@@ -143,12 +145,117 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260918d"></script>
-    <script src="auth-guard.js?v=20260918d"></script>
-    <script src="suporte.js?v=20260918d"></script>
-    <script src="nav.js?v=20260918d"></script>
-    <script src="anti-golpe.js?v=20260918d"></script>
-    <script src="chat.js?v=20260918d"></script>
-    <script src="pwa.js?v=20260918d"></script>
+    <div id="wa-attach-sheet" class="chat-msg-sheet oculto wa-attach-sheet" role="dialog" aria-modal="true" aria-label="Anexar">
+        <div class="chat-msg-sheet-backdrop" data-close-attach="1"></div>
+        <div class="chat-msg-sheet-panel">
+            <div class="chat-msg-sheet-handle" aria-hidden="true"></div>
+            <p style="font-weight:800;margin-bottom:8px">Anexar</p>
+            <div class="wa-attach-grid">
+                <button type="button" class="wa-attach-item" data-att="doc"><span class="ai">📄</span>Documento</button>
+                <label class="wa-attach-item" for="chat-foto"><span class="ai">📷</span>Câmera</label>
+                <label class="wa-attach-item" for="chat-foto-gal"><span class="ai">🖼</span>Galeria</label>
+                <label class="wa-attach-item" for="chat-audio-file"><span class="ai">🎵</span>Áudio</label>
+                <label class="wa-attach-item" for="chat-video"><span class="ai">🎬</span>Vídeo</label>
+                <button type="button" class="wa-attach-item" id="btn-attach-agendar" data-att="agendar"><span class="ai">🗓</span>Agendar</button>
+            </div>
+            <input type="file" id="chat-foto-gal" accept="image/*" class="oculto">
+            <label for="chat-url-midia-sheet">URL da mídia</label>
+            <input type="url" id="chat-url-midia-sheet" placeholder="https://…" style="margin-bottom:12px">
+            <button type="button" class="btn-ghost" data-close-attach="1">Fechar</button>
+        </div>
+    </div>
+
+    <script src="config.js?v=20260923a"></script>
+    <script src="auth-guard.js?v=20260923a"></script>
+    <script src="suporte.js?v=20260923a"></script>
+    <script src="nav.js?v=20260923a"></script>
+    <script src="anti-golpe.js?v=20260923a"></script>
+    <script src="chat.js?v=20260923a"></script>
+    <script src="pwa.js?v=20260923a"></script>
+    <script>
+    (function waChrome() {
+        function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); else alert(t); }
+        const video = document.getElementById('btn-chat-video');
+        const phone = document.getElementById('btn-chat-phone');
+        if (video) video.addEventListener('click', () => toast('Chamada de vídeo em breve'));
+        if (phone) phone.addEventListener('click', () => toast('Chamada de voz em breve'));
+        const cam = document.getElementById('btn-chat-cam');
+        if (cam) cam.addEventListener('click', () => {
+            const f = document.getElementById('chat-foto');
+            if (f) f.click();
+        });
+        const plus = document.getElementById('btn-chat-plus');
+        const sheet = document.getElementById('wa-attach-sheet');
+        function openSheet(o) { if (sheet) sheet.classList.toggle('oculto', !o); }
+        if (plus) plus.addEventListener('click', () => openSheet(true));
+        if (sheet) sheet.addEventListener('click', (e) => {
+            if (e.target && e.target.getAttribute('data-close-attach')) openSheet(false);
+        });
+        const ag = document.getElementById('btn-attach-agendar');
+        if (ag) ag.addEventListener('click', () => {
+            openSheet(false);
+            const box = document.getElementById('chat-agendar-box');
+            const tog = document.getElementById('btn-toggle-agendar');
+            if (tog) tog.click();
+            else if (box) box.classList.remove('oculto');
+        });
+        const urlSheet = document.getElementById('chat-url-midia-sheet');
+        const urlHidden = document.getElementById('chat-url-midia');
+        if (urlSheet && urlHidden) {
+            urlSheet.addEventListener('change', () => { urlHidden.value = urlSheet.value; });
+        }
+        const gal = document.getElementById('chat-foto-gal');
+        const foto = document.getElementById('chat-foto');
+        if (gal && foto) {
+            gal.addEventListener('change', () => {
+                if (gal.files && gal.files[0]) {
+                    const dt = new DataTransfer();
+                    dt.items.add(gal.files[0]);
+                    foto.files = dt.files;
+                    foto.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                openSheet(false);
+            });
+        }
+        const texto = document.getElementById('chat-texto');
+        const mic = document.getElementById('btn-audio');
+        const send = document.getElementById('btn-chat-enviar');
+        function syncSend() {
+            const has = !!(texto && texto.value.trim());
+            if (mic) mic.classList.toggle('oculto', has);
+            if (send) send.classList.toggle('oculto', !has);
+        }
+        if (texto) texto.addEventListener('input', syncSend);
+        syncSend();
+        document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(b => b.classList.remove('on'));
+                btn.classList.add('on');
+            });
+        });
+        const arch = document.getElementById('wa-archived');
+        if (arch) arch.addEventListener('click', () => toast('Arquivadas em breve'));
+        // Update avatar initials when name changes
+        const nomeEl = document.getElementById('chat-com-nome');
+        const av = document.getElementById('chat-com-av');
+        if (nomeEl && av && typeof MutationObserver !== 'undefined') {
+            const mo = new MutationObserver(() => {
+                const n = (nomeEl.textContent || '?').trim();
+                const parts = n.split(/\s+/);
+                av.textContent = parts.length > 1 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : n.slice(0,2).toUpperCase();
+            });
+            mo.observe(nomeEl, { childList: true, characterData: true, subtree: true });
+        }
+        // PDF card enhancement for document links in bubbles
+        document.addEventListener('click', (e) => {
+            const a = e.target && e.target.closest && e.target.closest('.bubble-media a');
+            if (!a) return;
+            const href = a.getAttribute('href') || '';
+            if (/\.pdf($|\?)/i.test(href) || /application\/pdf/i.test(href)) {
+                /* native open */
+            }
+        });
+    })();
+    </script>
 </body>
 </html>

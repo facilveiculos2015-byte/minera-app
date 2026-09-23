@@ -546,53 +546,65 @@ function matchCidade(l, cidade) {
     return a === b;
 }
 
+function favKey(codigo) { return 'minera_fav_' + String(codigo || ''); }
+function isFav(codigo) {
+    try { return localStorage.getItem(favKey(codigo)) === '1'; } catch (e) { return false; }
+}
+function toggleFav(codigo, btn) {
+    const on = !isFav(codigo);
+    try {
+        if (on) localStorage.setItem(favKey(codigo), '1');
+        else localStorage.removeItem(favKey(codigo));
+    } catch (e) { /* ignore */ }
+    if (btn) btn.classList.toggle('on', on);
+    if (btn) btn.textContent = on ? '♥' : '♡';
+}
+function statusOlx(status) {
+    const s = String(status || '').toLowerCase();
+    if (s === 'expedido') return { label: 'Vendido', cls: 'olx-chip sold' };
+    if (s === 'em_processo' || s === 'processado') return { label: 'Em trânsito', cls: 'olx-chip transit' };
+    return { label: 'Disponível', cls: 'olx-chip' };
+}
 function renderFeed(lista) {
     const box = document.getElementById('feed');
+    if (!box) return;
+    box.classList.remove('loading');
+    box.classList.add('olx-feed');
     if (!lista.length) {
-        box.innerHTML = '<div class="feed-empty empty-cta"><p><strong>Nenhum lote com esses filtros</strong></p><p class="sub">Amplie a busca ou limpe os filtros.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar um lote</a></div>';
+        box.innerHTML = '<div class="olx-empty"><p><strong>Nenhum anúncio por aqui</strong></p><p class="sub">Seja o primeiro a publicar na região.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
         return;
     }
-    box.innerHTML = '<div class="lote-cards">' + lista.map(lote => {
+    box.innerHTML = lista.map(lote => {
         const codigo = lote.codigo_lote || '';
-        const quando = tempoRelativo(lote.data_entrada);
-        const preco = formatPreco(lote.preco);
+        const preco = formatPreco(lote.preco) || 'Sob consulta';
         const cidade = localLabel(lote);
-        let img;
+        const st = statusOlx(lote.status);
+        const title = (lote.tipo_minerio || 'Minério') + (codigo ? ' · ' + codigo : '');
+        const detHref = APP_ROOT + 'lote-detalhe.html?codigo=' + encodeURIComponent(codigo);
+        const favOn = isFav(codigo);
+        let photo;
         if (lote.imagem_url) {
-            img = '<div class="lote-img"><img src="' + esc(lote.imagem_url) + '" alt="" loading="lazy" onerror="this.onerror=null;this.parentNode.className=\'lote-img placeholder\';this.parentNode.innerHTML=\'<span class=\'min-ph default\'></span>\';"></div>';
+            photo = '<img src="' + esc(lote.imagem_url) + '" alt="" loading="lazy" onerror="this.remove()">';
         } else {
-            img = imgPlaceholder(lote.tipo_minerio);
+            photo = '<div class="ph">' + imgPlaceholder(lote.tipo_minerio) + '</div>';
         }
-        const negoHref = APP_ROOT + 'chat.html?' +
-            (lote.criado_por_id ? ('com=' + encodeURIComponent(lote.criado_por_id) + '&') : '') +
-            'lote=' + encodeURIComponent(codigo);
-        return `<article class="lote-card lote-card-pro">
-            ${img}
-            <div class="lote-card-body">
-                <div class="lote-card-top">
-                    <span class="lote-tipo">${esc(lote.tipo_minerio || 'Minério')}</span>
-                    ${lote.publicado_como ? '<span class="lote-papel-badge">' + esc(rotuloPapelFeed(lote.publicado_como)) + '</span>' : ''}
-                    <span class="${statusBadgeClass(lote.status)}">${esc(statusAmigavel(lote.status))}</span>
-                </div>
-                ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : '<p class="lote-preco lote-preco-consulta">Sob consulta</p>'}
-                <h3 class="lote-codigo">${esc(codigo)}</h3>
-                <p class="lote-meta">
-                    <span class="meta-item">${esc(cidade)}</span>
-                    <span class="meta-item">${esc(formatPeso(lote.peso_bruto_kg))}</span>
-                </p>
-                <div class="lote-trust-row">
-                    <span class="lote-trust" title="Anunciante na plataforma">✓ Na plataforma</span>
-                    <span class="lote-trust soft">Chat privado</span>
-                </div>
-                <p class="lote-who">
-                    <span>${esc(lote.criado_por || 'Usuário')}${quando ? ' · ' + quando : ''}</span>
-                </p>
-                <div class="lote-card-actions">
-                    <a class="btn-card btn-negociar-sticky" href="${negoHref}">Negociar</a>
-                </div>
-            </div>
-        </article>`;
-    }).join('') + '</div>';
+        return '<a class="olx-card" href="' + detHref + '" data-codigo="' + esc(codigo) + '">' +
+            '<div class="olx-card-photo">' + photo +
+            '<button type="button" class="olx-heart' + (favOn ? ' on' : '') + '" data-fav="' + esc(codigo) + '" aria-label="Favorito">' + (favOn ? '♥' : '♡') + '</button>' +
+            '</div><div class="olx-card-body">' +
+            '<div class="olx-card-title">' + esc(title) + '</div>' +
+            '<div class="olx-card-price">' + esc(preco) + '</div>' +
+            '<div class="olx-card-loc">' + esc(cidade) + '</div>' +
+            '<span class="' + st.cls + '">' + esc(st.label) + '</span>' +
+            '</div></a>';
+    }).join('');
+    box.querySelectorAll('.olx-heart').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleFav(btn.getAttribute('data-fav'), btn);
+        });
+    });
 }
 
 function aplicarFiltros() {
@@ -637,9 +649,9 @@ function bindChipGroup(containerId, attr, setter) {
     const box = document.getElementById(containerId);
     if (!box) return;
     box.addEventListener('click', (e) => {
-        const btn = e.target.closest('.fchip');
+        const btn = e.target.closest('.fchip, .olx-tab');
         if (!btn) return;
-        box.querySelectorAll('.fchip').forEach(b => b.classList.remove('on'));
+        box.querySelectorAll('.fchip, .olx-tab').forEach(b => b.classList.remove('on'));
         btn.classList.add('on');
         setter(btn.getAttribute(attr) || '');
         aplicarFiltros();
@@ -672,7 +684,7 @@ async function carregarFeed() {
                 if (res2.error) throw res2.error;
                 feedCache = res2.data || [];
                 if (box && !feedCache.length) {
-                    box.innerHTML = '<div class="feed-empty empty-cta"><p><strong>Marketplace vazio</strong></p><p class="sub">Seja o primeiro a anunciar. Quem anuncia, negocia.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Publicar primeiro lote</a></div>';
+                    box.classList.add('olx-feed'); box.innerHTML = '<div class="olx-empty"><p><strong>Marketplace vazio</strong></p><p class="sub">Seja o primeiro a anunciar.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
                     return;
                 }
                 aplicarFiltros();
@@ -682,7 +694,7 @@ async function carregarFeed() {
         }
         feedCache = data || [];
         if (!feedCache.length) {
-            box.innerHTML = '<div class="feed-empty empty-cta"><p><strong>Nenhum lote disponível</strong></p><p class="sub">Publique o seu ou limpe os filtros para ver mais.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
+            box.classList.add('olx-feed'); box.innerHTML = '<div class="olx-empty"><p><strong>Nenhum lote disponível</strong></p><p class="sub">Publique o seu ou limpe os filtros.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
             return;
         }
         aplicarFiltros();
@@ -874,3 +886,74 @@ window.addEventListener('beforeunload', () => {
     if (a && typeof APP_ROOT === 'string') a.setAttribute('href', APP_ROOT + 'lotes.html');
 })();
 
+
+
+/* OLX chrome: city pin, banner, fab, categorias */
+(function bindOlxChrome() {
+    const cityEl = document.getElementById('olx-city');
+    const locBtn = document.getElementById('olx-loc-btn');
+    function syncCity() {
+        if (!cityEl) return;
+        const c = (typeof filtroCidade === 'string' && filtroCidade) ? filtroCidade
+            : (geoPerto && geoPerto.cidade) ? geoPerto.cidade : 'Parauapebas';
+        cityEl.textContent = c;
+    }
+    if (locBtn && !locBtn._olx) {
+        locBtn._olx = true;
+        locBtn.addEventListener('click', () => {
+            const panel = document.getElementById('loc-bar-panel');
+            const bar = document.getElementById('loc-bar');
+            if (panel) {
+                const open = !panel.hidden;
+                setFiltrosPanelAberto(!open);
+                if (!open && bar) {
+                    bar.classList.remove('oculto');
+                    bar.style.cssText = 'position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;padding:0;';
+                    panel.hidden = false;
+                    panel.style.cssText = 'background:#1e293b;width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:70vh;overflow:auto;';
+                } else if (bar) {
+                    bar.style.cssText = '';
+                    panel.style.cssText = '';
+                }
+            }
+        });
+    }
+    const track = document.getElementById('olx-banner-track');
+    if (track && !track._olx) {
+        track._olx = true;
+        let i = 0;
+        setInterval(() => {
+            i = (i + 1) % 3;
+            track.style.transform = 'translateX(-' + (i * 100) + '%)';
+        }, 4200);
+    }
+    const fab = document.getElementById('fab-anunciar');
+    if (fab && typeof APP_ROOT === 'string') fab.setAttribute('href', APP_ROOT + 'lotes.html');
+    const qCat = document.getElementById('q-categorias');
+    if (qCat && !qCat._olx) {
+        qCat._olx = true;
+        qCat.addEventListener('click', () => {
+            const tabs = document.getElementById('filtro-tipo-chips');
+            if (tabs) tabs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+    const qFav = document.getElementById('q-favoritos');
+    if (qFav && !qFav._olx) {
+        qFav._olx = true;
+        qFav.addEventListener('click', () => {
+            const favs = (feedCache || []).filter(l => isFav(l.codigo_lote));
+            renderFeed(favs.length ? favs : []);
+            if (!favs.length && typeof toastMsg === 'function') toastMsg('Nenhum favorito ainda.');
+        });
+    }
+    const _origAplicar = typeof atualizarResumoLocal === 'function' ? atualizarResumoLocal : null;
+    if (_origAplicar && !window._olxCityHook) {
+        window._olxCityHook = true;
+        const wrap = atualizarResumoLocal;
+        atualizarResumoLocal = function () {
+            wrap();
+            syncCity();
+        };
+    }
+    syncCity();
+})();

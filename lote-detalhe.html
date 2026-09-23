@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minerar PARÁ - Relatórios</title>
+    <title>Minerar PARÁ - Anúncio</title>
     <link rel="icon" type="image/png" href="icon-192.png?v=20260923a">
     <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923a">
     <link rel="manifest" href="manifest.webmanifest">
@@ -17,37 +17,19 @@
 </head>
 <body>
     <div class="container wide">
-        <header class="header-row">
-            <div class="brand-title">
-                <h1>Minerar PARÁ</h1>
-                <p id="user-label">Carregando...</p>
-            </div>
-            <button type="button" class="btn-sair" id="btn-sair">Sair</button>
-        </header>
-        <nav id="app-nav" class="nav-chips"></nav>
-
-        <section class="card">
-            <h2>KPIs</h2>
-            <div id="kpi-grid" class="kpi-grid">Carregando...</div>
-        </section>
-
-        <section class="card">
-            <h2>Histórico de cotações</h2>
-            <p class="sub">Últimos pontos salvos localmente (e no Supabase se SQL 13 aplicado)</p>
-            <div id="cotacoes-historico-rel" class="cotacoes-historico"><p class="sub">Carregando…</p></div>
-        </section>
-
-        <section class="card" id="logs-section">
-            <h2>Logs do sistema</h2>
-            <p class="sub">Últimas ações registradas (visível se RLS permitir)</p>
-            <div id="logs-lista" class="loading">Carregando...</div>
-        </section>
+        <div class="nb-inner-head">
+            <a class="btn-voltar-round" id="btn-voltar" href="inicio.html"><span class="vb-ico">←</span> Voltar</a>
+            <h2>Anúncio</h2>
+        </div>
+        <div id="detalhe" class="nb-inner-body loading">Carregando...</div>
+        <p id="user-label" class="oculto"></p>
+        <nav id="app-nav" class="nav-chips oculto"></nav>
     </div>
     <script src="config.js?v=20260923a"></script>
     <script src="auth-guard.js?v=20260923a"></script>
     <script src="suporte.js?v=20260923a"></script>
     <script src="nav.js?v=20260923a"></script>
-    <script src="relatorios.js?v=20260923a"></script>
+    <script src="lote-detalhe.js?v=20260923a"></script>
     <script src="pwa.js?v=20260923a"></script>
 </body>
 </html>
