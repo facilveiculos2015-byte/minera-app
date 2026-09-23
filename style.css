@@ -1759,6 +1759,41 @@ html[data-theme="light"] .familia-bar:focus { background: rgba(245, 158, 11, 0.1
 html[data-theme="light"] .familia-stat { background: #fff; }
 html[data-theme="light"] .familia-stat-val { color: #b45309; }
 html[data-theme="light"] .familia-panel-title { color: #b45309; }
+.familia-share-row { gap: 8px; }
+.familia-share-row .btn-sm { white-space: nowrap; }
+.familia-share-preview {
+    margin-top: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(245, 166, 35, 0.28);
+    background: rgba(15, 23, 42, 0.45);
+    padding: 6px 10px;
+}
+.familia-share-preview summary {
+    cursor: pointer;
+    color: #F5A623;
+    font-size: 0.82rem;
+    font-weight: 600;
+    list-style: none;
+}
+.familia-share-preview summary::-webkit-details-marker { display: none; }
+.familia-share-text {
+    margin: 8px 0 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #cbd5e1;
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+html[data-theme="light"] .familia-share-preview {
+    background: #fffbeb;
+    border-color: rgba(180, 83, 9, 0.25);
+}
+html[data-theme="light"] .familia-share-text { color: #78350f; }
+
 html[data-theme="light"] .btn-fale-conosco {
     background: #e0f2fe;
     color: #0369a1;
@@ -3468,7 +3503,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923e — industrial premium ===== */
+/* ===== TURBO redesign 20260923f — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3846,7 +3881,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923e — marketplace / bank / habit polish === */
+/* === 20260923f — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -3926,7 +3961,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923e — Minera Pará ===== */
+/* ===== FULL REBUILD pillars 20260923f — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4316,7 +4351,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 }
 
 
-/* ---- Welcome before login (20260923e) ---- */
+/* ---- Welcome before login (20260923f) ---- */
 .welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
 .welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
 .welcome-card .btn-ok { width: 100%; margin-top: 8px; }
@@ -4370,7 +4405,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 
-/* ===== Minera Bank glassmorphism 20260923e ===== */
+/* ===== Minera Bank glassmorphism 20260923f ===== */
 body.pagina-financeiro {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),

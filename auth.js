@@ -340,11 +340,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (typeof capturarRefUrl === 'function') capturarRefUrl();
-    // Se veio com ?ref=, abre aba cadastro (exceto no fluxo de recuperação)
+    // Convite /c/CODIGO ou ?ref= → welcome + aba cadastro (exceto recuperação)
+    const convite = (typeof temConviteIndicacao === 'function')
+        ? temConviteIndicacao()
+        : (() => {
+            try {
+                const q = new URLSearchParams(window.location.search);
+                return !!(q.get('ref') || q.get('c') || q.get('welcome') === '1');
+            } catch (e) { return false; }
+        })();
+    if (convite) {
+        try { sessionStorage.removeItem(WELCOME_SEEN_KEY); } catch (e) { /* ignore */ }
+        const wc = document.getElementById('welcome-card');
+        if (wc) {
+            const title = document.getElementById('welcome-title');
+            if (title) title.textContent = 'Bem-vindo à Família Mineira';
+            const ps = wc.querySelectorAll('p');
+            if (ps[0]) {
+                ps[0].textContent = 'Você foi convidado(a) para o Minera Pará. Crie sua conta para entrar no marketplace, frete, britagem e Bank — com segurança e renda extra na Família Mineira.';
+            }
+        }
+        const cadWel = document.getElementById('cadastro-welcome');
+        if (cadWel) {
+            const codigo = (typeof lerRefSalvo === 'function' ? lerRefSalvo() : '') || '';
+            const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[c]);
+            cadWel.innerHTML =
+                '<strong>Convite Família Mineira' + (codigo ? ' · ' + esc(codigo) : '') + '</strong>' +
+                '<p>Ao criar a conta por este link, você entra na rede de indicação. Negocie no app (anti-golpe) e evite combinar pagamento só por WhatsApp.</p>';
+        }
+    }
     if (!modoRecuperacao) {
         try {
-            const q = new URLSearchParams(window.location.search);
-            if (q.get('ref')) mostrarAba('cadastrar');
+            if (convite) mostrarAba('cadastrar');
             else mostrarAba('entrar');
         } catch (e) {
             mostrarAba('entrar');

@@ -4,7 +4,7 @@
  */
 
 const SUPORTE_PONTOS_POR_REAL = 10; // 1 ponto = R$ 0,10 → 10 pts = R$ 1
-const SUPORTE_REF_PREMIO = 100;    // pontos ao indicar (cadastro com ?ref=)
+const SUPORTE_REF_PREMIO = 100;    // pontos ao indicar (cadastro via /c/CODIGO ou ?ref=)
 
 const FAQ_INTENTS = [
     {
@@ -60,7 +60,7 @@ const FAQ_INTENTS = [
     {
         id: 'indicacao',
         keys: ['indicacao', 'indicação', 'familia', 'família', 'convidar', 'referral', 'pontos', 'renda extra', 'codigo', 'código'],
-        reply: '⛏️ **Família Mineira** — Convide colegas com seu link/código. Cada cadastro com seu código rende pontos. **1 ponto = R$ 0,10** de desconto na comissão de 1% (máximo = valor total da comissão). Toque na barra Família Mineira no Feed ou Perfil para ver código, pontos e copiar o link.'
+        reply: '⛏️ **Família Mineira** — Convide colegas com seu link/código. Cada cadastro com seu código rende pontos. **1 ponto = R$ 0,10** de desconto na comissão de 1% (máximo = valor total da comissão). Toque na barra Família Mineira no Feed ou Perfil para ver código, pontos e compartilhar o convite (mensagem + card).'
     }
 ];
 
@@ -338,8 +338,25 @@ function gerarCodigoIndicacao() {
     return s;
 }
 
+const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
+
 function linkIndicacao(codigo) {
-    return 'https://facilveiculos2015-byte.github.io/minera-app/?ref=' + encodeURIComponent(codigo || '');
+    const code = String(codigo || '').trim().toUpperCase();
+    // Link curto e brandável: /c/CODIGO → 404.html (OG) → cadastro + welcome
+    return INDICACAO_BASE + '/c/' + encodeURIComponent(code || '');
+}
+
+/** Texto pronto para WhatsApp / compartilhar (OG card vem do /c/CODIGO). */
+function textoCompartilharIndicacao(codigo) {
+    const code = String(codigo || '').trim().toUpperCase() || '……';
+    const link = linkIndicacao(code);
+    return (
+        '⛏️ Faça parte da Família Mineira!\n\n' +
+        'Venha trabalhar conosco no Minera Pará — marketplace de minério, frete, britagem e Bank na mesma conta.\n' +
+        'Indique colegas e tenha renda extra.\n\n' +
+        '👉 ' + link + '\n\n' +
+        'Código: ' + code
+    );
 }
 
 async function garantirCodigoIndicacao(perfil) {
@@ -403,10 +420,15 @@ function htmlCardFamilia(perfil) {
         '<label for="familia-codigo">Seu código</label>' +
         '<div class="familia-share-row">' +
         '<input type="text" id="familia-codigo" readonly value="' + suporteEsc(codigo) + '">' +
-        '<button type="button" class="btn-sm btn-ok" id="btn-copiar-ref">Copiar link</button>' +
+        '<button type="button" class="btn-sm btn-ok" id="btn-compartilhar-ref">Compartilhar</button>' +
+        '<button type="button" class="btn-sm" id="btn-copiar-ref">Copiar texto</button>' +
         '</div>' +
         '<input type="hidden" id="familia-link" value="' + suporteEsc(link) + '">' +
         '<p class="sub familia-link-hint" id="familia-link-hint">' + suporteEsc(link) + '</p>' +
+        '<details class="familia-share-preview">' +
+        '<summary>Prévia da mensagem</summary>' +
+        '<pre class="familia-share-text" id="familia-share-text">' + suporteEsc(textoCompartilharIndicacao(codigo)) + '</pre>' +
+        '</details>' +
         '</div>' +
         '</section>'
     );
@@ -423,6 +445,59 @@ function setFamiliaExpanded(expanded) {
     btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
 }
 
+function familiaSharePayload() {
+    const codigo = ((document.getElementById('familia-codigo') || {}).value || '').trim().toUpperCase();
+    const link = (document.getElementById('familia-link') || {}).value || linkIndicacao(codigo);
+    const text = textoCompartilharIndicacao(codigo);
+    return { codigo, link, text };
+}
+
+async function copiarTextoIndicacao() {
+    const { text, link } = familiaSharePayload();
+    try {
+        await navigator.clipboard.writeText(text);
+        if (typeof toastMsg === 'function') toastMsg('Mensagem de indicação copiada!');
+        else alert('Copiado!\n\n' + text);
+        return true;
+    } catch (e) {
+        try {
+            await navigator.clipboard.writeText(link);
+            if (typeof toastMsg === 'function') toastMsg('Link copiado (texto bloqueado pelo navegador)');
+            else prompt('Copie o link:', link);
+            return true;
+        } catch (e2) {
+            prompt('Copie a mensagem:', text);
+            return false;
+        }
+    }
+}
+
+async function compartilharIndicacao() {
+    const { text, link, codigo } = familiaSharePayload();
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Família Mineira — Minera Pará',
+                text: text,
+                url: link
+            });
+            if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
+            return;
+        } catch (e) {
+            if (e && e.name === 'AbortError') return;
+            /* fallback abaixo */
+        }
+    }
+    // Fallback: WhatsApp se mobile-ish, senão clipboard
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(text);
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    if (isMobile) {
+        window.open(wa, '_blank', 'noopener');
+        return;
+    }
+    await copiarTextoIndicacao();
+}
+
 function bindCardFamilia() {
     const toggle = document.getElementById('btn-familia-toggle');
     if (toggle && !toggle._boundToggle) {
@@ -432,20 +507,20 @@ function bindCardFamilia() {
             setFamiliaExpanded(!open);
         });
     }
+    const btnShare = document.getElementById('btn-compartilhar-ref');
+    if (btnShare && !btnShare._bound) {
+        btnShare._bound = true;
+        btnShare.addEventListener('click', async (ev) => {
+            if (ev) ev.stopPropagation();
+            await compartilharIndicacao();
+        });
+    }
     const btn = document.getElementById('btn-copiar-ref');
     if (!btn || btn._bound) return;
     btn._bound = true;
     btn.addEventListener('click', async (ev) => {
         if (ev) ev.stopPropagation();
-        const link = (document.getElementById('familia-link') || {}).value
-            || linkIndicacao((document.getElementById('familia-codigo') || {}).value);
-        try {
-            await navigator.clipboard.writeText(link);
-            if (typeof toastMsg === 'function') toastMsg('Link de indicação copiado!');
-            else alert('Link copiado: ' + link);
-        } catch (e) {
-            prompt('Copie o link:', link);
-        }
+        await copiarTextoIndicacao();
     });
 }
 
@@ -568,13 +643,28 @@ async function creditarPontosIndicacao(referrerAuthId, pontos, motivo) {
     }
 }
 
-/** Captura ?ref= na landing e guarda em localStorage */
+/** Captura código de indicação: /c/CODIGO, ?ref= ou ?c= → localStorage */
 function capturarRefUrl() {
     try {
-        const q = new URLSearchParams(window.location.search);
-        const ref = (q.get('ref') || '').trim().toUpperCase();
+        let ref = '';
+        const path = String(window.location.pathname || '');
+        const m = path.match(/\/c\/([A-Za-z0-9_-]+)\/?$/i);
+        if (m) ref = String(m[1] || '').trim().toUpperCase();
+        if (!ref) {
+            const q = new URLSearchParams(window.location.search);
+            ref = (q.get('ref') || q.get('c') || '').trim().toUpperCase();
+        }
         if (ref) localStorage.setItem('minera_ref', ref);
     } catch (e) { /* ignore */ }
+}
+
+function temConviteIndicacao() {
+    try {
+        const q = new URLSearchParams(window.location.search);
+        if ((q.get('ref') || q.get('c') || '').trim()) return true;
+        if ((q.get('welcome') || '') === '1') return true;
+    } catch (e) { /* ignore */ }
+    return !!lerRefSalvo();
 }
 
 function lerRefSalvo() {
@@ -613,6 +703,10 @@ window.abrirSuporte = abrirSuporte;
 window.montarCardFamilia = montarCardFamilia;
 window.aplicarDescontoPontosComissao = aplicarDescontoPontosComissao;
 window.capturarRefUrl = capturarRefUrl;
+window.temConviteIndicacao = temConviteIndicacao;
+window.lerRefSalvo = lerRefSalvo;
+window.linkIndicacao = linkIndicacao;
+window.textoCompartilharIndicacao = textoCompartilharIndicacao;
 window.processarIndicacaoNoCadastro = processarIndicacaoNoCadastro;
 window.garantirCodigoIndicacao = garantirCodigoIndicacao;
 window.SUPORTE_REF_PREMIO = SUPORTE_REF_PREMIO;

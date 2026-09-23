@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Família Mineira — Minera Pará</title>
+    <meta name="description" content="Faça parte da Família Mineira. Venha trabalhar conosco no Minera Pará e tenha renda extra.">
+    <meta name="theme-color" content="#F5A623">
+    <link rel="icon" type="image/png" href="/minera-app/icon-192.png">
+    <link rel="apple-touch-icon" href="/minera-app/apple-touch-icon.png">
+
+    <!-- Open Graph / WhatsApp / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Minera Pará">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:title" content="Família Mineira — Minera Pará">
+    <meta property="og:description" content="Venha trabalhar conosco e tenha renda extra. Marketplace, frete, britagem e Bank no mesmo app.">
+    <meta property="og:url" content="https://facilveiculos2015-byte.github.io/minera-app/">
+    <meta property="og:image" content="https://facilveiculos2015-byte.github.io/minera-app/og-familia.png">
+    <meta property="og:image:secure_url" content="https://facilveiculos2015-byte.github.io/minera-app/og-familia.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Família Mineira — Minera Pará">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Família Mineira — Minera Pará">
+    <meta name="twitter:description" content="Venha trabalhar conosco e tenha renda extra no Minera Pará.">
+    <meta name="twitter:image" content="https://facilveiculos2015-byte.github.io/minera-app/og-familia.png">
+
+    <style>
+        :root { color-scheme: dark; }
+        body {
+            margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            background: #0B1220; color: #e2e8f0; text-align: center; padding: 24px;
+        }
+        .box { max-width: 420px; }
+        img.logo { width: 96px; height: 96px; border-radius: 50%; border: 3px solid #F5A623; }
+        h1 { color: #F5A623; font-size: 1.35rem; margin: 16px 0 8px; }
+        p { color: #94a3b8; line-height: 1.45; }
+        a {
+            display: inline-block; margin-top: 12px; padding: 12px 20px; border-radius: 999px;
+            background: #F5A623; color: #0B1220; font-weight: 700; text-decoration: none;
+        }
+        noscript a { margin-top: 8px; }
+    </style>
+    <script>
+    (function () {
+        var APP = '/minera-app/';
+        var path = location.pathname || '';
+        var code = '';
+        var m = path.match(/\/c\/([A-Za-z0-9_-]+)\/?$/i);
+        if (m) code = String(m[1] || '').toUpperCase();
+        if (!code) {
+            try {
+                var q = new URLSearchParams(location.search);
+                code = String(q.get('ref') || q.get('c') || '').trim().toUpperCase();
+            } catch (e) { /* ignore */ }
+        }
+        var dest = APP + 'index.html';
+        if (code) {
+            try { localStorage.setItem('minera_ref', code); } catch (e2) { /* ignore */ }
+            dest += '?ref=' + encodeURIComponent(code) + '&welcome=1';
+        }
+        location.replace(dest);
+    })();
+    </script>
+</head>
+<body>
+    <div class="box">
+        <img class="logo" src="/minera-app/logo-escavadeira.png" alt="Minera Pará" width="96" height="96">
+        <h1>Família Mineira</h1>
+        <p>Abrindo o cadastro do Minera Pará…</p>
+        <noscript>
+            <p>JavaScript desativado. Abra o app manualmente:</p>
+            <a href="/minera-app/index.html">Entrar no Minera Pará</a>
+        </noscript>
+    </div>
+</body>
+</html>
