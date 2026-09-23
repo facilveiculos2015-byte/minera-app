@@ -1701,7 +1701,7 @@ body.pagina-chat.chat-thread-open {
 .suporte-admin-reply { display: flex; gap: 8px; margin-top: 8px; }
 .suporte-admin-reply input { flex: 1; margin: 0; }
 
-/* —— Família Mineira (thin bar → expands) —— */
+/* —— Família Minera (thin bar → expands) —— */
 .familia-card {
     border: 1.5px solid #f59e0b;
     background: linear-gradient(145deg, rgba(66, 32, 6, 0.55), rgba(30, 58, 95, 0.4));

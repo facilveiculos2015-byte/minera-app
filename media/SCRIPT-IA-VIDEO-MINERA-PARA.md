@@ -13,12 +13,12 @@ Duração alvo: 35–45 segundos. Voz feminina, firme, comercial, ritmo de Reels
 
 ### Versão curta (a que está no vídeo atual)
 
-Cansou de negociar minério no escuro e correr risco de golpe? No Minera Pará, você entra na Família Mineira com privacidade de verdade: o que é seu permanece na sua área. Crie sua conta em poucos passos, escolha seus papéis e comece a anunciar lotes e serviços. No início você vê cotações, mapa, favoritos e o banco — tudo no mesmo app. Lotes e serviços aparecem para negociar com segurança, sem misturar WhatsApp solto. No Minera Bank, acompanhe saldo e Pix numa conta demonstrativa, sem expor dados de admin. Acesse agora o Minera Pará e fique seguro. Link na tela.
+Cansou de negociar minério no escuro e correr risco de golpe? No Minera Pará, você entra na Família Minera com privacidade de verdade: o que é seu permanece na sua área. Crie sua conta em poucos passos, escolha seus papéis e comece a anunciar lotes e serviços. No início você vê cotações, mapa, favoritos e o banco — tudo no mesmo app. Lotes e serviços aparecem para negociar com segurança, sem misturar WhatsApp solto. No Minera Bank, acompanhe saldo e Pix numa conta demonstrativa, sem expor dados de admin. Acesse agora o Minera Pará e fique seguro. Link na tela.
 
 ### Versão por frases (melhor pra sincronizar cena)
 
 1. Cansou de negociar minério no escuro e correr risco de golpe?
-2. No Minera Pará, você entra na Família Mineira com privacidade de verdade: o que é seu permanece na sua área.
+2. No Minera Pará, você entra na Família Minera com privacidade de verdade: o que é seu permanece na sua área.
 3. Crie sua conta em poucos passos, escolha seus papéis e comece a anunciar lotes e serviços.
 4. No início você vê cotações, mapa, favoritos e o banco — tudo no mesmo app.
 5. Lotes e serviços aparecem para negociar com segurança, sem misturar WhatsApp solto.
@@ -58,7 +58,7 @@ Cansou de negociar minério no escuro e correr risco de golpe? No Minera Pará, 
 
 ### Telão (o que aparece atrás dela)
 Só telas REAIS do app Minera Pará (layout dark, laranja):
-- Welcome / privacidade (Família Mineira)
+- Welcome / privacidade (Família Minera)
 - Início: atalhos Favoritos | Mapa | Serviços | Banco + chips de minério + cotação dólar/ouro/cobre + cards de lotes
 - Serviços: Transportador, Britador, Carregamento, Minerador, Comprador
 - Detalhe de anúncio com botão Negociar
@@ -70,8 +70,8 @@ Só telas REAIS do app Minera Pará (layout dark, laranja):
 
 | Tempo | Telão atrás | Apresentadora | Fala |
 |------:|-------------|---------------|------|
-| 0:00–0:05 | Welcome / privacidade Família Mineira | Olha pra câmera, gesticula “chega” | Frase 1 (golpe / risco) |
-| 0:05–0:12 | Tela de conta / papéis / privacidade | Aponta pro telão | Frase 2 (Família Mineira / área isolada) |
+| 0:00–0:05 | Welcome / privacidade Família Minera | Olha pra câmera, gesticula “chega” | Frase 1 (golpe / risco) |
+| 0:05–0:12 | Tela de conta / papéis / privacidade | Aponta pro telão | Frase 2 (Família Minera / área isolada) |
 | 0:12–0:18 | Cadastro / papéis | Aceno curto “fácil” | Frase 3 (conta / anunciar) |
 | 0:18–0:26 | Início real: Favoritos, Mapa, Serviços, Banco + cotações | Vira levemente pro telão | Frase 4 (início / tudo no app) |
 | 0:26–0:32 | Lote + Serviços + botão Negociar | Ênfase com a mão | Frase 5 (negociar sem WhatsApp solto) |
@@ -80,7 +80,7 @@ Só telas REAIS do app Minera Pará (layout dark, laranja):
 
 ### Texto na tela (legendas curtas)
 - “Negocie minério com segurança”
-- “Família Mineira — sua conta é só sua”
+- “Família Minera — sua conta é só sua”
 - “Lotes · Serviços · Chat · Bank”
 - “Sem WhatsApp solto”
 - “Minera Pará”
@@ -107,10 +107,10 @@ PRODUTO:
 Minera Pará — marketplace de minério e serviços no Pará (britagem, carregamento, frete), com Minera Chat (negociação só dentro do app) e Minera Bank (carteira/Pix). Público: mineradores, compradores, britadores e transportadores.
 
 NARRAÇÃO (voz feminina PT-BR, clara, comercial) — fala EXATA:
-"Cansou de negociar minério no escuro e correr risco de golpe? No Minera Pará, você entra na Família Mineira com privacidade de verdade: o que é seu permanece na sua área. Crie sua conta em poucos passos, escolha seus papéis e comece a anunciar lotes e serviços. No início você vê cotações, mapa, favoritos e o banco — tudo no mesmo app. Lotes e serviços aparecem para negociar com segurança, sem misturar WhatsApp solto. No Minera Bank, acompanhe saldo e Pix numa conta demonstrativa. Acesse agora o Minera Pará e fique seguro. Link na tela."
+"Cansou de negociar minério no escuro e correr risco de golpe? No Minera Pará, você entra na Família Minera com privacidade de verdade: o que é seu permanece na sua área. Crie sua conta em poucos passos, escolha seus papéis e comece a anunciar lotes e serviços. No início você vê cotações, mapa, favoritos e o banco — tudo no mesmo app. Lotes e serviços aparecem para negociar com segurança, sem misturar WhatsApp solto. No Minera Bank, acompanhe saldo e Pix numa conta demonstrativa. Acesse agora o Minera Pará e fique seguro. Link na tela."
 
 CENA A CENA:
-1) 0–5s: telão com welcome/privacidade Família Mineira; apresentadora olha pra câmera.
+1) 0–5s: telão com welcome/privacidade Família Minera; apresentadora olha pra câmera.
 2) 5–12s: telão conta isolada / papéis; ela aponta pro telão.
 3) 12–18s: cadastro rápido; gesto “fácil”.
 4) 18–26s: Início do app — Favoritos, Mapa, Serviços, Banco, chips de minério, cotação dólar/ouro/cobre, cards de lotes.

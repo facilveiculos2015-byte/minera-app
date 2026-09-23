@@ -25,7 +25,7 @@ const FAQ_INTENTS = [
     {
         id: 'comissao',
         keys: ['comissao', 'comissão', '1%', 'um por cento', 'taxa', 'percentual'],
-        reply: '💰 **Comissão 1%** — Ao marcar um lote como Vendido, o app gera comissão de 1% sobre o preço. Você paga via Pix no Perfil. Pontos da Família Mineira dão desconto automático: **1 ponto = R$ 0,10** na comissão (até zerar o valor).'
+        reply: '💰 **Comissão 1%** — Ao marcar um lote como Vendido, o app gera comissão de 1% sobre o preço. Você paga via Pix no Perfil. Pontos da Família Minera dão desconto automático: **1 ponto = R$ 0,10** na comissão (até zerar o valor).'
     },
     {
         id: 'caixa',
@@ -60,7 +60,7 @@ const FAQ_INTENTS = [
     {
         id: 'indicacao',
         keys: ['indicacao', 'indicação', 'familia', 'família', 'convidar', 'referral', 'pontos', 'renda extra', 'codigo', 'código'],
-        reply: '⛏️ **Família Mineira** — Convide colegas com seu link/código. Cada cadastro com seu código rende pontos. **1 ponto = R$ 0,10** de desconto na comissão de 1% (máximo = valor total da comissão). Toque na barra Família Mineira no Feed ou Perfil para ver código, pontos e compartilhar o convite (mensagem + card).'
+        reply: '⛏️ **Família Minera** — Convide colegas com seu link/código. Cada cadastro com seu código rende pontos. **1 ponto = R$ 0,10** de desconto na comissão de 1% (máximo = valor total da comissão). Toque na barra Família Minera no Feed ou Perfil para ver código, pontos e compartilhar o convite (mensagem + card).'
     }
 ];
 
@@ -329,7 +329,7 @@ function garantirFaleConosco(perfil) {
     garantirSuporteUi();
 }
 
-/* —— Família Mineira / indicação —— */
+/* —— Família Minera / indicação —— */
 
 function gerarCodigoIndicacao() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -473,7 +473,7 @@ function htmlCardFamilia(perfil) {
         '<span class="familia-bar-chevron" aria-hidden="true">▾</span>' +
         '</button>' +
         '<div class="familia-panel" id="familia-panel" hidden>' +
-        '<h2 class="familia-panel-title">Família Mineira</h2>' +
+        '<h2 class="familia-panel-title">Família Minera</h2>' +
         '<p class="sub">Indique colegas: ao se cadastrarem com seu link, você ganha pontos. ' +
         '<strong>1 ponto = R$ 0,10</strong> de desconto na comissão de 1% (máx. = valor da comissão).</p>' +
         '<div class="familia-stats">' +
@@ -855,7 +855,7 @@ function mostrarSharePosCadastro(perfil) {
     host.innerHTML =
         '<div class="familia-panel" style="padding:14px">' +
         '<h2 class="familia-panel-title">Convide colegas</h2>' +
-        '<p class="sub">Compartilhe seu link da Família Mineira e ganhe pontos.</p>' +
+        '<p class="sub">Compartilhe seu link da Família Minera e ganhe pontos.</p>' +
         '<div class="familia-og-card">' +
         '<img class="familia-og-logo" src="' + suporteEsc((_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT)) + '?v=20260923q" alt="" width="72" height="72">' +
         '<div class="familia-og-meta"><strong class="familia-og-title">Minera Pará</strong>' +

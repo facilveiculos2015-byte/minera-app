@@ -359,10 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const wc = document.getElementById('welcome-card');
         if (wc) {
             const title = document.getElementById('welcome-title');
-            if (title) title.textContent = 'Bem-vindo à Família Mineira';
+            if (title) title.textContent = 'Bem-vindo à Família Minera';
             const ps = wc.querySelectorAll('p');
             if (ps[0]) {
-                ps[0].textContent = 'Você foi convidado(a) para o Minera Pará. Crie sua conta para entrar no marketplace, frete, britagem e Bank — com segurança e renda extra na Família Mineira.';
+                ps[0].textContent = 'Você foi convidado(a) para o Minera Pará. Crie sua conta para entrar no marketplace, frete, britagem e Bank — com segurança e renda extra na Família Minera.';
             }
         }
         const cadWel = document.getElementById('cadastro-welcome');
@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             })[c]);
             cadWel.innerHTML =
-                '<strong>Convite Família Mineira' + (codigo ? ' · ' + esc(codigo) : '') + '</strong>' +
+                '<strong>Convite Família Minera' + (codigo ? ' · ' + esc(codigo) : '') + '</strong>' +
                 '<p>Ao criar a conta por este link, você entra na rede de indicação. Negocie no app (anti-golpe) e evite combinar pagamento só por WhatsApp.</p>';
         }
     }

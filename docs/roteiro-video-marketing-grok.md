@@ -75,7 +75,7 @@ Entregue o vídeo pronto para compartilhar no WhatsApp junto com o link.
 Acesse:
 https://facilveiculos2015-byte.github.io/minera-app/
 
-Família Mineira — cada um na sua conta, sem misturar.
+Família Minera — cada um na sua conta, sem misturar.
 ```
 
 ---
