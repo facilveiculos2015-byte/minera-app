@@ -2,24 +2,53 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vídeo marketing — Minera Pará</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Minera Pará — Vídeo Marketing Pro</title>
+  <meta name="theme-color" content="#0b1220" />
   <style>
-    body{margin:0;font-family:system-ui,sans-serif;background:#0b1220;color:#f5f6f8;padding:24px}
-    a{color:#F5A623}
-    .card{max-width:420px;margin:0 auto;background:#121a2b;border:1px solid #243049;border-radius:16px;padding:20px}
-    video{width:100%;border-radius:12px;background:#000}
-    .btn{display:block;text-align:center;margin-top:12px;padding:14px;border-radius:12px;background:#F5A623;color:#0b1220;font-weight:800;text-decoration:none}
+    :root { --bg:#0b1220; --amber:#F5A623; --card:#121a2b; --text:#f3f6fb; --muted:#9aa8bd; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #1a2740 0%, var(--bg) 55%);
+      color: var(--text); display: flex; flex-direction: column; align-items: center;
+      padding: 24px 16px 48px;
+    }
+    h1 { font-size: 1.35rem; margin: 8px 0 4px; letter-spacing: .02em; }
+    p { color: var(--muted); margin: 0 0 18px; text-align: center; max-width: 420px; line-height: 1.45; }
+    .badge {
+      display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+      color: var(--bg); background: var(--amber); padding: 6px 10px; border-radius: 999px; margin-bottom: 10px;
+    }
+    .player {
+      width: min(390px, 100%); aspect-ratio: 9/16; background: #000; border-radius: 22px; overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(245,166,35,.25);
+    }
+    video { width: 100%; height: 100%; display: block; object-fit: cover; background: #000; }
+    .actions { width: min(390px, 100%); display: grid; gap: 10px; margin-top: 18px; }
+    a.btn {
+      display: block; text-align: center; text-decoration: none; font-weight: 700;
+      padding: 14px 16px; border-radius: 14px; font-size: .95rem;
+    }
+    a.primary { background: var(--amber); color: #0b1220; }
+    a.secondary { background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,.08); }
+    .note { font-size: .8rem; color: var(--muted); margin-top: 14px; text-align: center; max-width: 390px; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Minera Pará — vídeo marketing</h1>
-    <p>Versão ilustrativa (marketplace simulado). Sem nome, senha ou perfil de admin.</p>
-    <video controls playsinline src="./minera-para-marketing-9x16-720.mp4"></video>
-    <a class="btn" download href="./minera-para-marketing-9x16.mp4">Baixar MP4 (1080×1920)</a>
-    <a class="btn" style="background:#1e293b;color:#F5A623;border:1px solid #F5A623" download href="./minera-para-marketing-9x16-720.mp4">Baixar MP4 leve (720×1280)</a>
-    <p style="margin-top:16px;font-size:14px;opacity:.8">App: <a href="https://facilveiculos2015-byte.github.io/minera-app/">abrir Minera Pará</a></p>
+  <span class="badge">Versão Pro · 1080×1920</span>
+  <h1>Minera Pará</h1>
+  <p>Vídeo marketing profissional com apresentador, artes HD e transição fluida. Sem dados de admin — demonstração de usuário.</p>
+  <div class="player">
+    <video controls playsinline preload="metadata" poster="minera-para-pro-poster.jpg">
+      <source src="minera-para-pro-9x16.mp4" type="video/mp4" />
+    </video>
   </div>
+  <div class="actions">
+    <a class="btn primary" href="minera-para-pro-9x16.mp4" download>Baixar 1080p (alta qualidade)</a>
+    <a class="btn secondary" href="minera-para-pro-9x16-720.mp4" download>Baixar 720p (WhatsApp / leve)</a>
+    <a class="btn secondary" href="https://facilveiculos2015-byte.github.io/minera-app/">Abrir o app Minera Pará</a>
+  </div>
+  <p class="note">Se o player da Pages ainda mostrar o vídeo antigo, use o download direto ou force atualizar (cache). Arquivo novo: minera-para-pro-9x16.mp4</p>
 </body>
 </html>
