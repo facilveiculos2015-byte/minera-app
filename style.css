@@ -1761,6 +1761,51 @@ html[data-theme="light"] .familia-stat-val { color: #b45309; }
 html[data-theme="light"] .familia-panel-title { color: #b45309; }
 .familia-share-row { gap: 8px; }
 .familia-share-row .btn-sm { white-space: nowrap; }
+
+.familia-og-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0 12px;
+    padding: 10px;
+    border-radius: 14px;
+    background: #0b1220;
+    border: 1px solid rgba(245, 166, 35, 0.45);
+}
+.familia-og-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #F5A623;
+    flex-shrink: 0;
+    background: #0b1220;
+}
+.familia-og-meta { min-width: 0; flex: 1; }
+.familia-og-title {
+    display: block;
+    color: #F5A623;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.familia-og-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: #cbd5e1;
+}
+#familia-msg-custom {
+    width: 100%;
+    resize: vertical;
+    min-height: 64px;
+    margin-bottom: 10px;
+}
+html[data-theme="light"] .familia-og-card {
+    background: #0b1220;
+}
+html[data-theme="light"] .familia-og-desc { color: #e2e8f0; }
+
 .familia-share-preview {
     margin-top: 10px;
     border-radius: 10px;
@@ -3503,7 +3548,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923f — industrial premium ===== */
+/* ===== TURBO redesign 20260923g — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3881,7 +3926,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923f — marketplace / bank / habit polish === */
+/* === 20260923g — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -3961,7 +4006,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923f — Minera Pará ===== */
+/* ===== FULL REBUILD pillars 20260923g — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4351,7 +4396,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 }
 
 
-/* ---- Welcome before login (20260923f) ---- */
+/* ---- Welcome before login (20260923g) ---- */
 .welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
 .welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
 .welcome-card .btn-ok { width: 100%; margin-top: 8px; }
@@ -4405,7 +4450,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 
-/* ===== Minera Bank glassmorphism 20260923f ===== */
+/* ===== Minera Bank glassmorphism 20260923g ===== */
 body.pagina-financeiro {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),

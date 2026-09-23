@@ -321,8 +321,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     await processarIndicacaoNoCadastro(data.user, nome);
                 }
                 // Garante código de indicação do novo usuário
+                let perfilNovo = { auth_id: data.user.id, nome: nome, apelido: apelido };
                 if (typeof garantirCodigoIndicacao === 'function') {
-                    await garantirCodigoIndicacao({ auth_id: data.user.id, nome });
+                    perfilNovo = await garantirCodigoIndicacao(perfilNovo) || perfilNovo;
+                }
+                if (!data.session && typeof mostrarSharePosCadastro === 'function' && perfilNovo.codigo_indicacao) {
+                    if (typeof carregarShareFlags === 'function') await carregarShareFlags();
+                    mostrarSharePosCadastro(perfilNovo);
                 }
             }
             if (data.session) {
@@ -332,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('login-email').value = email;
             document.getElementById('login-senha').value = password;
             mostrarAba('entrar');
-            msg('Conta criada. Confira e-mail e senha abaixo e aperte Entrar.', true);
+            msg('Conta criada. Confira e-mail e senha abaixo e aperte Entrar. Você já pode compartilhar seu convite abaixo.', true);
         } catch (err) {
             console.error(err);
             msg('Falha de conexão no cadastro: ' + (err.message || err), false);

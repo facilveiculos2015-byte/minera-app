@@ -1657,6 +1657,62 @@ function bindPromoForm() {
     if (limpar) limpar.addEventListener('click', () => { limparFormPromo(); setPromoMsg('', true); });
 }
 
+
+function setShareFlagsMsg(t, ok) {
+    const el = document.getElementById('share-flags-msg');
+    if (!el) return;
+    el.textContent = t || '';
+    el.className = 'msg' + (ok === false ? ' erro' : (ok ? ' ok' : ''));
+}
+
+async function carregarShareFlagsAdmin() {
+    const frase = document.getElementById('share-frase-padrao');
+    const url = document.getElementById('share-og-image-url');
+    if (!frase && !url) return;
+    const defFrase = (typeof SHARE_FRASE_PADRAO_DEFAULT === 'string' && SHARE_FRASE_PADRAO_DEFAULT)
+        || 'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
+    const defUrl = (typeof SHARE_OG_IMAGE_DEFAULT === 'string' && SHARE_OG_IMAGE_DEFAULT)
+        || 'https://facilveiculos2015-byte.github.io/minera-app/og-familia.png';
+    try {
+        const { data, error } = await supabaseClient
+            .from('app_flags')
+            .select('key,value_text')
+            .in('key', ['share_frase_padrao', 'share_og_image_url']);
+        if (error) throw error;
+        const map = {};
+        (data || []).forEach(r => { map[r.key] = r; });
+        if (frase) frase.value = (map.share_frase_padrao && map.share_frase_padrao.value_text) || defFrase;
+        if (url) url.value = (map.share_og_image_url && map.share_og_image_url.value_text) || defUrl;
+    } catch (e) {
+        if (frase && !frase.value) frase.value = defFrase;
+        if (url && !url.value) url.value = defUrl;
+        setShareFlagsMsg((e.message || String(e)) + ' — usando padrão local (SQL 35?)', false);
+    }
+}
+
+function bindShareFlagsAdmin() {
+    const btn = document.getElementById('btn-salvar-share-flags');
+    if (!btn || btn._bound) return;
+    btn._bound = true;
+    btn.addEventListener('click', async () => {
+        const frase = ((document.getElementById('share-frase-padrao') || {}).value || '').trim();
+        const imageUrl = ((document.getElementById('share-og-image-url') || {}).value || '').trim();
+        const uid = (perfilAtual && perfilAtual.auth_id) || null;
+        const now = new Date().toISOString();
+        try {
+            const ups = [
+                { key: 'share_frase_padrao', value_bool: null, value_text: frase || null, updated_by: uid, updated_at: now },
+                { key: 'share_og_image_url', value_bool: null, value_text: imageUrl || null, updated_by: uid, updated_at: now }
+            ];
+            const { error } = await supabaseClient.from('app_flags').upsert(ups, { onConflict: 'key' });
+            if (error) throw error;
+            setShareFlagsMsg('Share flags salvas.', true);
+        } catch (e) {
+            setShareFlagsMsg((e.message || String(e)) + ' (SQL 35 app_flags?)', false);
+        }
+    });
+}
+
 async function carregarBankFlagAdmin() {
     const chk = document.getElementById('flag-bank-enabled');
     const motivo = document.getElementById('flag-bank-motivo');
@@ -1865,6 +1921,7 @@ function bindGrokDrawer() {
     bindAlertasBtns();
     bindPromoForm();
     bindBankFlagAdmin();
+    bindShareFlagsAdmin();
     bindGrokDrawer();
     await Promise.all([
         carregarKpis(),
@@ -1881,6 +1938,7 @@ function bindGrokDrawer() {
         carregarAlertasAdmin(),
         carregarPromosAdmin(),
         carregarBankFlagAdmin(),
+        carregarShareFlagsAdmin(),
         carregarLotesOcultoAdmin()
     ]);
     setInterval(() => {

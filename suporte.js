@@ -339,6 +339,15 @@ function gerarCodigoIndicacao() {
 }
 
 const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
+const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png';
+const SHARE_FRASE_PADRAO_DEFAULT =
+    'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
+const SHARE_OG_DESC_SEM_NOME =
+    'Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.';
+
+let _shareFrasePadrao = SHARE_FRASE_PADRAO_DEFAULT;
+let _shareOgImageUrl = SHARE_OG_IMAGE_DEFAULT;
+let _shareFlagsLoaded = false;
 
 function linkIndicacao(codigo) {
     const code = String(codigo || '').trim().toUpperCase();
@@ -346,17 +355,69 @@ function linkIndicacao(codigo) {
     return INDICACAO_BASE + '/c/' + encodeURIComponent(code || '');
 }
 
-/** Texto pronto para WhatsApp / compartilhar (OG card vem do /c/CODIGO). */
-function textoCompartilharIndicacao(codigo) {
+function shareNomeFromPerfil(perfil) {
+    if (!perfil) return '';
+    const n = (perfil.apelido || perfil.nome || '').trim();
+    return n;
+}
+
+function shareOgDescription(nome) {
+    const n = String(nome || '').trim();
+    if (n) {
+        return n + ' te chamou pra negociar com mais segurança. Cadastre-se no Minera Pará — cada um vê só a própria conta.';
+    }
+    return SHARE_OG_DESC_SEM_NOME;
+}
+
+/**
+ * Texto pronto p/ WhatsApp / compartilhar.
+ * Ordem: título → chamado → “mensagem” → CTA → URL (nunca URL no início).
+ * opts: { nome, mensagem } — mensagem vazia usa share_frase_padrao / default.
+ */
+function textoCompartilharIndicacao(codigo, opts) {
+    opts = opts || {};
     const code = String(codigo || '').trim().toUpperCase() || '……';
     const link = linkIndicacao(code);
+    const nome = String(opts.nome != null ? opts.nome : '').trim();
+    const custom = String(opts.mensagem != null ? opts.mensagem : '').trim();
+    const frase = custom || _shareFrasePadrao || SHARE_FRASE_PADRAO_DEFAULT;
+    const linha2 = nome
+        ? (nome + ' te chamou pra negociar com mais segurança.')
+        : 'Te chamaram pra negociar com mais segurança.';
     return (
-        '⛏️ Faça parte da Família Mineira!\n\n' +
-        'Venha trabalhar conosco no Minera Pará — marketplace de minério, frete, britagem e Bank na mesma conta.\n' +
-        'Indique colegas e tenha renda extra.\n\n' +
-        '👉 ' + link + '\n\n' +
-        'Código: ' + code
+        'Minera Pará\n' +
+        linha2 + '\n\n' +
+        '“' + frase + '”\n\n' +
+        'Abrir Minera Pará e se cadastrar:\n' +
+        link
     );
+}
+
+async function carregarShareFlags() {
+    if (_shareFlagsLoaded) return;
+    _shareFlagsLoaded = true;
+    try {
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
+        const { data, error } = await supabaseClient
+            .from('app_flags')
+            .select('key,value_text')
+            .in('key', ['share_frase_padrao', 'share_og_image_url']);
+        if (error) {
+            // SQL 35 ainda não aplicado — constantes locais
+            console.warn('share flags:', error.message);
+            return;
+        }
+        (data || []).forEach((r) => {
+            if (r.key === 'share_frase_padrao' && r.value_text && String(r.value_text).trim()) {
+                _shareFrasePadrao = String(r.value_text).trim();
+            }
+            if (r.key === 'share_og_image_url' && r.value_text && String(r.value_text).trim()) {
+                _shareOgImageUrl = String(r.value_text).trim();
+            }
+        });
+    } catch (e) {
+        console.warn('share flags', e);
+    }
 }
 
 async function garantirCodigoIndicacao(perfil) {
@@ -399,7 +460,11 @@ function htmlCardFamilia(perfil) {
     const pts = perfil && perfil.pontos_saldo != null ? Number(perfil.pontos_saldo) : 0;
     const codigo = (perfil && perfil.codigo_indicacao) || '…';
     const link = linkIndicacao(codigo);
+    const nome = shareNomeFromPerfil(perfil);
     const desconto = (pts * 0.1).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const previewText = textoCompartilharIndicacao(codigo, { nome: nome });
+    const ogDesc = shareOgDescription(nome);
+    const ogImg = _shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT;
     return (
         '<section class="card familia-card familia-collapsed" id="card-familia-mineira">' +
         '<button type="button" class="familia-bar" id="btn-familia-toggle" aria-expanded="false" aria-controls="familia-panel">' +
@@ -417,6 +482,15 @@ function htmlCardFamilia(perfil) {
         '<div class="familia-stat"><span class="familia-stat-val">' + desconto +
         '</span><span class="familia-stat-lbl">desconto disponível</span></div>' +
         '</div>' +
+        '<div class="familia-og-card" aria-hidden="true">' +
+        '<img class="familia-og-logo" src="' + suporteEsc(ogImg) + '?v=20260923g" alt="" width="72" height="72" loading="lazy">' +
+        '<div class="familia-og-meta">' +
+        '<strong class="familia-og-title">Minera Pará</strong>' +
+        '<p class="familia-og-desc" id="familia-og-desc">' + suporteEsc(ogDesc) + '</p>' +
+        '</div></div>' +
+        '<label for="familia-msg-custom">Mensagem (opcional)</label>' +
+        '<textarea id="familia-msg-custom" rows="3" maxlength="500" placeholder="Deixe vazio para usar a frase padrão de privacidade/cadastro…"></textarea>' +
+        '<input type="hidden" id="familia-nome" value="' + suporteEsc(nome) + '">' +
         '<label for="familia-codigo">Seu código</label>' +
         '<div class="familia-share-row">' +
         '<input type="text" id="familia-codigo" readonly value="' + suporteEsc(codigo) + '">' +
@@ -425,9 +499,9 @@ function htmlCardFamilia(perfil) {
         '</div>' +
         '<input type="hidden" id="familia-link" value="' + suporteEsc(link) + '">' +
         '<p class="sub familia-link-hint" id="familia-link-hint">' + suporteEsc(link) + '</p>' +
-        '<details class="familia-share-preview">' +
+        '<details class="familia-share-preview" open>' +
         '<summary>Prévia da mensagem</summary>' +
-        '<pre class="familia-share-text" id="familia-share-text">' + suporteEsc(textoCompartilharIndicacao(codigo)) + '</pre>' +
+        '<pre class="familia-share-text" id="familia-share-text">' + suporteEsc(previewText) + '</pre>' +
         '</details>' +
         '</div>' +
         '</section>'
@@ -448,8 +522,19 @@ function setFamiliaExpanded(expanded) {
 function familiaSharePayload() {
     const codigo = ((document.getElementById('familia-codigo') || {}).value || '').trim().toUpperCase();
     const link = (document.getElementById('familia-link') || {}).value || linkIndicacao(codigo);
-    const text = textoCompartilharIndicacao(codigo);
-    return { codigo, link, text };
+    const nome = ((document.getElementById('familia-nome') || {}).value || '').trim();
+    const mensagem = ((document.getElementById('familia-msg-custom') || {}).value || '').trim();
+    const text = textoCompartilharIndicacao(codigo, { nome: nome, mensagem: mensagem });
+    return { codigo, link, text, nome, mensagem };
+}
+
+function atualizarFamiliaSharePreview() {
+    const pre = document.getElementById('familia-share-text');
+    const desc = document.getElementById('familia-og-desc');
+    if (!pre && !desc) return;
+    const { text, nome } = familiaSharePayload();
+    if (pre) pre.textContent = text;
+    if (desc) desc.textContent = shareOgDescription(nome);
 }
 
 async function copiarTextoIndicacao() {
@@ -473,13 +558,13 @@ async function copiarTextoIndicacao() {
 }
 
 async function compartilharIndicacao() {
-    const { text, link, codigo } = familiaSharePayload();
+    const { text } = familiaSharePayload();
     if (navigator.share) {
         try {
+            // Só text (URL já no final do template) — evita apps colocarem link no início
             await navigator.share({
-                title: 'Família Mineira — Minera Pará',
-                text: text,
-                url: link
+                title: 'Minera Pará',
+                text: text
             });
             if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
             return;
@@ -507,6 +592,11 @@ function bindCardFamilia() {
             setFamiliaExpanded(!open);
         });
     }
+    const msgEl = document.getElementById('familia-msg-custom');
+    if (msgEl && !msgEl._boundPreview) {
+        msgEl._boundPreview = true;
+        msgEl.addEventListener('input', () => atualizarFamiliaSharePreview());
+    }
     const btnShare = document.getElementById('btn-compartilhar-ref');
     if (btnShare && !btnShare._bound) {
         btnShare._bound = true;
@@ -516,16 +606,18 @@ function bindCardFamilia() {
         });
     }
     const btn = document.getElementById('btn-copiar-ref');
-    if (!btn || btn._bound) return;
-    btn._bound = true;
-    btn.addEventListener('click', async (ev) => {
-        if (ev) ev.stopPropagation();
-        await copiarTextoIndicacao();
-    });
+    if (btn && !btn._bound) {
+        btn._bound = true;
+        btn.addEventListener('click', async (ev) => {
+            if (ev) ev.stopPropagation();
+            await copiarTextoIndicacao();
+        });
+    }
 }
 
 async function montarCardFamilia(container, perfil, where) {
     if (!container) return perfil;
+    await carregarShareFlags();
     perfil = await garantirCodigoIndicacao(perfil);
     // refresh pontos
     if (perfil && perfil.auth_id) {
@@ -698,9 +790,51 @@ async function processarIndicacaoNoCadastro(novoUser, nome) {
     }
 }
 
+/** Após cadastro: atalho compartilhar (index) sem quebrar fluxo. */
+function mostrarSharePosCadastro(perfil) {
+    if (!perfil || !perfil.codigo_indicacao) return;
+    let host = document.getElementById('share-pos-cadastro');
+    if (!host) {
+        host = document.createElement('section');
+        host.id = 'share-pos-cadastro';
+        host.className = 'card familia-card familia-expanded';
+        const card = document.getElementById('auth-card');
+        if (card && card.parentNode) card.parentNode.insertBefore(host, card.nextSibling);
+        else {
+            const c = document.querySelector('.container');
+            if (c) c.appendChild(host);
+            else return;
+        }
+    }
+    const codigo = perfil.codigo_indicacao;
+    const nome = shareNomeFromPerfil(perfil) || (perfil.nome || '');
+    const link = linkIndicacao(codigo);
+    const text = textoCompartilharIndicacao(codigo, { nome: nome });
+    host.innerHTML =
+        '<div class="familia-panel" style="padding:14px">' +
+        '<h2 class="familia-panel-title">Convide colegas</h2>' +
+        '<p class="sub">Compartilhe seu link da Família Mineira e ganhe pontos.</p>' +
+        '<div class="familia-og-card">' +
+        '<img class="familia-og-logo" src="' + suporteEsc((_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT)) + '?v=20260923g" alt="" width="72" height="72">' +
+        '<div class="familia-og-meta"><strong class="familia-og-title">Minera Pará</strong>' +
+        '<p class="familia-og-desc">' + suporteEsc(shareOgDescription(nome)) + '</p></div></div>' +
+        '<input type="hidden" id="familia-codigo" value="' + suporteEsc(codigo) + '">' +
+        '<input type="hidden" id="familia-link" value="' + suporteEsc(link) + '">' +
+        '<input type="hidden" id="familia-nome" value="' + suporteEsc(nome) + '">' +
+        '<textarea id="familia-msg-custom" rows="2" maxlength="500" placeholder="Mensagem opcional…"></textarea>' +
+        '<div class="familia-share-row" style="margin-top:8px">' +
+        '<button type="button" class="btn-sm btn-ok" id="btn-compartilhar-ref">Compartilhar</button>' +
+        '<button type="button" class="btn-sm" id="btn-copiar-ref">Copiar texto</button>' +
+        '</div>' +
+        '<pre class="familia-share-text" id="familia-share-text">' + suporteEsc(text) + '</pre>' +
+        '</div>';
+    bindCardFamilia();
+}
+
 window.garantirFaleConosco = garantirFaleConosco;
 window.abrirSuporte = abrirSuporte;
 window.montarCardFamilia = montarCardFamilia;
+window.mostrarSharePosCadastro = mostrarSharePosCadastro;
 window.aplicarDescontoPontosComissao = aplicarDescontoPontosComissao;
 window.capturarRefUrl = capturarRefUrl;
 window.temConviteIndicacao = temConviteIndicacao;
@@ -709,4 +843,7 @@ window.linkIndicacao = linkIndicacao;
 window.textoCompartilharIndicacao = textoCompartilharIndicacao;
 window.processarIndicacaoNoCadastro = processarIndicacaoNoCadastro;
 window.garantirCodigoIndicacao = garantirCodigoIndicacao;
+window.carregarShareFlags = carregarShareFlags;
+window.SHARE_FRASE_PADRAO_DEFAULT = SHARE_FRASE_PADRAO_DEFAULT;
+window.SHARE_OG_IMAGE_DEFAULT = SHARE_OG_IMAGE_DEFAULT;
 window.SUPORTE_REF_PREMIO = SUPORTE_REF_PREMIO;
