@@ -941,24 +941,18 @@ window.addEventListener('beforeunload', () => {
 })();
 
 (function bindAnunciar() {
-    /* FAB Anunciar keeps lotes.html; quick card is Convidar → WhatsApp */
+    /* FAB Anunciar → lotes; invite/share stays on Perfil */
     const fab = document.getElementById('fab-anunciar');
     if (fab && typeof APP_ROOT === 'string') fab.setAttribute('href', APP_ROOT + 'lotes.html');
-    const conv = document.getElementById('btn-convidar');
-    if (conv && !conv._boundConvidar) {
-        conv._boundConvidar = true;
-        conv.addEventListener('click', async () => {
-            try {
-                if (typeof compartilharNoWhatsApp === 'function') {
-                    await compartilharNoWhatsApp();
-                } else if (typeof compartilharIndicacao === 'function') {
-                    await compartilharIndicacao();
-                } else {
-                    alert('Compartilhar indisponível no momento.');
-                }
-            } catch (e) {
-                console.warn('convidar', e);
-            }
+})();
+
+(function bindBancoQuick() {
+    const btn = document.getElementById('btn-banco') || document.getElementById('q-banco');
+    if (btn && !btn._boundBanco) {
+        btn._boundBanco = true;
+        btn.addEventListener('click', () => {
+            const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
+            location.href = root + 'financeiro.html';
         });
     }
 })();
@@ -1002,8 +996,7 @@ window.addEventListener('beforeunload', () => {
     if (qCat && !qCat._olx) {
         qCat._olx = true;
         qCat.addEventListener('click', () => {
-            const tabs = document.getElementById('filtro-tipo-chips');
-            if (tabs) tabs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (typeof abrirCategoriasSheet === 'function') abrirCategoriasSheet();
         });
     }
     const qFav = document.getElementById('q-favoritos');
@@ -1026,3 +1019,94 @@ window.addEventListener('beforeunload', () => {
     }
     syncCity();
 })();
+
+
+/* Categorias bottom sheet — syncs filtroTipo + olx-tabs */
+const CATEGORIAS_MINERAIS = [
+    { tipo: '', label: 'Todos', icon: '▦' },
+    { tipo: 'Ouro', label: 'Ouro', icon: '🟡' },
+    { tipo: 'Ferro', label: 'Ferro', icon: '⚙️' },
+    { tipo: 'Cobre', label: 'Cobre', icon: '🟠' },
+    { tipo: 'Níquel', label: 'Níquel', icon: '⚪' }
+];
+
+function fecharCategoriasSheet() {
+    const sheet = document.getElementById('categorias-sheet');
+    if (sheet) sheet.classList.add('oculto');
+}
+
+function syncOlxTabHighlight(tipo) {
+    const box = document.getElementById('filtro-tipo-chips');
+    if (!box) return;
+    box.querySelectorAll('.olx-tab, .fchip').forEach(b => {
+        const v = b.getAttribute('data-tipo') || '';
+        b.classList.toggle('on', v === String(tipo || ''));
+    });
+}
+
+function selecionarCategoriaMineral(tipo) {
+    filtroTipo = String(tipo || '');
+    syncOlxTabHighlight(filtroTipo);
+    if (typeof aplicarFiltros === 'function') aplicarFiltros();
+    fecharCategoriasSheet();
+}
+
+function garantirCategoriasSheet() {
+    let sheet = document.getElementById('categorias-sheet');
+    if (!sheet) {
+        sheet = document.createElement('div');
+        sheet.id = 'categorias-sheet';
+        sheet.className = 'categorias-sheet oculto';
+        sheet.innerHTML =
+            '<div class="mais-backdrop" data-close-cat="1"></div>' +
+            '<div class="categorias-panel" role="dialog" aria-label="Categorias de minério">' +
+            '<div class="mais-handle"></div>' +
+            '<div class="categorias-head"><h3>Categorias</h3>' +
+            '<p class="categorias-cue">Filtrar lotes por tipo de minério</p></div>' +
+            '<div class="categorias-list" id="categorias-list" role="listbox"></div>' +
+            '</div>';
+        document.body.appendChild(sheet);
+        sheet.addEventListener('click', (e) => {
+            if (e.target && e.target.getAttribute('data-close-cat') === '1') fecharCategoriasSheet();
+        });
+        if (!document._categoriasEscBound) {
+            document._categoriasEscBound = true;
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') fecharCategoriasSheet();
+            });
+        }
+    }
+    const list = document.getElementById('categorias-list');
+    if (list) {
+        list.innerHTML = CATEGORIAS_MINERAIS.map(c => {
+            const on = (String(filtroTipo || '') === String(c.tipo || '')) ? ' on' : '';
+            return '<button type="button" class="categorias-item' + on + '" data-tipo="' +
+                String(c.tipo).replace(/"/g, '&quot;') + '" role="option" aria-selected="' +
+                (on ? 'true' : 'false') + '">' +
+                '<span class="categorias-ico" aria-hidden="true">' + c.icon + '</span>' +
+                '<span class="categorias-label">' + c.label + '</span>' +
+                '</button>';
+        }).join('');
+        if (!list._boundCat) {
+            list._boundCat = true;
+            list.addEventListener('click', (e) => {
+                const btn = e.target.closest('.categorias-item');
+                if (!btn) return;
+                selecionarCategoriaMineral(btn.getAttribute('data-tipo') || '');
+            });
+        }
+    }
+}
+
+function abrirCategoriasSheet() {
+    if (typeof fecharServicosPanel === 'function') fecharServicosPanel();
+    garantirCategoriasSheet();
+    const sheet = document.getElementById('categorias-sheet');
+    if (sheet) sheet.classList.remove('oculto');
+}
+
+try {
+    window.abrirCategoriasSheet = abrirCategoriasSheet;
+    window.fecharCategoriasSheet = fecharCategoriasSheet;
+} catch (e) { /* ignore */ }
+

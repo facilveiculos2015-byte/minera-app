@@ -19,11 +19,11 @@ const NAV_SECUNDARIOS = [
 
 /** Catálogo de serviços no marketplace (papéis → oferta). */
 const SERVICOS_CATALOGO = [
-    { id: 'frete', label: 'Frete', icon: '', match: ['transportador', 'transportador_mina_britador', 'transportador_britador_porto'] },
-    { id: 'britagem', label: 'Britagem', icon: '', match: ['dono_britador'] },
-    { id: 'carregamento', label: 'Carregamento', icon: '', match: ['carregamento'] },
-    { id: 'minerador', label: 'Minerador', icon: '', match: ['minerador'] },
-    { id: 'comprador', label: 'Comprador', icon: '', match: ['comprador'] }
+    { id: 'frete', label: 'Frete / Transportador', icon: '🚛', match: ['transportador', 'transportador_mina_britador', 'transportador_britador_porto'] },
+    { id: 'britagem', label: 'Britagem / Britador', icon: '⛏', match: ['dono_britador'] },
+    { id: 'carregamento', label: 'Carregamento', icon: '📦', match: ['carregamento'] },
+    { id: 'minerador', label: 'Minerador (vendedor de lote)', icon: '⛏', match: ['minerador'] },
+    { id: 'comprador', label: 'Comprador', icon: '🛒', match: ['comprador'] }
 ];
 
 const NAV_SERVICO_IDS = new Set(['frete', 'britagem', 'servicos']);
@@ -134,6 +134,12 @@ function toggleServicosPanel() {
     if (!sheet || sheet.classList.contains('oculto')) abrirServicosPanel();
     else fecharServicosPanel();
 }
+
+try {
+    window.abrirServicosPanel = abrirServicosPanel;
+    window.fecharServicosPanel = fecharServicosPanel;
+    window.toggleServicosPanel = toggleServicosPanel;
+} catch (e) { /* ignore */ }
 
 async function rpcServicosDiretorio(busca) {
     try {
@@ -257,6 +263,7 @@ function garantirServicosSheet(ferramentas) {
         );
         filtros.innerHTML = chips.map(c =>
             '<button type="button" class="fchip svc-fchip' + (!c.id ? ' on' : '') + '" data-svc="' + c.id + '">' +
+            (c.icon ? ('<span class="svc-fchip-ico" aria-hidden="true">' + c.icon + '</span> ') : '') +
             c.label + '</button>'
         ).join('');
         filtros.addEventListener('click', (e) => {
@@ -628,7 +635,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260923m';
+    const src = root + 'logo-escavadeira.png?v=20260923n';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -856,7 +863,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923m' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923n' });
             }
         } catch (e) { /* ignore */ }
     }
