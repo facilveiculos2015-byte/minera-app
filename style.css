@@ -5388,8 +5388,9 @@ html[data-theme="light"] .bn-item.on { color: #d97706; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 10px;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 10px;
   border-radius: 14px;
   border: 1.5px solid var(--border);
   background: var(--bg-elevated);
@@ -5397,8 +5398,24 @@ html[data-theme="light"] .bn-item.on { color: #d97706; }
   cursor: pointer;
   font-weight: 700;
   font-size: 0.88rem;
+  line-height: 1.2;
+  position: relative;
+  overflow: visible;
 }
-.tema-opt .tema-ico { font-size: 1.35rem; line-height: 1; }
+.tema-opt .tema-ico {
+  display: block;
+  font-size: 1.45rem;
+  line-height: 1;
+  position: static;
+  margin: 0;
+}
+.tema-opt .tema-lbl {
+  display: block;
+  position: static;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: inherit;
+}
 .tema-opt[aria-pressed="true"],
 .tema-opt.on {
   border-color: var(--accent-color);
