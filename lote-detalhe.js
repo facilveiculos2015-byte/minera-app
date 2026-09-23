@@ -14,27 +14,11 @@
         if (s === 'em_processo' || s === 'processado') return 'Em trânsito';
         return 'Disponível';
     }
-    function openNativeMap(query) {
-        const q = encodeURIComponent(query || 'Parauapebas, PA');
-        const ua = navigator.userAgent || '';
-        const isIOS = /iPad|iPhone|iPod/.test(ua);
-        const isAndroid = /Android/i.test(ua);
-        let url;
-        if (isAndroid) url = 'geo:0,0?q=' + q;
-        else if (isIOS) url = 'maps:0,0?q=' + q;
-        else url = 'https://www.google.com/maps/search/?api=1&query=' + q;
-        window.open(url, '_blank', 'noopener');
-        // fallback web after short delay if still here
-        setTimeout(() => {
-            window.location.href = 'https://www.google.com/maps/search/?api=1&query=' + q;
-        }, 900);
-    }
-
     const session = await requireSession();
     if (!session) return;
     const perfil = await getPerfil(session);
     aplicarUserLabel(perfil);
-    montarNav('inicio', perfil);
+    montarNav('lote-detalhe', perfil);
 
     const params = new URLSearchParams(location.search);
     const codigo = params.get('codigo') || '';
@@ -81,10 +65,7 @@
             '<p style="margin-bottom:16px">Anunciante: <strong>' + esc(data.criado_por || 'Usuário') + '</strong></p>' +
             '<div style="display:flex;flex-wrap:wrap;gap:10px">' +
             '<a class="btn-ok" href="' + nego + '">Negociar no chat</a>' +
-            '<button type="button" class="btn-ghost" id="btn-abrir-mapa">Abrir no mapa</button>' +
             '</div>';
-        const bm = document.getElementById('btn-abrir-mapa');
-        if (bm) bm.addEventListener('click', () => openNativeMap(loc || 'Parauapebas, PA'));
     } catch (e) {
         console.error(e);
         box.innerHTML = '<p class="erro">Falha ao carregar anúncio.</p>';

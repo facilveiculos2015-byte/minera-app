@@ -930,6 +930,14 @@ window.addEventListener('beforeunload', () => {
             else if (typeof toggleServicosPanel === 'function') toggleServicosPanel();
         });
     }
+    const btnMapa = document.getElementById('btn-mapa');
+    if (btnMapa && !btnMapa._mktBound) {
+        btnMapa._mktBound = true;
+        btnMapa.addEventListener('click', () => {
+            const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
+            location.href = root + 'mapa.html';
+        });
+    }
 })();
 
 (function bindAnunciar() {

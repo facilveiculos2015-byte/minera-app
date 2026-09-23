@@ -1,6 +1,8 @@
 let perfilAtual = null;
 let sessionAtual = null;
 let lotesMeus = [];
+let lotesTodos = [];
+let lotesModo = 'disponiveis'; // disponiveis | meus
 /** URL pública após upload Storage (não data-URL). */
 let imagemUploadUrl = null;
 let imagemUploading = false;
@@ -126,17 +128,58 @@ function ehMeuLote(l) {
     return false;
 }
 
+/** Marketplace: pendente/disponível/em trânsito — não expedido (vendido). */
+function loteDisponivelMkt(l) {
+    const s = String(l && l.status != null ? l.status : '').toLowerCase();
+    return s !== 'expedido';
+}
+
+function atualizarLotesSub() {
+    const sub = document.getElementById('lotes-sub');
+    if (!sub) return;
+    sub.textContent = lotesModo === 'meus'
+        ? 'Gerencie e anuncie os lotes que você criou'
+        : 'Anúncios disponíveis no marketplace';
+}
+
 function renderCards(lista) {
     const listaDiv = document.getElementById('lotes-lista');
+    const meus = lotesModo === 'meus';
     if (!lista.length) {
-        listaDiv.innerHTML = '<p>Você ainda não cadastrou lotes. Use <b>+ Novo Lote</b>.</p>';
+        if (meus) {
+            listaDiv.innerHTML = '<div class="lotes-empty"><p><strong>Você ainda não cadastrou lotes</strong></p><p class="sub">Use <b>+ Novo Lote</b> para anunciar.</p></div>';
+        } else {
+            listaDiv.innerHTML = '<div class="lotes-empty"><p><strong>Nenhum lote disponível</strong></p><p class="sub">Quando houver anúncios pendentes/disponíveis, eles aparecem aqui.</p></div>';
+        }
         return;
     }
+    const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
     listaDiv.innerHTML = '<div class="lote-cards">' + lista.map(l => {
         const preco = formatPreco(l.preco);
+        const codigo = l.codigo_lote || '';
         const img = l.imagem_url
             ? '<div class="lote-img"><img src="' + esc(l.imagem_url) + '" alt="" loading="lazy"></div>'
             : '<div class="lote-img placeholder"><span>⛏️</span></div>';
+        let actions;
+        if (meus) {
+            actions = `<div class="card-actions">
+                    <button type="button" class="btn-sm" data-act="edit" data-id="${l.id}">Editar</button>
+                    <button type="button" class="btn-sm btn-danger" data-act="del" data-id="${l.id}">Excluir</button>
+                    <button type="button" class="btn-sm btn-ok" data-act="vendido" data-id="${l.id}">Marcar como Vendido</button>
+                </div>`;
+        } else {
+            const det = root + 'lote-detalhe.html?codigo=' + encodeURIComponent(codigo);
+            const nego = root + 'chat.html?' +
+                (l.criado_por_id ? ('com=' + encodeURIComponent(l.criado_por_id) + '&') : '') +
+                'lote=' + encodeURIComponent(codigo);
+            actions = `<div class="card-actions">
+                    <a class="btn-sm" href="${det}">Ver anúncio</a>
+                    <a class="btn-sm btn-ok" href="${nego}">Negociar</a>
+                </div>`;
+        }
+        const anunciante = !meus && l.criado_por
+            ? '<p class="lote-meta">Anunciante: ' + esc(l.criado_por) + '</p>'
+            : '';
         return `<article class="lote-card" data-id="${l.id}">
             ${img}
             <div class="lote-card-body">
@@ -145,17 +188,20 @@ function renderCards(lista) {
                     ${badgePublicadoComo(l.publicado_como)}
                     <span class="${statusBadgeClass(l.status)}">${esc(statusAmigavel(l.status))}</span>
                 </div>
-                <h3 class="lote-codigo">${esc(l.codigo_lote)}</h3>
+                <h3 class="lote-codigo">${esc(codigo)}</h3>
                 <p class="lote-meta">📍 ${esc(loteLocalMeta(l))} · ⚖️ ${esc(formatPeso(l.peso_bruto_kg))}</p>
+                ${anunciante}
                 ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : ''}
-                <div class="card-actions">
-                    <button type="button" class="btn-sm" data-act="edit" data-id="${l.id}">Editar</button>
-                    <button type="button" class="btn-sm btn-danger" data-act="del" data-id="${l.id}">Excluir</button>
-                    <button type="button" class="btn-sm btn-ok" data-act="vendido" data-id="${l.id}">Marcar como Vendido</button>
-                </div>
+                ${actions}
             </div>
         </article>`;
     }).join('') + '</div>';
+}
+
+function aplicarLotesModo() {
+    atualizarLotesSub();
+    if (lotesModo === 'meus') renderCards(lotesMeus);
+    else renderCards(lotesTodos.filter(loteDisponivelMkt));
 }
 
 async function carregarLotes() {
@@ -166,8 +212,9 @@ async function carregarLotes() {
             .select('*')
             .order('id', { ascending: false });
         if (error) throw error;
-        lotesMeus = (data || []).filter(ehMeuLote);
-        renderCards(lotesMeus);
+        lotesTodos = data || [];
+        lotesMeus = lotesTodos.filter(ehMeuLote);
+        aplicarLotesModo();
     } catch (err) {
         console.error(err);
         listaDiv.innerHTML = '<p class="erro">Erro ao carregar dados. Faça login de novo.</p>';
@@ -618,14 +665,41 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
     if (typeof LocalidadeBR !== 'undefined') {
         try { await LocalidadeBR.preencherSelectEstados(estEl, ''); } catch (e) { console.warn(e); }
     }
-    carregarLotes();
+    const tabs = document.getElementById('lotes-tabs');
+    if (tabs && !tabs._bound) {
+        tabs._bound = true;
+        tabs.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-modo]');
+            if (!btn) return;
+            lotesModo = btn.getAttribute('data-modo') || 'disponiveis';
+            tabs.querySelectorAll('.lotes-tab').forEach(b => {
+                const on = b === btn;
+                b.classList.toggle('on', on);
+                b.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            aplicarLotesModo();
+        });
+    }
+    let abrirNovo = false;
     try {
         const u = new URL(window.location.href);
         if (u.searchParams.get('novo') === '1' || u.hash === '#novo') {
-            setTimeout(() => {
-                const b = document.getElementById('btn-novo-lote');
-                if (b) b.click();
-            }, 200);
+            abrirNovo = true;
+            lotesModo = 'meus';
+            if (tabs) {
+                tabs.querySelectorAll('.lotes-tab').forEach(b => {
+                    const on = b.getAttribute('data-modo') === 'meus';
+                    b.classList.toggle('on', on);
+                    b.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+            }
         }
     } catch (e) { console.warn('novo query', e); }
+    await carregarLotes();
+    if (abrirNovo) {
+        setTimeout(() => {
+            const b = document.getElementById('btn-novo-lote');
+            if (b) b.click();
+        }, 200);
+    }
 })();

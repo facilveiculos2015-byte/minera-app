@@ -1,11 +1,11 @@
 /** Bottom bar Instagram-style + Mais sheet + chips secundários. */
 
 const NAV_PRIMARIOS = [
-    { id: 'inicio', label: 'Feed', href: 'inicio.html', icon: '🏠' },
-    { id: 'lotes', label: 'Lotes', href: 'lotes.html', icon: '📦' },
+    { id: 'inicio', label: 'Início', href: 'inicio.html', icon: "<svg viewBox='0 0 24 24' width='22' height='22' aria-hidden='true' focusable='false'><path d='M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z'/></svg>" },
+    { id: 'lotes', label: 'Lotes', href: 'lotes.html', icon: "<svg viewBox='0 0 24 24' width='22' height='22' aria-hidden='true' focusable='false'><path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><path d='M3.3 7L12 12l8.7-5M12 12v9'/></svg>" },
     { id: 'novo', label: 'Novo', href: 'lotes.html?novo=1', icon: '+', special: true },
-    { id: 'chat', label: 'Minera Chat', href: 'chat.html', icon: '💬' },
-    { id: 'perfil', label: 'Perfil', href: 'perfil.html', icon: '👤', avatar: true }
+    { id: 'chat', label: 'Chat', href: 'chat.html', icon: "<svg viewBox='0 0 24 24' width='22' height='22' aria-hidden='true' focusable='false'><path d='M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V11.5A8.5 8.5 0 1 1 21 11.5z'/></svg>" },
+    { id: 'perfil', label: 'Perfil', href: 'perfil.html', icon: "<svg viewBox='0 0 24 24' width='22' height='22' aria-hidden='true' focusable='false'><circle cx='12' cy='8' r='3.5'/><path d='M5 19.5c1.8-3.2 4-4.5 7-4.5s5.2 1.3 7 4.5'/></svg>", avatar: true }
 ];
 
 const NAV_SECUNDARIOS = [
@@ -483,6 +483,25 @@ function garantirHeaderModoUiBtn(perfil) {
     }
 }
 
+
+/** Sair só no Perfil (#btn-sair). Bind once → sairApp(). */
+function garantirBtnSair(paginaAtiva) {
+    const btn = document.getElementById('btn-sair');
+    if (!btn) return;
+    if (!btn._sairBound) {
+        btn._sairBound = true;
+        btn.addEventListener('click', async () => {
+            if (typeof sairApp === 'function') await sairApp();
+            else {
+                await supabaseClient.auth.signOut();
+                irPara('index.html');
+            }
+        });
+    }
+    if (paginaAtiva === 'perfil') btn.classList.remove('oculto');
+    else btn.classList.add('oculto');
+}
+
 function montarNav(paginaAtiva, perfil) {
     garantirBrandLogo();
     garantirHeaderNotifBtn();
@@ -512,6 +531,7 @@ function montarNav(paginaAtiva, perfil) {
     const body = document.body;
     if (body) {
         body.classList.toggle('pagina-chat', paginaAtiva === 'chat');
+        body.classList.toggle('pagina-lote-detalhe', paginaAtiva === 'lote-detalhe');
         body.classList.toggle('pagina-admin', isAdminPage);
         body.classList.toggle('modo-ui-admin', !!adminUi);
         body.classList.toggle('modo-ui-usuario', !!usuarioUi);
@@ -519,67 +539,26 @@ function montarNav(paginaAtiva, perfil) {
         else body.classList.add('has-bottom-nav');
     }
 
-    // Top slim secondary row — Mapa + Serviços (dropdown) + Mais; oculto no Chat e no Admin
+    // Secondary #app-nav: no Serviços / Mais / Sair / Mapa chips (Mapa = atalho Início).
+    // Row stays empty/hidden on client pages (incl. lote-detalhe). Sheets still built for deep-links.
     const topNav = document.getElementById('app-nav');
     if (topNav) {
         const secs = NAV_SECUNDARIOS.filter(it => {
             if (it.adminOnly && !(typeof ehAdmin === 'function' && ehAdmin(perfil))) return false;
             return permitidos.has(it.id);
         });
-        const pinned = secs.filter(it => it.id === 'mapa' || it.featured);
         const ferramentas = secs.filter(it => it.grupo === 'ferramentas');
-        // Mais sheet: Admin / Tutorial (sem duplicar Mapa / ferramentas / Serviços)
         const maisItens = secs.filter(it => it.id !== 'mapa' && !it.grupo);
-        if (paginaAtiva === 'chat' || hideClientChrome) {
-            topNav.className = 'nav-chips nav-secondary oculto';
-            topNav.innerHTML = '';
-            topNav.setAttribute('aria-hidden', 'true');
-            topNav.hidden = true;
-            if (!hideClientChrome) {
-                garantirMaisSheet(maisItens.length ? maisItens : secs.filter(it => !it.grupo));
-                garantirServicosSheet(ferramentas);
-            }
-        } else {
-            topNav.hidden = false;
-            topNav.className = 'nav-chips nav-secondary';
-            topNav.removeAttribute('aria-hidden');
-            let html = '';
-            pinned.forEach(it => {
-                const on = it.id === paginaAtiva ? ' on' : '';
-                const feat = it.featured ? ' chip-featured' : '';
-                html += '<a class="chip' + feat + on + '" href="' + APP_ROOT + it.href + '">' + it.label + '</a>';
-            });
-            // Serviços sempre visível no chrome do cliente (marketplace de pessoas)
-            const servOn = (NAV_SERVICO_IDS.has(paginaAtiva) || paginaAtiva === 'servicos') ? ' on' : '';
-            html += '<button type="button" class="chip chip-servicos' + servOn + '" id="nav-servicos" aria-expanded="false" aria-haspopup="dialog" aria-controls="servicos-sheet">' +
-                '<span class="servicos-btn-main">Serviços</span></button>';
-            html += '<button type="button" class="chip chip-mais" id="nav-mais">Mais</button>';
-            html += '<button type="button" class="chip chip-sair" id="nav-sair">Sair</button>';
-            topNav.innerHTML = html;
-
-            const btnServ = document.getElementById('nav-servicos');
-            if (btnServ) {
-                btnServ.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    toggleServicosPanel();
-                });
-            }
-
-            const btnMais = document.getElementById('nav-mais');
-            if (btnMais) btnMais.addEventListener('click', abrirMaisSheet);
-
-            const btn = document.getElementById('nav-sair');
-            if (btn) {
-                btn.addEventListener('click', async () => {
-                    if (typeof sairApp === 'function') await sairApp();
-                    else {
-                        await supabaseClient.auth.signOut();
-                        irPara('index.html');
-                    }
-                });
-            }
+        topNav.className = 'nav-chips nav-secondary oculto';
+        topNav.innerHTML = '';
+        topNav.setAttribute('aria-hidden', 'true');
+        topNav.hidden = true;
+        if (!hideClientChrome) {
             garantirMaisSheet(maisItens.length ? maisItens : secs.filter(it => !it.grupo));
             garantirServicosSheet(ferramentas);
+            // Remove Sair from Mais sheet (Sair only via Perfil #btn-sair)
+            const maisSair = document.getElementById('mais-sair');
+            if (maisSair) maisSair.classList.add('oculto');
         }
     }
 
@@ -591,8 +570,7 @@ function montarNav(paginaAtiva, perfil) {
             bar.setAttribute('aria-hidden', 'true');
             bar.innerHTML = '';
         }
-        const legado = document.getElementById('btn-sair');
-        if (legado) legado.classList.remove('oculto');
+        garantirBtnSair(paginaAtiva);
         // Esconde Fale conosco / Mais sheet no modo monitoramento
         const sheet = document.getElementById('mais-sheet');
         if (sheet) sheet.classList.add('oculto');
@@ -628,8 +606,7 @@ function montarNav(paginaAtiva, perfil) {
                 '<span class="bn-label">' + it.label + '</span></a>';
         }).join('');
 
-        const legado = document.getElementById('btn-sair');
-        if (legado) legado.classList.add('oculto');
+        garantirBtnSair(paginaAtiva);
     }
 
     // Fale conosco (Robô Minera) — não no modo monitoramento admin
@@ -651,7 +628,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260923l';
+    const src = root + 'logo-escavadeira.png?v=20260923m';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -879,7 +856,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923l' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923m' });
             }
         } catch (e) { /* ignore */ }
     }

@@ -692,14 +692,31 @@ body.has-bottom-nav {
     justify-content: center;
     gap: 2px;
     text-decoration: none;
-    color: var(--muted);
+    color: #94a3b8;
     font-size: 0.65rem;
     font-weight: 600;
     padding: 4px 2px;
     min-width: 0;
 }
-.bn-item.on { color: var(--accent-color); }
-.bn-icon { font-size: 1.25rem; line-height: 1; }
+.bn-item.on { color: #F5A623; }
+.bn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    line-height: 1;
+    color: inherit;
+}
+.bn-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
 .bn-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .bn-novo .bn-plus {
     width: 44px;
@@ -4848,8 +4865,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923l — Slim WA iOS thread header (no roles, call pill) ===== */
-/* ===== 20260923l — Perfil mobile + share WA + audio harden ===== */
+/* ===== 20260923m — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923m — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5019,7 +5036,7 @@ body.pagina-chat .chat-contacts-pane {
 }
 
 
-/* ===== 20260923l — Perfil mobile shell + Compartilhar WA ===== */
+/* ===== 20260923m — Perfil mobile shell + Compartilhar WA ===== */
 body.pagina-perfil {
   padding: 0 0 88px;
   background: #0b1220;
@@ -5151,4 +5168,45 @@ html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
   display: inline-block;
   margin-top: 6px;
   font-size: 0.78rem;
+}
+
+
+/* ===== 20260923m — sober bottom-nav SVG + lotes marketplace + chrome slim ===== */
+.lotes-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 14px;
+    flex-wrap: wrap;
+}
+.lotes-tab {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: #111827;
+    color: #94a3b8;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 650;
+    cursor: pointer;
+}
+.lotes-tab.on {
+    color: #0b1220;
+    background: #F5A623;
+    border-color: #F5A623;
+}
+.lotes-empty {
+    text-align: center;
+    padding: 28px 12px;
+    color: var(--muted);
+}
+.lotes-empty .sub { margin-top: 6px; }
+body.pagina-lote-detalhe #app-nav,
+body.pagina-lote-detalhe .nav-chips.nav-secondary {
+    display: none !important;
+}
+html[data-theme="light"] .bn-item { color: #64748b; }
+html[data-theme="light"] .bn-item.on { color: #F5A623; }
+html[data-theme="light"] .lotes-tab {
+    background: #fff;
+    color: #64748b;
 }

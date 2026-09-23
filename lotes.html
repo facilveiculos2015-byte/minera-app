@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minera Pará - Meus Lotes</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923l">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923l">
+    <title>Minera Pará - Lotes</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923m">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923m">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923l">
+    <link rel="stylesheet" href="style.css?v=20260923m">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -30,10 +30,14 @@
         <section class="card">
             <div class="section-head">
                 <div>
-                    <h2>Meus Lotes</h2>
-                    <p class="sub">Somente os lotes que você criou</p>
+                    <h2>Lotes</h2>
+                    <p class="sub" id="lotes-sub">Anúncios disponíveis no marketplace</p>
                 </div>
                 <button type="button" class="btn-primary-lg" id="btn-novo-lote">+ Novo Lote</button>
+            </div>
+            <div class="lotes-tabs" id="lotes-tabs" role="tablist" aria-label="Filtro de lotes">
+                <button type="button" class="lotes-tab on" data-modo="disponiveis" role="tab" aria-selected="true">Disponíveis</button>
+                <button type="button" class="lotes-tab" data-modo="meus" role="tab" aria-selected="false">Meus lotes</button>
             </div>
             <div id="lotes-lista" class="loading">Carregando dados...</div>
         </section>
@@ -116,13 +120,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923l"></script>
-    <script src="auth-guard.js?v=20260923l"></script>
-    <script src="suporte.js?v=20260923l"></script>
-    <script src="nav.js?v=20260923l"></script>
-    <script src="anti-golpe.js?v=20260923l"></script>
-    <script src="localidade.js?v=20260923l"></script>
-    <script src="lotes.js?v=20260923l"></script>
-    <script src="pwa.js?v=20260923l"></script>
+    <script src="config.js?v=20260923m"></script>
+    <script src="auth-guard.js?v=20260923m"></script>
+    <script src="suporte.js?v=20260923m"></script>
+    <script src="nav.js?v=20260923m"></script>
+    <script src="anti-golpe.js?v=20260923m"></script>
+    <script src="localidade.js?v=20260923m"></script>
+    <script src="lotes.js?v=20260923m"></script>
+    <script src="pwa.js?v=20260923m"></script>
 </body>
 </html>
