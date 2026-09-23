@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Pará - Marketplace</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923o">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923o">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923p">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923p">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923o">
+    <link rel="stylesheet" href="style.css?v=20260923p">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -49,6 +49,35 @@
             <button type="button" class="olx-qcard" id="btn-banco"><span class="qi">🏦</span>Banco</button>
         </div>
 
+        <section class="card cotacoes-card cotacoes-compact" id="card-cotacoes" aria-label="Cotações de mercado">
+            <div class="cotacoes-strip-head">
+                <span class="cotacoes-strip-title">Cotações</span>
+                <span class="cotacoes-fonte" id="cotacoes-atualizado">…</span>
+            </div>
+            <div class="cotacoes-grid cotacoes-strip" id="cotacoes-grid">
+                <div class="cotacao-item">
+                    <div class="c-label">Dólar</div>
+                    <div class="c-valor" id="cot-dolar">—</div>
+                    <div class="c-sub" id="cot-dolar-sub">USD/BRL</div>
+                </div>
+                <div class="cotacao-item">
+                    <div class="c-label">Ouro</div>
+                    <div class="c-valor" id="cot-ouro">—</div>
+                    <div class="c-sub" id="cot-ouro-sub">USD/g</div>
+                </div>
+                <div class="cotacao-item">
+                    <div class="c-label">Cobre</div>
+                    <div class="c-valor" id="cot-cobre">—</div>
+                    <div class="c-sub" id="cot-cobre-sub">USD/t</div>
+                </div>
+            </div>
+            <div class="cotacoes-links" id="cotacoes-links">
+                <a id="link-lme-copper" href="https://www.lme.com/en/Metals/Non-ferrous/LME-Copper" target="_blank" rel="noopener noreferrer">LME Copper</a>
+                <a id="link-lme-home" href="https://www.lme.com/" target="_blank" rel="noopener noreferrer">LME Home</a>
+                <a id="link-gold-lbma" href="https://www.lbma.org.uk/prices-and-data/precious-metal-prices" target="_blank" rel="noopener noreferrer">Gold LBMA</a>
+            </div>
+        </section>
+
         <div class="olx-banner" id="olx-banner" aria-label="Destaques">
             <div class="olx-banner-track" id="olx-banner-track"><!-- preenchido por inicio.js via app_promos --></div>
         </div>
@@ -65,23 +94,18 @@
             </div>
             <div id="filtro-status-chips"><button class="fchip on" data-status=""></button></div>
             <span id="loc-status"></span>
-            <div id="card-cotacoes"><div id="cotacoes-grid">
-                <div class="c-valor" id="cot-dolar"></div><div class="c-sub" id="cot-dolar-sub"></div>
-                <div class="c-valor" id="cot-ouro"></div><div class="c-sub" id="cot-ouro-sub"></div>
-                <div class="c-valor" id="cot-cobre"></div><div class="c-sub" id="cot-cobre-sub"></div>
-            </div><span id="cotacoes-atualizado"></span><div class="cotacoes-links"></div></div>
         </div>
 
         <div id="feed" class="olx-feed loading">Carregando...</div>
         <a class="olx-fab" id="fab-anunciar" href="lotes.html" title="Anunciar" aria-label="Anunciar">＋</a>
         <nav id="app-nav" class="nav-chips oculto"></nav>
     </div>
-    <script src="config.js?v=20260923o"></script>
-    <script src="auth-guard.js?v=20260923o"></script>
-    <script src="suporte.js?v=20260923o"></script>
-    <script src="nav.js?v=20260923o"></script>
-    <script src="localidade.js?v=20260923o"></script>
-    <script src="inicio.js?v=20260923o"></script>
-    <script src="pwa.js?v=20260923o"></script>
+    <script src="config.js?v=20260923p"></script>
+    <script src="auth-guard.js?v=20260923p"></script>
+    <script src="suporte.js?v=20260923p"></script>
+    <script src="nav.js?v=20260923p"></script>
+    <script src="localidade.js?v=20260923p"></script>
+    <script src="inicio.js?v=20260923p"></script>
+    <script src="pwa.js?v=20260923p"></script>
 </body>
 </html>

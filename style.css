@@ -5230,3 +5230,14 @@ html[data-theme="light"] .lotes-tab {
 html[data-theme="light"] .olx-qcard { background: #fff; color: #0f172a; }
 html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
+
+
+/* ===== 20260923p — restore market quotes strip ===== */
+.pagina-inicio #card-cotacoes.cotacoes-card {
+    margin: 8px 0 10px;
+    background: #0b1220;
+    border: 1px solid rgba(245, 166, 35, 0.22);
+}
+.pagina-inicio .cotacoes-card .cotacoes-strip-title {
+    color: #F5A623;
+}
