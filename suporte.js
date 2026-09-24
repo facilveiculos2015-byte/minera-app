@@ -339,7 +339,8 @@ function gerarCodigoIndicacao() {
 }
 
 const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
-const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923ae';
+const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923af';
+const SHARE_VIDEO_DEFAULT = INDICACAO_BASE + '/media/convite-familia-minera.mp4?v=20260923af';
 const SHARE_FRASE_PADRAO_DEFAULT =
     'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
 const SHARE_OG_DESC_SEM_NOME =
@@ -577,13 +578,29 @@ async function familiaShareImageFile() {
     const url = (_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT || '').split('?')[0];
     if (!url) return null;
     try {
-        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923ae';
+        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923af';
         const res = await fetch(bust, { mode: 'cors', cache: 'no-store' });
         if (!res.ok) return null;
         const blob = await res.blob();
         const type = blob.type || 'image/png';
         const ext = type.includes('jpeg') || type.includes('jpg') ? 'jpg' : 'png';
         return new File([blob], 'familia-minera-convite.' + ext, { type: type });
+    } catch (e) {
+        return null;
+    }
+}
+
+/** Vídeo de convite (Web Share Level 2 — WhatsApp no celular anexa o arquivo). */
+async function familiaShareVideoFile() {
+    const url = (typeof SHARE_VIDEO_DEFAULT === 'string' ? SHARE_VIDEO_DEFAULT : '').split('?')[0];
+    if (!url) return null;
+    try {
+        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923af';
+        const res = await fetch(bust, { mode: 'cors', cache: 'no-store' });
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const type = blob.type || 'video/mp4';
+        return new File([blob], 'convite-familia-minera.mp4', { type: type });
     } catch (e) {
         return null;
     }
@@ -624,23 +641,36 @@ async function compartilharIndicacao(opts) {
     const payload = familiaSharePayload(opts.perfil);
     const text = payload.text || '';
     const link = payload.codigo ? linkIndicacao(payload.codigo) : '';
-    // Mobile: tenta Web Share com imagem + texto/link (WhatsApp mostra a arte)
+    // Mobile: 1º vídeo+texto+link; 2º imagem; 3º só texto; senão WhatsApp wa.me
     try {
-        const file = await familiaShareImageFile();
-        if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                title: 'Família Minera · Minera Pará',
-                text: text,
-                url: link || undefined,
-                files: [file]
-            });
-            if (typeof toastMsg === 'function') toastMsg('Convite com imagem compartilhado!');
-            return;
-        }
-        if (opts && opts.maisOpcoes && navigator.share) {
-            await navigator.share({ title: 'Minera Pará', text: text, url: link || undefined });
-            if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
-            return;
+        if (navigator.share && navigator.canShare) {
+            const video = await familiaShareVideoFile();
+            if (video && navigator.canShare({ files: [video] })) {
+                await navigator.share({
+                    title: 'Família Minera · Minera Pará',
+                    text: text,
+                    url: link || undefined,
+                    files: [video]
+                });
+                if (typeof toastMsg === 'function') toastMsg('Convite com vídeo compartilhado!');
+                return;
+            }
+            const img = await familiaShareImageFile();
+            if (img && navigator.canShare({ files: [img] })) {
+                await navigator.share({
+                    title: 'Família Minera · Minera Pará',
+                    text: text,
+                    url: link || undefined,
+                    files: [img]
+                });
+                if (typeof toastMsg === 'function') toastMsg('Convite com imagem compartilhado!');
+                return;
+            }
+            if (opts && opts.maisOpcoes) {
+                await navigator.share({ title: 'Minera Pará', text: text, url: link || undefined });
+                if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
+                return;
+            }
         }
     } catch (e) {
         if (e && e.name === 'AbortError') return;
@@ -923,4 +953,6 @@ window.copiarTextoIndicacao = copiarTextoIndicacao;
 window.carregarShareFlags = carregarShareFlags;
 window.SHARE_FRASE_PADRAO_DEFAULT = SHARE_FRASE_PADRAO_DEFAULT;
 window.SHARE_OG_IMAGE_DEFAULT = SHARE_OG_IMAGE_DEFAULT;
+window.SHARE_VIDEO_DEFAULT = SHARE_VIDEO_DEFAULT;
+window.familiaShareVideoFile = familiaShareVideoFile;
 window.SUPORTE_REF_PREMIO = SUPORTE_REF_PREMIO;
