@@ -417,7 +417,71 @@ function garantirHeaderModoUiBtn(perfil) {
     }
 
     /** Sticky SEMPRE no modo usuário — não depende de header.header-row (Início/Chat/Perfil). */
-    function garantirStickyVoltar() {
+    
+/** Páginas raiz da bottom-nav — não injetam Voltar de página. */
+const PAGINAS_RAIZ = new Set(['inicio', 'lotes', 'chat', 'perfil', 'index']);
+
+function paginaAtualId() {
+    const path = (location.pathname || '').split('/').pop() || '';
+    const base = path.replace(/\.html$/i, '') || 'inicio';
+    if (base === 'index' || base === '') return 'inicio';
+    if (base === 'lote-detalhe') return 'lote-detalhe';
+    return base;
+}
+
+function destinoVoltarPadrao() {
+    const id = paginaAtualId();
+    if (id === 'lote-detalhe') return 'inicio.html';
+    if (id === 'financeiro' || id === 'mapa' || id === 'frete' || id === 'processamento') return 'inicio.html';
+    if (id === 'admin' || id === 'estoque' || id === 'expedicao' || id === 'relatorios' || id === 'tutorial') return 'inicio.html';
+    return 'inicio.html';
+}
+
+function irVoltarApp() {
+    try {
+        const ref = document.referrer || '';
+        const sameOrigin = ref && ref.indexOf(location.origin) === 0;
+        if (sameOrigin && history.length > 1) {
+            history.back();
+            return;
+        }
+    } catch (e) { /* ignore */ }
+    const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
+    location.href = root + destinoVoltarPadrao();
+}
+
+/** Botão Voltar bem visível em telas que saem da aba raiz. */
+function garantirBotaoVoltarPagina() {
+    const id = paginaAtualId();
+    if (PAGINAS_RAIZ.has(id)) return;
+    if (document.getElementById('app-back-btn')) return;
+    // lote-detalhe já tem btn-voltar — reforça handler
+    const existing = document.getElementById('btn-voltar');
+    if (existing) {
+        existing.addEventListener('click', function (e) {
+            e.preventDefault();
+            irVoltarApp();
+        });
+        existing.classList.add('app-back-btn');
+        return;
+    }
+    const bar = document.createElement('div');
+    bar.className = 'app-back-bar';
+    bar.id = 'app-back-bar';
+    bar.innerHTML = '<button type="button" class="app-back-btn" id="app-back-btn" aria-label="Voltar à tela anterior"><span class="ab-ico" aria-hidden="true">←</span> Voltar</button>';
+    const btn = bar.querySelector('#app-back-btn');
+    btn.addEventListener('click', irVoltarApp);
+    const container = document.querySelector('.container') || document.body;
+    const header = container.querySelector('header.header-row, header');
+    if (header && header.parentNode) {
+        header.parentNode.insertBefore(bar, header);
+    } else {
+        container.insertBefore(bar, container.firstChild);
+    }
+}
+
+
+function garantirStickyVoltar() {
         let sticky = document.getElementById('modo-ui-sticky');
         if (!sticky) {
             sticky = document.createElement('div');
@@ -670,7 +734,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260923al';
+    const src = root + 'logo-escavadeira.png?v=20260923am';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -898,7 +962,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923al' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923am' });
             }
         } catch (e) { /* ignore */ }
     }
@@ -1030,3 +1094,26 @@ const MineraNotif = (function () {
     return { start, poll, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge };
 })();
 window.MineraNotif = MineraNotif;
+
+
+
+(function initVoltarPagina() {
+    function run() { try { garantirBotaoVoltarPagina(); } catch (e) { console.warn('voltar', e); } }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+})();
+
+(function antiAutoZoomTap() {
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function (e) {
+        const now = Date.now();
+        const t = e.target;
+        const tag = (t && t.tagName) ? t.tagName.toUpperCase() : '';
+        const editable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable);
+        if (!editable && now - lastTouchEnd <= 280 && e.touches.length === 0) {
+            /* Bloqueia double-tap zoom; pinça com 2 dedos continua liberada */
+            e.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, { passive: false });
+})();

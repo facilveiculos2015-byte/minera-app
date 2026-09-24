@@ -3586,7 +3586,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923al — industrial premium ===== */
+/* ===== TURBO redesign 20260923am — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3964,7 +3964,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923al — marketplace / bank / habit polish === */
+/* === 20260923am — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -4044,7 +4044,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923al — Minera Pará ===== */
+/* ===== FULL REBUILD pillars 20260923am — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4513,7 +4513,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 }
 
 
-/* ---- Welcome before login (20260923al) ---- */
+/* ---- Welcome before login (20260923am) ---- */
 .welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
 .welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
 .welcome-card .btn-ok { width: 100%; margin-top: 8px; }
@@ -4591,7 +4591,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 
-/* ===== Minera Bank glassmorphism 20260923al ===== */
+/* ===== Minera Bank glassmorphism 20260923am ===== */
 body.pagina-financeiro {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),
@@ -4702,7 +4702,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   color: #0f172a;
 }
 
-/* ===== 20260923al/i — Fale/FAB clear + WA chat mobile shell ===== */
+/* ===== 20260923am/i — Fale/FAB clear + WA chat mobile shell ===== */
 :root { --kb-inset: 0px; --composer-h: 58px; }
 
 .wa-row { min-height: 72px; box-sizing: border-box; }
@@ -4929,7 +4929,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   }
 }
 
-/* ===== 20260923al — WA composer pixel order + Conversas list ===== */
+/* ===== 20260923am — WA composer pixel order + Conversas list ===== */
 /* Structure: + | pill[input… emoji] | camera | mic/send */
 .wa-composer.chat-form {
   align-items: center;
@@ -4979,8 +4979,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923al — Slim WA iOS thread header (no roles, call pill) ===== */
-/* ===== 20260923al — Perfil mobile + share WA + audio harden ===== */
+/* ===== 20260923am — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923am — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5150,7 +5150,7 @@ body.pagina-chat .chat-contacts-pane {
 }
 
 
-/* ===== 20260923al — Perfil mobile shell + Compartilhar WA ===== */
+/* ===== 20260923am — Perfil mobile shell + Compartilhar WA ===== */
 body.pagina-perfil {
   padding: 0 0 88px;
   background: #0b1220;
@@ -5285,7 +5285,7 @@ html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
 }
 
 
-/* ===== 20260923al — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
+/* ===== 20260923am — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
 .lotes-tabs {
     display: flex;
     gap: 8px;
@@ -5326,7 +5326,7 @@ html[data-theme="light"] .lotes-tab {
 }
 
 
-/* ===== 20260923al — lote midia preview + teor/cobre ===== */
+/* ===== 20260923am — lote midia preview + teor/cobre ===== */
 .lote-midia-preview {
   display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px;
 }
@@ -5355,7 +5355,7 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
 
-/* ===== 20260923al — restore market quotes strip ===== */
+/* ===== 20260923am — restore market quotes strip ===== */
 .pagina-inicio #card-cotacoes.cotacoes-card {
     margin: 8px 0 10px;
     background: #0b1220;
@@ -5366,9 +5366,9 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 }
 
 
-/* ===== 20260923al — quick cards: no flat fill, intuitive themed surfaces ===== */
+/* ===== 20260923am — quick cards: no flat fill, intuitive themed surfaces ===== */
 
-/* ===== LIGHT THEME TEXT FIX 20260923al ===== */
+/* ===== LIGHT THEME TEXT FIX 20260923am ===== */
 /* Nomes/títulos/preços com cor clara fixa sumiam no fundo claro */
 html[data-theme="light"] .olx-card-title,
 html[data-theme="light"] .olx-card-price,
@@ -5495,4 +5495,73 @@ html[data-theme="light"] .tema-opt.on {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+
+/* ---- Anti zoom automático (toque/double-tap/input); pinça com 2 dedos OK ---- */
+html, body {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: pan-x pan-y;
+}
+button, a, label, summary, [role="button"], [role="tab"],
+.olx-qcard, .olx-tab, .fchip, .wa-chip, .bn-item, .nav-chips .chip,
+.btn-sm, .btn-ok, .btn-ghost, .btn-primary-lg, .lotes-tab,
+.wa-comp-btn, .wa-attach-item, .tema-opt {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+/* iOS dá zoom em input < 16px — trava escala da página no foco */
+input, select, textarea, .wa-comp-input, .olx-search, .mkt-busca {
+  font-size: 16px !important;
+  max-height: none;
+}
+
+/* ---- Voltar global (telas fora da barra principal) ---- */
+.app-back-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 4px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: linear-gradient(180deg, var(--bg, #0b1220) 70%, transparent);
+}
+.app-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(245,166,35,.45);
+  background: rgba(245,166,35,.16);
+  color: #fde68a;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 4px 14px rgba(0,0,0,.28);
+}
+.app-back-btn .ab-ico {
+  font-size: 1.35rem;
+  line-height: 1;
+  font-weight: 900;
+}
+.app-back-btn:active { transform: scale(.97); }
+html[data-theme="light"] .app-back-btn {
+  background: rgba(245,166,35,.2);
+  color: #92400e;
+  border-color: rgba(146,64,14,.35);
+}
+html[data-theme="light"] .app-back-bar {
+  background: linear-gradient(180deg, var(--bg, #f8fafc) 70%, transparent);
+}
+body.pagina-inicio .app-back-bar,
+body.pagina-chat:not(.chat-thread-open) .app-back-bar,
+body.pagina-perfil .app-back-bar,
+body.pagina-lotes .app-back-bar {
+  /* abas raiz da bottom-nav: sem barra Voltar extra */
+  display: none !important;
 }
