@@ -32,27 +32,44 @@ function atualizarCamposPorTipo() {
     const wrapPreco = document.getElementById('wrap-preco');
     const wrapCobre = document.getElementById('wrap-cobre-tipo');
     const wrapEquip = document.getElementById('wrap-equipamento');
+    const wrapCodigo = document.getElementById('wrap-codigo-lote');
+    const wrapTipoCat = document.getElementById('wrap-tipo-categoria');
+    const wrapOrigem = document.getElementById('wrap-origem');
+    const wrapPeso = document.getElementById('wrap-peso');
+    const wrapMaqObs = document.getElementById('wrap-maq-obs');
     const pesoEl = document.getElementById('peso_bruto');
     const precoEl = document.getElementById('preco');
     const equipEl = document.getElementById('equipamento_tipo');
+    const origemEl = document.getElementById('origem');
+    const codigoEl = document.getElementById('codigo_lote');
     const labelOrigem = document.getElementById('label-origem');
     const labelPeso = document.getElementById('label-peso');
     const labelPreco = document.getElementById('label-preco');
+    const labelMidia = document.getElementById('label-midia-lote');
     const maq = ehMaquinario(tipo);
     const mineral = ehTipoMineral(tipo) && !maq;
-    if (wrapTeor) wrapTeor.classList.toggle('oculto', !mineral);
-    if (wrapPreco) wrapPreco.classList.toggle('oculto', mineral); /* Maquinário e não-mineral: preço */
+
+    if (wrapTeor) wrapTeor.classList.toggle('oculto', maq || !mineral);
+    if (wrapPreco) wrapPreco.classList.toggle('oculto', mineral && !maq);
     if (wrapEquip) wrapEquip.classList.toggle('oculto', !maq);
+    if (wrapCodigo) wrapCodigo.classList.toggle('oculto', maq);
+    if (wrapTipoCat) wrapTipoCat.classList.toggle('oculto', maq);
+    if (wrapOrigem) wrapOrigem.classList.toggle('oculto', maq);
+    if (wrapPeso) wrapPeso.classList.toggle('oculto', maq);
+    if (wrapMaqObs) wrapMaqObs.classList.toggle('oculto', !maq);
+
     if (wrapCobre) {
         const isCobre = String(tipo).toLowerCase() === 'cobre';
-        wrapCobre.classList.toggle('oculto', !isCobre);
+        wrapCobre.classList.toggle('oculto', !isCobre || maq);
         const sel = document.getElementById('cobre_tipo');
-        if (sel) sel.required = isCobre;
-        if (!isCobre && sel) sel.value = '';
+        if (sel) sel.required = isCobre && !maq;
+        if ((!isCobre || maq) && sel) sel.value = '';
     }
+
     if (pesoEl) {
         pesoEl.required = !maq;
-        pesoEl.placeholder = maq ? 'Opcional (kg)' : 'Peso Bruto (kg)';
+        if (maq) { pesoEl.value = pesoEl.value || '0'; pesoEl.removeAttribute('required'); }
+        else pesoEl.setAttribute('required', 'required');
     }
     if (precoEl) {
         precoEl.required = maq;
@@ -60,9 +77,47 @@ function atualizarCamposPorTipo() {
     }
     if (equipEl) equipEl.required = maq;
     if (!maq && equipEl) equipEl.value = '';
-    if (labelOrigem) labelOrigem.textContent = maq ? 'Modelo / detalhes' : 'Origem / Frente';
-    if (labelPeso) labelPeso.textContent = maq ? 'Peso aprox. (kg) — opcional' : 'Peso bruto (kg)';
+
+    if (origemEl) {
+        if (maq) {
+            origemEl.required = false;
+            origemEl.removeAttribute('required');
+            origemEl.value = origemEl.value; // kept hidden
+        } else {
+            origemEl.required = true;
+            origemEl.setAttribute('required', 'required');
+        }
+    }
+    if (codigoEl) {
+        if (maq) {
+            codigoEl.required = false;
+            codigoEl.removeAttribute('required');
+            if (!codigoEl.value.trim()) {
+                const d = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                codigoEl.value = 'MAQ-' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+            }
+        } else {
+            codigoEl.required = true;
+            codigoEl.setAttribute('required', 'required');
+        }
+    }
+
+    if (labelOrigem) labelOrigem.textContent = 'Origem / Frente';
+    if (labelPeso) labelPeso.textContent = 'Peso bruto (kg)';
     if (labelPreco) labelPreco.textContent = maq ? 'Preço de venda (R$)' : 'Preço (R$)';
+    if (labelMidia) labelMidia.textContent = maq ? 'Fotos e vídeo do maquinário' : 'Fotos e vídeo do lote';
+
+    const hintLoc = document.querySelector('#form-lote .loc-form-row + label[for="lote_ddd"]');
+    // update location hint paragraph if present
+    const hints = document.querySelectorAll('#form-lote > p.hint');
+    hints.forEach(h => {
+        if (/Marketplace|DDD/.test(h.textContent || '')) {
+            h.textContent = maq
+                ? 'Estado e cidade ajudam a mostrar seu maquinário perto de quem busca. O DDD preenche sozinho quando possível.'
+                : 'Estado e cidade ajudam o Marketplace a mostrar seu lote perto de quem busca. O DDD é preenchido automaticamente quando possível.';
+        }
+    });
 }
 
 function renderMidiaPreview() {
@@ -269,7 +324,7 @@ function renderCards(lista) {
                     <span class="${statusBadgeClass(l.status)}">${esc(statusAmigavel(l.status))}</span>
                 </div>
                 <h3 class="lote-codigo">${esc(codigo)}</h3>
-                <p class="lote-meta">📍 ${esc(loteLocalMeta(l))} · ⚖️ ${esc(formatPeso(l.peso_bruto_kg))}</p>
+                <p class="lote-meta">📍 ${esc(loteLocalMeta(l))}${ehMaquinario(l.tipo_minerio) ? '' : (' · ⚖️ ' + esc(formatPeso(l.peso_bruto_kg)))}</p>
                 ${anunciante}
                 ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : ''}
                 ${actions}
@@ -320,6 +375,16 @@ async function preencherForm(lote) {
         }
     }
     document.getElementById('origem').value = origemVal;
+    const obsField = document.getElementById('maq_observacao');
+    if (obsField) {
+        if (lote && ehMaquinario(lote.tipo_minerio)) {
+            // origem já veio só com detalhes (tipo foi para select)
+            obsField.value = origemVal || '';
+            if (document.getElementById('origem')) document.getElementById('origem').value = '';
+        } else {
+            obsField.value = '';
+        }
+    };
     document.getElementById('peso_bruto').value = lote ? (lote.peso_bruto_kg || '') : '';
     document.getElementById('preco').value = lote && lote.preco != null ? lote.preco : '';
     const teorEl = document.getElementById('teor');
@@ -577,14 +642,11 @@ async function salvarLote(e) {
             toastMsg('Preço obrigatório para maquinário');
             return;
         }
-        // origem = "Escavadeira — detalhes"
-        origem = origem
-            ? (equipTipo + ' — ' + origem)
-            : equipTipo;
-        if (!Number.isFinite(peso_bruto_kg) || peso_bruto_kg < 0) {
-            // peso opcional no maquinário
-            // será normalizado abaixo
-        }
+        const obsEl = document.getElementById('maq_observacao');
+        const obs = obsEl ? String(obsEl.value || '').trim() : '';
+        // origem guarda tipo + propaganda (sem campo "frente")
+        origem = obs ? (equipTipo + ' — ' + obs) : equipTipo;
+        // sem peso no maquinário
     } else if (mineral) {
         preco = null; // preço some do formulário mineral → usa teor
         if (teor != null && !Number.isFinite(teor)) {
@@ -959,6 +1021,8 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
                         if (maq && /maquin/i.test(wants)) sel.value = maq.value;
                     }
                     if (typeof atualizarCamposPorTipo === 'function') atualizarCamposPorTipo();
+                    const obsN = document.getElementById('maq_observacao');
+                    if (obsN && ehMaquinario((document.getElementById('tipo_minerio')||{}).value)) obsN.value = obsN.value || '';
                 }
             }
             const selNow = document.getElementById('tipo_minerio');

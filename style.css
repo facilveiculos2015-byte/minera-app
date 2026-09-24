@@ -5657,3 +5657,23 @@ body.pagina-lotes .app-back-bar {
   cursor: pointer;
 }
 .maq-mkt-banner-clear:active { transform: scale(.97); }
+
+
+/* Maquinário — observação / propaganda */
+#wrap-maq-obs textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 16px;
+  line-height: 1.4;
+  border: 1px solid rgba(148,163,184,.35);
+  background: rgba(15,23,42,.55);
+  color: inherit;
+  touch-action: manipulation;
+}
+html[data-theme="light"] #wrap-maq-obs textarea {
+  background: #fff;
+  border-color: #cbd5e1;
+}
