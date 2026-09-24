@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Minera Bank</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923ao">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923ao">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923ap">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923ap">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923ao">
+    <link rel="stylesheet" href="style.css?v=20260923ap">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -79,17 +79,22 @@
                 <div class="nb-view on" id="view-home">
                     <div class="nb-strip">
                         <div class="nb-strip-top">
-                            <div style="display:flex;align-items:center;gap:10px">
-                                <div class="nb-av" id="nb-av">?</div>
-                                <button type="button" class="nb-shortcut" id="nb-shortcut" title="Extrato" data-view="extrato" aria-label="Abrir extrato">▦</button>
+                            <div class="nb-strip-left">
+                                <div class="nb-av" id="nb-av" aria-hidden="true">?</div>
+                                <div class="nb-hello" id="nb-hello">Olá</div>
                             </div>
-                            <div class="nb-strip-right">
-                                <button type="button" class="nb-ico-btn" id="nb-eye" aria-label="Ocultar saldo">👁</button>
-                                <button type="button" class="nb-ico-btn" id="btn-saiba-mais" aria-label="Ajuda">?</button>
-                                <button type="button" class="nb-ico-btn" id="nb-menu" aria-label="Ajuda e menu" data-view="ajuda">☰</button>
+                            <div class="nb-strip-right" role="group" aria-label="Ações rápidas">
+                                <button type="button" class="nb-ico-btn" id="nb-eye" aria-label="Ocultar saldo" title="Ocultar saldo">
+                                    <svg class="nb-ico-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>
+                                </button>
+                                <button type="button" class="nb-ico-btn" id="btn-saiba-mais" aria-label="Ajuda" title="Ajuda">
+                                    <svg class="nb-ico-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.7"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.2.9-1.2 1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="currentColor"/></svg>
+                                </button>
+                                <button type="button" class="nb-ico-btn" id="nb-menu" aria-label="Menu" title="Menu" data-view="ajuda">
+                                    <svg class="nb-ico-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                </button>
                             </div>
                         </div>
-                        <div class="nb-hello" id="nb-hello">Olá</div>
                     </div>
                     <div class="nb-body">
                         <button type="button" class="nb-saldo" id="btn-saldo-goto" data-view="extrato" style="width:100%;text-align:left;cursor:pointer" aria-label="Ver extrato">
@@ -394,13 +399,13 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260923ao"></script>
-    <script src="auth-guard.js?v=20260923ao"></script>
-    <script src="suporte.js?v=20260923ao"></script>
-    <script src="nav.js?v=20260923ao"></script>
-    <script src="pix-brcode.js?v=20260923ao"></script>
-    <script src="financeiro.js?v=20260923ao"></script>
-    <script src="pwa.js?v=20260923ao"></script>
+    <script src="config.js?v=20260923ap"></script>
+    <script src="auth-guard.js?v=20260923ap"></script>
+    <script src="suporte.js?v=20260923ap"></script>
+    <script src="nav.js?v=20260923ap"></script>
+    <script src="pix-brcode.js?v=20260923ap"></script>
+    <script src="financeiro.js?v=20260923ap"></script>
+    <script src="pwa.js?v=20260923ap"></script>
     <script>
     (function nbNav() {
         function showView(id) {

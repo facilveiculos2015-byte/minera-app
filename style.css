@@ -3586,7 +3586,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923an — industrial premium ===== */
+/* ===== TURBO redesign 20260923ap — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3964,7 +3964,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923an — marketplace / bank / habit polish === */
+/* === 20260923ap — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -4044,7 +4044,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923an — Minera Pará ===== */
+/* ===== FULL REBUILD pillars 20260923ap — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4399,21 +4399,53 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
   background: transparent;
   padding: 14px 16px 28px; color: #f8fafc;
 }
-.nb-strip-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nb-strip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+}
+.nb-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
 .nb-av {
-  width: 42px; height: 42px; border-radius: 50%; background: rgba(11,18,32,.25);
-  display: flex; align-items: center; justify-content: center; font-weight: 800; color: #0b1220;
+  flex: 0 0 auto;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(245,166,35,.22);
+  border: 1px solid rgba(245,166,35,.45);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.92rem; color: #fde68a;
+  letter-spacing: 0.02em;
 }
-.nb-shortcut {
-  width: 36px; height: 36px; border-radius: 8px; border: 0; background: rgba(11,18,32,.2);
-  color: #0b1220; font-weight: 800; cursor: pointer;
+.nb-hello {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.nb-strip-right { display: flex; gap: 8px; }
+.nb-strip-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .nb-ico-btn {
-  width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(11,18,32,.18);
-  color: #0b1220; cursor: pointer; font-size: 1rem;
+  width: 40px; height: 40px; border-radius: 50%; border: 0;
+  background: rgba(255,255,255,.10);
+  color: #fde68a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  touch-action: manipulation;
 }
-.nb-hello { margin-top: 18px; font-size: 1.25rem; font-weight: 800; }
+.nb-ico-btn:active { transform: scale(.96); }
+.nb-ico-svg { width: 20px; height: 20px; display: block; }
+.nb-shortcut { display: none !important; }
 .nb-body { margin-top: -16px; padding: 0 16px 24px; }
 .nb-saldo {
   background: rgba(15, 23, 42, 0.45); border-radius: 16px; padding: 16px; color: #fff;
@@ -4513,7 +4545,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 }
 
 
-/* ---- Welcome before login (20260923an) ---- */
+/* ---- Welcome before login (20260923ap) ---- */
 .welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
 .welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
 .welcome-card .btn-ok { width: 100%; margin-top: 8px; }
@@ -4591,7 +4623,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 
-/* ===== Minera Bank glassmorphism 20260923an ===== */
+/* ===== Minera Bank glassmorphism 20260923ap ===== */
 body.pagina-financeiro {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),
@@ -4615,17 +4647,27 @@ body.pagina-financeiro .nb-strip {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
-body.pagina-financeiro .nb-av,
-body.pagina-financeiro .nb-shortcut,
+body.pagina-financeiro .nb-av {
+  background: rgba(245,166,35,0.22) !important;
+  color: #fde68a !important;
+  border: 1px solid rgba(245,166,35,0.5) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
 body.pagina-financeiro .nb-ico-btn {
-  background: rgba(255,255,255,0.12) !important;
-  color: #fef3c7 !important;
+  background: rgba(255,255,255,0.10) !important;
+  color: #fde68a !important;
   border: 1px solid rgba(255,255,255,0.16);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
-body.pagina-financeiro .nb-hello { color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+body.pagina-financeiro .nb-hello {
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  margin-top: 0 !important;
+}
 body.pagina-financeiro .nb-saldo {
   background: linear-gradient(145deg, rgba(15,23,42,0.55), rgba(30,41,59,0.35)) !important;
   border: 1px solid rgba(245,166,35,0.22) !important;
@@ -4702,7 +4744,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   color: #0f172a;
 }
 
-/* ===== 20260923an/i — Fale/FAB clear + WA chat mobile shell ===== */
+/* ===== 20260923ap/i — Fale/FAB clear + WA chat mobile shell ===== */
 :root { --kb-inset: 0px; --composer-h: 58px; }
 
 .wa-row { min-height: 72px; box-sizing: border-box; }
@@ -4929,7 +4971,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   }
 }
 
-/* ===== 20260923an — WA composer pixel order + Conversas list ===== */
+/* ===== 20260923ap — WA composer pixel order + Conversas list ===== */
 /* Structure: + | pill[input… emoji] | camera | mic/send */
 .wa-composer.chat-form {
   align-items: center;
@@ -4979,8 +5021,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923an — Slim WA iOS thread header (no roles, call pill) ===== */
-/* ===== 20260923an — Perfil mobile + share WA + audio harden ===== */
+/* ===== 20260923ap — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923ap — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5150,7 +5192,7 @@ body.pagina-chat .chat-contacts-pane {
 }
 
 
-/* ===== 20260923an — Perfil mobile shell + Compartilhar WA ===== */
+/* ===== 20260923ap — Perfil mobile shell + Compartilhar WA ===== */
 body.pagina-perfil {
   padding: 0 0 88px;
   background: #0b1220;
@@ -5285,7 +5327,7 @@ html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
 }
 
 
-/* ===== 20260923an — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
+/* ===== 20260923ap — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
 .lotes-tabs {
     display: flex;
     gap: 8px;
@@ -5326,7 +5368,7 @@ html[data-theme="light"] .lotes-tab {
 }
 
 
-/* ===== 20260923an — lote midia preview + teor/cobre ===== */
+/* ===== 20260923ap — lote midia preview + teor/cobre ===== */
 .lote-midia-preview {
   display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px;
 }
@@ -5355,7 +5397,7 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
 
-/* ===== 20260923an — restore market quotes strip ===== */
+/* ===== 20260923ap — restore market quotes strip ===== */
 .pagina-inicio #card-cotacoes.cotacoes-card {
     margin: 8px 0 10px;
     background: #0b1220;
@@ -5366,9 +5408,9 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 }
 
 
-/* ===== 20260923an — quick cards: no flat fill, intuitive themed surfaces ===== */
+/* ===== 20260923ap — quick cards: no flat fill, intuitive themed surfaces ===== */
 
-/* ===== LIGHT THEME TEXT FIX 20260923an ===== */
+/* ===== LIGHT THEME TEXT FIX 20260923ap ===== */
 /* Nomes/títulos/preços com cor clara fixa sumiam no fundo claro */
 html[data-theme="light"] .olx-card-title,
 html[data-theme="light"] .olx-card-price,
@@ -5567,7 +5609,7 @@ body.pagina-lotes .app-back-bar {
 }
 
 
-/* ===== 20260923an — Maquinário Comprar|Vender sheet ===== */
+/* ===== 20260923ap — Maquinário Comprar|Vender sheet ===== */
 .maquinario-sheet .maq-sheet-panel { gap: 14px; }
 .maq-sheet-opts {
   display: flex;
