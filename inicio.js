@@ -49,7 +49,7 @@ async function carregarBannersPromos() {
         tipo: 'banner',
         titulo: '',
         texto: '',
-        imagem_url: 'media/banner-familia-minera.jpg?v=20260923ai',
+        imagem_url: 'media/banner-familia-minera.jpg?v=20260923ak',
         link: '',
         _full: true
     };
@@ -1062,6 +1062,28 @@ window.addEventListener('beforeunload', () => {
         });
     }
 })();
+
+(function bindMaquinarioQuick() {
+    const btn = document.getElementById('q-maquinario');
+    if (!btn || btn._boundMaq) return;
+    btn._boundMaq = true;
+    btn.addEventListener('click', () => {
+        filtroTipo = 'Maquinário';
+        const box = document.getElementById('filtro-tipo-chips');
+        if (box) {
+            box.querySelectorAll('.olx-tab, .fchip').forEach(b => {
+                const on = (b.getAttribute('data-tipo') || '') === 'Maquinário';
+                b.classList.toggle('on', on);
+                if (b.getAttribute('role') === 'tab') b.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+        }
+        if (typeof aplicarFiltros === 'function') aplicarFiltros();
+        else if (typeof renderFeed === 'function') renderFeed();
+        const feed = document.getElementById('feed-lotes') || document.getElementById('mkt-lista') || document.querySelector('.olx-lista');
+        if (feed && feed.scrollIntoView) feed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+})();
+
 
 
 

@@ -3586,7 +3586,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923g — industrial premium ===== */
+/* ===== TURBO redesign 20260923ak — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3964,7 +3964,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923g — marketplace / bank / habit polish === */
+/* === 20260923ak — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -4044,7 +4044,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923g — Minera Pará ===== */
+/* ===== FULL REBUILD pillars 20260923ak — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4113,7 +4113,7 @@ body.pagina-inicio .container.wide { max-width: 640px; padding: 0; }
   background-repeat: no-repeat; background-position: 14px center;
 }
 .olx-quick {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
   padding: 8px 16px 12px;
 }
 .olx-qcard {
@@ -4173,6 +4173,14 @@ body.pagina-inicio .container.wide { max-width: 640px; padding: 0; }
     linear-gradient(160deg, rgba(66,32,6,.42), rgba(15,23,42,.14));
 }
 .olx-qcard.q-banco .qi-wrap { color: #fbbf24; background: rgba(251,191,36,.14); border-color: rgba(251,191,36,.38); }
+/* Maquinário — aço / slate-teal */
+.olx-qcard.q-maq { color: #c7d2fe; border-color: rgba(129,140,248,.32); }
+.olx-qcard.q-maq::before {
+  background:
+    radial-gradient(120% 90% at 35% 15%, rgba(99,102,241,.38), transparent 55%),
+    linear-gradient(160deg, rgba(30,41,59,.5), rgba(15,23,42,.14));
+}
+.olx-qcard.q-maq .qi-wrap { color: #818cf8; background: rgba(99,102,241,.16); border-color: rgba(129,140,248,.4); }
 .olx-qcard:active { transform: scale(.97); }
 .olx-banner {
   margin: 0 16px 12px; border-radius: 14px; overflow: hidden;
@@ -4505,7 +4513,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 }
 
 
-/* ---- Welcome before login (20260923g) ---- */
+/* ---- Welcome before login (20260923ak) ---- */
 .welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
 .welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
 .welcome-card .btn-ok { width: 100%; margin-top: 8px; }
@@ -4583,7 +4591,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 
-/* ===== Minera Bank glassmorphism 20260923g ===== */
+/* ===== Minera Bank glassmorphism 20260923ak ===== */
 body.pagina-financeiro {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),
@@ -4694,7 +4702,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   color: #0f172a;
 }
 
-/* ===== 20260923h/i — Fale/FAB clear + WA chat mobile shell ===== */
+/* ===== 20260923ak/i — Fale/FAB clear + WA chat mobile shell ===== */
 :root { --kb-inset: 0px; --composer-h: 58px; }
 
 .wa-row { min-height: 72px; box-sizing: border-box; }
@@ -4910,7 +4918,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   }
 }
 
-/* ===== 20260923i — WA composer pixel order + Conversas list ===== */
+/* ===== 20260923ak — WA composer pixel order + Conversas list ===== */
 /* Structure: + | pill[input… emoji] | camera | mic/send */
 .wa-composer.chat-form {
   align-items: center;
@@ -4960,8 +4968,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923o — Slim WA iOS thread header (no roles, call pill) ===== */
-/* ===== 20260923o — Perfil mobile + share WA + audio harden ===== */
+/* ===== 20260923ak — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923ak — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5131,7 +5139,7 @@ body.pagina-chat .chat-contacts-pane {
 }
 
 
-/* ===== 20260923o — Perfil mobile shell + Compartilhar WA ===== */
+/* ===== 20260923ak — Perfil mobile shell + Compartilhar WA ===== */
 body.pagina-perfil {
   padding: 0 0 88px;
   background: #0b1220;
@@ -5266,7 +5274,7 @@ html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
 }
 
 
-/* ===== 20260923o — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
+/* ===== 20260923ak — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
 .lotes-tabs {
     display: flex;
     gap: 8px;
@@ -5307,7 +5315,7 @@ html[data-theme="light"] .lotes-tab {
 }
 
 
-/* ===== 20260923o — lote midia preview + teor/cobre ===== */
+/* ===== 20260923ak — lote midia preview + teor/cobre ===== */
 .lote-midia-preview {
   display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px;
 }
@@ -5331,11 +5339,12 @@ html[data-theme="light"] .olx-qcard.q-fav { color: #9f1239; }
 html[data-theme="light"] .olx-qcard.q-mapa { color: #075985; }
 html[data-theme="light"] .olx-qcard.q-serv { color: #92400e; }
 html[data-theme="light"] .olx-qcard.q-banco { color: #92400e; }
+html[data-theme="light"] .olx-qcard.q-maq { color: #3730a3; }
 html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
 
-/* ===== 20260923p — restore market quotes strip ===== */
+/* ===== 20260923ak — restore market quotes strip ===== */
 .pagina-inicio #card-cotacoes.cotacoes-card {
     margin: 8px 0 10px;
     background: #0b1220;
@@ -5346,9 +5355,9 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 }
 
 
-/* ===== 20260923q — quick cards: no flat fill, intuitive themed surfaces ===== */
+/* ===== 20260923ak — quick cards: no flat fill, intuitive themed surfaces ===== */
 
-/* ===== LIGHT THEME TEXT FIX 20260923s ===== */
+/* ===== LIGHT THEME TEXT FIX 20260923ak ===== */
 /* Nomes/títulos/preços com cor clara fixa sumiam no fundo claro */
 html[data-theme="light"] .olx-card-title,
 html[data-theme="light"] .olx-card-price,
