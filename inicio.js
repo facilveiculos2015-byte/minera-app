@@ -49,7 +49,7 @@ async function carregarBannersPromos() {
         tipo: 'banner',
         titulo: '',
         texto: '',
-        imagem_url: 'media/banner-familia-minera.jpg?v=20260923am',
+        imagem_url: 'media/banner-familia-minera.jpg?v=20260923an',
         link: '',
         _full: true
     };
@@ -1067,21 +1067,178 @@ window.addEventListener('beforeunload', () => {
     const btn = document.getElementById('q-maquinario');
     if (!btn || btn._boundMaq) return;
     btn._boundMaq = true;
-    btn.addEventListener('click', () => {
-        filtroTipo = 'Maquinário';
+
+    function fecharMaqSheet() {
+        const sheet = document.getElementById('maquinario-sheet');
+        if (sheet) sheet.classList.add('oculto');
+    }
+
+    function garantirMaqChip() {
         const box = document.getElementById('filtro-tipo-chips');
+        if (!box) return null;
+        let chip = box.querySelector('[data-tipo="Maquinário"]');
+        if (!chip) {
+            chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'olx-tab';
+            chip.setAttribute('data-tipo', 'Maquinário');
+            chip.setAttribute('role', 'tab');
+            chip.setAttribute('data-maq-temp', '1');
+            chip.textContent = 'Maquinário';
+            box.appendChild(chip);
+        }
+        return chip;
+    }
+
+    function syncMaqBanner(ativo) {
+        let ban = document.getElementById('maq-mkt-banner');
+        if (ativo) {
+            if (!ban) {
+                ban = document.createElement('div');
+                ban.id = 'maq-mkt-banner';
+                ban.className = 'maq-mkt-banner';
+                ban.setAttribute('role', 'status');
+                const feed = document.getElementById('feed');
+                const parent = feed && feed.parentNode;
+                if (parent) parent.insertBefore(ban, feed);
+                else {
+                    const cont = document.querySelector('.container');
+                    if (cont) cont.appendChild(ban);
+                }
+            }
+            ban.innerHTML =
+                '<span class="maq-mkt-banner-txt"><strong>Marketplace · Maquinário</strong> — só equipamentos</span>' +
+                '<button type="button" class="maq-mkt-banner-clear" id="maq-mkt-clear">Todos</button>';
+            const clr = document.getElementById('maq-mkt-clear');
+            if (clr && !clr._bound) {
+                clr._bound = true;
+                clr.addEventListener('click', () => aplicarFiltroMaquinario(false));
+            }
+        } else if (ban) {
+            ban.remove();
+        }
+    }
+
+    function aplicarFiltroMaquinario(ativo) {
+        filtroTipo = ativo ? 'Maquinário' : '';
+        filtroServico = '';
+        const box = document.getElementById('filtro-tipo-chips');
+        if (ativo) garantirMaqChip();
         if (box) {
             box.querySelectorAll('.olx-tab, .fchip').forEach(b => {
-                const on = (b.getAttribute('data-tipo') || '') === 'Maquinário';
+                const t = b.getAttribute('data-tipo') || '';
+                const on = ativo ? (t === 'Maquinário') : (t === '');
                 b.classList.toggle('on', on);
                 if (b.getAttribute('role') === 'tab') b.setAttribute('aria-selected', on ? 'true' : 'false');
             });
+            if (!ativo) {
+                box.querySelectorAll('[data-maq-temp="1"]').forEach(el => el.remove());
+            }
         }
+        const svc = document.getElementById('filtro-servico-chips');
+        if (svc) {
+            svc.querySelectorAll('.fchip').forEach(b => {
+                const on = (b.getAttribute('data-servico') || '') === '';
+                b.classList.toggle('on', on);
+            });
+        }
+        syncMaqBanner(!!ativo);
         if (typeof aplicarFiltros === 'function') aplicarFiltros();
         else if (typeof renderFeed === 'function') renderFeed();
-        const feed = document.getElementById('feed-lotes') || document.getElementById('mkt-lista') || document.querySelector('.olx-lista');
-        if (feed && feed.scrollIntoView) feed.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+        if (ativo) {
+            const feed = document.getElementById('feed') || document.getElementById('feed-lotes') || document.querySelector('.olx-feed');
+            if (feed && feed.scrollIntoView) feed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function garantirMaqSheet() {
+        let sheet = document.getElementById('maquinario-sheet');
+        if (sheet) return sheet;
+        sheet = document.createElement('div');
+        sheet.id = 'maquinario-sheet';
+        sheet.className = 'servicos-sheet maquinario-sheet oculto';
+        sheet.innerHTML =
+            '<div class="mais-backdrop" data-close-maq="1"></div>' +
+            '<div class="servicos-mkt-panel maq-sheet-panel" role="dialog" aria-label="Maquinário">' +
+            '<div class="mais-handle"></div>' +
+            '<div class="servicos-mkt-head">' +
+            '<h3>Maquinário</h3>' +
+            '<p class="servicos-mkt-cue">Comprar no marketplace ou anunciar o seu equipamento</p>' +
+            '</div>' +
+            '<div class="maq-sheet-opts" role="group" aria-label="Escolha">' +
+            '<button type="button" class="maq-sheet-opt" id="maq-opt-comprar" data-maq-act="comprar">' +
+            '<span class="maq-sheet-opt-ico" aria-hidden="true">🛒</span>' +
+            '<span class="maq-sheet-opt-body"><strong>Comprar</strong>' +
+            '<span class="maq-sheet-opt-sub">Ver só maquinário no feed</span></span>' +
+            '</button>' +
+            '<button type="button" class="maq-sheet-opt" id="maq-opt-vender" data-maq-act="vender">' +
+            '<span class="maq-sheet-opt-ico" aria-hidden="true">🛠️</span>' +
+            '<span class="maq-sheet-opt-body"><strong>Vender</strong>' +
+            '<span class="maq-sheet-opt-sub">Anunciar com fotos e detalhes</span></span>' +
+            '</button>' +
+            '</div>' +
+            '<button type="button" class="btn-ghost maq-sheet-cancel" data-close-maq="1">Cancelar</button>' +
+            '</div>';
+        document.body.appendChild(sheet);
+        sheet.addEventListener('click', (e) => {
+            const t = e.target;
+            if (t && t.getAttribute && t.getAttribute('data-close-maq') === '1') {
+                fecharMaqSheet();
+                return;
+            }
+            const actBtn = t.closest ? t.closest('[data-maq-act]') : null;
+            if (!actBtn) return;
+            const act = actBtn.getAttribute('data-maq-act');
+            if (act === 'comprar') {
+                fecharMaqSheet();
+                aplicarFiltroMaquinario(true);
+            } else if (act === 'vender') {
+                fecharMaqSheet();
+                const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
+                location.href = root + 'lotes.html?novo=1&tipo=' + encodeURIComponent('Maquinário');
+            }
+        });
+        if (!document._maqEscBound) {
+            document._maqEscBound = true;
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') fecharMaqSheet();
+            });
+        }
+        return sheet;
+    }
+
+    function abrirMaqSheet() {
+        if (typeof fecharServicosPanel === 'function') fecharServicosPanel();
+        const sheet = garantirMaqSheet();
+        sheet.classList.remove('oculto');
+    }
+
+    btn.addEventListener('click', () => abrirMaqSheet());
+
+    // When user picks Todos / other mineral via chips, drop Maquinário banner + temp chip
+    const chips = document.getElementById('filtro-tipo-chips');
+    if (chips && !chips._maqClearHook) {
+        chips._maqClearHook = true;
+        chips.addEventListener('click', (e) => {
+            const tab = e.target.closest('.olx-tab, .fchip');
+            if (!tab) return;
+            const t = tab.getAttribute('data-tipo') || '';
+            if (t !== 'Maquinário') {
+                syncMaqBanner(false);
+                chips.querySelectorAll('[data-maq-temp="1"]').forEach(el => {
+                    if (el !== tab) el.remove();
+                });
+            } else {
+                syncMaqBanner(true);
+            }
+        });
+    }
+
+    try {
+        window.aplicarFiltroMaquinario = aplicarFiltroMaquinario;
+        window.abrirMaquinarioSheet = abrirMaqSheet;
+        window.fecharMaquinarioSheet = fecharMaqSheet;
+    } catch (e) { /* ignore */ }
 })();
 
 

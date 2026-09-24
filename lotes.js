@@ -924,6 +924,7 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
         });
     }
     let abrirNovo = false;
+    let tipoNovoPrefill = '';
     try {
         const u = new URL(window.location.href);
         if (u.searchParams.get('novo') === '1' || u.hash === '#novo') {
@@ -937,12 +938,32 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
                 });
             }
         }
+        const tipoQ = (u.searchParams.get('tipo') || '').trim();
+        if (tipoQ) tipoNovoPrefill = tipoQ;
     } catch (e) { console.warn('novo query', e); }
     await carregarLotes();
     if (abrirNovo) {
-        setTimeout(() => {
-            const b = document.getElementById('btn-novo-lote');
-            if (b) b.click();
+        setTimeout(async () => {
+            if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Novo lote')) return;
+            await preencherForm(null);
+            if (tipoNovoPrefill) {
+                const sel = document.getElementById('tipo_minerio');
+                if (sel) {
+                    const wants = tipoNovoPrefill;
+                    const opts = Array.from(sel.options || []);
+                    const match = opts.find(o => o.value === wants)
+                        || opts.find(o => o.value.toLowerCase() === wants.toLowerCase());
+                    if (match) sel.value = match.value;
+                    else {
+                        const maq = opts.find(o => o.value === 'Maquinário');
+                        if (maq && /maquin/i.test(wants)) sel.value = maq.value;
+                    }
+                    if (typeof atualizarCamposPorTipo === 'function') atualizarCamposPorTipo();
+                }
+            }
+            const selNow = document.getElementById('tipo_minerio');
+            const tituloMaq = selNow && ehMaquinario(selNow.value);
+            abrirModal(tituloMaq ? 'Vender Maquinário' : 'Novo Lote');
         }, 200);
     }
 })();

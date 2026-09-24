@@ -340,7 +340,7 @@ function gerarCodigoIndicacao() {
 
 const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
 const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923ai';
-const SHARE_VIDEO_DEFAULT = 'media/convite-familia-minera.mp4?v=20260923ai';
+const SHARE_VIDEO_DEFAULT = 'media/convite-familia-minera.mp4?v=20260923an';
 const SHARE_FRASE_PADRAO_DEFAULT =
     'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
 const SHARE_OG_DESC_SEM_NOME =
