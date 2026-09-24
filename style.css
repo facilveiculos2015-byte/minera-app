@@ -3586,7 +3586,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923ak — industrial premium ===== */
+/* ===== TURBO redesign 20260923al — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3964,7 +3964,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923ak — marketplace / bank / habit polish === */
+/* === 20260923al — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -4044,7 +4044,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923ak — Minera Pará ===== */
+/* ===== FULL REBUILD pillars 20260923al — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4513,7 +4513,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 }
 
 
-/* ---- Welcome before login (20260923ak) ---- */
+/* ---- Welcome before login (20260923al) ---- */
 .welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
 .welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
 .welcome-card .btn-ok { width: 100%; margin-top: 8px; }
@@ -4591,7 +4591,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 
-/* ===== Minera Bank glassmorphism 20260923ak ===== */
+/* ===== Minera Bank glassmorphism 20260923al ===== */
 body.pagina-financeiro {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),
@@ -4702,7 +4702,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   color: #0f172a;
 }
 
-/* ===== 20260923ak/i — Fale/FAB clear + WA chat mobile shell ===== */
+/* ===== 20260923al/i — Fale/FAB clear + WA chat mobile shell ===== */
 :root { --kb-inset: 0px; --composer-h: 58px; }
 
 .wa-row { min-height: 72px; box-sizing: border-box; }
@@ -4794,7 +4794,18 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
 #btn-chat-enviar.wa-comp-btn.mic {
   font-size: 1.15rem;
 }
-/* camera button is ON the composer bar (WA); also in + sheet */
+.wa-composer .wa-comp-btn.send,
+#btn-chat-enviar.wa-comp-btn.send {
+  background: #25D366;
+  color: #fff;
+  width: 48px;
+  height: 48px;
+  min-width: 48px !important;
+  max-width: 48px;
+  font-size: 1.15rem;
+}
+/* Câmera só no sheet Anexar (+); mic + enviar sempre na barra */
+
 
 .wa-attach-sheet .chat-msg-sheet-panel {
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -4918,7 +4929,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   }
 }
 
-/* ===== 20260923ak — WA composer pixel order + Conversas list ===== */
+/* ===== 20260923al — WA composer pixel order + Conversas list ===== */
 /* Structure: + | pill[input… emoji] | camera | mic/send */
 .wa-composer.chat-form {
   align-items: center;
@@ -4968,8 +4979,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923ak — Slim WA iOS thread header (no roles, call pill) ===== */
-/* ===== 20260923ak — Perfil mobile + share WA + audio harden ===== */
+/* ===== 20260923al — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923al — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5139,7 +5150,7 @@ body.pagina-chat .chat-contacts-pane {
 }
 
 
-/* ===== 20260923ak — Perfil mobile shell + Compartilhar WA ===== */
+/* ===== 20260923al — Perfil mobile shell + Compartilhar WA ===== */
 body.pagina-perfil {
   padding: 0 0 88px;
   background: #0b1220;
@@ -5274,7 +5285,7 @@ html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
 }
 
 
-/* ===== 20260923ak — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
+/* ===== 20260923al — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
 .lotes-tabs {
     display: flex;
     gap: 8px;
@@ -5315,7 +5326,7 @@ html[data-theme="light"] .lotes-tab {
 }
 
 
-/* ===== 20260923ak — lote midia preview + teor/cobre ===== */
+/* ===== 20260923al — lote midia preview + teor/cobre ===== */
 .lote-midia-preview {
   display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px;
 }
@@ -5344,7 +5355,7 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
 
-/* ===== 20260923ak — restore market quotes strip ===== */
+/* ===== 20260923al — restore market quotes strip ===== */
 .pagina-inicio #card-cotacoes.cotacoes-card {
     margin: 8px 0 10px;
     background: #0b1220;
@@ -5355,9 +5366,9 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 }
 
 
-/* ===== 20260923ak — quick cards: no flat fill, intuitive themed surfaces ===== */
+/* ===== 20260923al — quick cards: no flat fill, intuitive themed surfaces ===== */
 
-/* ===== LIGHT THEME TEXT FIX 20260923ak ===== */
+/* ===== LIGHT THEME TEXT FIX 20260923al ===== */
 /* Nomes/títulos/preços com cor clara fixa sumiam no fundo claro */
 html[data-theme="light"] .olx-card-title,
 html[data-theme="light"] .olx-card-price,

@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923ak">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923ak">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923al">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923al">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923ak">
+    <link rel="stylesheet" href="style.css?v=20260923al">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -42,12 +42,12 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923ak" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260923al" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
-                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20260923ak">
-                    <div class="wa-thread-head chat-thread-head" data-build="20260923ak">
+                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20260923al">
+                    <div class="wa-thread-head chat-thread-head" data-build="20260923al">
                         <button type="button" class="wa-back-chev chat-back" id="btn-chat-back" aria-label="Voltar"><span class="wa-back-ico" aria-hidden="true">‹</span><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
                         <div class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</div>
                         <div class="wa-thread-info chat-thread-head-info">
@@ -95,19 +95,18 @@
                     </div>
 
                     <form id="form-chat" class="wa-composer chat-form">
-                        <!-- WA order (≤800px): + | [pill input + emoji INSIDE right] | camera | mic/send -->
+                        <!-- + | [pill] | mic | send (sempre visíveis; câmera só no +) -->
                         <button type="button" class="wa-comp-btn wa-comp-plus" id="btn-chat-plus" aria-label="Anexar">＋</button>
                         <div class="wa-comp-pill">
                             <input type="text" id="chat-texto" class="wa-comp-input" placeholder="Mensagem" maxlength="2000" autocomplete="off" enterkeyhint="send">
                             <button type="button" class="wa-comp-in-emoji" id="btn-chat-emoji" aria-label="Emoji" title="Emoji">😊</button>
                         </div>
-                        <button type="button" class="wa-comp-btn wa-comp-cam" id="btn-chat-camera" aria-label="Câmera" title="Câmera">📷</button>
                         <input type="file" id="chat-foto" accept="image/*" capture="environment" class="oculto">
                         <input type="file" id="chat-video" accept="video/*" class="oculto">
                         <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
                         <input type="file" id="chat-doc" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,image/*" class="oculto">
                         <button type="button" class="wa-comp-btn mic" id="btn-audio" title="Segure para gravar" aria-label="Gravar áudio">🎤</button>
-                        <button type="submit" class="wa-comp-btn mic oculto" id="btn-chat-enviar" aria-label="Enviar">➤</button>
+                        <button type="submit" class="wa-comp-btn send" id="btn-chat-enviar" aria-label="Enviar" title="Enviar">➤</button>
                     </form>
                     <!-- legacy toolbar hooks (hidden) -->
                     <div class="chat-toolbar oculto" aria-hidden="true">
@@ -163,19 +162,17 @@
                 <button type="button" class="wa-attach-item" id="btn-attach-agendar" data-att="agendar"><span class="ai">🗓</span>Agendar</button>
             </div>
             <input type="file" id="chat-foto-gal" accept="image/*" class="oculto">
-            <label for="chat-url-midia-sheet">URL da mídia</label>
-            <input type="url" id="chat-url-midia-sheet" placeholder="https://…" style="margin-bottom:12px">
             <button type="button" class="btn-ghost" data-close-attach="1">Fechar</button>
         </div>
     </div>
 
-    <script src="config.js?v=20260923ak"></script>
-    <script src="auth-guard.js?v=20260923ak"></script>
-    <script src="suporte.js?v=20260923ak"></script>
-    <script src="nav.js?v=20260923ak"></script>
-    <script src="anti-golpe.js?v=20260923ak"></script>
-    <script src="chat.js?v=20260923ak"></script>
-    <script src="pwa.js?v=20260923ak"></script>
+    <script src="config.js?v=20260923al"></script>
+    <script src="auth-guard.js?v=20260923al"></script>
+    <script src="suporte.js?v=20260923al"></script>
+    <script src="nav.js?v=20260923al"></script>
+    <script src="anti-golpe.js?v=20260923al"></script>
+    <script src="chat.js?v=20260923al"></script>
+    <script src="pwa.js?v=20260923al"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); else alert(t); }
@@ -210,11 +207,6 @@
             if (tog) tog.click();
             else if (box) box.classList.remove('oculto');
         });
-        const urlSheet = document.getElementById('chat-url-midia-sheet');
-        const urlHidden = document.getElementById('chat-url-midia');
-        if (urlSheet && urlHidden) {
-            urlSheet.addEventListener('change', () => { urlHidden.value = urlSheet.value; });
-        }
         const gal = document.getElementById('chat-foto-gal');
         const foto = document.getElementById('chat-foto');
         if (gal && foto) {
@@ -251,9 +243,9 @@
         const mic = document.getElementById('btn-audio');
         const send = document.getElementById('btn-chat-enviar');
         function syncSend() {
-            const has = !!(texto && texto.value.trim());
-            if (mic) mic.classList.toggle('oculto', has);
-            if (send) send.classList.toggle('oculto', !has);
+            /* Mic + enviar ficam sempre visíveis (câmera só no + Anexar) */
+            if (mic) mic.classList.remove('oculto');
+            if (send) send.classList.remove('oculto');
         }
         if (texto) {
             texto.addEventListener('input', syncSend);
