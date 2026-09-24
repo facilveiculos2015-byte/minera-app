@@ -135,8 +135,16 @@ function garantirSuporteUi() {
     btn.setAttribute('aria-label', 'Fale conosco');
     btn.innerHTML = '<span class="fale-icon" aria-hidden="true">💬</span><span class="fale-label">Fale conosco</span>';
 
+    // Mobile / sem header visível: FAB flutuante (nunca compete com Sair no topo).
+    // Desktop com header visível: entra em .header-actions, com #btn-sair por último.
     const header = document.querySelector('header.header-row');
-    if (header) {
+    const headerVisivel = header && window.getComputedStyle(header).display !== 'none'
+        && window.getComputedStyle(header).visibility !== 'hidden';
+    const mobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+    const isPerfil = document.body && document.body.classList.contains('pagina-perfil');
+    const isAdmin = document.body && document.body.classList.contains('pagina-admin');
+
+    if (headerVisivel && !mobile && !isPerfil && !isAdmin) {
         let actions = header.querySelector('.header-actions');
         if (!actions) {
             actions = document.createElement('div');
@@ -148,6 +156,13 @@ function garantirSuporteUi() {
         if (caixa && caixa.parentNode === actions) actions.insertBefore(btn, caixa.nextSibling);
         else if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
         else actions.appendChild(btn);
+        // Garante Sair como último controle tocável do header (não fica sob Fale)
+        const sair = document.getElementById('btn-sair');
+        if (sair && sair.parentNode === header) {
+            actions.appendChild(sair);
+        } else if (sair && sair.parentNode === actions) {
+            actions.appendChild(sair);
+        }
     } else {
         btn.classList.add('btn-fale-float');
         document.body.appendChild(btn);

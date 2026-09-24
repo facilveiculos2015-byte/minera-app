@@ -81,7 +81,7 @@ function lerPapeisCadastro() {
 }
 
 async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
-    if (!user || !user.id) return;
+    if (!user || !user.id) return { error: null };
     const row = {
         auth_id: user.id,
         nome: nome || (user.user_metadata && user.user_metadata.nome) || 'Usuário',
@@ -89,7 +89,8 @@ async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
         senha_hash: 'supabase-auth'
     };
     const ap = (apelido != null ? apelido : (user.user_metadata && user.user_metadata.apelido)) || '';
-    if (String(ap).trim()) row.apelido = String(ap).trim();
+    // Sempre grava apelido (string, pode ser vazia) para o índice nome+apelido
+    row.apelido = String(ap).trim() ? String(ap).trim() : null;
     // Só grava tipo/papeis no CADASTRO (papeis explícito). No login NÃO enviar —
     // senão sobrescreve admin → operador e apaga o menu Admin.
     if (Array.isArray(papeis)) {
@@ -100,40 +101,43 @@ async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
     const { error } = await supabaseClient
         .from('usuarios')
         .upsert(row, { onConflict: 'auth_id' });
-    if (error) {
-        console.warn('upsert auth_id:', error.message);
-        const { data: own } = await supabaseClient
-            .from('usuarios')
-            .select('id, auth_id')
-            .eq('auth_id', user.id)
-            .maybeSingle();
-        if (own && own.auth_id === user.id) {
-            const upd = {
-                nome: row.nome,
-                email: row.email,
-                senha_hash: 'supabase-auth'
-            };
-            if (row.apelido) upd.apelido = row.apelido;
-            if (Array.isArray(papeis)) {
-                upd.papeis = row.papeis;
-                upd.tipo = row.tipo;
-            }
-            const { error: updErr } = await supabaseClient
-                .from('usuarios')
-                .update(upd)
-                .eq('auth_id', user.id);
-            if (updErr) console.warn('update own usuario:', updErr.message);
-        } else {
-            // Insert sem papeis: defaults do banco (tipo operador, papeis {})
-            const ins = Object.assign({}, row);
-            if (!Array.isArray(papeis)) {
-                ins.tipo = 'operador';
-                ins.papeis = [];
-            }
-            const { error: insErr } = await supabaseClient.from('usuarios').insert([ins]);
-            if (insErr) console.warn('insert usuario:', insErr.message);
-        }
+    if (!error) return { error: null };
+    console.warn('upsert auth_id:', error.message);
+    if (typeof erroUnicidadeNomeApelido === 'function' && erroUnicidadeNomeApelido(error)) {
+        return { error: error };
     }
+    const { data: own } = await supabaseClient
+        .from('usuarios')
+        .select('id, auth_id')
+        .eq('auth_id', user.id)
+        .maybeSingle();
+    if (own && own.auth_id === user.id) {
+        const upd = {
+            nome: row.nome,
+            email: row.email,
+            senha_hash: 'supabase-auth',
+            apelido: row.apelido
+        };
+        if (Array.isArray(papeis)) {
+            upd.papeis = row.papeis;
+            upd.tipo = row.tipo;
+        }
+        const { error: updErr } = await supabaseClient
+            .from('usuarios')
+            .update(upd)
+            .eq('auth_id', user.id);
+        if (updErr) console.warn('update own usuario:', updErr.message);
+        return { error: updErr || null };
+    }
+    // Insert sem papeis: defaults do banco (tipo operador, papeis {})
+    const ins = Object.assign({}, row);
+    if (!Array.isArray(papeis)) {
+        ins.tipo = 'operador';
+        ins.papeis = [];
+    }
+    const { error: insErr } = await supabaseClient.from('usuarios').insert([ins]);
+    if (insErr) console.warn('insert usuario:', insErr.message);
+    return { error: insErr || null };
 }
 
 async function irSeLogado() {
@@ -306,6 +310,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = document.getElementById('cad-senha').value;
         const papeis = lerPapeisCadastro();
         try {
+            if (typeof verificarNomeApelidoDisponivel === 'function') {
+                const chk = await verificarNomeApelidoDisponivel(nome, apelido, null);
+                if (!chk.ok) {
+                    msg(chk.message || MSG_NOME_APELIDO_DUPLICADO, false);
+                    return;
+                }
+            }
             const { data, error } = await supabaseClient.auth.signUp({
                 email,
                 password,
@@ -316,7 +327,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (data.user) {
-                await upsertUsuarioPerfil(data.user, nome, papeis, apelido);
+                const up = await upsertUsuarioPerfil(data.user, nome, papeis, apelido);
+                if (up && up.error && typeof erroUnicidadeNomeApelido === 'function' && erroUnicidadeNomeApelido(up.error)) {
+                    msg((typeof MSG_NOME_APELIDO_DUPLICADO === 'string' ? MSG_NOME_APELIDO_DUPLICADO : null) || 'Já existe alguém com este nome e apelido. Escolha outro apelido.', false);
+                    return;
+                }
                 if (typeof processarIndicacaoNoCadastro === 'function') {
                     await processarIndicacaoNoCadastro(data.user, nome);
                 }

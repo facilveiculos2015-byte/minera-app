@@ -627,3 +627,76 @@ function bindTemaPicker(root) {
     });
 }
 try { document.addEventListener('DOMContentLoaded', () => { aplicarTema(lerTema()); bindTemaPicker(document); }); } catch (e) { /* ignore */ }
+
+/* ===== Unicidade nome + apelido (chat / cadastro / perfil) ===== */
+const MSG_NOME_APELIDO_DUPLICADO =
+    'Já existe alguém com este nome e apelido. Escolha outro apelido.';
+
+function normalizarNomeApelido(nome, apelido) {
+    return {
+        nome: String(nome == null ? '' : nome).trim(),
+        apelido: String(apelido == null ? '' : apelido).trim()
+    };
+}
+
+function erroUnicidadeNomeApelido(err) {
+    if (!err) return false;
+    const code = String(err.code || err.code || '');
+    const msg = String(err.message || err.details || err.hint || '');
+    if (code === '23505') return true;
+    if (/nome_apelido|usuarios_nome_apelido|duplicate key|unique constraint|já existe alguém com este nome/i.test(msg)) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Verifica se nome+apelido está livre.
+ * @param {string} nome
+ * @param {string|null} apelido
+ * @param {string|null} excludeAuthId - no update, exclui o próprio usuário
+ * @returns {Promise<{ok:boolean, message?:string, via?:string}>}
+ */
+async function verificarNomeApelidoDisponivel(nome, apelido, excludeAuthId) {
+    const n = normalizarNomeApelido(nome, apelido);
+    if (!n.nome) {
+        return { ok: false, message: 'Informe o nome.', via: 'local' };
+    }
+    if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+        return { ok: true, via: 'skip' };
+    }
+    try {
+        const { data, error } = await supabaseClient.rpc('nome_apelido_disponivel', {
+            p_nome: n.nome,
+            p_apelido: n.apelido,
+            p_exclude_auth_id: excludeAuthId || null
+        });
+        if (!error) {
+            return data
+                ? { ok: true, via: 'rpc' }
+                : { ok: false, message: MSG_NOME_APELIDO_DUPLICADO, via: 'rpc' };
+        }
+        console.warn('nome_apelido_disponivel:', error.message);
+    } catch (e) {
+        console.warn('nome_apelido_disponivel ex', e);
+    }
+    // Fallback: busca no diretório do chat e compara par normalizado (só autenticado)
+    try {
+        const q = n.apelido || n.nome;
+        const { data: rows, error: e2 } = await supabaseClient.rpc('chat_buscar_nome', {
+            p_nome: q
+        });
+        if (!e2 && Array.isArray(rows)) {
+            const hit = rows.some((u) => {
+                if (excludeAuthId && u.auth_id === excludeAuthId) return false;
+                const un = String(u.nome || '').trim().toLowerCase();
+                const ua = String(u.apelido || '').trim().toLowerCase();
+                return un === n.nome.toLowerCase() && ua === n.apelido.toLowerCase();
+            });
+            if (hit) {
+                return { ok: false, message: MSG_NOME_APELIDO_DUPLICADO, via: 'chat_buscar' };
+            }
+        }
+    } catch (e3) { /* ignore */ }
+    return { ok: true, via: 'fallback' };
+}

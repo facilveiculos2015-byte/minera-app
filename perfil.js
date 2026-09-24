@@ -153,13 +153,25 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
         msgEl.className = 'msg erro';
         return;
     }
+    if (typeof verificarNomeApelidoDisponivel === 'function') {
+        const chk = await verificarNomeApelidoDisponivel(nome, apelido, perfilAtual.auth_id);
+        if (!chk.ok) {
+            msgEl.textContent = chk.message || (typeof MSG_NOME_APELIDO_DUPLICADO === 'string' ? MSG_NOME_APELIDO_DUPLICADO : 'Já existe alguém com este nome e apelido. Escolha outro apelido.');
+            msgEl.className = 'msg erro';
+            return;
+        }
+    }
     const tipo = papeis.includes('admin') ? 'admin' : 'operador';
     const { error } = await supabaseClient
         .from('usuarios')
         .update({ nome, apelido, papeis, tipo })
         .eq('auth_id', perfilAtual.auth_id);
     if (error) {
-        msgEl.textContent = 'Erro: ' + error.message;
+        if (typeof erroUnicidadeNomeApelido === 'function' && erroUnicidadeNomeApelido(error)) {
+            msgEl.textContent = (typeof MSG_NOME_APELIDO_DUPLICADO === 'string' ? MSG_NOME_APELIDO_DUPLICADO : null) || 'Já existe alguém com este nome e apelido. Escolha outro apelido.';
+        } else {
+            msgEl.textContent = 'Erro: ' + error.message;
+        }
         msgEl.className = 'msg erro';
         return;
     }

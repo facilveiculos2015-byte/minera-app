@@ -1604,14 +1604,53 @@ html[data-theme="light"] .btn-caixa-bank {
     .btn-fale-conosco { width: 36px; padding: 0; justify-content: center; }
 }
 .btn-fale-float {
-    /* Mobile-first: bottom-LEFT so it never covers FAB / Novo (+) bottom-right */
+    /* Mobile-first: bottom-LEFT — clear of Novo(+) right + top Sair + bottom-nav */
     position: fixed;
     left: max(12px, env(safe-area-inset-left, 0px));
     right: auto;
-    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-    z-index: 50;
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    z-index: 45; /* below header/Sair (90) and sticky (80); above content */
     box-shadow: 0 4px 18px rgba(0,0,0,0.35);
-    max-width: calc(100vw - 88px); /* leave room for FAB on 360px */
+    max-width: min(200px, calc(100vw - 96px));
+    pointer-events: auto;
+}
+/* Perfil: keep FAB well below sticky topbar Sair */
+body.pagina-perfil .btn-fale-float {
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+/* Admin: never show Fale over Ops chrome */
+body.pagina-admin .btn-fale-conosco,
+body.pagina-admin .btn-fale-float {
+    display: none !important;
+}
+/* Header Sair always tappable and last in row */
+.header-row .btn-sair,
+.perfil-topbar #btn-sair {
+    position: relative;
+    z-index: 95;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+.header-row {
+    position: relative;
+    z-index: 30;
+}
+.header-actions {
+    position: relative;
+    z-index: 40;
+}
+.header-actions .btn-fale-conosco {
+    position: relative;
+    z-index: 41;
+}
+@media (max-width: 700px) {
+    /* Extra room under sticky admin-as-user bar on small phones */
+    body.modo-ui-usuario {
+        padding-top: calc(60px + env(safe-area-inset-top, 0px));
+    }
+    body.modo-ui-usuario.pagina-perfil .perfil-topbar {
+        top: calc(60px + env(safe-area-inset-top, 0px));
+    }
 }
 body.pagina-chat #btn-fale-conosco,
 body.pagina-chat .btn-fale-float,
@@ -3065,20 +3104,31 @@ body.modo-ui-admin {
     top: 0;
     left: 0;
     right: 0;
-    z-index: 9999;
+    /* Below modals (2000+) but above page chrome; do not blanket-cover Sair forever */
+    z-index: 80;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     padding: 10px 14px;
-    padding-top: max(10px, env(safe-area-inset-top));
+    padding-top: max(10px, env(safe-area-inset-top, 0px));
+    min-height: 48px;
+    box-sizing: border-box;
     background: rgba(11, 18, 32, 0.97);
     border-bottom: 2px solid #F5A623;
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 18px rgba(0,0,0,0.35);
 }
+/* Safe-area: sticky bar grows with notch — body padding must match or Sair is covered */
 body.modo-ui-usuario {
-    padding-top: 52px;
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
+}
+body.modo-ui-usuario.pagina-perfil .perfil-topbar {
+    top: calc(56px + env(safe-area-inset-top, 0px));
+}
+body.modo-ui-usuario.pagina-admin .header-row {
+    position: relative;
+    z-index: 90;
 }
 .modo-ui-sticky span {
     font-size: 0.85rem;
