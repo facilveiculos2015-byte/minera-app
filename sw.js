@@ -1,10 +1,10 @@
 /* Minera Pará service worker — cache shell for installability */
-const CACHE = 'minera-shell-20260923ap';
+const CACHE = 'minera-shell-20260923aq';
 const PRECACHE = [
-  './style.css?v=20260923ap',
-  './nav.js?v=20260923ap',
-  './config.js?v=20260923ap',
-  './pwa.js?v=20260923ap',
+  './style.css?v=20260923aq',
+  './nav.js?v=20260923aq',
+  './config.js?v=20260923aq',
+  './pwa.js?v=20260923aq',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -74,4 +74,11 @@ self.addEventListener('fetch', (event) => {
         caches.match(req).then((cached) => cached || caches.match('./index.html'))
       )
   );
+});
+
+
+self.addEventListener('message', (event) => {
+  if (event && event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

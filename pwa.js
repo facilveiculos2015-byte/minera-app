@@ -8,8 +8,8 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20260923ap';
-  var RELOAD_FLAG = 'minera_reloaded_k';
+  var ASSET_V = '20260923aq';
+  var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 
   function forceAssetRefreshOnce() {
     try {
@@ -33,32 +33,31 @@
         }).catch(function () {});
       }
       Promise.all([wipe, unreg]).then(function () {
-        location.reload();
+        var u = new URL(location.href);
+        u.searchParams.set('_hv', ASSET_V);
+        location.replace(u.toString());
       }).catch(function () {
-        location.reload();
+        try { location.reload(true); } catch (e3) { location.reload(); }
       });
     } catch (e) {
       try { location.reload(); } catch (e2) {}
     }
   }
 
+  // Hard reset imediato quando o build muda (pedido permanente do Jhon)
+  try { forceAssetRefreshOnce(); } catch (e) {}
+
   if (canRegister) {
     window.addEventListener('load', function () {
       navigator.serviceWorker
         .register('./sw.js?v=' + ASSET_V)
-        .then(function () {
-          forceAssetRefreshOnce();
+        .then(function (reg) {
+          try {
+            if (reg && reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            if (reg && reg.update) reg.update();
+          } catch (e) {}
         })
-        .catch(function () {
-          forceAssetRefreshOnce();
-        });
-    });
-  } else {
-    // Still bump asset marker offline / non-SW contexts once
-    window.addEventListener('load', function () {
-      try {
-        if (localStorage.getItem('minera_asset_v') !== ASSET_V) forceAssetRefreshOnce();
-      } catch (e) {}
+        .catch(function () {});
     });
   }
 
