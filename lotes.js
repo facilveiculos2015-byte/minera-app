@@ -909,8 +909,8 @@ async function marcarVendido(id) {
     const preco = lote && lote.preco != null ? Number(lote.preco) : 0;
     if (preco > 0) {
         const criada = await criarComissaoVenda(lote);
-        if (criada && criada.paused) {
-            toastMsg('Marcado como Vendido — taxa de plataforma pausada (sem comissão).');
+        if (criada && (criada.paused || criada.skipped)) {
+            toastMsg('Marcado como Vendido');
         } else if (criada) {
             const valorFmt = preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             toastMsg('Comissão 1% (sobre R$ ' + valorFmt + ') gerada — pontos aplicados se houver; pague no Perfil/Pix');

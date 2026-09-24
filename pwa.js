@@ -8,7 +8,7 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20260923as';
+  var ASSET_V = '20260923at';
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 
   function forceAssetRefreshOnce() {

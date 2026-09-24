@@ -204,15 +204,17 @@ async function aplicarFlagsPerfil() {
 
     const sub = document.getElementById('comissoes-sub');
     const cardCom = document.getElementById('card-comissoes');
-    if (!comissaoOn) {
-        if (sub) {
-            sub.innerHTML = 'Taxa de plataforma pausada — sem cobrança de 1% por enquanto.' +
-                (vaquinhaOn ? ' Se quiser, apoie com a vaquinha Pix abaixo.' : '');
+    if (cardCom) {
+        // Pausada: some tudo — usuário não deve nem saber que existia cobrança %
+        if (comissaoOn) {
+            cardCom.classList.remove('oculto');
+            cardCom.setAttribute('data-comissao-ativa', '1');
+            if (sub) sub.textContent = '1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.';
+        } else {
+            cardCom.classList.add('oculto');
+            cardCom.setAttribute('data-comissao-ativa', '0');
         }
-    } else if (sub) {
-        sub.textContent = '1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.';
     }
-    if (cardCom) cardCom.setAttribute('data-comissao-ativa', comissaoOn ? '1' : '0');
     return { comissaoOn, vaquinhaOn };
 }
 
@@ -459,6 +461,11 @@ function fmtBRL(n) {
 async function carregarComissoesPendentes() {
     const box = document.getElementById('comissoes-pendentes');
     if (!box || !perfilAtual) return;
+    const cardCom = document.getElementById('card-comissoes');
+    if (cardCom && (cardCom.classList.contains('oculto') || cardCom.getAttribute('data-comissao-ativa') === '0')) {
+        box.innerHTML = '';
+        return;
+    }
     try {
         let q = supabaseClient
             .from('comissoes')
@@ -470,10 +477,7 @@ async function carregarComissoesPendentes() {
         const { data, error } = await q;
         if (error) throw error;
         if (!data || !data.length) {
-            const paused = (document.getElementById('card-comissoes') || {}).getAttribute('data-comissao-ativa') === '0';
-            box.innerHTML = paused
-                ? '<p class="sub">Nenhuma cobrança no momento (taxa pausada).</p>'
-                : '<p class="sub">Nenhuma comissão pendente.</p>';
+            box.innerHTML = '<p class="sub">Nenhuma comissão pendente.</p>';
             return;
         }
         const agora = Date.now();
