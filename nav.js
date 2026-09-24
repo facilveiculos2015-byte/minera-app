@@ -23,6 +23,7 @@ const SERVICOS_CATALOGO = [
     { id: 'britagem', label: 'Britagem / Britador', icon: '⛏', match: ['dono_britador'] },
     { id: 'carregamento', label: 'Carregamento', icon: '📦', match: ['carregamento'] },
     { id: 'minerador', label: 'Minerador (vendedor de lote)', icon: '⛏', match: ['minerador'] },
+    { id: 'maquinario', label: 'Maquinário (venda)', icon: '🧰', match: ['minerador', 'comprador', 'transportador', 'transportador_mina_britador', 'transportador_britador_porto', 'dono_britador', 'carregamento', 'admin'] },
     { id: 'comprador', label: 'Comprador', icon: '🛒', match: ['comprador'] }
 ];
 
@@ -32,13 +33,14 @@ let _servicosFiltro = '';
 let _servicosBusca = '';
 
 const PAPEIS_CHIPS = {
+    /* Maquinário: qualquer papel anuncia — por isso todos têm lotes + novo */
     minerador: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
-    comprador: ['inicio', 'chat', 'perfil', 'mapa'],
-    transportador: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
-    transportador_mina_britador: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
-    transportador_britador_porto: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
-    dono_britador: ['inicio', 'britagem', 'chat', 'perfil', 'mapa'],
-    carregamento: ['inicio', 'frete', 'chat', 'perfil', 'mapa'],
+    comprador: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa'],
+    transportador: ['inicio', 'lotes', 'novo', 'frete', 'chat', 'perfil', 'mapa'],
+    transportador_mina_britador: ['inicio', 'lotes', 'novo', 'frete', 'chat', 'perfil', 'mapa'],
+    transportador_britador_porto: ['inicio', 'lotes', 'novo', 'frete', 'chat', 'perfil', 'mapa'],
+    dono_britador: ['inicio', 'lotes', 'novo', 'britagem', 'chat', 'perfil', 'mapa'],
+    carregamento: ['inicio', 'lotes', 'novo', 'frete', 'chat', 'perfil', 'mapa'],
     admin: ['inicio', 'lotes', 'novo', 'chat', 'perfil', 'mapa', 'britagem', 'frete', 'admin']
 };
 
@@ -668,7 +670,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260923x';
+    const src = root + 'logo-escavadeira.png?v=20260923ai';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -896,7 +898,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923x' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923ai' });
             }
         } catch (e) { /* ignore */ }
     }

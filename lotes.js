@@ -22,14 +22,27 @@ function ehTipoMineral(tipo) {
     return TIPOS_MINERAIS.has(String(tipo || '').trim());
 }
 
+function ehMaquinario(tipo) {
+    return String(tipo || '').trim() === 'Maquinário';
+}
+
 function atualizarCamposPorTipo() {
     const tipo = (document.getElementById('tipo_minerio') || {}).value || '';
     const wrapTeor = document.getElementById('wrap-teor');
     const wrapPreco = document.getElementById('wrap-preco');
     const wrapCobre = document.getElementById('wrap-cobre-tipo');
-    const mineral = ehTipoMineral(tipo);
+    const wrapEquip = document.getElementById('wrap-equipamento');
+    const pesoEl = document.getElementById('peso_bruto');
+    const precoEl = document.getElementById('preco');
+    const equipEl = document.getElementById('equipamento_tipo');
+    const labelOrigem = document.getElementById('label-origem');
+    const labelPeso = document.getElementById('label-peso');
+    const labelPreco = document.getElementById('label-preco');
+    const maq = ehMaquinario(tipo);
+    const mineral = ehTipoMineral(tipo) && !maq;
     if (wrapTeor) wrapTeor.classList.toggle('oculto', !mineral);
-    if (wrapPreco) wrapPreco.classList.toggle('oculto', mineral);
+    if (wrapPreco) wrapPreco.classList.toggle('oculto', mineral); /* Maquinário e não-mineral: preço */
+    if (wrapEquip) wrapEquip.classList.toggle('oculto', !maq);
     if (wrapCobre) {
         const isCobre = String(tipo).toLowerCase() === 'cobre';
         wrapCobre.classList.toggle('oculto', !isCobre);
@@ -37,6 +50,19 @@ function atualizarCamposPorTipo() {
         if (sel) sel.required = isCobre;
         if (!isCobre && sel) sel.value = '';
     }
+    if (pesoEl) {
+        pesoEl.required = !maq;
+        pesoEl.placeholder = maq ? 'Opcional (kg)' : 'Peso Bruto (kg)';
+    }
+    if (precoEl) {
+        precoEl.required = maq;
+        precoEl.placeholder = maq ? 'Preço de venda (R$)' : 'Opcional';
+    }
+    if (equipEl) equipEl.required = maq;
+    if (!maq && equipEl) equipEl.value = '';
+    if (labelOrigem) labelOrigem.textContent = maq ? 'Modelo / detalhes' : 'Origem / Frente';
+    if (labelPeso) labelPeso.textContent = maq ? 'Peso aprox. (kg) — opcional' : 'Peso bruto (kg)';
+    if (labelPreco) labelPreco.textContent = maq ? 'Preço de venda (R$)' : 'Preço (R$)';
 }
 
 function renderMidiaPreview() {
@@ -213,7 +239,7 @@ function renderCards(lista) {
         const codigo = l.codigo_lote || '';
         const img = l.imagem_url
             ? '<div class="lote-img"><img src="' + esc(l.imagem_url) + '" alt="" loading="lazy"></div>'
-            : '<div class="lote-img placeholder"><span>⛏️</span></div>';
+            : '<div class="lote-img placeholder"><span>' + (ehMaquinario(l.tipo_minerio) ? '🧰' : '⛏️') + '</span></div>';
         let actions;
         if (meus) {
             actions = `<div class="card-actions">
@@ -279,7 +305,21 @@ async function preencherForm(lote) {
     document.getElementById('lote-id').value = lote ? lote.id : '';
     document.getElementById('codigo_lote').value = lote ? (lote.codigo_lote || '') : '';
     document.getElementById('tipo_minerio').value = lote ? (lote.tipo_minerio || '') : '';
-    document.getElementById('origem').value = lote ? (lote.origem || '') : '';
+    let origemVal = lote ? (lote.origem || '') : '';
+    const equipEl = document.getElementById('equipamento_tipo');
+    if (equipEl) {
+        equipEl.value = '';
+        if (lote && ehMaquinario(lote.tipo_minerio) && origemVal.includes(' — ')) {
+            const parts = origemVal.split(' — ');
+            const sub = parts[0].trim();
+            const opts = Array.from(equipEl.options).map(o => o.value);
+            if (opts.includes(sub)) {
+                equipEl.value = sub;
+                origemVal = parts.slice(1).join(' — ').trim();
+            }
+        }
+    }
+    document.getElementById('origem').value = origemVal;
     document.getElementById('peso_bruto').value = lote ? (lote.peso_bruto_kg || '') : '';
     document.getElementById('preco').value = lote && lote.preco != null ? lote.preco : '';
     const teorEl = document.getElementById('teor');
@@ -511,7 +551,7 @@ async function salvarLote(e) {
 
     const id = document.getElementById('lote-id').value;
     const codigo_lote = document.getElementById('codigo_lote').value.trim();
-    const origem = document.getElementById('origem').value.trim();
+    let origem = document.getElementById('origem').value.trim();
     const tipo_minerio = document.getElementById('tipo_minerio').value;
     const peso_bruto_kg = parseFloat(document.getElementById('peso_bruto').value);
     const mineral = ehTipoMineral(tipo_minerio);
@@ -521,7 +561,31 @@ async function salvarLote(e) {
     let teor = (teorRaw === '' || teorRaw == null) ? null : parseFloat(teorRaw);
     const cobre_tipo = ((document.getElementById('cobre_tipo') || {}).value || '').trim().toLowerCase();
 
-    if (mineral) {
+    const maq = ehMaquinario(tipo_minerio);
+    const equipTipo = ((document.getElementById('equipamento_tipo') || {}).value || '').trim();
+    if (maq) {
+        teor = null;
+        if (!equipTipo) {
+            msgEl.textContent = 'Selecione o tipo de maquinário (bomba, draga, escavadeira…).';
+            msgEl.className = 'msg erro';
+            toastMsg('Tipo de maquinário obrigatório');
+            return;
+        }
+        if (preco == null || !Number.isFinite(preco) || preco <= 0) {
+            msgEl.textContent = 'Informe o preço de venda do maquinário.';
+            msgEl.className = 'msg erro';
+            toastMsg('Preço obrigatório para maquinário');
+            return;
+        }
+        // origem = "Escavadeira — detalhes"
+        origem = origem
+            ? (equipTipo + ' — ' + origem)
+            : equipTipo;
+        if (!Number.isFinite(peso_bruto_kg) || peso_bruto_kg < 0) {
+            // peso opcional no maquinário
+            // será normalizado abaixo
+        }
+    } else if (mineral) {
         preco = null; // preço some do formulário mineral → usa teor
         if (teor != null && !Number.isFinite(teor)) {
             msgEl.textContent = 'Teor do minério inválido.';
@@ -621,11 +685,20 @@ async function salvarLote(e) {
         'Usuário';
     const uid = sessionAtual.user.id;
 
+    let pesoOk = peso_bruto_kg;
+    if (maq) {
+        if (!Number.isFinite(pesoOk) || pesoOk < 0) pesoOk = 0;
+    } else if (!Number.isFinite(pesoOk) || pesoOk < 0) {
+        msgEl.textContent = 'Informe o peso bruto (kg).';
+        msgEl.className = 'msg erro';
+        toastMsg('Peso obrigatório');
+        return;
+    }
     const payload = {
         codigo_lote,
         origem,
         tipo_minerio,
-        peso_bruto_kg,
+        peso_bruto_kg: pesoOk,
         preco,
         teor,
         cobre_tipo: String(tipo_minerio).toLowerCase() === 'cobre' ? cobre_tipo : null,

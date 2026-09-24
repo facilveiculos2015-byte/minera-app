@@ -49,7 +49,7 @@ async function carregarBannersPromos() {
         tipo: 'banner',
         titulo: '',
         texto: '',
-        imagem_url: 'media/banner-familia-minera.jpg?v=20260923ae',
+        imagem_url: 'media/banner-familia-minera.jpg?v=20260923ai',
         link: '',
         _full: true
     };
@@ -193,6 +193,10 @@ function imgPlaceholder(tipo) {
     else if (t === 'ferro') cls = 'ferro';
     else if (t === 'cobre') cls = 'cobre';
     else if (t === 'niquel') cls = 'niquel';
+    else if (t.indexOf('maquin') === 0) cls = 'maquinario';
+    if (t.indexOf('maquin') === 0) {
+        return '<div class="lote-img placeholder" aria-hidden="true"><span>🧰</span></div>';
+    }
     return '<div class="lote-img placeholder" aria-hidden="true"><span class="min-ph ' + cls + '"></span></div>';
 }
 
