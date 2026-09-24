@@ -71,13 +71,20 @@ function bindPerfilShare() {
         btnWa._bound = true;
         btnWa.addEventListener('click', async () => {
             try {
+                /* Mesmo fluxo do Início / Família Minera: vídeo + nome + link */
+                if (perfilAtual && typeof atualizarCardCompartilhar === 'function') {
+                    await atualizarCardCompartilhar(perfilAtual);
+                }
                 if (typeof compartilharIndicacao === 'function') {
                     await compartilharIndicacao({ perfil: perfilAtual, destino: 'whatsapp' });
                 } else if (typeof compartilharNoWhatsApp === 'function') {
                     await compartilharNoWhatsApp(perfilAtual);
+                } else {
+                    alert('Atualize o app (cache) e tente de novo.');
                 }
             } catch (e) {
                 console.warn('share wa', e);
+                if (typeof toastMsg === 'function') toastMsg('Falha ao compartilhar. Atualize a página.');
             }
         });
     }

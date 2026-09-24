@@ -339,8 +339,8 @@ function gerarCodigoIndicacao() {
 }
 
 const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
-const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923ag';
-const SHARE_VIDEO_DEFAULT = 'media/convite-familia-minera.mp4?v=20260923ag';
+const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923ah';
+const SHARE_VIDEO_DEFAULT = 'media/convite-familia-minera.mp4?v=20260923ah';
 const SHARE_FRASE_PADRAO_DEFAULT =
     'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
 const SHARE_OG_DESC_SEM_NOME =
@@ -568,7 +568,7 @@ async function familiaShareImageFile() {
     const url = (_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT || '').split('?')[0];
     if (!url) return null;
     try {
-        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923ag';
+        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923ah';
         const res = await fetch(bust, { mode: 'cors', cache: 'no-store' });
         if (!res.ok) return null;
         const blob = await res.blob();
@@ -586,7 +586,7 @@ async function familiaShareVideoFile() {
     if (!raw) return null;
     try {
         const abs = new URL(raw, window.location.href).href;
-        const bust = abs + (abs.includes('?') ? '&' : '?') + 'share=1&v=20260923ag';
+        const bust = abs + (abs.includes('?') ? '&' : '?') + 'share=1&v=20260923ah';
         const res = await fetch(bust, { cache: 'no-store' });
         if (!res.ok) return null;
         const blob = await res.blob();
