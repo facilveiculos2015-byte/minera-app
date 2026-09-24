@@ -3586,7 +3586,7 @@ html[data-theme="light"] .servicos-ferr-link:hover { color: #b45309; border-colo
 }
 
 
-/* ===== TURBO redesign 20260923aq — industrial premium ===== */
+/* ===== TURBO redesign 20260923ar — industrial premium ===== */
 
 .mkt-head {
     display: flex;
@@ -3964,7 +3964,7 @@ body.has-bottom-nav .mapa-layout {
 }
 
 
-/* === 20260923aq — marketplace / bank / habit polish === */
+/* === 20260923ar — marketplace / bank / habit polish === */
 .mkt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .btn-anunciar {
   flex-shrink: 0;
@@ -4044,7 +4044,7 @@ html[data-theme="light"] .mkt-trust-row span { background: #f1f5f9; color: #6474
 html[data-theme="light"] .lote-card-pro { box-shadow: 0 4px 14px rgba(15,23,42,.08); }
 html[data-theme="light"] .btn-anunciar { box-shadow: 0 4px 12px rgba(245,158,11,.25); }
 
-/* ===== FULL REBUILD pillars 20260923aq — Minera Pará ===== */
+/* ===== FULL REBUILD pillars 20260923ar — Minera Pará ===== */
 :root, html[data-theme="dark"] {
   --accent-color: #F5A623;
   --accent-hover: #d4890f;
@@ -4545,7 +4545,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 }
 
 
-/* ---- Welcome before login (20260923aq) ---- */
+/* ---- Welcome before login (20260923ar) ---- */
 .welcome-card h2 { margin-top: 0; color: var(--accent, #F5A623); }
 .welcome-card p { color: var(--muted, #94a3b8); line-height: 1.45; }
 .welcome-card .btn-ok { width: 100%; margin-top: 8px; }
@@ -4623,7 +4623,7 @@ body.pagina-financeiro > .container > .header-row { display: none !important; }
 .promo-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 
 
-/* ===== Minera Bank glassmorphism 20260923aq ===== */
+/* ===== Minera Bank glassmorphism 20260923ar ===== */
 body.pagina-financeiro {
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(245,166,35,0.22), transparent 55%),
@@ -4744,7 +4744,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   color: #0f172a;
 }
 
-/* ===== 20260923aq/i — Fale/FAB clear + WA chat mobile shell ===== */
+/* ===== 20260923ar/i — Fale/FAB clear + WA chat mobile shell ===== */
 :root { --kb-inset: 0px; --composer-h: 58px; }
 
 .wa-row { min-height: 72px; box-sizing: border-box; }
@@ -4971,7 +4971,7 @@ html[data-theme="light"] body.pagina-financeiro .nb-card {
   }
 }
 
-/* ===== 20260923aq — WA composer pixel order + Conversas list ===== */
+/* ===== 20260923ar — WA composer pixel order + Conversas list ===== */
 /* Structure: + | pill[input… emoji] | camera | mic/send */
 .wa-composer.chat-form {
   align-items: center;
@@ -5021,8 +5021,8 @@ body.pagina-chat .chat-contacts-pane {
   .wa-row { padding: 10px 14px; gap: 14px; }
 }
 
-/* ===== 20260923aq — Slim WA iOS thread header (no roles, call pill) ===== */
-/* ===== 20260923aq — Perfil mobile + share WA + audio harden ===== */
+/* ===== 20260923ar — Slim WA iOS thread header (no roles, call pill) ===== */
+/* ===== 20260923ar — Perfil mobile + share WA + audio harden ===== */
 .wa-thread-head.chat-thread-head {
   display: flex;
   align-items: center;
@@ -5192,7 +5192,7 @@ body.pagina-chat .chat-contacts-pane {
 }
 
 
-/* ===== 20260923aq — Perfil mobile shell + Compartilhar WA ===== */
+/* ===== 20260923ar — Perfil mobile shell + Compartilhar WA ===== */
 body.pagina-perfil {
   padding: 0 0 88px;
   background: #0b1220;
@@ -5327,7 +5327,7 @@ html[data-theme="light"] body.pagina-perfil .perfil-hero-card {
 }
 
 
-/* ===== 20260923aq — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
+/* ===== 20260923ar — quick Favoritos|Mapa|Serviços|Banco + lote teor/midia ===== */
 .lotes-tabs {
     display: flex;
     gap: 8px;
@@ -5368,7 +5368,7 @@ html[data-theme="light"] .lotes-tab {
 }
 
 
-/* ===== 20260923aq — lote midia preview + teor/cobre ===== */
+/* ===== 20260923ar — lote midia preview + teor/cobre ===== */
 .lote-midia-preview {
   display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px;
 }
@@ -5397,7 +5397,7 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
 
-/* ===== 20260923aq — restore market quotes strip ===== */
+/* ===== 20260923ar — restore market quotes strip ===== */
 .pagina-inicio #card-cotacoes.cotacoes-card {
     margin: 8px 0 10px;
     background: #0b1220;
@@ -5408,9 +5408,9 @@ html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 }
 
 
-/* ===== 20260923aq — quick cards: no flat fill, intuitive themed surfaces ===== */
+/* ===== 20260923ar — quick cards: no flat fill, intuitive themed surfaces ===== */
 
-/* ===== LIGHT THEME TEXT FIX 20260923aq ===== */
+/* ===== LIGHT THEME TEXT FIX 20260923ar ===== */
 /* Nomes/títulos/preços com cor clara fixa sumiam no fundo claro */
 html[data-theme="light"] .olx-card-title,
 html[data-theme="light"] .olx-card-price,
@@ -5609,7 +5609,7 @@ body.pagina-lotes .app-back-bar {
 }
 
 
-/* ===== 20260923aq — Maquinário Comprar|Vender sheet ===== */
+/* ===== 20260923ar — Maquinário Comprar|Vender sheet ===== */
 .maquinario-sheet .maq-sheet-panel { gap: 14px; }
 .maq-sheet-opts {
   display: flex;
@@ -5718,4 +5718,36 @@ body.pagina-lotes .app-back-bar {
 html[data-theme="light"] #wrap-maq-obs textarea {
   background: #fff;
   border-color: #cbd5e1;
+}
+
+
+/* Bank top actions — same language as Pix/Depositar circles */
+.nb-ico-btn {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  background: rgba(30, 41, 59, 0.40) !important;
+  color: #F5A623 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.nb-ico-btn .nb-ico-svg,
+.nb-ico-btn .nb-ico-svg,
+.nb-ico-svg,
+.nb-ico-svg {
+  width: 22px !important;
+  height: 22px !important;
+  display: block !important;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+body.pagina-financeiro .nb-ico-btn {
+  background: rgba(30, 41, 59, 0.42) !important;
+  color: #F5A623 !important;
+  border: 1px solid rgba(245,166,35,0.35) !important;
+}
+body.pagina-financeiro .nb-strip-right {
+  gap: 10px;
 }
