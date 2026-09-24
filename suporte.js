@@ -339,8 +339,8 @@ function gerarCodigoIndicacao() {
 }
 
 const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
-const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923af';
-const SHARE_VIDEO_DEFAULT = INDICACAO_BASE + '/media/convite-familia-minera.mp4?v=20260923af';
+const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923ag';
+const SHARE_VIDEO_DEFAULT = 'media/convite-familia-minera.mp4?v=20260923ag';
 const SHARE_FRASE_PADRAO_DEFAULT =
     'Cadastre-se no Minera Pará para negociar com mais segurança — cada um vê só a própria conta. Sem misturar perfis: o que é seu fica na sua área.';
 const SHARE_OG_DESC_SEM_NOME =
@@ -371,27 +371,17 @@ function shareOgDescription(nome) {
 }
 
 /**
- * Texto pronto p/ WhatsApp / compartilhar.
- * Ordem: título → chamado → “mensagem” → CTA → URL (nunca URL no início).
- * opts: { nome, mensagem } — mensagem vazia usa share_frase_padrao / default.
+ * Texto mínimo do convite (o vídeo já fala).
+ * opts: { nome } → "{nome} te convidou pra Família Minera.\n{link}"
  */
 function textoCompartilharIndicacao(codigo, opts) {
     opts = opts || {};
     const code = String(codigo || '').trim().toUpperCase() || '……';
     const link = linkIndicacao(code);
     const nome = String(opts.nome != null ? opts.nome : '').trim();
-    const custom = String(opts.mensagem != null ? opts.mensagem : '').trim();
-    const frase = custom || _shareFrasePadrao || SHARE_FRASE_PADRAO_DEFAULT;
-    const linha2 = nome
-        ? (nome + ' te chamou pra negociar com mais segurança.')
-        : 'Te chamaram pra negociar com mais segurança.';
-    return (
-        'Minera Pará\n' +
-        linha2 + '\n\n' +
-        '“' + frase + '”\n\n' +
-        'Abrir Minera Pará e se cadastrar:\n' +
-        link
-    );
+    /* Texto mínimo: o vídeo já fala. Só quem convida + link. */
+    if (nome) return nome + ' te convidou pra Família Minera.\n' + link;
+    return link;
 }
 
 async function carregarShareFlags() {
@@ -495,7 +485,7 @@ function htmlCardFamilia(perfil) {
         '<label for="familia-codigo">Seu código</label>' +
         '<div class="familia-share-row">' +
         '<input type="text" id="familia-codigo" readonly value="' + suporteEsc(codigo) + '">' +
-        '<button type="button" class="btn-sm btn-ok btn-wa-share" id="btn-compartilhar-ref">Compartilhar no WhatsApp</button>' +
+        '<button type="button" class="btn-sm btn-ok btn-wa-share" id="btn-compartilhar-ref">Compartilhar convite (vídeo)</button>' +
         '<button type="button" class="btn-sm" id="btn-copiar-ref">Copiar texto</button>' +
         '</div>' +
         '<input type="hidden" id="familia-link" value="' + suporteEsc(link) + '">' +
@@ -578,7 +568,7 @@ async function familiaShareImageFile() {
     const url = (_shareOgImageUrl || SHARE_OG_IMAGE_DEFAULT || '').split('?')[0];
     if (!url) return null;
     try {
-        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923af';
+        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923ag';
         const res = await fetch(bust, { mode: 'cors', cache: 'no-store' });
         if (!res.ok) return null;
         const blob = await res.blob();
@@ -592,41 +582,33 @@ async function familiaShareImageFile() {
 
 /** Vídeo de convite (Web Share Level 2 — WhatsApp no celular anexa o arquivo). */
 async function familiaShareVideoFile() {
-    const url = (typeof SHARE_VIDEO_DEFAULT === 'string' ? SHARE_VIDEO_DEFAULT : '').split('?')[0];
-    if (!url) return null;
+    const raw = (typeof SHARE_VIDEO_DEFAULT === 'string' ? SHARE_VIDEO_DEFAULT : 'media/convite-familia-minera.mp4');
+    if (!raw) return null;
     try {
-        const bust = url + (url.includes('?') ? '&' : '?') + 'share=1&v=20260923af';
-        const res = await fetch(bust, { mode: 'cors', cache: 'no-store' });
+        const abs = new URL(raw, window.location.href).href;
+        const bust = abs + (abs.includes('?') ? '&' : '?') + 'share=1&v=20260923ag';
+        const res = await fetch(bust, { cache: 'no-store' });
         if (!res.ok) return null;
         const blob = await res.blob();
-        const type = blob.type || 'video/mp4';
+        const type = blob.type && blob.type.startsWith('video/') ? blob.type : 'video/mp4';
+        if (blob.size < 1000) return null;
         return new File([blob], 'convite-familia-minera.mp4', { type: type });
     } catch (e) {
+        console.warn('familiaShareVideoFile', e);
         return null;
     }
 }
 
 async function compartilharNoWhatsApp(perfilOpt) {
-    let payload = familiaSharePayload(perfilOpt);
-    if ((!payload.codigo || payload.codigo === '…') && perfilOpt && typeof garantirCodigoIndicacao === 'function') {
-        try {
-            const p = await garantirCodigoIndicacao(perfilOpt);
-            payload = familiaSharePayload(p);
-        } catch (e) { /* ignore */ }
-    }
-    const text = payload.text || '';
-    if (!text || !payload.codigo || payload.codigo === '…') {
-        if (typeof toastMsg === 'function') toastMsg('Código de indicação ainda não pronto. Abra Perfil e tente de novo.');
-        else alert('Código de indicação ainda não pronto.');
-        return false;
-    }
-    const wa = 'https://wa.me/?text=' + encodeURIComponent(text);
+    /* WhatsApp: prioriza Web Share com vídeo (wa.me NÃO anexa arquivo). */
+    return compartilharIndicacao({ perfil: perfilOpt, destino: 'whatsapp' });
+}
+
+async function abrirWhatsAppSoTexto(text) {
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(text || '');
     try {
         const w = window.open(wa, '_blank', 'noopener');
-        if (!w) {
-            // popup blocked → navigate same tab
-            window.location.href = wa;
-        }
+        if (!w) window.location.href = wa;
         if (typeof toastMsg === 'function') toastMsg('Abrindo WhatsApp…');
         return true;
     } catch (e) {
@@ -638,48 +620,59 @@ async function compartilharNoWhatsApp(perfilOpt) {
 async function compartilharIndicacao(opts) {
     opts = opts || {};
     await carregarShareFlags();
-    const payload = familiaSharePayload(opts.perfil);
+    let payload = familiaSharePayload(opts.perfil);
+    if ((!payload.codigo || payload.codigo === '…') && opts.perfil && typeof garantirCodigoIndicacao === 'function') {
+        try {
+            const p = await garantirCodigoIndicacao(opts.perfil);
+            payload = familiaSharePayload(p);
+        } catch (e) { /* ignore */ }
+    }
     const text = payload.text || '';
-    const link = payload.codigo ? linkIndicacao(payload.codigo) : '';
-    // Mobile: 1º vídeo+texto+link; 2º imagem; 3º só texto; senão WhatsApp wa.me
+    const link = payload.link || (payload.codigo ? linkIndicacao(payload.codigo) : '');
+    if (!payload.codigo || payload.codigo === '…') {
+        if (typeof toastMsg === 'function') toastMsg('Código de indicação ainda não pronto. Abra Perfil e tente de novo.');
+        else alert('Código de indicação ainda não pronto.');
+        return false;
+    }
+    /* 1) Vídeo + texto curto (nome + link). wa.me NÃO leva arquivo — só sheet nativo. */
     try {
-        if (navigator.share && navigator.canShare) {
+        if (navigator.share) {
+            if (typeof toastMsg === 'function') toastMsg('Preparando vídeo…');
             const video = await familiaShareVideoFile();
-            if (video && navigator.canShare({ files: [video] })) {
-                await navigator.share({
-                    title: 'Família Minera · Minera Pará',
-                    text: text,
-                    url: link || undefined,
-                    files: [video]
-                });
-                if (typeof toastMsg === 'function') toastMsg('Convite com vídeo compartilhado!');
-                return;
+            if (video) {
+                const dataVid = { files: [video], title: 'Família Minera', text: text };
+                const dataVidOnly = { files: [video] };
+                if (!navigator.canShare || navigator.canShare(dataVid) || navigator.canShare(dataVidOnly)) {
+                    try {
+                        await navigator.share(dataVid);
+                    } catch (eShare) {
+                        /* Alguns Androids aceitam só files; texto vai no caption se o app deixar */
+                        if (eShare && eShare.name === 'AbortError') return false;
+                        await navigator.share({ files: [video], text: text });
+                    }
+                    if (typeof toastMsg === 'function') toastMsg('Escolha o WhatsApp na lista — o vídeo vai junto.');
+                    return true;
+                }
             }
             const img = await familiaShareImageFile();
-            if (img && navigator.canShare({ files: [img] })) {
-                await navigator.share({
-                    title: 'Família Minera · Minera Pará',
-                    text: text,
-                    url: link || undefined,
-                    files: [img]
-                });
-                if (typeof toastMsg === 'function') toastMsg('Convite com imagem compartilhado!');
-                return;
+            if (img) {
+                const dataImg = { files: [img], title: 'Família Minera', text: text };
+                if (!navigator.canShare || navigator.canShare(dataImg)) {
+                    await navigator.share(dataImg);
+                    if (typeof toastMsg === 'function') toastMsg('Convite com imagem enviado!');
+                    return true;
+                }
             }
-            if (opts && opts.maisOpcoes) {
-                await navigator.share({ title: 'Minera Pará', text: text, url: link || undefined });
-                if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
-                return;
-            }
+            await navigator.share({ title: 'Família Minera', text: text });
+            if (typeof toastMsg === 'function') toastMsg('Convite compartilhado!');
+            return true;
         }
     } catch (e) {
-        if (e && e.name === 'AbortError') return;
+        if (e && e.name === 'AbortError') return false;
+        console.warn('share', e);
     }
-    const ok = await compartilharNoWhatsApp(opts.perfil);
-    if (!ok) {
-        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-        if (!isMobile) await copiarTextoIndicacao();
-    }
+    /* Fallback sem Web Share: só texto curto no WhatsApp */
+    return abrirWhatsAppSoTexto(text);
 }
 
 function bindCardFamilia() {
@@ -926,7 +919,7 @@ function mostrarSharePosCadastro(perfil) {
         '<input type="hidden" id="familia-nome" value="' + suporteEsc(nome) + '">' +
         '<textarea id="familia-msg-custom" rows="2" maxlength="500" placeholder="Mensagem opcional…"></textarea>' +
         '<div class="familia-share-row" style="margin-top:8px">' +
-        '<button type="button" class="btn-sm btn-ok btn-wa-share" id="btn-compartilhar-ref">Compartilhar no WhatsApp</button>' +
+        '<button type="button" class="btn-sm btn-ok btn-wa-share" id="btn-compartilhar-ref">Compartilhar convite (vídeo)</button>' +
         '<button type="button" class="btn-sm" id="btn-copiar-ref">Copiar texto</button>' +
         '</div>' +
         '<pre class="familia-share-text" id="familia-share-text">' + suporteEsc(text) + '</pre>' +

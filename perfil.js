@@ -71,10 +71,10 @@ function bindPerfilShare() {
         btnWa._bound = true;
         btnWa.addEventListener('click', async () => {
             try {
-                if (typeof compartilharNoWhatsApp === 'function') {
+                if (typeof compartilharIndicacao === 'function') {
+                    await compartilharIndicacao({ perfil: perfilAtual, destino: 'whatsapp' });
+                } else if (typeof compartilharNoWhatsApp === 'function') {
                     await compartilharNoWhatsApp(perfilAtual);
-                } else if (typeof compartilharIndicacao === 'function') {
-                    await compartilharIndicacao({ perfil: perfilAtual });
                 }
             } catch (e) {
                 console.warn('share wa', e);
