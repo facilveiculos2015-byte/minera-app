@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Minera Pará - Perfil</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260923ar">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923ar">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260923as">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260923as">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260923ar">
+    <link rel="stylesheet" href="style.css?v=20260923as">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -89,15 +89,22 @@
 
         <!-- 5. Família Minera injected by montarCardFamilia before #card-comissoes -->
 
-        <!-- 6. Comissões / Pix -->
+        <!-- 6. Vaquinha / Comissões / Pix -->
+        <section class="card" id="card-vaquinha">
+            <h2>Apoie o Minera Pará</h2>
+            <p class="sub">Faça um Pix de qualquer valor para ajudar a desenvolver o produto cada vez melhor — mais segurança nas suas compras e vendas. É só uma iniciativa voluntária; sem obrigação.</p>
+            <button type="button" class="btn-ok" id="btn-vaquinha-pix">Fazer Pix voluntário</button>
+        </section>
+
         <section class="card" id="card-comissoes">
             <h2>Comissões pendentes</h2>
-            <p class="sub">1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.</p>
+            <p class="sub" id="comissoes-sub">1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.</p>
             <div id="comissoes-pendentes" class="loading">Carregando...</div>
         </section>
 
         <section class="card" id="card-pix-user">
-            <h2>Pagar via Pix</h2>
+            <h2 id="pix-user-title">Pagar via Pix</h2>
+            <p class="sub oculto" id="pix-user-vaquinha-hint">Qualquer valor ajuda.</p>
             <div id="pix-user-info" class="loading">Carregando chave...</div>
             <div id="pix-emv-panel" class="pix-emv-panel oculto">
                 <div id="pix-qr" class="pix-qr" aria-label="QR Code Pix"></div>
@@ -120,12 +127,12 @@
         </section>
 
     </div>
-    <script src="config.js?v=20260923ar"></script>
-    <script src="auth-guard.js?v=20260923ar"></script>
-    <script src="suporte.js?v=20260923ar"></script>
-    <script src="nav.js?v=20260923ar"></script>
-    <script src="pix-brcode.js?v=20260923ar"></script>
-    <script src="perfil.js?v=20260923ar"></script>
-    <script src="pwa.js?v=20260923ar"></script>
+    <script src="config.js?v=20260923as"></script>
+    <script src="auth-guard.js?v=20260923as"></script>
+    <script src="suporte.js?v=20260923as"></script>
+    <script src="nav.js?v=20260923as"></script>
+    <script src="pix-brcode.js?v=20260923as"></script>
+    <script src="perfil.js?v=20260923as"></script>
+    <script src="pwa.js?v=20260923as"></script>
 </body>
 </html>

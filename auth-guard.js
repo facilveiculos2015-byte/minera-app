@@ -225,6 +225,40 @@ async function getPerfil(session) {
     };
 }
 
+
+/** Cache curto de app_flags (comissao pause / vaquinha / bank). */
+let _flagsCache = null;
+let _flagsCacheAt = 0;
+async function carregarAppFlags(force) {
+  if (!force && _flagsCache && Date.now() - _flagsCacheAt < 60000) return _flagsCache;
+  try {
+    const { data, error } = await supabaseClient.from('app_flags').select('key,value_bool,value_text');
+    if (error) throw error;
+    const map = {};
+    (data||[]).forEach(r => { map[r.key] = r; });
+    _flagsCache = map;
+    _flagsCacheAt = Date.now();
+    return map;
+  } catch (e) {
+    console.warn('app_flags', e);
+    return _flagsCache || {};
+  }
+}
+async function isComissao1pctAtiva() {
+  const m = await carregarAppFlags();
+  // default PAUSED (false) if missing — launch preference
+  if (!m.comissao_1pct_ativa) return false;
+  return m.comissao_1pct_ativa.value_bool === true;
+}
+async function isVaquinhaAtiva() {
+  const m = await carregarAppFlags();
+  if (!m.vaquinha_ativa) return true; // default on
+  return m.vaquinha_ativa.value_bool !== false;
+}
+window.carregarAppFlags = carregarAppFlags;
+window.isComissao1pctAtiva = isComissao1pctAtiva;
+window.isVaquinhaAtiva = isVaquinhaAtiva;
+
 /**
  * Cron-less: comissões pendentes vencidas → status atrasado + usuario.bloqueado.
  * Também desbloqueia se não houver mais pendências/atrasos.
@@ -232,6 +266,23 @@ async function getPerfil(session) {
 async function verificarInadimplencia(perfil) {
     if (!perfil || !perfil.auth_id) return;
     try {
+        if (typeof isComissao1pctAtiva === 'function' && !(await isComissao1pctAtiva())) {
+            // Comissão pausada: não marca atraso / não bloqueia; limpa bloqueio por comissão
+            if (perfil.id && usuarioBloqueado(perfil)) {
+                const motivo = (perfil.bloqueado_motivo || '').toLowerCase();
+                if (!motivo || /comiss[aã]o|atraso|inadimpl/i.test(motivo)) {
+                    await supabaseClient.from('usuarios').update({
+                        bloqueado: false,
+                        bloqueado_motivo: null,
+                        bloqueado_em: null
+                    }).eq('auth_id', perfil.auth_id);
+                    perfil.bloqueado = false;
+                    perfil.bloqueado_motivo = null;
+                    perfil.bloqueado_em = null;
+                }
+            }
+            return;
+        }
         const { data, error } = await supabaseClient
             .from('comissoes')
             .select('id,status,vencimento,vendedor_auth_id')

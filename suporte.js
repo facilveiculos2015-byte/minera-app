@@ -10,7 +10,7 @@ const FAQ_INTENTS = [
     {
         id: 'lotes',
         keys: ['lote', 'lotes', 'marketplace', 'vender', 'comprar', 'postar', 'feed', 'anuncio', 'anúncio'],
-        reply: '📦 **Lotes** — No Feed você vê o marketplace. Em **Meus Lotes** (chip Novo / Lotes) você cadastra quantidade, tipo de minério, preço e foto. Marque como **Vendido** quando fechar a venda — isso gera a comissão de 1%.'
+        reply: '📦 **Lotes** — No Feed você vê o marketplace. Em **Meus Lotes** (chip Novo / Lotes) você cadastra quantidade, tipo de minério, preço e foto. Marque como **Vendido** quando fechar a venda. A taxa de 1% pode estar pausada no lançamento; se estiver ativa, gera comissão. Há também a **vaquinha Pix voluntária** no Perfil.'
     },
     {
         id: 'mapa',
@@ -20,12 +20,12 @@ const FAQ_INTENTS = [
     {
         id: 'pix',
         keys: ['pix', 'pagamento', 'pagar', 'qr', 'comprovante', 'nubank', 'comissao pix', 'comissão pix'],
-        reply: '💠 **Pix** — Comissões e depósitos no Caixa usam a chave Pix do admin. Em **Perfil** você gera QR / Copia e Cola e envia o comprovante. Depósitos do Minera Bank também geram Pix e o admin confirma o crédito.'
+        reply: '💠 **Pix** — A chave Pix do admin fica no **Perfil** (QR / Copia e Cola). Use para a **vaquinha voluntária** (qualquer valor, sem obrigação) ou, se a taxa 1% estiver ativa, para pagar comissão. Depósitos do Minera Bank também usam Pix e o admin confirma o crédito.'
     },
     {
         id: 'comissao',
         keys: ['comissao', 'comissão', '1%', 'um por cento', 'taxa', 'percentual'],
-        reply: '💰 **Comissão 1%** — Ao marcar um lote como Vendido, o app gera comissão de 1% sobre o preço. Você paga via Pix no Perfil. Pontos da Família Minera dão desconto automático: **1 ponto = R$ 0,10** na comissão (até zerar o valor).'
+        reply: '💰 **Comissão 1%** — Pode estar **pausada** no lançamento (Admin decide religar). Quando ativa, marcar Vendido gera 1% sobre o preço, pago via Pix no Perfil. Enquanto pausada, não há cobrança nem bloqueio por atraso — só a **vaquinha Pix voluntária** (qualquer valor). Pontos da Família Minera: **1 ponto = R$ 0,10** na comissão quando ela estiver ativa.'
     },
     {
         id: 'caixa',

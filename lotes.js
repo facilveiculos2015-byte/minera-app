@@ -824,6 +824,9 @@ async function excluirLote(id) {
 }
 
 async function criarComissaoVenda(lote) {
+    if (typeof isComissao1pctAtiva === 'function' && !(await isComissao1pctAtiva())) {
+        return { skipped: true, paused: true };
+    }
     const preco = lote && lote.preco != null ? Number(lote.preco) : 0;
     if (!(preco > 0) || !lote || !lote.id) return null;
     // Idempotente: skip se já existe comissão para este lote
@@ -906,7 +909,9 @@ async function marcarVendido(id) {
     const preco = lote && lote.preco != null ? Number(lote.preco) : 0;
     if (preco > 0) {
         const criada = await criarComissaoVenda(lote);
-        if (criada) {
+        if (criada && criada.paused) {
+            toastMsg('Marcado como Vendido — taxa de plataforma pausada (sem comissão).');
+        } else if (criada) {
             const valorFmt = preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             toastMsg('Comissão 1% (sobre R$ ' + valorFmt + ') gerada — pontos aplicados se houver; pague no Perfil/Pix');
         } else {

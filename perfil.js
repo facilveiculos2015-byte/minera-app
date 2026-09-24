@@ -177,6 +177,69 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     await registrarLog('perfil_atualizar', { papeis }, perfilAtual);
 });
 
+
+async function aplicarFlagsPerfil() {
+    const comissaoOn = (typeof isComissao1pctAtiva === 'function')
+        ? await isComissao1pctAtiva()
+        : false;
+    const vaquinhaOn = (typeof isVaquinhaAtiva === 'function')
+        ? await isVaquinhaAtiva()
+        : true;
+
+    const cardVaq = document.getElementById('card-vaquinha');
+    if (cardVaq) {
+        if (vaquinhaOn) cardVaq.classList.remove('oculto');
+        else cardVaq.classList.add('oculto');
+    }
+
+    const pixTitle = document.getElementById('pix-user-title');
+    const pixHint = document.getElementById('pix-user-vaquinha-hint');
+    if (vaquinhaOn) {
+        if (pixTitle) pixTitle.textContent = 'Pix — apoie o desenvolvimento';
+        if (pixHint) pixHint.classList.remove('oculto');
+    } else {
+        if (pixTitle) pixTitle.textContent = comissaoOn ? 'Pagar via Pix' : 'Pix';
+        if (pixHint) pixHint.classList.add('oculto');
+    }
+
+    const sub = document.getElementById('comissoes-sub');
+    const cardCom = document.getElementById('card-comissoes');
+    if (!comissaoOn) {
+        if (sub) {
+            sub.innerHTML = 'Taxa de plataforma pausada — sem cobrança de 1% por enquanto.' +
+                (vaquinhaOn ? ' Se quiser, apoie com a vaquinha Pix abaixo.' : '');
+        }
+    } else if (sub) {
+        sub.textContent = '1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.';
+    }
+    if (cardCom) cardCom.setAttribute('data-comissao-ativa', comissaoOn ? '1' : '0');
+    return { comissaoOn, vaquinhaOn };
+}
+
+function bindVaquinhaPix() {
+    const btn = document.getElementById('btn-vaquinha-pix');
+    if (!btn || btn._bound) return;
+    btn._bound = true;
+    btn.addEventListener('click', () => {
+        const card = document.getElementById('card-pix-user');
+        const input = document.getElementById('pix-valor');
+        if (input) {
+            // qualquer valor — deixa em branco para o usuário escolher
+            input.value = '';
+            try { input.focus(); } catch (e) { /* ignore */ }
+        }
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth' });
+            const form = document.getElementById('form-pix-comprovante');
+            if (form) form.classList.remove('oculto');
+        }
+        if (typeof atualizarPixEmv === 'function') atualizarPixEmv(null, 'VAQUINHA');
+        if (typeof toastMsg === 'function') {
+            toastMsg('Digite qualquer valor e use o Pix Copia e Cola — obrigado pelo apoio!');
+        }
+    });
+}
+
 (async function init() {
     const session = await requireSession();
     if (!session) return;
@@ -204,10 +267,15 @@ document.getElementById('form-perfil').addEventListener('submit', async (e) => {
     }
     const btnTut = document.getElementById('btn-abrir-tutorial');
     if (btnTut) btnTut.addEventListener('click', () => irPara('tutorial.html'));
+    bindVaquinhaPix();
+    await aplicarFlagsPerfil();
     await carregarPixUsuario();
     await carregarComissoesPendentes();
-    if (location.hash === '#pix' || location.hash === '#comissoes') {
-        const el = document.getElementById(location.hash === '#comissoes' ? 'card-comissoes' : 'card-pix-user');
+    if (location.hash === '#pix' || location.hash === '#comissoes' || location.hash === '#vaquinha') {
+        let el = null;
+        if (location.hash === '#comissoes') el = document.getElementById('card-comissoes');
+        else if (location.hash === '#vaquinha') el = document.getElementById('card-vaquinha');
+        else el = document.getElementById('card-pix-user');
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
 })();
@@ -402,7 +470,10 @@ async function carregarComissoesPendentes() {
         const { data, error } = await q;
         if (error) throw error;
         if (!data || !data.length) {
-            box.innerHTML = '<p class="sub">Nenhuma comissão pendente.</p>';
+            const paused = (document.getElementById('card-comissoes') || {}).getAttribute('data-comissao-ativa') === '0';
+            box.innerHTML = paused
+                ? '<p class="sub">Nenhuma cobrança no momento (taxa pausada).</p>'
+                : '<p class="sub">Nenhuma comissão pendente.</p>';
             return;
         }
         const agora = Date.now();

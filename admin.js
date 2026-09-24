@@ -1549,6 +1549,12 @@ function setBankFlagMsg(texto, ok) {
     el.textContent = texto || '';
     el.className = 'msg' + (texto ? (ok ? ' ok' : ' erro') : '');
 }
+function setComissaoFlagMsg(texto, ok) {
+    const el = document.getElementById('comissao-flag-msg');
+    if (!el) return;
+    el.textContent = texto || '';
+    el.className = 'msg' + (texto ? (ok ? ' ok' : ' erro') : '');
+}
 
 function limparFormPromo() {
     const id = document.getElementById('promo-id');
@@ -1889,6 +1895,71 @@ function bindBankFlagAdmin() {
     });
 }
 
+
+async function carregarComissaoFlagAdmin() {
+    const chkC = document.getElementById('flag-comissao-ativa');
+    const chkV = document.getElementById('flag-vaquinha-ativa');
+    try {
+        const { data, error } = await supabaseClient.from('app_flags')
+            .select('key,value_bool,value_text')
+            .in('key', ['comissao_1pct_ativa', 'vaquinha_ativa']);
+        if (error) throw error;
+        const map = {};
+        (data || []).forEach(r => { map[r.key] = r; });
+        // default: comissão pausada (false), vaquinha on (true)
+        if (chkC) chkC.checked = map.comissao_1pct_ativa ? map.comissao_1pct_ativa.value_bool === true : false;
+        if (chkV) chkV.checked = map.vaquinha_ativa ? map.vaquinha_ativa.value_bool !== false : true;
+    } catch (e) {
+        setComissaoFlagMsg((e.message || String(e)) + ' — SQL 35/42?', false);
+    }
+}
+
+function bindComissaoFlagAdmin() {
+    const btn = document.getElementById('btn-salvar-comissao-flag');
+    if (!btn || btn._bound) return;
+    btn._bound = true;
+    btn.addEventListener('click', async () => {
+        const comissaoOn = !!(document.getElementById('flag-comissao-ativa') || {}).checked;
+        const vaquinhaOn = !!(document.getElementById('flag-vaquinha-ativa') || {}).checked;
+        const uid = (perfilAtual && perfilAtual.auth_id) || null;
+        const now = new Date().toISOString();
+        try {
+            const ups = [
+                {
+                    key: 'comissao_1pct_ativa',
+                    value_bool: comissaoOn,
+                    value_text: comissaoOn
+                        ? 'Cobrança 1% ativa'
+                        : 'Pausada no lançamento — religar no Admin',
+                    updated_by: uid,
+                    updated_at: now
+                },
+                {
+                    key: 'vaquinha_ativa',
+                    value_bool: vaquinhaOn,
+                    value_text: vaquinhaOn
+                        ? 'Pix voluntário de qualquer valor'
+                        : 'Vaquinha oculta',
+                    updated_by: uid,
+                    updated_at: now
+                }
+            ];
+            const { error } = await supabaseClient.from('app_flags').upsert(ups, { onConflict: 'key' });
+            if (error) throw error;
+            if (typeof carregarAppFlags === 'function') {
+                try { await carregarAppFlags(true); } catch (e) { /* ignore */ }
+            }
+            const parts = [];
+            parts.push(comissaoOn ? 'Comissão 1% ATIVA' : 'Comissão 1% PAUSADA');
+            parts.push(vaquinhaOn ? 'vaquinha ON' : 'vaquinha OFF');
+            setComissaoFlagMsg(parts.join(' · '), true);
+            carregarComissaoFlagAdmin();
+        } catch (e) {
+            setComissaoFlagMsg((e.message || String(e)) + ' (SQL 35/42?)', false);
+        }
+    });
+}
+
 async function carregarLotesOcultoAdmin() {
     const box = document.getElementById('admin-lotes-oculto');
     if (!box) return;
@@ -2035,6 +2106,7 @@ function bindGrokDrawer() {
     bindAlertasBtns();
     bindPromoForm();
     bindBankFlagAdmin();
+    bindComissaoFlagAdmin();
     bindShareFlagsAdmin();
     bindGrokDrawer();
     await Promise.all([
@@ -2052,6 +2124,7 @@ function bindGrokDrawer() {
         carregarAlertasAdmin(),
         carregarPromosAdmin(),
         carregarBankFlagAdmin(),
+        carregarComissaoFlagAdmin(),
         carregarShareFlagsAdmin(),
         carregarLotesOcultoAdmin()
     ]);
