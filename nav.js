@@ -729,13 +729,19 @@ function montarNav(paginaAtiva, perfil) {
             MineraNotif.start(uid, { isAdmin: !!adm });
         }
     } catch (e) { /* ignore */ }
+
+    // Pix de apoio: 1x por entrada no app (depois do lembrete de mensagens, se houver)
+    try {
+        if (!hideClientChrome && typeof MineraApoio !== 'undefined') MineraApoio.talvezMostrar(perfil);
+        else if (hideClientChrome && typeof MineraApoio !== 'undefined' && MineraApoio.pendente()) sessionStorage.removeItem('minera_apoio_mostrar');
+    } catch (e) { /* ignore */ }
 }
 
 
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260925a';
+    const src = root + 'logo-escavadeira.png?v=20260925b';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -824,6 +830,18 @@ function garantirHeaderNotifBtn() {
         btn.appendChild(badge);
     }
 }
+
+/* Entrada no app (novo lançamento / nova sessão do navegador): marca para o card
+ * "Pix de apoio" aparecer 1x. sessionStorage sobrevive a reload (inclusive o reload
+ * de atualização do pwa.js), a trocar de página e a voltar do background. */
+(function marcarEntradaApp() {
+    try {
+        if (sessionStorage.getItem('minera_sessao_app') !== '1') {
+            sessionStorage.setItem('minera_sessao_app', '1');
+            sessionStorage.setItem('minera_apoio_mostrar', '1');
+        }
+    } catch (e) { /* ignore */ }
+})();
 
 /** Poll de DMs não lidas + badge + toast + Browser Notification */
 const MineraNotif = (function () {
@@ -1016,6 +1034,7 @@ const MineraNotif = (function () {
 
     /* ---------- Lembrete ao abrir o app (mensagens recebidas enquanto estava fora) ---------- */
     let lastUnread = [];
+    let primeiroPollFeito = false;
     let lembretePendente = false;
     let notificarNoBootstrap = false;
     function kLembreteDismiss() { return 'minera_notif_lembrete_max_' + authId; }
@@ -1079,6 +1098,9 @@ const MineraNotif = (function () {
             if (r.bottom > 0) el.style.top = Math.round(r.bottom + 8) + 'px';
         }
         document.body.appendChild(el);
+        try { sessionStorage.setItem('minera_notif_lembrete_visto_sessao', '1'); } catch (e) { /* ignore */ }
+        const pc = document.getElementById('notif-perm-card');
+        if (pc) pc.remove();
         const guardar = () => { try { localStorage.setItem(kLembreteDismiss(), String(maxId)); } catch (e) { /* ignore */ } };
         el.querySelector('.nl-depois').addEventListener('click', () => { guardar(); fecharLembrete(); });
         el.querySelector('.nl-ver').addEventListener('click', () => { guardar(); });
@@ -1095,7 +1117,7 @@ const MineraNotif = (function () {
                 .is('deleted_at', null)
                 .order('id', { ascending: false })
                 .limit(100);
-            if (error) return;
+            if (error) { primeiroPollFeito = true; lembretePendente = false; return; }
 
             const unread = [];
             const byPeer = {};
@@ -1111,6 +1133,7 @@ const MineraNotif = (function () {
 
             // Contagem = mensagens não lidas (sino, aba Chat e lembrete usam o mesmo número)
             lastUnread = unread;
+            primeiroPollFeito = true;
             updateBadge(unread.length);
             if (lembretePendente) avaliarLembrete();
             else if (!unread.length) fecharLembrete();
@@ -1240,7 +1263,12 @@ const MineraNotif = (function () {
         });
     }
 
-    return { start, poll, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge, showBrowserNotif, avaliarLembrete };
+    /** Para coordenação (Pix de apoio): lembrete ainda pode aparecer / está na tela? */
+    function lembreteOcupado() {
+        if (document.getElementById('notif-lembrete')) return true;
+        return started && (!primeiroPollFeito || lembretePendente);
+    }
+    return { start, poll, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge, showBrowserNotif, avaliarLembrete, lembreteOcupado };
 })();
 window.MineraNotif = MineraNotif;
 
@@ -1272,6 +1300,12 @@ const MineraNotifPerm = (function () {
     }
     function adiado() { return Number(ls(K_ADIADO) || 0) > Date.now(); }
     function deveMostrarCard() {
+        // Prioridade: lembrete de mensagens > Pix de apoio > este card (espera outra sessão)
+        try {
+            if (sessionStorage.getItem('minera_apoio_mostrar') === '1' || sessionStorage.getItem('minera_apoio_visto_sessao') === '1') return false;
+            if (sessionStorage.getItem('minera_notif_lembrete_visto_sessao') === '1') return false;
+        } catch (e) { /* ignore */ }
+        if (document.getElementById('notif-lembrete')) return false;
         const st = sincronizar();
         if (st !== 'default') return false;
         if (ls(K_DEC) === 'granted' || ls(K_DEC) === 'denied') return false;
@@ -1454,6 +1488,112 @@ const MineraSom = (function () {
     return { pim, tick, ativo, setAtivo, montarToggle, unlock, _ctx: () => ctx };
 })();
 window.MineraSom = MineraSom;
+
+/**
+ * Card "Pix de apoio" (vaquinha voluntária) — 1x por ENTRADA no app (login ou novo lançamento).
+ * Mesma fonte do Perfil: flag vaquinha_ativa (isVaquinhaAtiva) + chave ativa de pix_admin.
+ * Nunca: admin, vaquinha desligada, chave vazia, chat.html/tutorial (adia p/ próxima página),
+ * junto com o lembrete de mensagens (espera ele sair).
+ */
+const MineraApoio = (function () {
+    const K_MOSTRAR = 'minera_apoio_mostrar';
+    const K_VISTO = 'minera_apoio_visto_sessao';
+    let rodando = false;
+    function ss(k, v) {
+        try {
+            if (v === undefined) return sessionStorage.getItem(k);
+            if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v);
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+    function pendente() { return ss(K_MOSTRAR) === '1'; }
+    function concluir() { ss(K_MOSTRAR, null); ss(K_VISTO, '1'); }
+    function paginaAdiavel() {
+        const p = (location.pathname || '').toLowerCase();
+        return /\/(chat|tutorial|index|admin)\.html$/.test(p);
+    }
+    function escA(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    async function copiar(txt) {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(txt); return true; }
+        } catch (e) { /* fallback */ }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = txt; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            const ok = document.execCommand('copy'); ta.remove(); return ok;
+        } catch (e) { return false; }
+    }
+    function fechar() {
+        const el = document.getElementById('apoio-pix-modal');
+        if (el) el.remove();
+        document.removeEventListener('keydown', onKey, true);
+    }
+    function onKey(e) { if (e.key === 'Escape') fechar(); }
+    function mostrar(pix) {
+        if (document.getElementById('apoio-pix-modal')) return;
+        const chave = String(pix.chave_pix || '').trim();
+        const el = document.createElement('div');
+        el.id = 'apoio-pix-modal';
+        el.className = 'apoio-pix-modal';
+        el.innerHTML = '<div class="apm-backdrop" data-apm-close="1"></div>' +
+            '<div class="apm-card" role="dialog" aria-modal="true" aria-labelledby="apm-titulo">' +
+            '<button type="button" class="apm-x" data-apm-close="1" aria-label="Fechar">&times;</button>' +
+            '<div class="apm-ico" aria-hidden="true">💛</div>' +
+            '<h2 id="apm-titulo">Apoie o Minera Pará</h2>' +
+            '<p class="apm-txt">Faça um Pix de qualquer valor para ajudar a desenvolver o produto cada vez melhor — mais segurança nas suas compras e vendas. É só uma iniciativa voluntária; sem obrigação.</p>' +
+            '<div class="apm-chave"><span>Chave Pix' + (pix.tipo_chave ? ' (' + escA(pix.tipo_chave) + ')' : '') + '</span><strong>' + escA(chave) + '</strong>' +
+            (pix.titular ? '<small>' + escA(pix.titular) + '</small>' : '') + '</div>' +
+            '<button type="button" class="apm-copiar">📋 Copiar chave Pix</button>' +
+            '<button type="button" class="apm-depois" data-apm-close="1">Agora não</button>' +
+            '</div>';
+        document.body.appendChild(el);
+        concluir();
+        el.addEventListener('click', (e) => {
+            if (e.target.closest && e.target.closest('[data-apm-close]')) fechar();
+        });
+        el.querySelector('.apm-copiar').addEventListener('click', async () => {
+            const ok = await copiar(chave);
+            if (typeof toastMsg === 'function') toastMsg(ok ? 'Chave Pix copiada' : 'Não deu para copiar — segure a chave para copiar');
+            if (ok) setTimeout(fechar, 600);
+        });
+        document.addEventListener('keydown', onKey, true);
+        setTimeout(() => { const x = el.querySelector('.apm-copiar'); try { x.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }, 50);
+    }
+    async function talvezMostrar(perfil) {
+        if (rodando || !pendente() || !perfil) return;
+        // Admin (usuário admin ou modo monitoramento): nunca
+        if ((typeof ehAdmin === 'function' && ehAdmin(perfil)) || document.body.classList.contains('modo-ui-admin') || document.body.classList.contains('pagina-admin')) { concluir(); return; }
+        if (paginaAdiavel()) return; // fica pendente para a próxima página da sessão
+        rodando = true;
+        try {
+            if (typeof isVaquinhaAtiva === 'function' && !(await isVaquinhaAtiva())) { concluir(); return; }
+            const { data, error } = await supabaseClient.from('pix_admin').select('*').eq('ativo', true)
+                .order('atualizado_em', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).limit(1);
+            const pix = !error && data && data[0];
+            if (!pix || !String(pix.chave_pix || '').trim()) { concluir(); return; }
+            // Espera o lembrete de mensagens (prioridade) sair; "Ver mensagens" navega → próxima página
+            for (let i = 0; i < 240; i++) {
+                const ocupado = window.MineraNotif && MineraNotif.lembreteOcupado && MineraNotif.lembreteOcupado();
+                if (!ocupado) break;
+                await new Promise(r => setTimeout(r, 500));
+            }
+            if (!pendente()) return;
+            if (document.getElementById('notif-lembrete')) return;
+            const pc = document.getElementById('notif-perm-card');
+            if (pc) pc.remove();
+            mostrar(pix);
+        } catch (e) {
+            console.warn('apoio pix', e);
+        } finally {
+            rodando = false;
+        }
+    }
+    return { talvezMostrar, pendente, fechar };
+})();
+window.MineraApoio = MineraApoio;
 
 
 

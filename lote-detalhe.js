@@ -62,7 +62,7 @@
             ? '<div class="lote-detalhe-gallery" data-lightbox-gallery="lote" style="display:flex;gap:8px;overflow-x:auto;margin-bottom:14px">' +
               fotos.map(function (u, i) {
                   // Toque na foto → MineraLightbox (lightbox.js) em tela cheia, começando nesta foto
-                  return '<img src="' + esc(u) + '" alt="Foto ' + (i + 1) + '" data-lightbox="lote" tabindex="0" role="button" aria-label="Ampliar foto ' + (i + 1) + (fotos.length > 1 ? ' de ' + fotos.length : '') + '" style="cursor:zoom-in;"width:100%;min-width:' + (fotos.length > 1 ? '85%' : '100%') + ';border-radius:14px;aspect-ratio:16/9;object-fit:cover">';
+                  return '<img src="' + esc(u) + '" alt="Foto ' + (i + 1) + '" data-lightbox="lote" tabindex="0" role="button" aria-label="Ampliar foto ' + (i + 1) + (fotos.length > 1 ? ' de ' + fotos.length : '') + '" style="cursor:zoom-in;width:100%;min-width:' + (fotos.length > 1 ? '85%' : '100%') + ';border-radius:14px;aspect-ratio:16/9;object-fit:cover">';
               }).join('') + '</div>'
             : '';
         const video = data.video_url

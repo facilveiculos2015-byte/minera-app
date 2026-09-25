@@ -5959,3 +5959,41 @@ html[data-theme="light"] .notif-perm-row { background: #f8fafc; }
 .notif-perm-row .npr-help { flex-basis: 100%; margin: 0; font-size: 0.8rem; }
 .notif-perm-row .npr-btn.som-off { background: #334155; color: #cbd5e1; }
 .notif-perm-row + .notif-perm-row { margin-top: 0; }
+
+/* ---- Card "Pix de apoio" (vaquinha voluntária) na entrada do app ---- */
+.apoio-pix-modal { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: flex-end; justify-content: center; }
+.apoio-pix-modal .apm-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.62); animation: apm-fade 0.2s ease-out; }
+.apoio-pix-modal .apm-card {
+  position: relative; width: 100%; max-width: 480px; margin: 0 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 22px 18px 16px; border-radius: 20px; background: #111827; color: #f1f5f9;
+  border: 1px solid rgba(245, 166, 35, 0.5); box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+  text-align: center; animation: apm-up 0.25s ease-out; max-height: calc(100dvh - 24px); overflow-y: auto;
+}
+@media (min-width: 700px) { .apoio-pix-modal { align-items: center; } .apoio-pix-modal .apm-card { margin-bottom: 0; } }
+@keyframes apm-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes apm-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.apoio-pix-modal .apm-x {
+  position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; min-width: 44px; padding: 0; margin: 0;
+  border-radius: 50%; border: 0; background: transparent; color: #cbd5e1; font-size: 1.8rem; line-height: 1; cursor: pointer;
+}
+.apoio-pix-modal .apm-ico { font-size: 2rem; margin-bottom: 4px; }
+.apoio-pix-modal h2 { margin: 0 0 8px; font-size: 1.2rem; border: 0; padding: 0; color: #F5A623; }
+.apoio-pix-modal .apm-txt { margin: 0 0 12px; font-size: 0.92rem; line-height: 1.4; color: #cbd5e1; }
+.apoio-pix-modal .apm-chave {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; margin-bottom: 12px; border-radius: 12px;
+  background: rgba(245, 166, 35, 0.1); border: 1px dashed rgba(245, 166, 35, 0.55);
+}
+.apoio-pix-modal .apm-chave span { font-size: 0.75rem; opacity: 0.8; }
+.apoio-pix-modal .apm-chave strong { font-size: 1rem; overflow-wrap: anywhere; user-select: all; }
+.apoio-pix-modal .apm-chave small { font-size: 0.75rem; opacity: 0.75; }
+.apoio-pix-modal .apm-copiar {
+  width: 100%; min-height: 48px; margin: 0 0 8px; border: 0; border-radius: 14px;
+  background: #F5A623; color: #0f172a; font-weight: 800; font-size: 1rem; cursor: pointer;
+}
+.apoio-pix-modal .apm-depois {
+  width: 100%; min-height: 44px; margin: 0; border-radius: 14px; background: transparent;
+  border: 1px solid #475569; color: #e2e8f0; font-weight: 700; cursor: pointer;
+}
+html[data-theme="light"] .apoio-pix-modal .apm-card { background: #fff; color: #0f172a; }
+html[data-theme="light"] .apoio-pix-modal .apm-txt { color: #475569; }
+html[data-theme="light"] .apoio-pix-modal .apm-depois { color: #334155; border-color: #cbd5e1; }
