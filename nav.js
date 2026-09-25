@@ -741,7 +741,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260925c';
+    const src = root + 'logo-escavadeira.png?v=20260925d';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1499,6 +1499,21 @@ const MineraApoio = (function () {
     const K_MOSTRAR = 'minera_apoio_mostrar';
     const K_VISTO = 'minera_apoio_visto_sessao';
     let rodando = false;
+    // Última interação do usuário (toque/rolagem/tecla). O card só abre com a tela
+    // "parada" há 1,5 s — antes ele surgia ~1 s após o login exatamente onde o
+    // usuário estava tocando (ex.: foto do 1º anúncio) e "comia" o toque.
+    let ultimaInteracao = Date.now();
+    ['pointerdown', 'touchstart', 'scroll', 'wheel', 'keydown'].forEach(function (ev) {
+        window.addEventListener(ev, function () { ultimaInteracao = Date.now(); }, { passive: true, capture: true });
+    });
+    async function esperarOcioso(msOcioso, maxMs) {
+        const ini = Date.now();
+        while (Date.now() - ultimaInteracao < msOcioso) {
+            if (Date.now() - ini > maxMs) return false;
+            await new Promise(r => setTimeout(r, 250));
+        }
+        return true;
+    }
     function ss(k, v) {
         try {
             if (v === undefined) return sessionStorage.getItem(k);
@@ -1549,7 +1564,10 @@ const MineraApoio = (function () {
             '<button type="button" class="apm-copiar">📋 Copiar chave Pix</button>' +
             '<button type="button" class="apm-depois" data-apm-close="1">Agora não</button>' +
             '</div>';
+        // Primeiros 450 ms: não recebe toques (um toque já em andamento não cai no card)
+        el.classList.add('apm-armando');
         document.body.appendChild(el);
+        setTimeout(() => el.classList.remove('apm-armando'), 450);
         concluir();
         el.addEventListener('click', (e) => {
             if (e.target.closest && e.target.closest('[data-apm-close]')) fechar();
@@ -1580,6 +1598,9 @@ const MineraApoio = (function () {
                 if (!ocupado) break;
                 await new Promise(r => setTimeout(r, 500));
             }
+            if (!pendente()) return;
+            // Usuário mexendo na tela há 20 s sem parar: tenta na próxima página
+            if (!(await esperarOcioso(1500, 20000))) return;
             if (!pendente()) return;
             if (document.getElementById('notif-lembrete')) return;
             const pc = document.getElementById('notif-perm-card');

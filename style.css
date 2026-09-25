@@ -5964,6 +5964,7 @@ html[data-theme="light"] .notif-perm-row { background: #f8fafc; }
 
 /* ---- Card "Pix de apoio" (vaquinha voluntária) na entrada do app ---- */
 .apoio-pix-modal { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: flex-end; justify-content: center; }
+.apoio-pix-modal.apm-armando, .apoio-pix-modal.apm-armando * { pointer-events: none !important; }
 .apoio-pix-modal .apm-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.62); animation: apm-fade 0.2s ease-out; }
 .apoio-pix-modal .apm-card {
   position: relative; width: 100%; max-width: 480px; margin: 0 10px calc(12px + env(safe-area-inset-bottom, 0px));
