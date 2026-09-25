@@ -9,7 +9,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const CACHE = '20260923l';
+// Build atual lido do pwa.js (ASSET_V) — não hardcode (evita falso FAIL a cada bump)
+const CACHE = (fs.readFileSync(path.join(ROOT, 'pwa.js'), 'utf8').match(/ASSET_V\s*=\s*'([0-9a-z]+)'/) || [])[1] || 'unknown';
 let fails = 0;
 let warns = 0;
 
