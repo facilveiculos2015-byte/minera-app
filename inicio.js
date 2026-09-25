@@ -724,47 +724,23 @@ function statusOlx(status) {
 function renderFeed(lista) {
     const box = document.getElementById('feed');
     if (!box) return;
+    if (!Array.isArray(lista)) { aplicarFiltros(); return; }
     box.classList.remove('loading');
     box.classList.add('olx-feed');
     if (!lista.length) {
+        box.classList.remove('feed-lote-cards');
         box.innerHTML = '<div class="olx-empty"><p><strong>Nenhum anúncio por aqui</strong></p><p class="sub">Seja o primeiro a publicar na região.</p><a class="btn-ok" href="' + APP_ROOT + 'lotes.html">Anunciar</a></div>';
         return;
     }
-    box.innerHTML = lista.map(lote => {
-        const codigo = lote.codigo_lote || '';
-        const preco = formatPreco(lote.preco) || 'Sob consulta';
-        const cidade = localLabel(lote);
-        const st = statusOlx(lote.status);
-        const title = (lote.tipo_minerio || 'Minério') + (codigo ? ' · ' + codigo : '');
-        const detHref = APP_ROOT + 'lote-detalhe.html?codigo=' + encodeURIComponent(codigo);
-        const favOn = isFav(codigo);
-        let photo;
-        if (lote.imagem_url) {
-            photo = '<img src="' + esc(lote.imagem_url) + '" alt="" loading="lazy" onerror="this.remove()">';
-        } else {
-            photo = '<div class="ph">' + imgPlaceholder(lote.tipo_minerio) + '</div>';
-        }
-        return '<a class="olx-card" href="' + detHref + '" data-codigo="' + esc(codigo) + '">' +
-            '<div class="olx-card-photo">' + photo +
-            '<button type="button" class="olx-heart' + (favOn ? ' on' : '') + '" data-fav="' + esc(codigo) + '" aria-label="Favorito">' + (favOn ? '♥' : '♡') + '</button>' +
-            '</div><div class="olx-card-body">' +
-            '<div class="olx-card-title">' + esc(title) + '</div>' +
-            '<div class="olx-card-price">' + esc(preco) + '</div>' +
-            '<div class="olx-card-loc">' + esc(cidade) + '</div>' +
-            '<span class="' + st.cls + '">' + esc(st.label) + '</span>' +
-            '</div></a>';
-    }).join('');
-    box.querySelectorAll('.olx-heart').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleFav(btn.getAttribute('data-fav'), btn);
-        });
-    });
+    // Mesmo card da aba Lotes (anuncio-card.js): tipo, papel, status, código, local/peso,
+    // anunciante, preço/teor, Ver anúncio + Negociar. Foto/título → lote-detalhe.
+    box.classList.add('feed-lote-cards');
+    box.innerHTML = MineraAnuncioCard.lista(lista, { meus: false, root: APP_ROOT });
 }
 
 function aplicarFiltros() {
-    let lista = feedCache.slice();
+    // Marketplace: só disponíveis (mesmo filtro da aba Lotes → loteDisponivelMkt)
+    let lista = feedCache.filter(MineraAnuncioCard.disponivelMkt);
     // Localidade (AND com mineral/status)
     if (filtroLocMode === 'estado' && filtroEstado) {
         const uf = filtroEstado.toUpperCase();
@@ -1035,6 +1011,13 @@ async function initLocalidadeUI() {
     bindChipGroup('filtro-tipo-chips', 'data-tipo', v => { filtroTipo = v; });
     bindChipGroup('filtro-status-chips', 'data-status', v => { filtroStatus = v; });
     bindChipGroup('filtro-servico-chips', 'data-servico', v => { filtroServico = v; });
+    // Card "Ativar avisos de mensagem" — só pede permissão ao tocar (nunca no load)
+    try {
+        if (window.MineraNotifPerm) {
+            const quick = document.querySelector('.olx-quick');
+            if (quick && quick.parentNode) MineraNotifPerm.montarCard(quick.parentNode, quick.nextSibling);
+        }
+    } catch (e) { console.warn('notif perm card', e); }
     // Notificações: MineraNotif (nav.js) liga o sino / badge de DMs
     atualizarCotacoes();
     cotacaoTimer = setInterval(atualizarCotacoes, 60000);

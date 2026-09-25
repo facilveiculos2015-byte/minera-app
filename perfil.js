@@ -561,3 +561,187 @@ document.addEventListener('click', (e) => {
         }
     }
 })();
+
+/* ---------------- Meus anúncios (editar / vendido / excluir) ----------------
+ * Reusa anuncios-acoes.js (mesma lógica de lotes.js). Oculto no modo admin (como Fale conosco).
+ * Comissão pausada: nenhuma UI de taxa aqui. */
+let meusAnuncios = [];
+let meusAnunciosSession = null;
+
+function maModoAdmin() {
+    const b = document.body;
+    return !!(b && (b.classList.contains('modo-ui-admin') || b.classList.contains('pagina-admin')))
+        || (typeof emModoAdminUi === 'function' && emModoAdminUi(perfilAtual));
+}
+
+function maFotoPrincipal(l) {
+    let fotos = [];
+    if (Array.isArray(l.fotos)) fotos = l.fotos.filter(Boolean);
+    else if (typeof l.fotos === 'string' && l.fotos.trim()) {
+        try { fotos = JSON.parse(l.fotos) || []; } catch (e) { fotos = l.fotos.split(/\s+/).filter(Boolean); }
+    }
+    return l.imagem_url || fotos[0] || '';
+}
+
+function maTitulo(l) {
+    const tipo = l.tipo_minerio || 'Minério';
+    if (String(tipo).trim() === 'Maquinário') {
+        const eq = String(l.origem || '').split(' — ')[0].trim();
+        return eq ? ('Maquinário · ' + eq) : 'Maquinário';
+    }
+    return tipo;
+}
+
+function maPreco(l) {
+    if (l.teor != null && l.teor !== '') {
+        return 'Teor: ' + String(l.teor) + (String(l.tipo_minerio || '').toLowerCase() === 'cobre' && l.cobre_tipo
+            ? ' (' + (l.cobre_tipo === 'soluvel' ? 'solúvel' : 'total') + ')' : '');
+    }
+    return (typeof formatPreco === 'function' ? formatPreco(l.preco) : null) || 'Sob consulta';
+}
+
+function maItemHtml(l) {
+    const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
+    const foto = maFotoPrincipal(l);
+    const vendido = String(l.status || '').toLowerCase() === 'expedido';
+    const ico = String(l.tipo_minerio || '').trim() === 'Maquinário' ? '🧰' : '⛏️';
+    const det = root + 'lote-detalhe.html?codigo=' + encodeURIComponent(l.codigo_lote || '');
+    const thumb = foto
+        ? '<img src="' + esc(foto) + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<span>' + ico + '</span>\'">'
+        : '<span>' + ico + '</span>';
+    return '<article class="ma-item" data-id="' + esc(l.id) + '">' +
+        '<a class="ma-thumb" href="' + det + '" aria-label="Ver anúncio ' + esc(l.codigo_lote || '') + '">' + thumb + '</a>' +
+        '<div class="ma-info">' +
+        '<a class="ma-titulo" href="' + det + '">' + esc(maTitulo(l)) + '</a>' +
+        '<p class="ma-codigo">' + esc(l.codigo_lote || '—') + '</p>' +
+        '<p class="ma-preco">' + esc(maPreco(l)) + '</p>' +
+        '<span class="ma-status ' + esc(statusBadgeClass(l.status)) + '">' + esc(statusAmigavel(l.status)) + '</span>' +
+        '</div>' +
+        '<div class="ma-acoes">' +
+        '<a class="ma-btn ma-btn-editar" href="' + root + 'lotes.html?editar=' + encodeURIComponent(l.id) + '&de=perfil">✏️ Editar</a>' +
+        (vendido ? '' : '<button type="button" class="ma-btn ma-btn-vendido" data-ma-act="vendido" data-id="' + esc(l.id) + '">✅ Marcar como vendido</button>') +
+        '<button type="button" class="ma-btn ma-btn-excluir" data-ma-act="del" data-id="' + esc(l.id) + '">🗑️ Excluir</button>' +
+        '</div>' +
+        '</article>';
+}
+
+function renderMeusAnuncios() {
+    const box = document.getElementById('meus-anuncios-lista');
+    if (!box) return;
+    box.classList.remove('loading');
+    if (!meusAnuncios.length) {
+        const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
+        box.innerHTML = '<div class="ma-empty"><p><strong>Você ainda não tem anúncios</strong></p>' +
+            '<a class="btn-ok ma-empty-btn" href="' + root + 'lotes.html?novo=1">+ Criar anúncio</a></div>';
+        return;
+    }
+    box.innerHTML = '<div class="ma-lista">' + meusAnuncios.map(maItemHtml).join('') + '</div>';
+}
+
+async function carregarMeusAnuncios() {
+    const card = document.getElementById('card-meus-anuncios');
+    if (!card || !perfilAtual) return;
+    if (maModoAdmin() || typeof AnunciosAcoes === 'undefined') {
+        card.classList.add('oculto');
+        return;
+    }
+    card.classList.remove('oculto');
+    const novo = document.getElementById('ma-btn-novo');
+    if (novo && typeof APP_ROOT === 'string') novo.href = APP_ROOT + 'lotes.html?novo=1';
+    const box = document.getElementById('meus-anuncios-lista');
+    try {
+        if (!meusAnunciosSession) {
+            const { data } = await supabaseClient.auth.getSession();
+            meusAnunciosSession = data && data.session;
+        }
+        // Mesmo tratamento de bloqueio/inadimplência de lotes.js
+        if (typeof verificarInadimplencia === 'function') await verificarInadimplencia(perfilAtual);
+        const r = await AnunciosAcoes.carregarMeus(meusAnunciosSession, perfilAtual);
+        meusAnuncios = r.meus;
+        renderMeusAnuncios();
+    } catch (e) {
+        console.warn('meus anúncios', e);
+        if (box) {
+            box.classList.remove('loading');
+            box.innerHTML = '<p class="erro">Não foi possível carregar seus anúncios. Tente de novo.</p>';
+        }
+    }
+}
+
+document.addEventListener('click', async (e) => {
+    const btn = e.target.closest && e.target.closest('[data-ma-act]');
+    if (!btn || btn.disabled) return;
+    const id = parseInt(btn.getAttribute('data-id'), 10);
+    const lote = meusAnuncios.find(l => l.id === id);
+    if (!lote) return;
+    const act = btn.getAttribute('data-ma-act');
+    btn.disabled = true;
+    try {
+        if (act === 'vendido') {
+            const ok = await AnunciosAcoes.marcarVendido(id, lote, meusAnunciosSession, perfilAtual);
+            if (ok) {
+                lote.status = 'expedido';
+                const item = btn.closest('.ma-item');
+                const chip = item && item.querySelector('.ma-status');
+                if (chip) {
+                    chip.className = 'ma-status ' + statusBadgeClass('expedido');
+                    chip.textContent = statusAmigavel('expedido');
+                }
+                btn.remove();
+                return;
+            }
+        } else if (act === 'del') {
+            const ok = await AnunciosAcoes.excluir(id, perfilAtual);
+            if (ok) {
+                meusAnuncios = meusAnuncios.filter(l => l.id !== id);
+                const item = btn.closest('.ma-item');
+                if (item) item.remove();
+                if (!meusAnuncios.length) renderMeusAnuncios();
+                return;
+            }
+        }
+    } catch (err) {
+        console.warn(err);
+        toastMsg('Não foi possível concluir a ação. Tente de novo.');
+    }
+    btn.disabled = false;
+});
+
+(async function meusAnunciosInit() {
+    for (let i = 0; i < 100 && !perfilAtual; i++) await new Promise(r => setTimeout(r, 50));
+    if (!perfilAtual) return;
+    await carregarMeusAnuncios();
+    if (location.hash === '#meus-anuncios') {
+        const el = document.getElementById('card-meus-anuncios');
+        if (el && !el.classList.contains('oculto')) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+})();
+
+
+/* ⚙️ Configurações (Editar perfil + Preferências): recolhido sempre que o Perfil abre. */
+(function bindConfigToggle() {
+    const btn = document.getElementById('btn-config-toggle');
+    const panel = document.getElementById('perfil-config-panel');
+    const card = document.getElementById('card-config');
+    if (!btn || !panel || btn._bound) return;
+    btn._bound = true;
+    function setOpen(open) {
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        panel.hidden = !open;
+        if (card) card.classList.toggle('open', open);
+    }
+    setOpen(false);
+    btn.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') !== 'true';
+        setOpen(open);
+        if (open && card && card.scrollIntoView) {
+            // mantém o cabeçalho do painel visível sem pular para o fim da página
+            const r = card.getBoundingClientRect();
+            if (r.top < 60 || r.top > window.innerHeight * 0.6) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+    window.abrirConfiguracoesPerfil = function () { setOpen(true); };
+    // Toggle "Avisos de mensagem" (permissão só no toque)
+    if (window.MineraNotifPerm) MineraNotifPerm.montarToggle(document.getElementById('notif-perm-toggle'));
+    if (window.MineraSom) MineraSom.montarToggle(document.getElementById('notif-som-toggle'));
+})();

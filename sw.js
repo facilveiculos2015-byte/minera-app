@@ -5,12 +5,13 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20260924b';
+const CACHE = 'minera-shell-20260925a';
 const PRECACHE = [
-  './style.css?v=20260924b',
-  './nav.js?v=20260924b',
-  './config.js?v=20260924b',
-  './pwa.js?v=20260924b',
+  './style.css?v=20260925a',
+  './nav.js?v=20260925a',
+  './config.js?v=20260925a',
+  './pwa.js?v=20260925a',
+  './lightbox.js?v=20260925a',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -114,4 +115,48 @@ self.addEventListener('message', (event) => {
   if (event && event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+/* ---------- Notificações ----------
+ * Toque na notificação (DM): foca uma aba aberta do app e navega para a conversa,
+ * ou abre uma nova janela. data.url vem de MineraNotif.showBrowserNotif (nav.js).
+ */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const scope = self.registration.scope; // ex.: https://…/minera-app/
+  let target = scope + 'chat.html';
+  try {
+    const u = event.notification.data && event.notification.data.url;
+    if (u) {
+      const abs = new URL(u, scope);
+      if (abs.origin === self.location.origin) target = abs.href;
+    }
+  } catch (e) { /* usa chat.html */ }
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const same = list.filter((c) => c.url && c.url.indexOf(scope) === 0);
+      const cli = same.find((c) => c.focused) || same[0];
+      if (cli) {
+        const nav = ('navigate' in cli) ? cli.navigate(target).catch(() => cli) : Promise.resolve(cli);
+        return nav.then((c) => (c || cli).focus());
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});
+
+/* Web Push (app FECHADO) — ainda não ativo: exige chaves VAPID, salvar a PushSubscription
+ * de cada usuário no Supabase e um envio no servidor (Edge Function / trigger em
+ * chat_mensagens). Quando existir, o payload JSON { title, body, url, tag } chega aqui. */
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : '' }; }
+  if (!d || (!d.title && !d.body)) return;
+  event.waitUntil(self.registration.showNotification(d.title || 'Minera Pará', {
+    body: d.body || '',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: d.tag || 'minera',
+    data: { url: d.url || './chat.html' }
+  }));
 });

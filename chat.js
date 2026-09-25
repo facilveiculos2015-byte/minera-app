@@ -188,7 +188,12 @@ function getLeituraLocal(comAuthId) {
 
 async function marcarLido(comAuthId, ultimaId) {
     if (!comAuthId || !ultimaId) return;
+    const antes = getLeituraLocal(comAuthId);
     salvarLeituraLocal(comAuthId, ultimaId);
+    // Limpa sino / aba Chat / lembrete na hora (sem esperar o próximo poll)
+    if (Number(ultimaId) > antes && window.MineraNotif && MineraNotif.poll) {
+        try { MineraNotif.poll(); } catch (e) { /* ignore */ }
+    }
     try {
         await supabaseClient.from('chat_leituras').upsert([{
             auth_id: meuAuthId,
@@ -1769,6 +1774,14 @@ document.getElementById('btn-chat-back').addEventListener('click', () => {
     document.addEventListener('click', (e) => {
         const img = e.target && e.target.closest && e.target.closest('.bubble-media img');
         if (!img || img.closest('.bubble-media-loading')) return;
+        if (window.MineraLightbox) {
+            // Lightbox único (lightbox.js): todas as fotos da conversa, começando pela tocada
+            const imgs = Array.from(document.querySelectorAll('.bubble-media img'))
+                .filter((x) => !x.closest('.bubble-media-loading') && x.getAttribute('src'));
+            const urls = imgs.map((x) => x.getAttribute('src'));
+            window.MineraLightbox.open(urls, Math.max(0, imgs.indexOf(img)));
+            return;
+        }
         let lb = document.getElementById('chat-lightbox');
         if (!lb) {
             lb = document.createElement('div');

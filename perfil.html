@@ -2,16 +2,16 @@
 <html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Perfil</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260924b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260924b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260925a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260925a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260924b">
+    <link rel="stylesheet" href="style.css?v=20260925a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -36,6 +36,67 @@
             </div>
         </section>
 
+        <!-- Meus anúncios: editar / marcar vendido / excluir (usuário comum; oculto no modo admin) -->
+        <section class="card card-meus-anuncios oculto" id="card-meus-anuncios" aria-labelledby="meus-anuncios-titulo">
+            <div class="ma-head">
+                <h2 id="meus-anuncios-titulo">Meus anúncios</h2>
+                <a class="btn-ok ma-novo" id="ma-btn-novo" href="lotes.html?novo=1">+ Anunciar</a>
+            </div>
+            <p class="sub">Minério, serviços e maquinário que você publicou.</p>
+            <div id="meus-anuncios-lista" class="loading" aria-live="polite">Carregando...</div>
+        </section>
+
+        <!-- ⚙️ Configurações: Editar perfil + Preferências (recolhido ao abrir o Perfil) -->
+        <section class="card perfil-config" id="card-config">
+            <button type="button" class="perfil-config-toggle" id="btn-config-toggle" aria-expanded="false" aria-controls="perfil-config-panel">
+                <span class="pct-lbl"><span aria-hidden="true">⚙️</span> Configurações</span>
+                <span class="pct-sub">Editar perfil · Tema · Avisos · Som</span>
+                <span class="pct-chev" aria-hidden="true">▾</span>
+            </button>
+            <div class="perfil-config-panel" id="perfil-config-panel" role="region" aria-labelledby="btn-config-toggle" hidden>
+            <!-- 3. Meu perfil (form) -->
+            <section class="perfil-config-sec" id="card-meu-perfil">
+                <h2>Editar perfil</h2>
+                <p class="sub">Atualize nome e papéis. Vários papéis liberam chips diferentes na navegação.</p>
+                <form id="form-perfil">
+                    <label for="perfil-nome">Nome</label>
+                    <input type="text" id="perfil-nome" required placeholder="Seu nome">
+                    <label for="perfil-apelido">Apelido público</label>
+                    <input type="text" id="perfil-apelido" maxlength="60" placeholder="Como você aparece no chat">
+                    <label for="perfil-email">E-mail (só você vê)</label>
+                    <input type="email" id="perfil-email" disabled>
+                    <fieldset class="papeis-fieldset">
+                        <legend>Papéis</legend>
+                        <label class="check-row"><input type="checkbox" id="perfil-papel-minerador" value="minerador"> Minerador</label>
+                        <label class="check-row"><input type="checkbox" id="perfil-papel-comprador" value="comprador"> Comprador</label>
+                        <label class="check-row"><input type="checkbox" id="perfil-papel-transportador_mina_britador" value="transportador_mina_britador"> Transportador (Mina - Britador)</label>
+                        <label class="check-row"><input type="checkbox" id="perfil-papel-transportador_britador_porto" value="transportador_britador_porto"> Transportador (Britador - Porto)</label>
+                        <label class="check-row"><input type="checkbox" id="perfil-papel-dono_britador" value="dono_britador"> Dono de Britador</label>
+                        <label class="check-row"><input type="checkbox" id="perfil-papel-carregamento" value="carregamento"> Operador de Carregamento</label>
+                        <label class="check-row oculto" id="row-admin"><input type="checkbox" id="perfil-papel-admin" value="admin"> Admin</label>
+                    </fieldset>
+                    <button type="submit">Salvar perfil</button>
+                </form>
+                <p id="perfil-msg" class="msg"></p>
+            </section>
+
+            <!-- 4. Preferências -->
+            <section class="perfil-config-sec" id="card-prefs">
+                <h2>Preferências</h2>
+                            <div class="prefs-tema-row" role="group" aria-label="Tema">
+                    <button type="button" class="tema-opt" data-tema="light" id="btn-tema-claro" aria-pressed="false"><span class="tema-ico" aria-hidden="true">☀️</span><span class="tema-lbl">Claro</span></button>
+                    <button type="button" class="tema-opt" data-tema="dark" id="btn-tema-escuro" aria-pressed="false"><span class="tema-ico" aria-hidden="true">🌙</span><span class="tema-lbl">Escuro</span></button>
+                </div>
+                <div id="notif-perm-toggle"></div>
+                <div id="notif-som-toggle"></div>
+                <div class="prefs-row">
+                    <button type="button" class="btn-sm" id="btn-abrir-tutorial">📖 Tutorial</button>
+                </div>
+                <p class="sub">Tema, avisos de mensagem e guia rápido do Minera Pará.</p>
+            </section>
+            </div>
+        </section>
+
         <!-- 2. Compartilhar convite (vídeo) (always visible) -->
         <section class="card card-compartilhar" id="card-compartilhar" data-codigo="" data-link="" data-nome="">
             <h2>Convidar amigos</h2>
@@ -48,44 +109,9 @@
             <button type="button" class="btn-sm btn-link" id="btn-copiar-link-perfil">Copiar link</button>
         </section>
 
-        <!-- 3. Meu perfil (form) -->
-        <section class="card" id="card-meu-perfil">
-            <h2>Meu perfil</h2>
-            <p class="sub">Atualize nome e papéis. Vários papéis liberam chips diferentes na navegação.</p>
-            <form id="form-perfil">
-                <label for="perfil-nome">Nome</label>
-                <input type="text" id="perfil-nome" required placeholder="Seu nome">
-                <label for="perfil-apelido">Apelido público</label>
-                <input type="text" id="perfil-apelido" maxlength="60" placeholder="Como você aparece no chat">
-                <label for="perfil-email">E-mail (só você vê)</label>
-                <input type="email" id="perfil-email" disabled>
-                <fieldset class="papeis-fieldset">
-                    <legend>Papéis</legend>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-minerador" value="minerador"> Minerador</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-comprador" value="comprador"> Comprador</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-transportador_mina_britador" value="transportador_mina_britador"> Transportador (Mina - Britador)</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-transportador_britador_porto" value="transportador_britador_porto"> Transportador (Britador - Porto)</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-dono_britador" value="dono_britador"> Dono de Britador</label>
-                    <label class="check-row"><input type="checkbox" id="perfil-papel-carregamento" value="carregamento"> Operador de Carregamento</label>
-                    <label class="check-row oculto" id="row-admin"><input type="checkbox" id="perfil-papel-admin" value="admin"> Admin</label>
-                </fieldset>
-                <button type="submit">Salvar perfil</button>
-            </form>
-            <p id="perfil-msg" class="msg"></p>
-        </section>
 
-        <!-- 4. Preferências -->
-        <section class="card" id="card-prefs">
-            <h2>Preferências</h2>
-                        <div class="prefs-tema-row" role="group" aria-label="Tema">
-                <button type="button" class="tema-opt" data-tema="light" id="btn-tema-claro" aria-pressed="false"><span class="tema-ico" aria-hidden="true">☀️</span><span class="tema-lbl">Claro</span></button>
-                <button type="button" class="tema-opt" data-tema="dark" id="btn-tema-escuro" aria-pressed="false"><span class="tema-ico" aria-hidden="true">🌙</span><span class="tema-lbl">Escuro</span></button>
-            </div>
-            <div class="prefs-row">
-                <button type="button" class="btn-sm" id="btn-abrir-tutorial">📖 Tutorial</button>
-            </div>
-            <p class="sub">Tema e guia rápido do Minera Pará.</p>
-        </section>
+
+
 
 
         <!-- Fale conosco — SÓ no Perfil (Robô Minera + humano) -->
@@ -142,12 +168,13 @@
         </section>
 
     </div>
-    <script src="config.js?v=20260924b"></script>
-    <script src="auth-guard.js?v=20260924b"></script>
-    <script src="suporte.js?v=20260924b"></script>
-    <script src="nav.js?v=20260924b"></script>
-    <script src="pix-brcode.js?v=20260924b"></script>
-    <script src="perfil.js?v=20260924b"></script>
-    <script src="pwa.js?v=20260924b"></script>
+    <script src="config.js?v=20260925a"></script>
+    <script src="auth-guard.js?v=20260925a"></script>
+    <script src="suporte.js?v=20260925a"></script>
+    <script src="nav.js?v=20260925a"></script>
+    <script src="pix-brcode.js?v=20260925a"></script>
+    <script src="anuncios-acoes.js?v=20260925a"></script>
+    <script src="perfil.js?v=20260925a"></script>
+    <script src="pwa.js?v=20260925a"></script>
 </body>
 </html>

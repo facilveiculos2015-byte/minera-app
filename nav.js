@@ -735,7 +735,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260924b';
+    const src = root + 'logo-escavadeira.png?v=20260925a';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -863,7 +863,31 @@ const MineraNotif = (function () {
         renderCombinedBadge();
     }
 
+    /** Badge na aba Chat da barra inferior (mesma contagem de DMs não lidas do sino). */
+    function renderChatTabBadge() {
+        const tab = document.querySelector('#bottom-nav .bn-item[href$="chat.html"]');
+        if (!tab) return;
+        let b = tab.querySelector('.bn-badge');
+        if (!b) {
+            b = document.createElement('span');
+            b.className = 'bn-badge oculto';
+            b.setAttribute('aria-hidden', 'true');
+            const icon = tab.querySelector('.bn-icon');
+            (icon || tab).appendChild(b);
+        }
+        const n = dmBadgeCount;
+        if (n > 0) {
+            b.textContent = n > 99 ? '99+' : String(n);
+            b.classList.remove('oculto');
+            tab.setAttribute('aria-label', 'Chat, ' + n + ' mensagem(ns) nova(s)');
+        } else {
+            b.classList.add('oculto');
+            tab.removeAttribute('aria-label');
+        }
+    }
+
     function renderCombinedBadge() {
+        renderChatTabBadge();
         const badge = document.getElementById('notif-badge');
         const btn = document.getElementById('btn-notif');
         if (!badge) return;
@@ -959,13 +983,105 @@ const MineraNotif = (function () {
         return dd;
     }
 
-    function showBrowserNotif(title, body) {
+    /**
+     * Notificação do sistema. Usa o Service Worker (funciona no PWA Android) e cai para
+     * new Notification. opts: { tag, url }. (Web Push com app fechado: ver sw.js 'push'.)
+     */
+    function showBrowserNotif(title, body, opts) {
+        opts = opts || {};
         try {
-            if (!('Notification' in window)) return;
-            if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260924b' });
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
+            const options = {
+                body: body || '',
+                icon: root + 'icon-192.png',
+                badge: root + 'icon-192.png',
+                tag: opts.tag || 'minera',
+                renotify: !!opts.tag,
+                silent: false,
+                vibrate: [80, 40, 80],
+                data: { url: opts.url || (root + 'chat.html') }
+            };
+            const fallback = () => { try { new Notification(title, options); } catch (e) { /* ignore */ } };
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('sw timeout')), 2000));
+                Promise.race([navigator.serviceWorker.ready, timeout])
+                    .then((reg) => reg.showNotification(title, options))
+                    .catch(fallback);
+            } else {
+                fallback();
             }
         } catch (e) { /* ignore */ }
+    }
+
+    /* ---------- Lembrete ao abrir o app (mensagens recebidas enquanto estava fora) ---------- */
+    let lastUnread = [];
+    let lembretePendente = false;
+    let notificarNoBootstrap = false;
+    function kLembreteDismiss() { return 'minera_notif_lembrete_max_' + authId; }
+    function paginaChat() {
+        return !!(document.body && document.body.classList.contains('pagina-chat')) || /\/chat\.html$/i.test(location.pathname);
+    }
+    function escN(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function nomeSeguro(n) {
+        n = String(n || '').trim();
+        return (!n || /@/.test(n)) ? 'Alguém' : n;
+    }
+    /** chat.html com a conversa deste peer aberta e a aba visível? (contatoAtivo vem de chat.js) */
+    function conversaAbertaCom(peer) {
+        try {
+            if (!paginaChat() || document.visibilityState !== 'visible') return false;
+            // eslint-disable-next-line no-undef
+            const ativo = (typeof contatoAtivo !== 'undefined') ? contatoAtivo : null;
+            return !!(ativo && ativo.auth_id && ativo.auth_id === peer);
+        } catch (e) { return false; }
+    }
+    function fecharLembrete() {
+        const el = document.getElementById('notif-lembrete');
+        if (el) el.remove();
+    }
+    function avaliarLembrete() {
+        lembretePendente = false;
+        if (!authId || paginaChat()) return;
+        const unread = lastUnread;
+        if (!unread.length) return;
+        const maxId = unread.reduce((mx, m) => Math.max(mx, Number(m.id) || 0), 0);
+        let dismissed = 0;
+        try { dismissed = Number(localStorage.getItem(kLembreteDismiss()) || 0); } catch (e) { /* ignore */ }
+        if (maxId <= dismissed) return;
+        const peers = [];
+        const nomes = {};
+        unread.forEach(m => {
+            if (!nomes[m.de_auth_id]) { nomes[m.de_auth_id] = nomeSeguro(m.de_nome); peers.push(m.de_auth_id); }
+        });
+        const n = unread.length;
+        let de = 'de ' + nomes[peers[0]];
+        if (peers.length === 2) de += ' e ' + nomes[peers[1]];
+        else if (peers.length > 2) de += ', ' + nomes[peers[1]] + ' e mais ' + (peers.length - 2);
+        const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
+        const href = root + 'chat.html' + (peers.length === 1 ? ('?para=' + encodeURIComponent(peers[0])) : '');
+        fecharLembrete();
+        const el = document.createElement('div');
+        el.id = 'notif-lembrete';
+        el.className = 'notif-lembrete';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        el.innerHTML = '<div class="nl-txt"><strong>📩 Você tem ' + n + ' mensage' + (n === 1 ? 'm nova' : 'ns novas') + '</strong>' +
+            '<span>' + escN(de) + '</span></div>' +
+            '<div class="nl-acoes"><button type="button" class="nl-depois">Depois</button>' +
+            '<a class="nl-ver" href="' + href + '">Ver mensagens</a></div>';
+        const sticky = document.getElementById('modo-ui-sticky');
+        if (sticky && sticky.offsetParent !== null) {
+            const r = sticky.getBoundingClientRect();
+            if (r.bottom > 0) el.style.top = Math.round(r.bottom + 8) + 'px';
+        }
+        document.body.appendChild(el);
+        const guardar = () => { try { localStorage.setItem(kLembreteDismiss(), String(maxId)); } catch (e) { /* ignore */ } };
+        el.querySelector('.nl-depois').addEventListener('click', () => { guardar(); fecharLembrete(); });
+        el.querySelector('.nl-ver').addEventListener('click', () => { guardar(); });
     }
 
     async function poll() {
@@ -974,17 +1090,18 @@ const MineraNotif = (function () {
             const leituras = lsLeituras();
             const { data, error } = await supabaseClient
                 .from('chat_mensagens')
-                .select('id,de_auth_id,de_nome,para_auth_id,texto,tipo,criado_em,status,deleted_at')
+                .select('id,de_auth_id,de_nome,para_auth_id,texto,tipo,criado_em,status,deleted_at,apagada_para')
                 .eq('para_auth_id', authId)
                 .is('deleted_at', null)
                 .order('id', { ascending: false })
-                .limit(40);
+                .limit(100);
             if (error) return;
 
             const unread = [];
             const byPeer = {};
             (data || []).forEach(m => {
                 if ((m.status || '') === 'agendada') return;
+                if (Array.isArray(m.apagada_para) && m.apagada_para.indexOf(authId) >= 0) return;
                 const lastRead = Number(leituras[m.de_auth_id] || 0);
                 if (Number(m.id) > lastRead) {
                     unread.push(m);
@@ -992,27 +1109,47 @@ const MineraNotif = (function () {
                 }
             });
 
-            updateBadge(Object.keys(byPeer).length || (unread.length ? unread.length : 0));
+            // Contagem = mensagens não lidas (sino, aba Chat e lembrete usam o mesmo número)
+            lastUnread = unread;
+            updateBadge(unread.length);
+            if (lembretePendente) avaliarLembrete();
+            else if (!unread.length) fecharLembrete();
 
             // Toast / browser notif for newly seen ids after bootstrap
             const fresh = (data || []).filter(m =>
                 Number(m.id) > lsSeenGlobal() &&
-                (!bootstrapped || !knownIds.has(m.id))
+                (!bootstrapped || !knownIds.has(m.id)) &&
+                (m.status || '') !== 'agendada' &&
+                !(Array.isArray(m.apagada_para) && m.apagada_para.indexOf(authId) >= 0) &&
+                Number(m.id) > Number(lsLeituras()[m.de_auth_id] || 0)
             );
+            // Troca de página no meio da sessão: avisa as que chegaram durante a navegação
+            const avisar = bootstrapped ? fresh : (notificarNoBootstrap && lsSeenGlobal() > 0 ? fresh : []);
             if (!bootstrapped) {
                 (data || []).forEach(m => knownIds.add(m.id));
                 if (data && data[0]) setSeenGlobal(data[0].id);
                 bootstrapped = true;
-            } else {
-                fresh.forEach(m => {
+            }
+            {
+                let tocarPim = false, tocarTick = false;
+                avisar.forEach(m => {
                     knownIds.add(m.id);
                     setSeenGlobal(m.id);
+                    // Conversa aberta e visível no chat: chat.js já mostra/marca como lida → só um "tick" discreto
+                    if (conversaAbertaCom(m.de_auth_id)) { tocarTick = true; return; }
+                    tocarPim = true;
                     let nome = m.de_nome || 'Alguém';
                     if (/@/.test(String(nome))) nome = 'Alguém';
                     const preview = (m.texto || (m.tipo && m.tipo !== 'text' ? '[' + m.tipo + ']' : 'Nova mensagem')).slice(0, 80);
                     if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome);
-                    showBrowserNotif('Minera Pará', nome + ': ' + preview);
+                    showBrowserNotif('Minera Pará — ' + nome, preview, {
+                        tag: 'dm-' + m.de_auth_id,
+                        url: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'chat.html?para=' + encodeURIComponent(m.de_auth_id)
+                    });
                 });
+                // Um som por evento (MineraSom tem throttle de 2 s)
+                if (tocarPim && window.MineraSom) MineraSom.pim();
+                else if (tocarTick && window.MineraSom) MineraSom.tick();
             }
 
             // Fill dropdown
@@ -1066,15 +1203,7 @@ const MineraNotif = (function () {
             dd.classList.toggle('oculto');
             if (!dd.classList.contains('oculto')) {
                 await poll();
-                // Ask permission once
-                try {
-                    if ('Notification' in window && Notification.permission === 'default') {
-                        if (localStorage.getItem('minera_notif_asked') !== '1') {
-                            localStorage.setItem('minera_notif_asked', '1');
-                            Notification.requestPermission();
-                        }
-                    }
-                } catch (err) { /* ignore */ }
+                // Permissão de notificação: só pelo card "Ativar avisos" / Perfil → Configurações
             }
         });
     }
@@ -1086,15 +1215,245 @@ const MineraNotif = (function () {
         if (opts.isAdmin) isAdminUser = true;
         bindBell();
         ensureDropdown();
+        renderCombinedBadge();
         if (started) return;
         started = true;
+        // Lembrete: 1ª checagem de cada sessão do app
+        const kSess = 'minera_notif_lembrete_sessao_' + uid;
+        try {
+            if (sessionStorage.getItem(kSess) !== '1') {
+                sessionStorage.setItem(kSess, '1');
+                lembretePendente = true;
+            } else {
+                notificarNoBootstrap = true;
+            }
+        } catch (e) { lembretePendente = true; }
         poll();
         timer = setInterval(poll, 8000);
+        let hiddenAt = 0;
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+            // Voltou ao app: checa já; lembra de novo se ficou > 5 min fora
+            if (hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000) lembretePendente = true;
+            hiddenAt = 0;
+            poll();
+        });
     }
 
-    return { start, poll, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge };
+    return { start, poll, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge, showBrowserNotif, avaliarLembrete };
 })();
 window.MineraNotif = MineraNotif;
+
+/**
+ * Permissão de avisos de mensagem — mesma filosofia do geo.js: NUNCA pede ao carregar.
+ * Só pede ao tocar em "Ativar" (card no Início ou Perfil → Configurações).
+ * localStorage minera_notif_decidido = granted|denied ; minera_notif_adiado_ate = timestamp (7 dias).
+ */
+const MineraNotifPerm = (function () {
+    const K_DEC = 'minera_notif_decidido';
+    const K_ADIADO = 'minera_notif_adiado_ate';
+    const SETE_DIAS = 7 * 24 * 60 * 60 * 1000;
+    function suportado() { return typeof window !== 'undefined' && 'Notification' in window; }
+    function estado() {
+        if (!suportado()) return 'unsupported';
+        return Notification.permission; // default | granted | denied
+    }
+    function ls(k, v) {
+        try {
+            if (v === undefined) return localStorage.getItem(k);
+            if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v);
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+    function sincronizar() {
+        const st = estado();
+        if (st === 'granted' || st === 'denied') ls(K_DEC, st);
+        return st;
+    }
+    function adiado() { return Number(ls(K_ADIADO) || 0) > Date.now(); }
+    function deveMostrarCard() {
+        const st = sincronizar();
+        if (st !== 'default') return false;
+        if (ls(K_DEC) === 'granted' || ls(K_DEC) === 'denied') return false;
+        return !adiado();
+    }
+    function adiar() { ls(K_ADIADO, String(Date.now() + SETE_DIAS)); }
+    async function pedir() {
+        if (!suportado()) return 'unsupported';
+        let r;
+        try { r = await Notification.requestPermission(); } catch (e) { r = Notification.permission; }
+        if (r === 'granted' || r === 'denied') ls(K_DEC, r);
+        else adiar(); // fechou o prompt sem decidir
+        atualizarUis();
+        if (r === 'granted' && typeof toastMsg === 'function') toastMsg('Avisos de mensagem ativados');
+        return r;
+    }
+    function fecharCard() {
+        const c = document.getElementById('notif-perm-card');
+        if (c) c.remove();
+    }
+    /** Card pequeno e dispensável (Início). */
+    function montarCard(parent, before) {
+        if (!parent || document.getElementById('notif-perm-card')) return;
+        if (!deveMostrarCard()) return;
+        const el = document.createElement('div');
+        el.id = 'notif-perm-card';
+        el.className = 'notif-perm-card';
+        el.setAttribute('role', 'region');
+        el.setAttribute('aria-label', 'Ativar avisos de mensagem');
+        el.innerHTML = '<div class="npc-txt"><strong>🔔 Ativar avisos de mensagem</strong>' +
+            '<span>Saiba na hora quando alguém responder seu anúncio.</span></div>' +
+            '<div class="npc-acoes"><button type="button" class="npc-nao">Agora não</button>' +
+            '<button type="button" class="npc-sim">Ativar</button></div>';
+        parent.insertBefore(el, before || null);
+        el.querySelector('.npc-nao').addEventListener('click', () => { adiar(); fecharCard(); });
+        el.querySelector('.npc-sim').addEventListener('click', async () => { await pedir(); fecharCard(); });
+    }
+    /** Linha dentro de Perfil → ⚙️ Configurações. */
+    function montarToggle(host) {
+        if (!host) return;
+        host.classList.add('notif-perm-row');
+        host.innerHTML = '<div class="npr-txt"><strong>🔔 Avisos de mensagem</strong><span class="npr-st"></span></div>' +
+            '<button type="button" class="npr-btn"></button><p class="npr-help sub oculto"></p>';
+        host.querySelector('.npr-btn').addEventListener('click', async () => {
+            if (estado() === 'default') await pedir();
+            atualizarUis();
+        });
+        atualizarToggle(host);
+    }
+    function atualizarToggle(host) {
+        host = host || document.getElementById('notif-perm-toggle');
+        if (!host || !host.querySelector('.npr-btn')) return;
+        const st = sincronizar();
+        const btn = host.querySelector('.npr-btn');
+        const lbl = host.querySelector('.npr-st');
+        const help = host.querySelector('.npr-help');
+        help.classList.add('oculto');
+        btn.disabled = false;
+        btn.classList.remove('on');
+        btn.setAttribute('role', 'switch');
+        btn.setAttribute('aria-checked', st === 'granted' ? 'true' : 'false');
+        if (st === 'granted') {
+            lbl.textContent = 'Ativado neste aparelho';
+            btn.textContent = 'Ativado';
+            btn.classList.add('on');
+            btn.disabled = true;
+            help.textContent = 'Para desativar, use as configurações de notificação do navegador/celular.';
+            help.classList.remove('oculto');
+        } else if (st === 'denied') {
+            lbl.textContent = 'Bloqueado no navegador';
+            btn.textContent = 'Bloqueado';
+            btn.disabled = true;
+            help.textContent = 'Bloqueado no navegador. Para liberar: toque no cadeado ao lado do endereço (ou Configurações do app → Notificações) e permita notificações para o Minera Pará.';
+            help.classList.remove('oculto');
+        } else if (st === 'unsupported') {
+            lbl.textContent = 'Este navegador não suporta avisos';
+            btn.textContent = 'Indisponível';
+            btn.disabled = true;
+        } else {
+            lbl.textContent = 'Desativado';
+            btn.textContent = 'Ativar';
+        }
+    }
+    function atualizarUis() {
+        atualizarToggle();
+        if (!deveMostrarCard()) fecharCard();
+    }
+    return { estado, pedir, adiar, deveMostrarCard, montarCard, montarToggle, atualizarToggle, sincronizar };
+})();
+window.MineraNotifPerm = MineraNotifPerm;
+
+/**
+ * Som de nova mensagem ("pim"): 2 notas senoidais geradas com Web Audio (sem arquivo).
+ * Desbloqueia o AudioContext no 1º toque/tecla da sessão; falha em silêncio se bloqueado.
+ * Throttle: no máximo 1 som a cada 2 s. Liga/desliga: localStorage minera_notif_som ('0' = off).
+ */
+const MineraSom = (function () {
+    const K = 'minera_notif_som';
+    const THROTTLE_MS = 2000;
+    let ctx = null;
+    let last = 0;
+    function ativo() {
+        try { return localStorage.getItem(K) !== '0'; } catch (e) { return true; }
+    }
+    function setAtivo(on) {
+        try { localStorage.setItem(K, on ? '1' : '0'); } catch (e) { /* ignore */ }
+    }
+    function unlock() {
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            if (!ctx) ctx = new AC();
+            if (ctx.state === 'suspended' && ctx.resume) ctx.resume().catch(() => {});
+            if (ctx.state === 'running') removerUnlock();
+        } catch (e) { /* ignore */ }
+    }
+    const EVS = ['pointerdown', 'touchend', 'keydown', 'click'];
+    function removerUnlock() { EVS.forEach(ev => document.removeEventListener(ev, unlock, true)); }
+    EVS.forEach(ev => document.addEventListener(ev, unlock, { capture: true, passive: true }));
+    function nota(freq, t0, dur, vol) {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t0);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.02);
+    }
+    function podeTocar() {
+        if (!ativo() || !ctx || ctx.state !== 'running') return false;
+        const now = Date.now();
+        if (now - last < THROTTLE_MS) return false;
+        last = now;
+        return true;
+    }
+    /** "pim" — 880 Hz → 1320 Hz, ~120 ms cada, volume baixo. */
+    function pim() {
+        try {
+            if (!podeTocar()) return false;
+            const t = ctx.currentTime + 0.01;
+            nota(880, t, 0.12, 0.12);
+            nota(1320, t + 0.12, 0.16, 0.1);
+            return true;
+        } catch (e) { return false; }
+    }
+    /** "tick" bem discreto (conversa aberta). */
+    function tick() {
+        try {
+            if (!podeTocar()) return false;
+            nota(1500, ctx.currentTime + 0.01, 0.05, 0.02);
+            return true;
+        } catch (e) { return false; }
+    }
+    /** Linha "Som de mensagem" em Perfil → ⚙️ Configurações. */
+    function montarToggle(host) {
+        if (!host) return;
+        host.classList.add('notif-perm-row');
+        host.innerHTML = '<div class="npr-txt"><strong>🔊 Som de mensagem</strong><span class="npr-st"></span></div>' +
+            '<button type="button" class="npr-btn npr-som" role="switch"></button>';
+        const btn = host.querySelector('.npr-btn');
+        const st = host.querySelector('.npr-st');
+        function render() {
+            const on = ativo();
+            btn.setAttribute('aria-checked', on ? 'true' : 'false');
+            btn.textContent = on ? 'Ligado' : 'Desligado';
+            btn.classList.toggle('som-off', !on);
+            st.textContent = on ? 'Toca um "pim" quando chega mensagem' : 'Sem som ao chegar mensagem';
+        }
+        btn.addEventListener('click', () => {
+            setAtivo(!ativo());
+            render();
+            if (ativo()) { unlock(); last = 0; setTimeout(pim, 30); }
+        });
+        render();
+    }
+    return { pim, tick, ativo, setAtivo, montarToggle, unlock, _ctx: () => ctx };
+})();
+window.MineraSom = MineraSom;
 
 
 
@@ -1110,7 +1469,8 @@ window.MineraNotif = MineraNotif;
         const now = Date.now();
         const t = e.target;
         const tag = (t && t.tagName) ? t.tagName.toUpperCase() : '';
-        const editable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable);
+        const editable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)
+            || !!(t && t.closest && t.closest('#minera-lightbox'));
         if (!editable && now - lastTouchEnd <= 280 && e.touches.length === 0) {
             /* Bloqueia double-tap zoom; pinça com 2 dedos continua liberada */
             e.preventDefault();

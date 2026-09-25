@@ -3,6 +3,8 @@ let sessionAtual = null;
 let lotesMeus = [];
 let lotesTodos = [];
 let lotesModo = 'disponiveis'; // disponiveis | meus
+/** Veio do Perfil (lotes.html?editar=<id>&de=perfil): volta ao Perfil após salvar. */
+let voltarPerfilAposEditar = false;
 /** URLs públicas após upload Storage (não data-URL). */
 let imagemUploadUrl = null; // primary (compat imagem_url)
 let fotosUploadUrls = [];   // até 5
@@ -195,18 +197,11 @@ function montarSelectPublicadoComo(preselect) {
 }
 
 function badgePublicadoComo(papel) {
-    if (!papel) return '';
-    return '<span class="lote-papel-badge">' + esc(rotuloPapelLote(papel)) + '</span>';
+    return MineraAnuncioCard.helpers.badgePublicadoComo(papel);
 }
 
 function loteLocalMeta(l) {
-    const bits = [];
-    if (l.cidade && l.estado) bits.push(l.cidade + '-' + String(l.estado).toUpperCase());
-    else if (l.cidade) bits.push(l.cidade);
-    else if (l.estado) bits.push(String(l.estado).toUpperCase());
-    if (l.ddd) bits.push('DDD ' + l.ddd);
-    if (l.origem) bits.push(l.origem);
-    return bits.length ? bits.join(' · ') : '—';
+    return MineraAnuncioCard.helpers.loteLocalMeta(l);
 }
 
 async function onLoteEstadoChange() {
@@ -251,18 +246,12 @@ function fecharModal() {
 }
 
 function ehMeuLote(l) {
-    const uid = sessionAtual && sessionAtual.user ? sessionAtual.user.id : null;
-    const nome = (perfilAtual && perfilAtual.nome) || '';
-    if (uid && l.criado_por_id && l.criado_por_id === uid) return true;
-    if (uid && l.criado_por_id == null && nome && l.criado_por === nome) return true;
-    if (!l.criado_por_id && nome && l.criado_por === nome) return true;
-    return false;
+    return AnunciosAcoes.ehMeuLote(l, sessionAtual, perfilAtual);
 }
 
 /** Marketplace: pendente/disponível/em trânsito — não expedido (vendido). */
 function loteDisponivelMkt(l) {
-    const s = String(l && l.status != null ? l.status : '').toLowerCase();
-    return s !== 'expedido';
+    return MineraAnuncioCard.disponivelMkt(l);
 }
 
 function atualizarLotesSub() {
@@ -285,52 +274,8 @@ function renderCards(lista) {
         return;
     }
     const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
-    listaDiv.innerHTML = '<div class="lote-cards">' + lista.map(l => {
-        const preco = (l.teor != null && l.teor !== '')
-            ? ('Teor: ' + String(l.teor) + (String(l.tipo_minerio || '').toLowerCase() === 'cobre' && l.cobre_tipo
-                ? ' (' + (l.cobre_tipo === 'soluvel' ? 'solúvel' : 'total') + ')'
-                : ''))
-            : formatPreco(l.preco);
-        const codigo = l.codigo_lote || '';
-        const img = l.imagem_url
-            ? '<div class="lote-img"><img src="' + esc(l.imagem_url) + '" alt="" loading="lazy"></div>'
-            : '<div class="lote-img placeholder"><span>' + (ehMaquinario(l.tipo_minerio) ? '🧰' : '⛏️') + '</span></div>';
-        let actions;
-        if (meus) {
-            actions = `<div class="card-actions">
-                    <button type="button" class="btn-sm" data-act="edit" data-id="${l.id}">Editar</button>
-                    <button type="button" class="btn-sm btn-danger" data-act="del" data-id="${l.id}">Excluir</button>
-                    <button type="button" class="btn-sm btn-ok" data-act="vendido" data-id="${l.id}">Marcar como Vendido</button>
-                </div>`;
-        } else {
-            const det = root + 'lote-detalhe.html?codigo=' + encodeURIComponent(codigo);
-            const nego = root + 'chat.html?' +
-                (l.criado_por_id ? ('com=' + encodeURIComponent(l.criado_por_id) + '&') : '') +
-                'lote=' + encodeURIComponent(codigo);
-            actions = `<div class="card-actions">
-                    <a class="btn-sm" href="${det}">Ver anúncio</a>
-                    <a class="btn-sm btn-ok" href="${nego}">Negociar</a>
-                </div>`;
-        }
-        const anunciante = !meus && l.criado_por
-            ? '<p class="lote-meta">Anunciante: ' + esc(l.criado_por) + '</p>'
-            : '';
-        return `<article class="lote-card" data-id="${l.id}">
-            ${img}
-            <div class="lote-card-body">
-                <div class="lote-card-top">
-                    <span class="lote-tipo">${esc(l.tipo_minerio || 'Minério')}</span>
-                    ${badgePublicadoComo(l.publicado_como)}
-                    <span class="${statusBadgeClass(l.status)}">${esc(statusAmigavel(l.status))}</span>
-                </div>
-                <h3 class="lote-codigo">${esc(codigo)}</h3>
-                <p class="lote-meta">📍 ${esc(loteLocalMeta(l))}${ehMaquinario(l.tipo_minerio) ? '' : (' · ⚖️ ' + esc(formatPeso(l.peso_bruto_kg)))}</p>
-                ${anunciante}
-                ${preco ? '<p class="lote-preco">' + esc(preco) + '</p>' : ''}
-                ${actions}
-            </div>
-        </article>`;
-    }).join('') + '</div>';
+    // Card compartilhado com o Início (anuncio-card.js) — mesmo markup/informações
+    listaDiv.innerHTML = MineraAnuncioCard.lista(lista, { meus, root });
 }
 
 function aplicarLotesModo() {
@@ -808,119 +753,29 @@ async function salvarLote(e) {
     msgEl.className = 'msg ok';
     await registrarLog(id ? 'lote_editar' : 'lote_criar', { codigo_lote, peso_bruto_kg, tipo_minerio, publicado_como }, perfilAtual);
     fecharModal();
+    if (id && voltarPerfilAposEditar) {
+        voltarPerfilAposEditar = false;
+        toastMsg('Anúncio atualizado');
+        setTimeout(() => irPara('perfil.html#meus-anuncios'), 600);
+        return;
+    }
     carregarLotes();
 }
 
+/* Ações compartilhadas com o Perfil (anuncios-acoes.js) — mesma lógica nos dois lugares. */
 async function excluirLote(id) {
-    if (!confirm('Excluir este lote?')) return;
-    const { error } = await supabaseClient.from('lotes').delete().eq('id', id);
-    if (error) {
-        toastMsg('Erro ao excluir: ' + error.message);
-        return;
-    }
-    await registrarLog('lote_excluir', { id }, perfilAtual);
-    toastMsg('Lote excluído');
-    carregarLotes();
+    const ok = await AnunciosAcoes.excluir(id, perfilAtual);
+    if (ok) carregarLotes();
 }
 
 async function criarComissaoVenda(lote) {
-    if (typeof isComissao1pctAtiva === 'function' && !(await isComissao1pctAtiva())) {
-        return { skipped: true, paused: true };
-    }
-    const preco = lote && lote.preco != null ? Number(lote.preco) : 0;
-    if (!(preco > 0) || !lote || !lote.id) return null;
-    // Idempotente: skip se já existe comissão para este lote
-    try {
-        const { data: existentes, error: errSel } = await supabaseClient
-            .from('comissoes')
-            .select('id')
-            .eq('lote_id', lote.id)
-            .limit(1);
-        if (errSel) {
-            console.warn('comissoes select:', errSel.message);
-            // tabela ausente → hint SQL 12
-            if (/relation|comissoes|schema cache|does not exist/i.test(errSel.message || '')) {
-                toastMsg('Aplique o SQL 12-comissoes.sql no Supabase');
-            }
-            return null;
-        }
-        if (existentes && existentes.length) return existentes[0];
-    } catch (e) {
-        console.warn(e);
-        return null;
-    }
-    const percentual = 1;
-    const valor_comissao_bruta = Math.round(preco * percentual) / 100;
-    const uid = (sessionAtual && sessionAtual.user && sessionAtual.user.id)
-        || (perfilAtual && perfilAtual.auth_id) || null;
-    const nome = (perfilAtual && perfilAtual.nome)
-        || (lote.criado_por)
-        || 'Vendedor';
-    let valor_comissao = valor_comissao_bruta;
-    let desconto_pontos = 0;
-    let valor_comissao_original = valor_comissao_bruta;
-    if (typeof aplicarDescontoPontosComissao === 'function' && uid) {
-        const disc = await aplicarDescontoPontosComissao(uid, valor_comissao_bruta);
-        valor_comissao = disc.valor_comissao;
-        desconto_pontos = disc.desconto_pontos || 0;
-        valor_comissao_original = disc.valor_comissao_original != null
-            ? disc.valor_comissao_original : valor_comissao_bruta;
-    }
-    const venc = new Date();
-    venc.setDate(venc.getDate() + 7);
-    const row = {
-        lote_id: lote.id,
-        vendedor_auth_id: uid,
-        vendedor_nome: nome,
-        valor_venda: preco,
-        valor_comissao: valor_comissao,
-        valor_comissao_original: valor_comissao_original,
-        desconto_pontos: desconto_pontos,
-        percentual: percentual,
-        status: 'pendente',
-        vencimento: venc.toISOString()
-    };
-    const { data, error } = await supabaseClient.from('comissoes').insert([row]).select('id').limit(1);
-    if (error) {
-        // unique race / already exists
-        if (/duplicate|unique|comissoes_lote/i.test(error.message || '')) {
-            return { id: null };
-        }
-        console.warn('comissao insert:', error.message);
-        if (/relation|comissoes|schema cache|does not exist/i.test(error.message || '')) {
-            toastMsg('Aplique o SQL 12-comissoes.sql no Supabase');
-        } else {
-            toastMsg('Comissão não gerada: ' + error.message);
-        }
-        return null;
-    }
-    return data && data[0] ? data[0] : { id: true };
+    return AnunciosAcoes.criarComissaoVenda(lote, sessionAtual, perfilAtual);
 }
 
 async function marcarVendido(id) {
-    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Marcar vendido')) return;
     const lote = lotesMeus.find(l => l.id === id) || null;
-    const { error } = await supabaseClient.from('lotes').update({ status: 'expedido' }).eq('id', id);
-    if (error) {
-        toastMsg('Erro: ' + error.message);
-        return;
-    }
-    await registrarLog('lote_vendido', { id }, perfilAtual);
-    const preco = lote && lote.preco != null ? Number(lote.preco) : 0;
-    if (preco > 0) {
-        const criada = await criarComissaoVenda(lote);
-        if (criada && (criada.paused || criada.skipped)) {
-            toastMsg('Marcado como Vendido');
-        } else if (criada) {
-            const valorFmt = preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            toastMsg('Comissão 1% (sobre R$ ' + valorFmt + ') gerada — pontos aplicados se houver; pague no Perfil/Pix');
-        } else {
-            toastMsg('Marcado como Vendido');
-        }
-    } else {
-        toastMsg('Marcado como Vendido');
-    }
-    carregarLotes();
+    const ok = await AnunciosAcoes.marcarVendido(id, lote, sessionAtual, perfilAtual);
+    if (ok) carregarLotes();
 }
 
 document.getElementById('btn-novo-lote').addEventListener('click', async () => {
@@ -1008,7 +863,37 @@ document.getElementById('lotes-lista').addEventListener('click', (e) => {
         const tipoQ = (u.searchParams.get('tipo') || '').trim();
         if (tipoQ) tipoNovoPrefill = tipoQ;
     } catch (e) { console.warn('novo query', e); }
+    // Perfil → "Editar" (lotes.html?editar=<id>): abre o formulário preenchido se o lote for do usuário
+    let editarId = null;
+    try {
+        const u2 = new URL(window.location.href);
+        const ed = parseInt(u2.searchParams.get('editar') || '', 10);
+        if (ed > 0) {
+            editarId = ed;
+            voltarPerfilAposEditar = u2.searchParams.get('de') === 'perfil';
+            u2.searchParams.delete('editar');
+            u2.searchParams.delete('de');
+            history.replaceState(null, '', u2.pathname + (u2.searchParams.toString() ? '?' + u2.searchParams.toString() : '') + u2.hash);
+            lotesModo = 'meus';
+            if (tabs) {
+                tabs.querySelectorAll('.lotes-tab').forEach(b => {
+                    const on = b.getAttribute('data-modo') === 'meus';
+                    b.classList.toggle('on', on);
+                    b.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+            }
+        }
+    } catch (e) { console.warn('editar query', e); }
     await carregarLotes();
+    if (editarId) {
+        const loteEd = lotesMeus.find(l => l.id === editarId);
+        if (loteEd) {
+            await preencherForm(loteEd);
+            abrirModal(ehMaquinario(loteEd.tipo_minerio) ? 'Editar Maquinário' : 'Editar Lote');
+        } else {
+            toastMsg('Anúncio não encontrado ou não é seu.');
+        }
+    }
     if (abrirNovo) {
         setTimeout(async () => {
             if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Novo lote')) return;
