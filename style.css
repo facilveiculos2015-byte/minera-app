@@ -5868,6 +5868,8 @@ body.modo-ui-admin #card-meus-anuncios, body.pagina-admin #card-meus-anuncios { 
 a.lote-img { text-decoration: none; color: inherit; overflow: hidden; }
 .lote-codigo a { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
 .lote-card .lote-heart { z-index: 2; }
+/* Card inteiro clicável (anuncio-card.js): feedback de toque */
+.lote-card { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
 /* ---- Perfil: ⚙️ Configurações (Editar perfil + Preferências) recolhível ---- */
 body.pagina-perfil .perfil-config { padding: 0; overflow: hidden; }

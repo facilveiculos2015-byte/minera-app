@@ -151,6 +151,23 @@
         toggleFav(btn.getAttribute('data-fav'), btn);
     }, true);
 
+    // Toque em QUALQUER parte do card abre o anúncio (antes só foto/título eram
+    // links: tocar em preço/local/badges não fazia nada — 60% da área do card).
+    // Botões/links internos (♡, Negociar, Editar, Excluir…) continuam com a
+    // própria ação. Não navega se o usuário estiver selecionando texto.
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t || !t.closest || e.defaultPrevented || e.button > 0) return;
+        var card = t.closest('.lote-card');
+        if (!card) return;
+        if (t.closest('a,button,input,select,textarea,label,[data-act],[data-fav]')) return;
+        try { var sel = window.getSelection && String(window.getSelection() || ''); if (sel) return; } catch (x) { /* ignore */ }
+        var link = card.querySelector('a.lote-img[href], .lote-codigo a[href]');
+        if (!link) return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey) { window.open(link.href, '_blank'); return; }
+        window.location.href = link.href;
+    });
+
     window.MineraAnuncioCard = {
         html: html,
         lista: lista,
