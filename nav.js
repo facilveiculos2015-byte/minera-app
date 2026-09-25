@@ -683,7 +683,7 @@ function montarNav(paginaAtiva, perfil) {
         if (sheet) sheet.classList.add('oculto');
         const svcSheet = document.getElementById('servicos-sheet');
         if (svcSheet) svcSheet.classList.add('oculto');
-        const fale = document.getElementById('fale-conosco-root') || document.getElementById('btn-fale-conosco');
+        const fale = document.getElementById('card-fale-conosco');
         if (fale) fale.classList.add('oculto');
     } else {
         if (!bar) {
@@ -716,7 +716,7 @@ function montarNav(paginaAtiva, perfil) {
         garantirBtnSair(paginaAtiva);
     }
 
-    // Fale conosco (Robô Minera) — não no modo monitoramento admin
+    // Fale conosco (Robô Minera) — SÓ no Perfil; nunca no monitoramento admin
     if (!hideClientChrome && typeof garantirFaleConosco === 'function') {
         garantirFaleConosco(perfil);
     }
@@ -735,7 +735,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260923aw';
+    const src = root + 'logo-escavadeira.png?v=20260924a';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -963,7 +963,7 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
-                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260923aw' });
+                new Notification(title, { body: body || '', icon: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'logo-escavadeira.png?v=20260924a' });
             }
         } catch (e) { /* ignore */ }
     }

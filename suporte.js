@@ -125,48 +125,9 @@ async function suporteSalvarMsg({ de_auth_id, de_nome, texto, origem, thread_aut
 }
 
 function garantirSuporteUi() {
-    if (document.getElementById('btn-fale-conosco')) return;
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'btn-fale-conosco';
-    btn.className = 'btn-fale-conosco';
-    btn.title = 'Fale conosco';
-    btn.setAttribute('aria-label', 'Fale conosco');
-    btn.innerHTML = '<span class="fale-icon" aria-hidden="true">💬</span><span class="fale-label">Fale conosco</span>';
-
-    // Mobile / sem header visível: FAB flutuante (nunca compete com Sair no topo).
-    // Desktop com header visível: entra em .header-actions, com #btn-sair por último.
-    const header = document.querySelector('header.header-row');
-    const headerVisivel = header && window.getComputedStyle(header).display !== 'none'
-        && window.getComputedStyle(header).visibility !== 'hidden';
-    const mobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
-    const isPerfil = document.body && document.body.classList.contains('pagina-perfil');
-    const isAdmin = document.body && document.body.classList.contains('pagina-admin');
-
-    if (headerVisivel && !mobile && !isPerfil && !isAdmin) {
-        let actions = header.querySelector('.header-actions');
-        if (!actions) {
-            actions = document.createElement('div');
-            actions.className = 'header-actions';
-            header.appendChild(actions);
-        }
-        const caixa = document.getElementById('btn-caixa-bank');
-        const notif = document.getElementById('btn-notif');
-        if (caixa && caixa.parentNode === actions) actions.insertBefore(btn, caixa.nextSibling);
-        else if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
-        else actions.appendChild(btn);
-        // Garante Sair como último controle tocável do header (não fica sob Fale)
-        const sair = document.getElementById('btn-sair');
-        if (sair && sair.parentNode === header) {
-            actions.appendChild(sair);
-        } else if (sair && sair.parentNode === actions) {
-            actions.appendChild(sair);
-        }
-    } else {
-        btn.classList.add('btn-fale-float');
-        document.body.appendChild(btn);
-    }
+    // Só o modal. O botão "Fale conosco" existe apenas no Perfil (#card-fale-conosco
+    // em perfil.html) — nenhuma outra página recebe botão/FAB injetado.
+    if (document.getElementById('modal-suporte')) return;
 
     const modal = document.createElement('div');
     modal.id = 'modal-suporte';
@@ -188,7 +149,6 @@ function garantirSuporteUi() {
         '</div>';
     document.body.appendChild(modal);
 
-    btn.addEventListener('click', () => abrirSuporte());
     modal.addEventListener('click', (e) => {
         if (e.target && e.target.getAttribute('data-close-suporte') === '1') fecharSuporte();
     });
@@ -338,10 +298,25 @@ async function onSuporteHumano() {
     if (typeof toastMsg === 'function') toastMsg('Mensagem enviada ao suporte');
 }
 
-/** Chamado por nav.js em páginas autenticadas */
+/** Chamado por nav.js. Só ativa no Perfil (usuário comum / modo usuário). */
 function garantirFaleConosco(perfil) {
     if (perfil) _suportePerfil = perfil;
-    garantirSuporteUi();
+    const body = document.body;
+    const noPerfil = body && body.classList.contains('pagina-perfil');
+    const noAdmin = body && (body.classList.contains('pagina-admin') || body.classList.contains('modo-ui-admin'));
+    // Limpa qualquer FAB legado (cache antigo) fora do card do Perfil
+    document.querySelectorAll('.btn-fale-float, .header-actions #btn-fale-conosco').forEach((el) => el.remove());
+    const card = document.getElementById('card-fale-conosco');
+    if (!noPerfil || noAdmin || !card) {
+        if (card) card.classList.add('oculto');
+        return;
+    }
+    card.classList.remove('oculto');
+    const btn = document.getElementById('btn-fale-conosco');
+    if (btn && !btn._faleBound) {
+        btn._faleBound = true;
+        btn.addEventListener('click', () => abrirSuporte(_suportePerfil));
+    }
 }
 
 /* —— Família Minera / indicação —— */

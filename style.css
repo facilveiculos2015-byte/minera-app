@@ -1575,54 +1575,16 @@ html[data-theme="light"] .btn-caixa-bank {
 
 
 /* —— Fale conosco / Robô Minera —— */
-.btn-fale-conosco {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: 36px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid var(--border, #334155);
-    background: rgba(56, 189, 248, 0.12);
-    color: #7dd3fc;
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+/* Fale conosco: só card no Perfil (sem FAB flutuante em nenhuma página) */
+.btn-fale-float { display: none !important; }
+.card-fale-conosco .btn-fale-conosco-card {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 4px;
+    font-size: 1rem;
+    font-weight: 700;
 }
-.btn-fale-conosco:hover,
-.btn-fale-conosco:focus {
-    transform: scale(1.04);
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-    outline: none;
-}
-.btn-fale-conosco .fale-icon { font-size: 1rem; line-height: 1; }
-.btn-fale-conosco .fale-label { white-space: nowrap; }
-@media (max-width: 420px) {
-    .btn-fale-conosco .fale-label { display: none; }
-    .btn-fale-conosco { width: 36px; padding: 0; justify-content: center; }
-}
-.btn-fale-float {
-    /* Mobile-first: bottom-LEFT — clear of Novo(+) right + top Sair + bottom-nav */
-    position: fixed;
-    left: max(12px, env(safe-area-inset-left, 0px));
-    right: auto;
-    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
-    z-index: 45; /* below header/Sair (90) and sticky (80); above content */
-    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
-    max-width: min(200px, calc(100vw - 96px));
-    pointer-events: auto;
-}
-/* Perfil: keep FAB well below sticky topbar Sair */
-body.pagina-perfil .btn-fale-float {
-    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-}
-/* Admin: never show Fale over Ops chrome */
-body.pagina-admin .btn-fale-conosco,
-body.pagina-admin .btn-fale-float {
-    display: none !important;
-}
+.card-fale-conosco.oculto { display: none !important; }
 /* Header Sair always tappable and last in row */
 .header-row .btn-sair,
 .perfil-topbar #btn-sair {
@@ -1639,10 +1601,6 @@ body.pagina-admin .btn-fale-float {
     position: relative;
     z-index: 40;
 }
-.header-actions .btn-fale-conosco {
-    position: relative;
-    z-index: 41;
-}
 @media (max-width: 700px) {
     /* Extra room under sticky admin-as-user bar on small phones */
     body.modo-ui-usuario {
@@ -1652,8 +1610,6 @@ body.pagina-admin .btn-fale-float {
         top: calc(60px + env(safe-area-inset-top, 0px));
     }
 }
-body.pagina-chat #btn-fale-conosco,
-body.pagina-chat .btn-fale-float,
 body.pagina-chat .olx-fab {
     display: none !important;
 }
@@ -1909,11 +1865,6 @@ html[data-theme="light"] .familia-share-preview {
 }
 html[data-theme="light"] .familia-share-text { color: #78350f; }
 
-html[data-theme="light"] .btn-fale-conosco {
-    background: #e0f2fe;
-    color: #0369a1;
-    border-color: #7dd3fc;
-}
 html[data-theme="light"] .suporte-msgs { background: #f1f5f9; }
 html[data-theme="light"] .suporte-bubble.bot { background: #e2e8f0; color: #0f172a; }
 
