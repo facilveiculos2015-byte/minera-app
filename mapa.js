@@ -224,18 +224,12 @@ function placePin(lat, lng, opts) {
     }
 }
 
-function getCurrentPosition() {
-    return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-            reject(new Error('Geolocalização não disponível neste dispositivo.'));
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            pos => resolve(latLngObj(pos.coords.latitude, pos.coords.longitude)),
-            err => reject(err),
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
-        );
-    });
+/** Toque do usuário (Minha localização / rota): pode pedir permissão via MineraGeo. */
+async function getCurrentPosition() {
+    if (typeof MineraGeo === 'undefined') throw new Error('geo.js ausente');
+    const p = await MineraGeo.obterLocalizacao({ motivo: 'mapa-botao', interativo: true, highAccuracy: true, timeout: 15000, fresco: true });
+    if (!p) throw new Error(MineraGeo.ultimoErro || 'sem localização');
+    return latLngObj(p.lat, p.lng);
 }
 
 function ensureUserMarker(coords) {
@@ -676,19 +670,16 @@ function initLeafletMap() {
     setTimeout(resizeMap, 250);
     setTimeout(resizeMap, 600);
 
-    // Geolocalização silenciosa (se permitida)
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            pos => {
-                const coords = latLngObj(pos.coords.latitude, pos.coords.longitude);
-                ensureUserMarker(coords);
-                map.panTo([coords.lat, coords.lng]);
-                map.setZoom(14);
-                setTimeout(resizeMap, 80);
-            },
-            () => {},
-            { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
-        );
+    // Centraliza só se a permissão já foi dada (ou cache) — nunca pede no carregamento
+    if (typeof MineraGeo !== 'undefined') {
+        MineraGeo.obterLocalizacao({ motivo: 'mapa-load', interativo: false }).then((p) => {
+            if (!p) return;
+            const coords = latLngObj(p.lat, p.lng);
+            ensureUserMarker(coords);
+            map.panTo([coords.lat, coords.lng]);
+            map.setZoom(14);
+            setTimeout(resizeMap, 80);
+        });
     }
 
     carregarMarcadoresLotes();

@@ -301,41 +301,38 @@
     throw new Error('reverse-geocode falhou');
   }
 
+  var LS_GEO_CIDADE = 'minera_geo_cidade';
+
   /**
-   * Solicita geolocalização do browser e resolve cidade/UF.
+   * Localização → cidade/UF via MineraGeo (geo.js). NUNCA pede permissão sozinho:
+   * opts.interativo=true só quando o usuário tocou em "Perto de mim".
    * @returns {Promise<{cidade,estado,ddd,lat,lng}|null>}
    */
-  function obterLocalizacaoUsuario(opts) {
+  async function obterLocalizacaoUsuario(opts) {
     opts = opts || {};
-    const timeout = opts.timeout || 12000;
-    return new Promise(function (resolve) {
-      if (!navigator.geolocation) {
-        resolve(null);
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        async function (pos) {
-          try {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const geo = await reverseGeocode(lat, lng);
-            resolve({
-              cidade: geo.cidade,
-              estado: geo.estado,
-              ddd: geo.ddd,
-              lat: lat,
-              lng: lng,
-              fonte: geo.fonte
-            });
-          } catch (e) {
-            console.warn(e);
-            resolve(null);
-          }
-        },
-        function () { resolve(null); },
-        { enableHighAccuracy: false, timeout: timeout, maximumAge: 300000 }
-      );
+    if (!global.MineraGeo || !global.MineraGeo.obterLocalizacao) return null; // sem helper → não chama a API
+    const pos = await global.MineraGeo.obterLocalizacao({
+      motivo: opts.motivo || 'cidade',
+      interativo: !!opts.interativo,
+      timeout: opts.timeout || 12000
     });
+    if (!pos) return null;
+    // Reusa cidade já geocodificada perto (~5 km) — evita Nominatim a cada abertura
+    try {
+      const c = JSON.parse(localStorage.getItem(LS_GEO_CIDADE) || 'null');
+      if (c && c.cidade && c.estado && Math.abs(c.lat - pos.lat) < 0.05 && Math.abs(c.lng - pos.lng) < 0.05) {
+        return { cidade: c.cidade, estado: c.estado, ddd: c.ddd, lat: pos.lat, lng: pos.lng, fonte: c.fonte || 'cache' };
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      const geo = await reverseGeocode(pos.lat, pos.lng);
+      const out = { cidade: geo.cidade, estado: geo.estado, ddd: geo.ddd, lat: pos.lat, lng: pos.lng, fonte: geo.fonte };
+      try { localStorage.setItem(LS_GEO_CIDADE, JSON.stringify(out)); } catch (e) { /* ignore */ }
+      return out;
+    } catch (e) {
+      console.warn(e);
+      return null;
+    }
   }
 
   /** Preenche <select> de estados (value=UF). */

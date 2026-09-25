@@ -8,7 +8,7 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20260924a';
+  var ASSET_V = '20260924b';
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 
   function forceAssetRefreshOnce() {
@@ -47,14 +47,116 @@
   // Hard reset imediato quando o build muda (pedido permanente do Jhon)
   try { forceAssetRefreshOnce(); } catch (e) {}
 
+  /* ---------- Checagem remota de build (version.json) ----------
+   * Pega o caso em que o HTML/JS antigo veio do cache HTTP (Pages max-age=600)
+   * ou o PWA instalado ficou aberto em segundo plano sem navegar.
+   * Só recarrega se o build remoto for MAIS NOVO (evita ping-pong durante o
+   * deploy do CDN). Guard por build remoto em sessionStorage (máx. 2 tentativas). */
+  function buildKey(b) {
+    var m = /^(\d{8})([a-z]*)$/.exec(String(b || ''));
+    if (!m) return null;
+    return { d: m[1], s: m[2] };
+  }
+  /** >0 se a é mais novo que b. Sufixo: mais letras = mais novo (z < aa < au). */
+  function compareBuild(a, b) {
+    var x = buildKey(a), y = buildKey(b);
+    if (!x || !y) return a === b ? 0 : 1;
+    if (x.d !== y.d) return x.d > y.d ? 1 : -1;
+    if (x.s.length !== y.s.length) return x.s.length > y.s.length ? 1 : -1;
+    if (x.s === y.s) return 0;
+    return x.s > y.s ? 1 : -1;
+  }
+
+  function hardReloadTo(remote) {
+    var wipe = Promise.resolve();
+    if (typeof caches !== 'undefined' && caches.keys) {
+      wipe = caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      }).catch(function () {});
+    }
+    var unreg = Promise.resolve();
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      unreg = navigator.serviceWorker.getRegistrations().then(function (regs) {
+        return Promise.all(regs.map(function (r) { return r.unregister(); }));
+      }).catch(function () {});
+    }
+    return Promise.all([wipe, unreg]).then(function () {
+      var u = new URL(location.href);
+      u.searchParams.set('_hv', remote); // URL nova → escapa do cache HTTP do HTML
+      location.replace(u.toString());
+    });
+  }
+
+  var lastVersionCheck = 0;
+  var versionCheckBusy = false;
+  function checkRemoteVersion(force) {
+    try {
+      if (versionCheckBusy) return Promise.resolve('busy');
+      var now = Date.now();
+      if (!force && now - lastVersionCheck < 15000) return Promise.resolve('throttled');
+      lastVersionCheck = now;
+      if (typeof fetch !== 'function') return Promise.resolve('nofetch');
+      versionCheckBusy = true;
+      return fetch('./version.json?t=' + now, { cache: 'no-store', credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          versionCheckBusy = false;
+          var remote = j && j.build ? String(j.build) : '';
+          if (!remote || remote === ASSET_V) return 'same';
+          if (compareBuild(remote, ASSET_V) <= 0) return 'older-remote';
+          var key = 'minera_hv_try_' + remote;
+          var tries = Number(sessionStorage.getItem(key) || 0);
+          if (tries >= 2) return 'guarded';
+          sessionStorage.setItem(key, String(tries + 1));
+          return hardReloadTo(remote).then(function () { return 'reloading'; });
+        })
+        .catch(function () { versionCheckBusy = false; return 'error'; });
+    } catch (e) {
+      versionCheckBusy = false;
+      return Promise.resolve('error');
+    }
+  }
+
+  function onVisible() {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    checkRemoteVersion(false);
+    try {
+      if (swReg && swReg.update) swReg.update().catch(function () {});
+    } catch (e) {}
+  }
+
+  var swReg = null;
+  checkRemoteVersion(true);
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', onVisible);
+  window.addEventListener('pageshow', function (ev) {
+    // bfcache: página restaurada sem recarregar → checa de novo
+    checkRemoteVersion(!!(ev && ev.persisted));
+  });
+  setInterval(function () {
+    if (!document.visibilityState || document.visibilityState === 'visible') checkRemoteVersion(true);
+  }, 60000);
+
   if (canRegister) {
+    var hadController = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      // SW novo assumiu: recarrega 1× (não no primeiro install, sem controller antes)
+      if (!hadController) { hadController = true; return; }
+      var k = 'minera_sw_reloaded_' + ASSET_V;
+      try {
+        if (sessionStorage.getItem(k) === '1') return;
+        sessionStorage.setItem(k, '1');
+      } catch (e) {}
+      location.reload();
+    });
     window.addEventListener('load', function () {
       navigator.serviceWorker
-        .register('./sw.js?v=' + ASSET_V)
+        .register('./sw.js?v=' + ASSET_V, { updateViaCache: 'none' })
         .then(function (reg) {
+          swReg = reg;
           try {
             if (reg && reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            if (reg && reg.update) reg.update();
+            if (reg && reg.update) reg.update().catch(function () {});
           } catch (e) {}
         })
         .catch(function () {});
@@ -424,6 +526,8 @@
     showInstallHelp: showInstallSheet,
     isStandalone: isStandalone,
     bindDownloadButtons: bindDownloadButtons,
-    assetV: ASSET_V
+    assetV: ASSET_V,
+    checkRemoteVersion: checkRemoteVersion,
+    compareBuild: compareBuild
   };
 })();

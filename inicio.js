@@ -920,6 +920,37 @@ async function onDddChange() {
     await carregarFeed();
 }
 
+/** Toque do usuário em "📍 Perto de mim" — único ponto que pode pedir permissão no Início. */
+async function usarPertoDeMim() {
+    const btn = document.getElementById('btn-perto-de-mim');
+    if (btn) btn.disabled = true;
+    setLocStatus('Buscando sua localização…');
+    try {
+        const g = await LocalidadeBR.obterLocalizacaoUsuario({ timeout: 12000, interativo: true, motivo: 'perto-de-mim' });
+        if (g && g.cidade && g.estado) {
+            geoPerto = g;
+            filtroEstado = g.estado;
+            filtroCidade = g.cidade;
+            filtroDdd = g.ddd || '';
+            filtroLocMode = 'cidade';
+            await LocalidadeBR.preencherSelectEstados(document.getElementById('filtro-estado'), filtroEstado);
+            await LocalidadeBR.preencherSelectCidades(document.getElementById('filtro-cidade'), filtroEstado, filtroCidade);
+            LocalidadeBR.preencherSelectDdd(document.getElementById('filtro-ddd'), filtroEstado, filtroDdd);
+            syncLocModeChips();
+            persistLocPref();
+            atualizarResumoLocal();
+            await carregarFeed();
+        } else {
+            const negado = typeof MineraGeo !== 'undefined' && MineraGeo.ultimoErro === 'denied';
+            setLocStatus(negado
+                ? 'Localização bloqueada no navegador. Escolha estado/cidade.'
+                : 'Não deu para achar sua localização. Escolha estado/cidade.');
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function initLocalidadeUI() {
     if (typeof LocalidadeBR === 'undefined') {
         setLocStatus('Escolha estado/cidade');
@@ -934,8 +965,9 @@ async function initLocalidadeUI() {
 
     const pref = LocalidadeBR.lerPreferencia();
 
-    setLocStatus('Pedindo permissão de localização…');
-    geoPerto = await LocalidadeBR.obterLocalizacaoUsuario({ timeout: 10000 });
+    // Nunca pede permissão no carregamento: só usa se já concedida (ou cache).
+    // O pedido acontece apenas no toque em "📍 Perto de mim".
+    geoPerto = await LocalidadeBR.obterLocalizacaoUsuario({ timeout: 10000, interativo: false, motivo: 'inicio-load' });
 
     if (geoPerto && geoPerto.cidade && geoPerto.estado) {
         setLocStatus('Perto de você: ' + geoPerto.cidade + '-' + geoPerto.estado);
@@ -962,6 +994,12 @@ async function initLocalidadeUI() {
         setLocStatus('Escolha estado/cidade');
         filtroLocMode = 'todos';
         syncLocModeChips();
+    }
+
+    const btnPerto = document.getElementById('btn-perto-de-mim');
+    if (btnPerto && !btnPerto._bound) {
+        btnPerto._bound = true;
+        btnPerto.addEventListener('click', usarPertoDeMim);
     }
 
     const chips = document.getElementById('filtro-local-chips');
@@ -1263,6 +1301,13 @@ window.addEventListener('beforeunload', () => {
                 const open = !panel.hidden;
                 setFiltrosPanelAberto(!open);
                 if (!open && bar) {
+                    // O pai é .oculto (display:none) → leva o sheet para o body para aparecer
+                    if (bar.parentNode !== document.body) document.body.appendChild(bar);
+                    if (!bar._backdropBound) {
+                        bar._backdropBound = true;
+                        // Toque fora do sheet fecha
+                        bar.addEventListener('click', (ev) => { if (ev.target === bar) locBtn.click(); });
+                    }
                     bar.classList.remove('oculto');
                     bar.style.cssText = 'position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;padding:0;';
                     panel.hidden = false;
@@ -1270,6 +1315,7 @@ window.addEventListener('beforeunload', () => {
                 } else if (bar) {
                     bar.style.cssText = '';
                     panel.style.cssText = '';
+                    bar.classList.add('oculto');
                 }
             }
         });

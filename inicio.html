@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Minera Pará - Marketplace</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260924a">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260924a">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20260924b">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260924b">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260924a">
+    <link rel="stylesheet" href="style.css?v=20260924b">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -111,6 +111,7 @@
         <div class="oculto" aria-hidden="true">
             <div id="loc-bar"><button type="button" id="loc-bar-toggle" aria-expanded="false"></button>
                 <div id="loc-bar-panel" hidden>
+                    <button type="button" class="fchip btn-perto-de-mim" id="btn-perto-de-mim" aria-label="Usar minha localização">📍 Perto de mim</button>
                     <div id="filtro-local-chips"><button class="fchip on" data-loc="todos"></button></div>
                     <select id="filtro-estado"></select><select id="filtro-cidade"></select><select id="filtro-ddd"></select>
                     <div id="filtro-servico-chips"><button class="fchip on" data-servico=""></button></div>
@@ -124,12 +125,13 @@
         <a class="olx-fab" id="fab-anunciar" href="lotes.html" title="Anunciar" aria-label="Anunciar">＋</a>
         <nav id="app-nav" class="nav-chips oculto"></nav>
     </div>
-    <script src="config.js?v=20260924a"></script>
-    <script src="auth-guard.js?v=20260924a"></script>
-    <script src="suporte.js?v=20260924a"></script>
-    <script src="nav.js?v=20260924a"></script>
-    <script src="localidade.js?v=20260924a"></script>
-    <script src="inicio.js?v=20260924a"></script>
-    <script src="pwa.js?v=20260924a"></script>
+    <script src="config.js?v=20260924b"></script>
+    <script src="auth-guard.js?v=20260924b"></script>
+    <script src="suporte.js?v=20260924b"></script>
+    <script src="nav.js?v=20260924b"></script>
+    <script src="geo.js?v=20260924b"></script>
+    <script src="localidade.js?v=20260924b"></script>
+    <script src="inicio.js?v=20260924b"></script>
+    <script src="pwa.js?v=20260924b"></script>
 </body>
 </html>
