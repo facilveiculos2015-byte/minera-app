@@ -54,6 +54,18 @@
         $('av-ed-logo').addEventListener('change', function (e) { arquivo(e, 'empresa'); });
         $('av-ed-voltar').addEventListener('click', function () { mostrar('escolha'); });
         $('av-ed-salvar').addEventListener('click', salvarRecorte);
+        // Toque direto no "Salvar": em alguns Android/WebView o Chrome não gera o
+        // "click" depois de um arrasto no recorte (QA: touchend chegava, click não).
+        // Tratamos o toque curto aqui; preventDefault evita o click duplicado.
+        (function () {
+            var b = $('av-ed-salvar'), t0 = null;
+            b.addEventListener('touchstart', function (e) { var t = e.changedTouches && e.changedTouches[0]; t0 = t ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
+            b.addEventListener('touchend', function (e) {
+                var t = e.changedTouches && e.changedTouches[0], s0 = t0; t0 = null;
+                if (!s0 || !t || Math.abs(t.clientX - s0.x) > 12 || Math.abs(t.clientY - s0.y) > 12) return;
+                e.preventDefault(); salvarRecorte();
+            });
+        })();
         $('av-ed-zoom').addEventListener('input', function () { if (!st) return; zoomPara(Number(this.value) / 100); });
         bindArrasto($('av-ed-area'));
     }
@@ -180,7 +192,7 @@
     async function salvarRecorte() {
         if (!st) return;
         var me = uid(); if (!me) { msg('Entre novamente.'); return; }
-        var btn = $('av-ed-salvar'); btn.disabled = true;
+        var btn = $('av-ed-salvar'); if (btn.disabled) return; btn.disabled = true;
         msg('Enviando…', true);
         try {
             var c = document.createElement('canvas'); c.width = LADO; c.height = LADO;

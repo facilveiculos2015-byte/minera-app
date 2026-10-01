@@ -6377,3 +6377,21 @@ html[data-theme="light"] .caixa-lock-panel label { color: #334155; }
 html[data-theme="light"] .caixa-lock-panel .msg.erro { color: #b91c1c; }
 html[data-theme="light"] .caixa-lock-panel .msg.ok { color: #15803d; }
 html[data-theme="light"] .caixa-lock-panel .btn-link, html[data-theme="light"] .caixa-lock-panel a { color: #b45309; }
+
+/* Lote-detalhe: barra do topo legível no Claro e "Negociar no chat" como botão de verdade */
+html[data-theme="light"] body.pagina-lote-detalhe .nb-inner-head {
+  background: var(--bg-color, #f1f5f9);
+  border-bottom-color: var(--border, #e2e8f0);
+}
+html[data-theme="light"] body.pagina-lote-detalhe .nb-inner-head h2 { color: var(--text-color, #0f172a); }
+html[data-theme="light"] body.pagina-lote-detalhe .btn-voltar-round {
+  background: var(--card-bg, #fff); color: var(--text-color, #0f172a); border: 1px solid var(--border, #e2e8f0);
+}
+body.pagina-lote-detalhe #detalhe a.btn-ok {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 46px; padding: 0 20px; border-radius: 12px; text-decoration: none;
+  background: #F5A623; color: #0b1220; font-weight: 800; font-size: 0.95rem; line-height: 1.2;
+  box-shadow: 0 6px 18px rgba(245, 166, 35, 0.28); max-width: 100%; box-sizing: border-box;
+}
+body.pagina-lote-detalhe #detalhe a.btn-ok:active { filter: brightness(0.95); }
+html[data-theme="light"] body.pagina-lote-detalhe #detalhe a.btn-ok { background: #F5A623; color: #0b1220; }
