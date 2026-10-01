@@ -191,8 +191,45 @@
       if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) return true;
       if (typeof navigator.standalone === 'boolean' && navigator.standalone) return true;
       if (document.referrer && document.referrer.indexOf('android-app://') === 0) return true;
+      if (isTwa()) return true;
     } catch (e) {}
     return false;
+  }
+
+  /* ---------- App Android (TWA) ----------
+   * O APK abre start_url com ?utm_source=twa e o referrer android-app://<pacote>.
+   * Guardamos a marca para as próximas navegações dentro do app. */
+  var TWA_KEY = 'minera_is_twa';
+  var APK_PACKAGE = 'br.com.minerapara.app';
+  function appRoot() {
+    return typeof APP_ROOT === 'string' ? APP_ROOT : '/minera-app/';
+  }
+  var APK_URL = appRoot() + 'download/minera-para.apk';
+  var DOWNLOAD_PAGE = appRoot() + 'download/';
+  var apkInfo = null;
+  function isTwa() {
+    try {
+      if (/[?&]utm_source=twa(?:&|$)/.test(location.search) ||
+          (document.referrer || '').indexOf('android-app://' + APK_PACKAGE) === 0) {
+        sessionStorage.setItem(TWA_KEY, '1');
+        return true;
+      }
+      return sessionStorage.getItem(TWA_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+  function loadApkInfo() {
+    if (apkInfo || typeof fetch !== 'function') return Promise.resolve(apkInfo);
+    return fetch(appRoot() + 'download/app.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { apkInfo = j; return j; })
+      .catch(function () { return null; });
+  }
+  function apkMetaText(j) {
+    if (!j) return 'App oficial · Android 5 ou mais novo';
+    var mb = j.sizeBytes ? (j.sizeBytes / 1048576).toFixed(1).replace('.', ',') + ' MB' : '';
+    return 'Versão ' + (j.versionName || '1.0.0') + (mb ? ' · ' + mb : '') + ' · Android 5 ou mais novo';
   }
 
   function isIos() {
@@ -238,13 +275,13 @@
       '#minera-install-sheet li{margin:6px 0}' +
       '#minera-install-sheet .mis-actions{display:flex;flex-wrap:wrap;gap:8px}' +
       '#minera-install-sheet .mis-go{flex:1;min-width:120px;border:0;border-radius:12px;padding:14px 16px;font-weight:700;font-size:16px;' +
+      'background:#F5A623;color:#0f172a;cursor:pointer}' +
       '#minera-install-sheet .mis-steps{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}' +
       '#minera-install-sheet .mis-step{display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:14px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.35)}' +
       '#minera-install-sheet .mis-n{flex-shrink:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;background:#F5A623;color:#0f172a;font-size:16px}' +
       '#minera-install-sheet .mis-step strong{font-size:16px;color:#f8fafc}' +
       '#minera-install-sheet .mis-hint{font-size:13px;color:#94a3b8}' +
       '#minera-install-sheet .mis-one{margin:0 0 14px;padding:14px;border-radius:14px;background:rgba(30,41,59,.8);border:1px solid #334155;font-size:15px;line-height:1.4}' +
-      'background:#F5A623;color:#0f172a;cursor:pointer}' +
       '#minera-install-sheet .mis-close{border:1px solid #475569;border-radius:12px;padding:12px 14px;background:transparent;color:#94a3b8;cursor:pointer;font-weight:600}' +
       '#minera-install-sheet .mis-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.02em;color:#F5A623;' +
       'background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.35);border-radius:999px;padding:3px 10px;margin-bottom:10px}' +
@@ -262,6 +299,24 @@
       'padding:11px 14px;background:rgba(245,166,35,.12);color:#F5A623;font-weight:700;font-size:14px;cursor:pointer;text-align:center}' +
       'html[data-theme="light"] .minera-install-banner{background:linear-gradient(135deg,rgba(245,166,35,.2),#fff);border-color:rgba(245,166,35,.5)}' +
       'html[data-theme="light"] .minera-install-banner .mib-txt,html[data-theme="light"] .minera-install-banner .mib-txt strong{color:#0f172a}' +
+      '#minera-install-sheet{max-height:calc(100dvh - 32px);overflow-y:auto;-webkit-overflow-scrolling:touch}' +
+      '#minera-install-sheet a.mis-apk{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;' +
+      'min-height:52px;border-radius:14px;background:#F5A623;color:#0f172a;font-weight:800;font-size:16px;text-decoration:none;margin:0 0 6px}' +
+      '#minera-install-sheet .mis-meta{margin:0 0 14px;text-align:center;font-size:12px;color:#94a3b8}' +
+      '#minera-install-sheet .mis-steps.compact{gap:8px}' +
+      '#minera-install-sheet .mis-steps.compact .mis-step{padding:10px 12px;gap:10px;align-items:flex-start}' +
+      '#minera-install-sheet .mis-steps.compact .mis-n{width:28px;height:28px;font-size:14px}' +
+      '#minera-install-sheet .mis-steps.compact strong{font-size:14px}' +
+      '#minera-install-sheet .mis-note{margin:0 0 14px;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.4;' +
+      'background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.25);color:#cbd5e1}' +
+      '#minera-install-sheet .mis-alt{display:block;width:100%;margin:0 0 8px;border:1px solid rgba(245,166,35,.45);border-radius:12px;' +
+      'padding:11px 14px;background:transparent;color:#F5A623;font-weight:700;font-size:14px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box}' +
+      '#minera-install-sheet .mis-actions .mis-close{flex:1;text-align:center;text-decoration:none;font-size:14px}' +
+      '#minera-install-sheet .mis-link{display:block;width:100%;margin:-4px 0 12px;border:0;background:transparent;color:#F5A623;font-weight:700;font-size:13px;text-decoration:underline;cursor:pointer;padding:6px}' +
+      'html[data-theme="light"] #minera-install-sheet .mis-link{color:#b45309}' +
+      'html[data-theme="light"] #minera-install-sheet .mis-step strong{color:#0f172a}' +
+      'html[data-theme="light"] #minera-install-sheet .mis-one,html[data-theme="light"] #minera-install-sheet .mis-note{background:#f1f5f9;border-color:#e2e8f0;color:#334155}' +
+      'html[data-theme="light"] #minera-install-sheet a.mis-alt{color:#b45309;border-color:#d97706}' +
       'html[data-theme="light"] #minera-install-sheet{background:#fff;color:#0f172a;border-color:#F5A623}' +
       'html[data-theme="light"] #minera-install-sheet h3{color:#0f172a}' +
       'html[data-theme="light"] #minera-install-sheet .mis-sub,html[data-theme="light"] #minera-install-sheet ol{color:#475569}';
@@ -281,13 +336,14 @@
       '<img src="icon-192.png" alt="" width="36" height="36">' +
       '<div class="pwa-txt"><strong>Instalar Minera Pará</strong><br><span style="color:#94a3b8;font-size:12px">Acesso rápido na tela inicial · pode fechar e ver de novo em 7 dias</span></div>' +
       '<button type="button" class="pwa-no" aria-label="Agora não">Agora não</button>' +
-      '<button type="button" class="pwa-go">Instalar</button>';
+      '<button type="button" class="pwa-go">' + (isAndroid() ? 'Baixar' : 'Instalar') + '</button>';
     document.body.appendChild(bar);
     bar.querySelector('.pwa-no').addEventListener('click', function () {
       markDismissed();
       bar.remove();
     });
     bar.querySelector('.pwa-go').addEventListener('click', function () {
+      if (isAndroid()) { markDismissed(); bar.remove(); showInstallSheet({ forceHelp: true }); return; }
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
       deferredPrompt.userChoice.finally(function () {
@@ -304,33 +360,42 @@
     if (bg) bg.remove();
   }
 
-  /** Fallback curto — só quando o prompt nativo ainda não chegou. */
+  /** Conteúdo do sheet "Baixar app" por plataforma. */
   function installHelpContent() {
     if (isIos()) {
       return {
-        badge: 'iPhone · Safari',
+        badge: 'iPhone · iPad',
         title: 'Instalar Minera Pará',
-        sub: 'Dois toques e o app fica na sua tela.',
+        sub: 'Dois toques e o app fica na sua tela de início.',
         body:
           '<div class="mis-steps">' +
-          '<div class="mis-step"><span class="mis-n">1</span><div><strong>Compartilhar</strong><br><span class="mis-hint">□↑ embaixo no Safari</span></div></div>' +
-          '<div class="mis-step"><span class="mis-n">2</span><div><strong>Adicionar à Tela de Início</strong><br><span class="mis-hint">Depois toque em Adicionar</span></div></div>' +
-          '</div>'
+          '<div class="mis-step"><span class="mis-n">1</span><div><strong>Toque em Compartilhar</strong><br><span class="mis-hint">O quadrado com seta ↑, embaixo no Safari</span></div></div>' +
+          '<div class="mis-step"><span class="mis-n">2</span><div><strong>Adicionar à Tela de Início</strong><br><span class="mis-hint">Role a lista se não aparecer · depois toque em Adicionar</span></div></div>' +
+          '</div>' +
+          '<p class="mis-note">No iPhone a Apple só permite apps da App Store — por isso o Minera Pará entra pela Tela de Início. Funciona igual a um app: abre em tela cheia, com ícone próprio.</p>'
       };
     }
     if (isAndroid()) {
       return {
-        badge: 'Android · Chrome',
-        title: 'Instalar no celular',
-        sub: 'Abra neste Chrome e toque de novo em Baixar app — o sistema instala sozinho.',
-        body: '<p class="mis-one">Menu <strong>⋮</strong> → <strong>Instalar app</strong> (se o botão ainda não instalou).</p>'
+        badge: 'Android',
+        title: 'Baixar o app Android',
+        sub: 'App oficial. Instale uma vez — as novidades chegam sozinhas.',
+        body:
+          '<a class="mis-apk" id="mis-apk" href="' + APK_URL + '" download="minera-para.apk" type="application/vnd.android.package-archive">⬇️ Baixar o app Android (APK)</a>' +
+          '<p class="mis-meta" id="mis-apk-meta">' + apkMetaText(apkInfo) + '</p>' +
+          '<div class="mis-steps compact">' +
+          '<div class="mis-step"><span class="mis-n">1</span><div><strong>Abra o arquivo baixado</strong><br><span class="mis-hint">Na notificação ou em Downloads. Se o Chrome avisar: “Baixar mesmo assim”.</span></div></div>' +
+          '<div class="mis-step"><span class="mis-n">2</span><div><strong>Permita instalar</strong><br><span class="mis-hint">Fontes desconhecidas: Configurações → “Permitir desta fonte” → voltar.</span></div></div>' +
+          '<div class="mis-step"><span class="mis-n">3</span><div><strong>Instalar → Abrir</strong><br><span class="mis-hint">O ícone Minera Pará fica na tela inicial.</span></div></div>' +
+          '</div>' +
+          (deferredPrompt ? '<button type="button" class="mis-link" id="mis-web">Prefere sem arquivo? Instalar versão web</button>' : '')
       };
     }
     return {
-      badge: 'Navegador',
+      badge: 'Computador',
       title: 'Instalar Minera Pará',
-      sub: 'No Chrome/Edge, use o ícone ⊕ Instalar na barra de endereço.',
-      body: ''
+      sub: 'No Chrome/Edge, use o ícone ⊕ Instalar na barra de endereço. No celular, abra este site e toque em Baixar app.',
+      body: '<a class="mis-alt" href="' + DOWNLOAD_PAGE + '">Ver página de download (Android e iPhone)</a>'
     };
   }
 
@@ -340,8 +405,9 @@
       if (typeof toastMsg === 'function') toastMsg('App já instalado neste aparelho.');
       return;
     }
-    // Se o prompt nativo chegou enquanto a UI abria, preferir um toque do sistema
-    if (deferredPrompt && !opts.forceHelp) {
+    // Computador: prompt nativo do navegador é o melhor caminho (1 toque).
+    // Android: sempre mostra o APK primeiro (versão web fica como alternativa).
+    if (deferredPrompt && !opts.forceHelp && !isAndroid()) {
       promptNativeInstall().finally(refreshInstallUi);
       return;
     }
@@ -360,7 +426,9 @@
       '<p class="mis-sub">' + info.sub + '</p>' +
       (info.body || '') +
       '<div class="mis-actions">' +
-      '<button type="button" class="mis-go" id="mis-ok">Pronto</button>' +
+      (isAndroid()
+        ? '<a class="mis-close mis-more" href="' + DOWNLOAD_PAGE + '">Mais detalhes</a><button type="button" class="mis-close" id="mis-ok">Agora não</button>'
+        : '<button type="button" class="mis-go" id="mis-ok">Pronto</button>') +
       '</div></div>';
     document.body.appendChild(bg);
     bg.addEventListener('click', function (ev) {
@@ -368,6 +436,24 @@
     });
     var btnOk = document.getElementById('mis-ok');
     if (btnOk) btnOk.addEventListener('click', closeInstallSheet);
+    var btnWeb = document.getElementById('mis-web');
+    if (btnWeb) {
+      btnWeb.addEventListener('click', function () {
+        closeInstallSheet();
+        promptNativeInstall().finally(refreshInstallUi);
+      });
+    }
+    var apk = document.getElementById('mis-apk');
+    if (apk) {
+      apk.addEventListener('click', function () {
+        try { localStorage.setItem('minera_apk_downloaded_at', String(Date.now())); } catch (e) {}
+        if (typeof toastMsg === 'function') toastMsg('Baixando… abra o arquivo quando terminar.');
+      });
+      loadApkInfo().then(function (j) {
+        var meta = document.getElementById('mis-apk-meta');
+        if (meta && j) meta.textContent = apkMetaText(j);
+      });
+    }
   }
 
   function promptNativeInstall() {
@@ -389,7 +475,13 @@
       else alert('Você já está no app instalado.');
       return Promise.resolve({ outcome: 'already-installed' });
     }
-    // Caminho principal: instalação do sistema (beforeinstallprompt)
+    // Android: oferece o APK (app de verdade); versão web fica como alternativa no sheet.
+    // iPhone: guia Compartilhar → Adicionar à Tela de Início (iOS não instala APK/sideload).
+    if (isAndroid() || isIos()) {
+      showInstallSheet({ forceHelp: true });
+      return Promise.resolve({ outcome: isIos() ? 'ios-guide' : 'apk-sheet' });
+    }
+    // Computador: instalação do sistema (beforeinstallprompt)
     if (deferredPrompt) {
       return promptNativeInstall().then(function (choice) {
         refreshInstallUi();
@@ -525,6 +617,8 @@
     promptInstall: baixarApp,
     showInstallHelp: showInstallSheet,
     isStandalone: isStandalone,
+    isTwa: isTwa,
+    apkUrl: APK_URL,
     bindDownloadButtons: bindDownloadButtons,
     assetV: ASSET_V,
     checkRemoteVersion: checkRemoteVersion,

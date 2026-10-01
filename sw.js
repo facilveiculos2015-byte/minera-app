@@ -72,6 +72,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  // APK/AAB do app Android: deixa o navegador baixar direto (não passa pelo SW nem ocupa cache)
+  if (/\.(apk|aab)$/i.test(url.pathname)) return;
+
   // version.json: sempre rede, nunca cache (HTTP nem SW)
   if (/\/version\.json$/i.test(url.pathname)) {
     event.respondWith(

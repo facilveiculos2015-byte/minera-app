@@ -1,0 +1,15 @@
+{
+  "_comment": "Config do app Android (TWA). Para trocar de domínio, mude SÓ host e basePath aqui e rode android/build.sh. Ver android/README.md.",
+  "packageId": "br.com.minerapara.app",
+  "host": "facilveiculos2015-byte.github.io",
+  "basePath": "/minera-app/",
+  "name": "Minera Pará",
+  "launcherName": "Minera Pará",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "themeColor": "#F5A623",
+  "backgroundColor": "#0B1220",
+  "navigationColor": "#0B1220",
+  "keystorePath": "/workspace/minera-apk-keys/minera-para-release.jks",
+  "keyAlias": "minera-para"
+}
