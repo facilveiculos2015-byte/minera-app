@@ -6395,3 +6395,6 @@ body.pagina-lote-detalhe #detalhe a.btn-ok {
 }
 body.pagina-lote-detalhe #detalhe a.btn-ok:active { filter: brightness(0.95); }
 html[data-theme="light"] body.pagina-lote-detalhe #detalhe a.btn-ok { background: #F5A623; color: #0b1220; }
+
+/* Chat (lista de conversas) no tema Claro: o painel estava fixo em #0b1220 */
+html[data-theme="light"] body.pagina-chat .chat-contacts-pane { background: var(--bg-color, #f1f5f9); }
