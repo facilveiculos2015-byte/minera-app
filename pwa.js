@@ -8,7 +8,7 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20261001i';
+  var ASSET_V = '20261001j';
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 
   function forceAssetRefreshOnce() {
@@ -87,6 +87,25 @@
     });
   }
 
+  var movingOrigin = false;
+  function moveToNewOrigin(url) {
+    if (movingOrigin) return;
+    movingOrigin = true;
+    var wipe = Promise.resolve();
+    if (typeof caches !== 'undefined' && caches.keys) {
+      wipe = caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      }).catch(function () {});
+    }
+    var unreg = Promise.resolve();
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      unreg = navigator.serviceWorker.getRegistrations().then(function (regs) {
+        return Promise.all(regs.map(function (r) { return r.unregister(); }));
+      }).catch(function () {});
+    }
+    Promise.all([wipe, unreg]).then(function () { location.replace(url); });
+  }
+
   var lastVersionCheck = 0;
   var versionCheckBusy = false;
   function checkRemoteVersion(force) {
@@ -98,7 +117,21 @@
       if (typeof fetch !== 'function') return Promise.resolve('nofetch');
       versionCheckBusy = true;
       return fetch('./version.json?t=' + now, { cache: 'no-store', credentials: 'same-origin' })
-        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (r) {
+          // version.json redirecionado para outra origem = o site mudou de domínio
+          // (github.io/minera-app → minerapara.com.br): limpa SW/cache daqui e vai para lá.
+          try {
+            if (r.redirected && new URL(r.url).origin !== location.origin) {
+              var dest = new URL(r.url);
+              var base = dest.pathname.replace(/version\.json$/, '');
+              var here = location.pathname.replace(/^\/minera-app\//, '/').replace(/^\//, '');
+              versionCheckBusy = false;
+              moveToNewOrigin(dest.origin + base + here + location.search + location.hash);
+              return null;
+            }
+          } catch (e) {}
+          return r.ok ? r.json() : null;
+        })
         .then(function (j) {
           versionCheckBusy = false;
           var remote = j && j.build ? String(j.build) : '';

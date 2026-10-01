@@ -5,19 +5,19 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261001i';
+const CACHE = 'minera-shell-20261001j';
 const PRECACHE = [
-  './style.css?v=20261001i',
-  './chat-realtime.js?v=20261001i',
-  './avatar.js?v=20261001i',
-  './avatar-editor.js?v=20261001i',
-  './nav.js?v=20261001i',
-  './config.js?v=20261001i',
-  './pwa.js?v=20261001i',
-  './lightbox.js?v=20261001i',
-  './gestor.css?v=20261001i',
-  './gestor-calc.js?v=20261001i',
-  './gestor.js?v=20261001i',
+  './style.css?v=20261001j',
+  './chat-realtime.js?v=20261001j',
+  './avatar.js?v=20261001j',
+  './avatar-editor.js?v=20261001j',
+  './nav.js?v=20261001j',
+  './config.js?v=20261001j',
+  './pwa.js?v=20261001j',
+  './lightbox.js?v=20261001j',
+  './gestor.css?v=20261001j',
+  './gestor-calc.js?v=20261001j',
+  './gestor.js?v=20261001j',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -25,6 +25,15 @@ const PRECACHE = [
   './og-familia.png',
   './manifest.webmanifest'
 ];
+
+/** Domínio novo: apaga caches e desregistra este SW (origem antiga só redireciona). */
+function retireFromOldOrigin() {
+  return caches.keys()
+    .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+    .catch(() => {})
+    .then(() => self.registration.unregister())
+    .catch(() => {});
+}
 
 function isHtmlRequest(req) {
   if (req.mode === 'navigate') return true;
@@ -79,6 +88,12 @@ self.addEventListener('fetch', (event) => {
   if (/\/version\.json$/i.test(url.pathname)) {
     event.respondWith(
       fetch(req.url, { cache: 'no-store', credentials: 'same-origin' })
+        .then((res) => {
+          try {
+            if (res.redirected && new URL(res.url).origin !== self.location.origin) event.waitUntil(retireFromOldOrigin());
+          } catch (e) { /* ignora */ }
+          return res;
+        })
         .catch(() => new Response('{}', { status: 503, headers: { 'Content-Type': 'application/json' } }))
     );
     return;
@@ -92,7 +107,16 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           // Navegação tem redirect mode 'manual': resposta "redirected" quebraria
           // (ex.: /minera-app → /minera-app/). Devolve um redirect explícito.
-          if (res.redirected && req.mode === 'navigate') return Response.redirect(res.url, 302);
+          if (res.redirected && req.mode === 'navigate') {
+            // Site mudou de origem (github.io/minera-app → minerapara.com.br): este SW ficou órfão
+            // na origem antiga — remove a si mesmo e o cache para não servir app velho offline.
+            try {
+              if (new URL(res.url).origin !== self.location.origin) {
+                event.waitUntil(retireFromOldOrigin());
+              }
+            } catch (e) { /* ignora */ }
+            return Response.redirect(res.url, 302);
+          }
           return res;
         })
         .catch(() => offlineFallback(req))
