@@ -109,12 +109,25 @@
     }
     async function salvarPreset(id) {
         msg('Salvando…', true);
-        if (await gravar('preset:' + id, 'avatar')) { toast('Avatar atualizado!'); fechar(); }
+        if (await gravar('preset:' + id, 'avatar')) { limparPasta(null); toast('Avatar atualizado!'); fechar(); }
     }
     async function remover() {
         msg('Removendo…', true);
         var antes = MineraAvatar.info(uid());
-        if (await gravar(null, 'iniciais')) { apagarArquivo(antes && antes.u); toast('Foto removida — mostrando suas iniciais.'); fechar(); }
+        if (await gravar(null, 'iniciais')) { apagarArquivo(antes && antes.u); limparPasta(null); toast('Foto removida — mostrando suas iniciais.'); fechar(); }
+    }
+    /** Apaga da pasta do usuário todo arquivo que não seja a foto/logo atual (órfãos de trocas anteriores). */
+    function limparPasta(atualUrl) {
+        var me = uid(); if (!me) return;
+        var atual = atualUrl && /\/avatares\/[^/]+\/([^/?#]+)$/.exec(atualUrl);
+        try {
+            supabaseClient.storage.from('avatares').list(me, { limit: 100 }).then(function (r) {
+                var lixo = ((r && r.data) || []).map(function (f) { return f.name; })
+                    .filter(function (n) { return n && n !== '.emptyFolderPlaceholder' && (!atual || n !== atual[1]); })
+                    .map(function (n) { return me + '/' + n; });
+                if (lixo.length) supabaseClient.storage.from('avatares').remove(lixo).then(function () {}, function () {});
+            }, function () {});
+        } catch (e) { /* ignore */ }
     }
     function apagarArquivo(url) {
         var m = url && /\/object\/public\/avatares\/(.+)$/.exec(url);
@@ -212,6 +225,7 @@
             var antes = MineraAvatar.info(me);
             if (await gravar(url, st.tipo)) {
                 if (antes && antes.u && antes.u !== url) apagarArquivo(antes.u);
+                limparPasta(url);
                 URL.revokeObjectURL(st.url);
                 toast(st.tipo === 'empresa' ? 'Logo salva!' : 'Foto salva!');
                 fechar();
