@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         msg('Enviando e-mail de recuperação...', true);
         try {
-            const root = (typeof APP_ROOT !== 'undefined' ? APP_ROOT : '/minera-app/');
+            const root = (typeof APP_ROOT !== 'undefined' ? APP_ROOT : (/^\/minera-app(\/|$)/.test(location.pathname) ? '/minera-app/' : '/'));
             const redirectTo = window.location.origin + root + 'index.html';
             const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
             if (error) {
@@ -336,7 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const { data, error } = await supabaseClient.auth.signUp({
                 email,
                 password,
-                options: { data: { nome, papeis, apelido } }
+                options: {
+                    data: { nome, papeis, apelido },
+                    emailRedirectTo: window.location.origin + (typeof APP_ROOT !== 'undefined' ? APP_ROOT : '/') + 'index.html'
+                }
             });
             if (error) {
                 msg('Erro no cadastro: ' + error.message, false);

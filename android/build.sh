@@ -25,6 +25,12 @@ mkdir -p "$BUILD" "$OUT"
 node "$HERE/make-twa-manifest.mjs" "$BUILD" $ICON_BASE
 cd "$BUILD"
 bubblewrap update --skipVersionUpgrade < /dev/null
+if [[ -n "$ICON_BASE" ]]; then
+  # o projeto gerado guarda a URL do web manifest: volta para a URL pública do site
+  SITE=$(node -e "const c=require('$HERE/app-config.json');const b=c.basePath.endsWith('/')?c.basePath:c.basePath+'/';console.log('https://'+c.host+b)")
+  sed -i "s|$ICON_BASE|$SITE|g" app/build.gradle
+  ! grep -q "127.0.0.1" app/build.gradle
+fi
 
 set -a; . "$KEYS_ENV"; set +a
 export BUBBLEWRAP_KEYSTORE_PASSWORD="$STORE_PASSWORD" BUBBLEWRAP_KEY_PASSWORD="$KEY_PASSWORD"
@@ -56,6 +62,7 @@ cat > "$REPO/download/app.json" <<JSON
 }
 JSON
 node "$HERE/make-assetlinks.mjs" "$CERT" > "$HERE/assetlinks.json"
+mkdir -p "$REPO/.well-known" && cp "$HERE/assetlinks.json" "$REPO/.well-known/assetlinks.json"
 sha256sum "$OUT/minera-para-$VER.apk" "$OUT/minera-para-$VER.aab"
 unset KS_PW
 echo "OK → $OUT e $REPO/download/minera-para.apk"

@@ -5,19 +5,19 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261001k';
+const CACHE = 'minera-shell-20261001l';
 const PRECACHE = [
-  './style.css?v=20261001k',
-  './chat-realtime.js?v=20261001k',
-  './avatar.js?v=20261001k',
-  './avatar-editor.js?v=20261001k',
-  './nav.js?v=20261001k',
-  './config.js?v=20261001k',
-  './pwa.js?v=20261001k',
-  './lightbox.js?v=20261001k',
-  './gestor.css?v=20261001k',
-  './gestor-calc.js?v=20261001k',
-  './gestor.js?v=20261001k',
+  './style.css?v=20261001l',
+  './chat-realtime.js?v=20261001l',
+  './avatar.js?v=20261001l',
+  './avatar-editor.js?v=20261001l',
+  './nav.js?v=20261001l',
+  './config.js?v=20261001l',
+  './pwa.js?v=20261001l',
+  './lightbox.js?v=20261001l',
+  './gestor.css?v=20261001l',
+  './gestor-calc.js?v=20261001l',
+  './gestor.js?v=20261001l',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -156,7 +156,7 @@ self.addEventListener('message', (event) => {
  */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const scope = self.registration.scope; // ex.: https://…/minera-app/
+  const scope = self.registration.scope; // ex.: https://minerapara.com.br/ (ou https://…github.io/minera-app/ no host antigo)
   let target = scope + 'chat.html';
   try {
     const u = event.notification.data && event.notification.data.url;

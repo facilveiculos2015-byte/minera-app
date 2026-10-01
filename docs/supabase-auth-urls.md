@@ -1,40 +1,35 @@
-# Supabase Auth — URL Configuration (GitHub Pages)
+# Supabase Auth — URL Configuration (minerapara.com.br)
 
-O fluxo **Esqueci minha senha** depende do Dashboard. O front já usa
-`resetPasswordForEmail` com `redirectTo` apontando para o `index.html` do Pages
-(`origin + APP_ROOT + 'index.html'`) e trata o hash `type=recovery` /
-evento `PASSWORD_RECOVERY` com o formulário **Definir nova senha**.
+Projeto `eelbuaxgfzvxosatwcxk` → Dashboard → **Authentication** → **URL Configuration**.
 
-Sem as URLs abaixo no projeto Supabase, o link do e-mail abre com erro
-(redirect bloqueado / Site URL errada).
+O front usa `window.location.origin + APP_ROOT + 'index.html'` como `redirectTo`
+(Esqueci minha senha) e `emailRedirectTo` (confirmação de cadastro). `APP_ROOT` é `/` em
+minerapara.com.br e `/minera-app/` se a página ainda abrir no github.io.
 
-## Onde configurar
-
-Supabase Dashboard → **Authentication** → **URL Configuration**
-(projeto `eelbuaxgfzvxosatwcxk` / Minera App).
-
-## Valores exatos
-
-**Site URL**
+## Site URL
 
 ```
-https://facilveiculos2015-byte.github.io/minera-app/
+https://minerapara.com.br/
 ```
 
-**Redirect URLs** (uma por linha; wildcards aceitos)
+## Redirect URLs (uma por linha)
 
 ```
+https://minerapara.com.br/**
+https://minerapara.com.br/index.html
+https://www.minerapara.com.br/**
 https://facilveiculos2015-byte.github.io/minera-app/**
 https://facilveiculos2015-byte.github.io/minera-app/index.html
 ```
 
-## Depois de salvar
+Manter as duas do github.io por algumas semanas: e-mails de recuperação/confirmação já enviados
+apontam para lá (o GitHub redireciona para o domínio novo). Remover depois.
 
-1. Pedir novo e-mail em **Esqueci minha senha** no app.
-2. Abrir o link: deve carregar o `index.html` do Pages e mostrar **Definir nova senha**.
-3. Após salvar, o app limpa o hash e vai para `inicio.html` (sessão ativa).
+## Ordem
 
-## Nota
+1. Adicionar as Redirect URLs novas **antes** do push do domínio (não quebra nada no host antigo).
+2. Trocar o Site URL para `https://minerapara.com.br/` **depois** que https://minerapara.com.br abrir com cadeado.
+3. Teste: Esqueci minha senha → link do e-mail abre `https://minerapara.com.br/index.html#…type=recovery` → Definir nova senha.
 
-Não é possível alterar Site URL / Redirect URLs só pelo código do repositório;
-o parent (ou dono do projeto) precisa aplicar no Dashboard.
+Sessões já logadas no github.io **não** passam para o domínio novo (localStorage é por origem):
+cada usuário entra de novo uma vez.

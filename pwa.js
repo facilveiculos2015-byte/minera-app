@@ -8,7 +8,7 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20261001k';
+  var ASSET_V = '20261001l';
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 
   function forceAssetRefreshOnce() {
@@ -235,7 +235,7 @@
   var TWA_KEY = 'minera_is_twa';
   var APK_PACKAGE = 'br.com.minerapara.app';
   function appRoot() {
-    return typeof APP_ROOT === 'string' ? APP_ROOT : '/minera-app/';
+    return typeof APP_ROOT === 'string' ? APP_ROOT : (/^\/minera-app(\/|$)/.test(location.pathname) ? '/minera-app/' : '/');
   }
   var APK_URL = appRoot() + 'download/minera-para.apk';
   var DOWNLOAD_PAGE = appRoot() + 'download/';
@@ -251,6 +251,48 @@
     } catch (e) {
       return false;
     }
+  }
+  /** versionCode do APK aberto (?apk=N no start_url; APK 1.0.0 não manda → 1). */
+  function twaApkCode() {
+    try {
+      var m = /[?&]apk=(\d+)/.exec(location.search);
+      if (m) sessionStorage.setItem('minera_twa_apk', m[1]);
+      return Number(sessionStorage.getItem('minera_twa_apk') || 1);
+    } catch (e) {
+      return 1;
+    }
+  }
+  /** Dentro do app Android antigo: oferece o APK novo (1×/dia). */
+  function maybeOfferApkUpdate() {
+    try {
+      if (!isTwa()) return;
+      var cur = twaApkCode();
+      var K = 'minera_apk_update_asked_at';
+      var last = Number(localStorage.getItem(K) || 0);
+      if (Date.now() - last < 24 * 60 * 60 * 1000) return;
+      loadApkInfo().then(function (j) {
+        if (!j || !(Number(j.versionCode) > cur)) return;
+        try { localStorage.setItem(K, String(Date.now())); } catch (e) {}
+        ensureStyles();
+        closeInstallSheet();
+        var bg = document.createElement('div');
+        bg.id = 'minera-install-sheet-bg';
+        bg.setAttribute('role', 'dialog');
+        bg.setAttribute('aria-modal', 'true');
+        bg.setAttribute('aria-label', 'Atualizar o app');
+        bg.innerHTML =
+          '<div id="minera-install-sheet">' +
+          '<span class="mis-badge">Nova versão ' + (j.versionName || '') + '</span>' +
+          '<h3>Atualize o app Minera Pará</h3>' +
+          '<p class="mis-sub">Endereço novo: minerapara.com.br. Baixe e instale por cima — sua conta continua a mesma.</p>' +
+          '<a class="mis-apk" id="mis-apk" href="' + APK_URL + '" download="minera-para.apk" type="application/vnd.android.package-archive">⬇️ Baixar atualização (APK)</a>' +
+          '<p class="mis-meta">' + apkMetaText(j) + '</p>' +
+          '<div class="mis-actions"><button type="button" class="mis-close" id="mis-ok">Depois</button></div></div>';
+        document.body.appendChild(bg);
+        bg.addEventListener('click', function (ev) { if (ev.target === bg) closeInstallSheet(); });
+        document.getElementById('mis-ok').addEventListener('click', closeInstallSheet);
+      });
+    } catch (e) {}
   }
   function loadApkInfo() {
     if (apkInfo || typeof fetch !== 'function') return Promise.resolve(apkInfo);
@@ -597,7 +639,7 @@
       var host = document.querySelector('.container.wide') || document.querySelector('.container');
       if (!host || document.getElementById('minera-welcome-strip')) return;
       ensureStyles();
-      var root = typeof APP_ROOT === 'string' ? APP_ROOT : '/minera-app/';
+      var root = typeof APP_ROOT === 'string' ? APP_ROOT : (/^\/minera-app(\/|$)/.test(location.pathname) ? '/minera-app/' : '/');
       var strip = document.createElement('div');
       strip.id = 'minera-welcome-strip';
       strip.setAttribute('role', 'region');
@@ -634,6 +676,7 @@
     showWelcomeStrip();
     maybeAskNotificationOnce();
     bindDownloadButtons();
+    setTimeout(maybeOfferApkUpdate, 1500);
   }
 
   if (document.readyState === 'loading') {

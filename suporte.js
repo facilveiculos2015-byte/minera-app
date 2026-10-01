@@ -328,7 +328,7 @@ function gerarCodigoIndicacao() {
     return s;
 }
 
-const INDICACAO_BASE = 'https://facilveiculos2015-byte.github.io/minera-app';
+const INDICACAO_BASE = 'https://minerapara.com.br';
 const SHARE_OG_IMAGE_DEFAULT = INDICACAO_BASE + '/og-familia.png?v=20260923aq';
 const SHARE_VIDEO_DEFAULT = 'media/convite-familia-minera.mp4?v=20260923aq';
 const SHARE_FRASE_PADRAO_DEFAULT =
