@@ -5814,6 +5814,7 @@ body.pagina-financeiro .nb-strip-right {
 .card-meus-anuncios .ma-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .card-meus-anuncios .ma-head h2 { margin: 0; border: 0; padding: 0; }
 .card-meus-anuncios .ma-novo { width: auto; min-height: 44px; padding: 10px 14px; display: inline-flex; align-items: center; border-radius: 12px; text-decoration: none; white-space: nowrap; }
+.card-meus-anuncios .ma-head + .sub { margin-top: 8px; } /* "+ Anunciar" (44px) não cobre a 1ª linha do subtítulo */
 .ma-lista { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
 .ma-item {
   display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px 12px;
