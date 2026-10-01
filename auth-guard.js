@@ -168,7 +168,11 @@ async function getPerfil(session) {
             bloqueado_em: data.bloqueado_em || null,
             codigo_indicacao: data.codigo_indicacao || null,
             indicado_por: data.indicado_por || null,
-            pontos_saldo: data.pontos_saldo != null ? Number(data.pontos_saldo) : 0
+            pontos_saldo: data.pontos_saldo != null ? Number(data.pontos_saldo) : 0,
+            // SQL 47 (foto de perfil); undefined quando a coluna ainda não existe
+            avatar_url: data.avatar_url,
+            avatar_tipo: data.avatar_tipo,
+            avatar_sql: Object.prototype.hasOwnProperty.call(data, 'avatar_tipo')
         };
     }
 
@@ -185,6 +189,7 @@ async function getPerfil(session) {
                 console.warn('getPerfil: ignored foreign auth_id');
             } else {
                 const perfil = mapRow(data);
+                try { if (window.MineraAvatar) MineraAvatar.doPerfil(perfil); } catch (e) { /* ignore */ }
                 await verificarInadimplencia(perfil);
                 if (perfil.auth_id) {
                     try {

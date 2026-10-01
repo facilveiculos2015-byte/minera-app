@@ -50,7 +50,7 @@ async function carregarUsuarios() {
                     ? '<button type="button" class="btn-sm btn-ok" data-act="desbloquear" data-id="' + u.id + '">Desbloquear</button>'
                     : '<button type="button" class="btn-sm btn-danger" data-act="bloquear" data-id="' + u.id + '">Bloquear login</button>';
                 return `<tr data-id="${u.id}">
-                    <td>${esc(u.nome || '—')}</td>
+                    <td><span class="admin-user-cel"><span class="mav mav-sm" aria-hidden="true" data-av-id="${esc(u.auth_id || '')}" data-av-nome="${esc(u.nome || '?')}"></span>${esc(u.nome || '—')}</span></td>
                     <td>${esc(u.email || '—')}</td>
                     <td>${esc(papeis)}</td>
                     <td>${st}${bloq && u.bloqueado_motivo ? '<br><span class="sub">' + esc(u.bloqueado_motivo) + '</span>' : ''}</td>

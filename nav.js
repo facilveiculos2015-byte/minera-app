@@ -206,7 +206,7 @@ function renderServicosCatalogoList() {
         const chatHref = (typeof APP_ROOT === 'string' ? APP_ROOT : '') +
             'chat.html?com=' + encodeURIComponent(u.auth_id);
         return '<article class="svc-card">' +
-            '<div class="svc-avatar" aria-hidden="true">' + _escNav(ini) + '</div>' +
+            '<div class="svc-avatar mav" aria-hidden="true" data-av-id="' + _escNav(u.auth_id || '') + '" data-av-nome="' + _escNav(nome) + '">' + _escNav(ini) + '</div>' +
             '<div class="svc-body">' +
             '<strong class="svc-nome">' + _escNav(nome) + '</strong>' +
             '<span class="svc-verificado">Prestador na plataforma</span>' +
@@ -706,7 +706,7 @@ function montarNav(paginaAtiva, perfil) {
             }
             if (it.avatar) {
                 return '<a class="bn-item bn-perfil' + on + '" href="' + APP_ROOT + it.href + '" title="Perfil">' +
-                    '<span class="bn-avatar" aria-hidden="true">' + iniciais + '</span>' +
+                    '<span class="bn-avatar mav" aria-hidden="true" data-av-id="' + _escNav((perfil && perfil.auth_id) || '') + '" data-av-nome="' + _escNav((perfil && perfil.nome) || '') + '">' + iniciais + '</span>' +
                     '<span class="bn-label">Perfil</span></a>';
             }
             return '<a class="bn-item' + on + '" href="' + APP_ROOT + it.href + '">' +
@@ -742,7 +742,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261001d';
+    const src = root + 'logo-escavadeira.png?v=20261001e';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');

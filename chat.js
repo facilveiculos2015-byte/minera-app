@@ -404,6 +404,7 @@ async function abrirThread(contato, opts) {
     mostrarEstadoOutro(null);
     showThreadUI(true);
     $('chat-com-nome').textContent = displayNome(contato);
+    if (window.MineraAvatar) MineraAvatar.marcar($('chat-com-av'), contato.auth_id, displayNome(contato));
     // Voltar do Android/navegador fecha a conversa (volta p/ lista sem sair do chat)
     try {
         if (history.state && history.state.chatPeer) { if (trocou) history.replaceState({ chatPeer: contato.auth_id }, '', location.href); }
@@ -820,7 +821,7 @@ function previewLinha(c) {
 function linhaHtml(c) {
     const p = previewLinha(c);
     const badge = c.unread ? '<span class="wa-unread">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '';
-    return '<div class="wa-av">' + esc(iniciais(c.nome)) + '</div>' +
+    return '<div class="wa-av mav" data-av-id="' + esc(c.auth_id) + '" data-av-nome="' + esc(c.nome) + '">' + esc(iniciais(c.nome)) + '</div>' +
         '<div class="wa-row-mid"><div class="wa-row-name">' + esc(c.nome) + '</div>' +
         '<div class="wa-row-prev">' + p.tick + '<span class="wa-row-prev-txt">' + esc(p.txt.slice(0, 80)) + '</span><span class="wa-row-typing">digitando…</span></div></div>' +
         '<div class="wa-row-right"><span class="wa-row-time' + (c.unread ? ' on' : '') + '">' + esc(timeRight(c.last && c.last.criado_em)) + '</span>' + badge + '</div>';
@@ -1153,7 +1154,7 @@ function renderDiretorioList(lista, roleFilter) {
         html += '<div class="chat-group"><div class="chat-group-title">' + esc(g.title) + '</div>';
         list.forEach(u => {
             const nome = displayNome(u);
-            html += '<div class="chat-dir-item"><div><strong>' + esc(nome) + '</strong>' +
+            html += '<div class="chat-dir-item"><span class="wa-av mav" data-av-id="' + esc(u.auth_id) + '" data-av-nome="' + esc(nome) + '">' + esc(iniciais(nome)) + '</span><div class="chat-dir-txt"><strong>' + esc(nome) + '</strong>' +
                 (u.apelido && u.nome && u.apelido !== u.nome ? '<div class="hint">' + esc(u.nome) + '</div>' : '') +
                 '<div class="contact-role">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</div></div>' +
                 (ja.has(u.auth_id) ? '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Abrir</button>'
@@ -1301,7 +1302,7 @@ function abrirAmigos() {
 function fecharAmigos() { const s = $('chat-amigos-sheet'); if (s) s.classList.add('oculto'); }
 function amigoLinha(u, ja) {
     const nome = displayNome(u);
-    return '<div class="gk-amigo" data-auth="' + esc(u.auth_id) + '"><span class="wa-av">' + esc(iniciais(nome)) + '</span>' +
+    return '<div class="gk-amigo" data-auth="' + esc(u.auth_id) + '"><span class="wa-av mav" data-av-id="' + esc(u.auth_id) + '" data-av-nome="' + esc(nome) + '">' + esc(iniciais(nome)) + '</span>' +
         '<span class="gk-amigo-txt"><strong>' + esc(nome) + '</strong><span class="sub">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</span></span>' +
         '<button type="button" class="btn-sm" data-amigo="' + esc(u.auth_id) + '">' + (ja ? 'Conversar' : 'Adicionar') + '</button></div>';
 }

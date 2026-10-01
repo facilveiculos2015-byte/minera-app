@@ -120,7 +120,9 @@
                 '<a class="btn-sm btn-ok" href="' + nego + '">Negociar</a>' +
                 '</div>';
         }
-        var anunciante = !meus && l.criado_por ? '<p class="lote-meta">Anunciante: ' + esc(l.criado_por) + '</p>' : '';
+        var anunciante = !meus && l.criado_por ? '<p class="lote-meta lote-anunciante">' +
+            (l.criado_por_id ? '<span class="mav mav-xs" aria-hidden="true" data-av-id="' + esc(l.criado_por_id) + '" data-av-nome="' + esc(l.criado_por) + '"></span>' : '') +
+            '<span>Anunciante: ' + esc(l.criado_por) + '</span></p>' : '';
         return '<article class="lote-card" data-id="' + esc(l.id) + '" data-codigo="' + esc(codigo) + '">' +
             img +
             '<div class="lote-card-body">' +

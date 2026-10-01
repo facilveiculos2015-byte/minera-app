@@ -34,7 +34,10 @@ function atualizarPerfilHero(perfil) {
         const papeis = Array.isArray(perfil.papeis) ? perfil.papeis.join(', ') : '';
         elS.textContent = papeis ? ('Papéis: ' + papeis) : (perfil.email || 'Atualize seus dados');
     }
-    if (elA) elA.textContent = iniciaisSimples(nome);
+    if (elA) {
+        if (window.MineraAvatar) { MineraAvatar.doPerfil(perfil); MineraAvatar.marcar(elA, perfil.auth_id, nome); }
+        else elA.textContent = iniciaisSimples(nome);
+    }
 }
 
 async function atualizarCardCompartilhar(perfil) {

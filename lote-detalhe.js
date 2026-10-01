@@ -79,7 +79,9 @@
             '<p style="font-size:1.4rem;font-weight:800;color:#F5A623;margin-bottom:8px">' + esc(destaque) + '</p>' +
             '<p class="sub" style="margin-bottom:12px">' + esc(loc) +
             (data.peso_bruto_kg != null ? ' · ' + esc(String(data.peso_bruto_kg)) + ' kg' : '') + '</p>' +
-            '<p style="margin-bottom:16px">Anunciante: <strong>' + esc(data.criado_por || 'Usuário') + '</strong></p>' +
+            '<p class="lote-vendedor" style="margin-bottom:16px">' +
+            (data.criado_por_id ? '<span class="mav mav-md" aria-hidden="true" data-av-id="' + esc(data.criado_por_id) + '" data-av-nome="' + esc(data.criado_por || 'Usuário') + '"></span>' : '') +
+            '<span>Anunciante: <strong>' + esc(data.criado_por || 'Usuário') + '</strong></span></p>' +
             '<div style="display:flex;flex-wrap:wrap;gap:10px">' +
             '<a class="btn-ok" href="' + nego + '">Negociar no chat</a>' +
             '</div>';
