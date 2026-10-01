@@ -28,7 +28,8 @@ const m = {
   navigationDividerColorDark: cfg.navigationColor,
   backgroundColor: cfg.backgroundColor,
   enableNotifications: true,
-  startUrl: `${base}index.html?utm_source=twa`,
+  // apk=<versionCode>: o site sabe qual APK está aberto e oferece atualização (pwa.js)
+  startUrl: `${base}index.html?utm_source=twa&apk=${cfg.appVersionCode}`,
   iconUrl: `${iconBase}android/icons/icon-app-512.png`,
   maskableIconUrl: `${iconBase}icon-maskable-512.png`,
   splashScreenFadeOutDuration: 300,
@@ -37,7 +38,7 @@ const m = {
   appVersionCode: cfg.appVersionCode,
   shortcuts: [],
   generatorApp: 'bubblewrap-cli',
-  webManifestUrl: `${site}manifest.webmanifest`,
+  webManifestUrl: `${iconBase}manifest.webmanifest`, // = site publicado, salvo LOCAL_ICONS=1
   fallbackType: 'customtabs',
   features: { locationDelegation: { enabled: true } },
   alphaDependencies: { enabled: false },

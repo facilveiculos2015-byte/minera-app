@@ -345,7 +345,7 @@ function enviarNoChat() {
         }));
     } catch (e) {}
 
-    const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '/minera-app/');
+    const root = (typeof APP_ROOT === 'string' ? APP_ROOT : (/^\/minera-app(\/|$)/.test(location.pathname) ? '/minera-app/' : '/'));
     const params = new URLSearchParams();
     params.set('lat', String(lat));
     params.set('lng', String(lng));
@@ -689,7 +689,7 @@ function markerPopup(lote) {
     const codigo = esc(lote.codigo_lote || '#' + lote.id);
     const tipo = esc(lote.tipo_minerio || 'Minério');
     const origem = esc(lote.origem || '—');
-    const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '/minera-app/');
+    const root = (typeof APP_ROOT === 'string' ? APP_ROOT : (/^\/minera-app(\/|$)/.test(location.pathname) ? '/minera-app/' : '/'));
     const chatHref = root + 'chat.html?lote=' + encodeURIComponent(lote.codigo_lote || lote.id);
     return '<div class="mapa-popup">' +
         '<strong>' + codigo + '</strong><br>' +

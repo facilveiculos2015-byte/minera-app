@@ -6,8 +6,8 @@
     <title>Minera Pará</title>
     <meta name="description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
     <meta name="theme-color" content="#F5A623">
-    <link rel="icon" type="image/png" href="/minera-app/icon-192.png">
-    <link rel="apple-touch-icon" href="/minera-app/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
     <!-- Open Graph / WhatsApp / Facebook -->
     <meta property="og:type" content="website">
@@ -15,15 +15,15 @@
     <meta property="og:locale" content="pt_BR">
     <meta property="og:title" content="Minera Pará">
     <meta property="og:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
-    <meta property="og:url" content="https://facilveiculos2015-byte.github.io/minera-app/">
-    <meta property="og:image" content="https://facilveiculos2015-byte.github.io/minera-app/og-familia.png?v=20261001j">
-    <meta property="og:image:secure_url" content="https://facilveiculos2015-byte.github.io/minera-app/og-familia.png?v=20261001j">
+    <meta property="og:url" content="https://minerapara.com.br/">
+    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261001j">
+    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261001j">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1080">
     <meta property="og:image:height" content="1080">
     <meta property="og:image:alt" content="Minera Pará">
-    <meta property="og:video" content="https://facilveiculos2015-byte.github.io/minera-app/media/convite-familia-minera.mp4?v=20261001j">
-    <meta property="og:video:secure_url" content="https://facilveiculos2015-byte.github.io/minera-app/media/convite-familia-minera.mp4?v=20261001j">
+    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261001j">
+    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261001j">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="464">
     <meta property="og:video:height" content="688">
@@ -32,7 +32,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Minera Pará">
     <meta name="twitter:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
-    <meta name="twitter:image" content="https://facilveiculos2015-byte.github.io/minera-app/og-familia.png?v=20261001j">
+    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261001j">
 
     <style>
         :root { color-scheme: dark; }
@@ -53,8 +53,19 @@
     </style>
     <script>
     (function () {
-        var APP = '/minera-app/';
         var path = location.pathname || '';
+        // Links antigos do project site (…/minera-app/<página>) que chegarem ao domínio novo:
+        // /minera-app/lotes.html?x → /lotes.html?x (o /c/CODIGO continua abaixo).
+        var legacy = /^\/minera-app(\/.*)?$/i.exec(path);
+        if (legacy && location.hostname !== 'facilveiculos2015-byte.github.io') {
+            var rest = legacy[1] || '/';
+            if (!/\/c\/[A-Za-z0-9_-]+\/?$/i.test(rest)) {
+                location.replace(rest + location.search + location.hash);
+                return;
+            }
+            path = rest;
+        }
+        var APP = /^\/minera-app(\/|$)/.test(location.pathname) && location.hostname === 'facilveiculos2015-byte.github.io' ? '/minera-app/' : '/';
         var code = '';
         var m = path.match(/\/c\/([A-Za-z0-9_-]+)\/?$/i);
         if (m) code = String(m[1] || '').toUpperCase();
@@ -75,12 +86,12 @@
 </head>
 <body>
     <div class="box">
-        <img class="logo" src="/minera-app/logo-escavadeira.png" alt="Minera Pará" width="96" height="96">
+        <img class="logo" src="/logo-escavadeira.png" alt="Minera Pará" width="96" height="96">
         <h1>Minera Pará</h1>
         <p>Abrindo o cadastro do Minera Pará…</p>
         <noscript>
             <p>JavaScript desativado. Abra o app manualmente:</p>
-            <a href="/minera-app/index.html">Entrar no Minera Pará</a>
+            <a href="/index.html">Entrar no Minera Pará</a>
         </noscript>
     </div>
 </body>

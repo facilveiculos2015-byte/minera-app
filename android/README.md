@@ -7,8 +7,8 @@ chega ao app na hora — só é preciso gerar um APK novo se mudar nome, ícone,
 | Item | Valor |
 |---|---|
 | Pacote | `br.com.minerapara.app` |
-| Versão | 1.0.0 (versionCode 1) |
-| Abre | `https://facilveiculos2015-byte.github.io/minera-app/index.html?utm_source=twa` |
+| Versão | 1.0.1 (versionCode 2) — 1.0.0 (code 1) abria o github.io |
+| Abre | `https://minerapara.com.br/index.html?utm_source=twa&apk=2` |
 | minSdk / targetSdk | 21 (Android 5) / 36 |
 | Permissões | `POST_NOTIFICATIONS`, `ACCESS_FINE/COARSE_LOCATION` (delegação de localização) |
 | Certificado (SHA-256) | `5A:F6:5E:B5:5C:D5:80:0E:7A:68:27:AD:50:CE:26:4B:E8:E9:0D:4B:D7:D8:9A:49:A5:AB:F4:C5:6F:01:71:AE` |
@@ -47,7 +47,13 @@ O TWA só abre **sem barra de URL** se o domínio provar que o app é dele com
 - **Opção B:** esperar o domínio `minerapara.com.br` e servir o assetlinks lá. Vai exigir APK novo de qualquer forma
   (o host fica gravado no APK), então os APKs instalados agora continuariam abrindo o github.io.
 
-### Trocar para minerapara.com.br (quando comprar)
+### Troca para minerapara.com.br (feita na 1.0.1 — branch `dominio`)
+
+`APP_ROOT` agora é derivado em tempo de execução (config.js), `CNAME`, `.nojekyll` e `.well-known/assetlinks.json`
+já estão no repo; `build.sh` regrava `.well-known/assetlinks.json`. O app 1.0.0 continua funcionando (o GitHub
+redireciona) e, dentro dele, o site oferece o APK 1.0.1 (`?apk=` no start_url; ver `maybeOfferApkUpdate` em pwa.js).
+
+Passos originais (referência):
 
 1. DNS + GitHub Pages: domínio customizado no repo `minera-app` (cria `CNAME`). O site passa a ficar na **raiz** `/`.
 2. Site: `APP_ROOT` em `config.js` (`'/minera-app/'` → `'/'`) e os ~29 caminhos fixos `/minera-app/` / URLs `og:` absolutas

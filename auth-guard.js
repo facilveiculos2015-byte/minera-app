@@ -364,7 +364,7 @@ function mostrarBannerBloqueio(perfil) {
         .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     el.innerHTML = '<strong>Conta bloqueada</strong> — ' +
         escM(motivo) +
-        ' <a href="' + (typeof APP_ROOT !== 'undefined' ? APP_ROOT : '/minera-app/') +
+        ' <a href="' + (typeof APP_ROOT !== 'undefined' ? APP_ROOT : (/^\/minera-app(\/|$)/.test(location.pathname) ? '/minera-app/' : '/')) +
         'perfil.html#comissoes">Pagar comissão (Pix)</a>';
 }
 

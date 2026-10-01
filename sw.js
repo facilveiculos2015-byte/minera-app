@@ -156,7 +156,7 @@ self.addEventListener('message', (event) => {
  */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const scope = self.registration.scope; // ex.: https://…/minera-app/
+  const scope = self.registration.scope; // ex.: https://minerapara.com.br/ (ou https://…github.io/minera-app/ no host antigo)
   let target = scope + 'chat.html';
   try {
     const u = event.notification.data && event.notification.data.url;
