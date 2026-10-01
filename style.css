@@ -6358,3 +6358,22 @@ body.pagina-financeiro .nb-dock,
   width: max-content; max-width: calc(100% - 24px);
   margin: 16px auto calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 1; min-height: 44px;
 }
+
+/* Caixa bloqueado no tema Claro: o painel era forçado a vidro escuro, mas o texto
+   herdava cores do Claro (título #0f172a sobre fundo escuro = invisível).
+   No Claro o painel vira vidro claro com texto escuro de alto contraste. */
+html[data-theme="light"] body.pagina-financeiro .caixa-lock-panel,
+html[data-theme="light"] .caixa-lock-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+  color: #0f172a;
+}
+html[data-theme="light"] .caixa-lock-panel h3 { color: #0f172a; }
+html[data-theme="light"] .caixa-lock-panel p,
+html[data-theme="light"] .caixa-lock-panel .sub { color: #475569; }
+html[data-theme="light"] .caixa-lock-panel strong { color: #0f172a; }
+html[data-theme="light"] .caixa-lock-panel label { color: #334155; }
+html[data-theme="light"] .caixa-lock-panel .msg.erro { color: #b91c1c; }
+html[data-theme="light"] .caixa-lock-panel .msg.ok { color: #15803d; }
+html[data-theme="light"] .caixa-lock-panel .btn-link, html[data-theme="light"] .caixa-lock-panel a { color: #b45309; }

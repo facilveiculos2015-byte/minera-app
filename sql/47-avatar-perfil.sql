@@ -33,7 +33,7 @@ BEGIN
         avatar_url IS NULL
         OR (length(avatar_url) <= 400 AND (
               avatar_url ~ '^preset:[a-z0-9_-]{1,32}$'
-           OR avatar_url ~ '^https://eelbuaxgfzvxosatwcxk\.supabase\.co/storage/v1/object/public/avatares/[0-9a-f-]{36}/[A-Za-z0-9._-]{1,80}$'
+           OR avatar_url ~ '^https://eelbuaxgfzvxosatwcxk[.]supabase[.]co/storage/v1/object/public/avatares/[0-9a-f-]{36}/[A-Za-z0-9._-]{1,80}$'
         ))
       );
   END IF;

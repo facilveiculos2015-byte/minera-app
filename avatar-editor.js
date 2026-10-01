@@ -79,8 +79,13 @@
         if (!me) { msg('Entre novamente.'); return false; }
         var r = await supabaseClient.from('usuarios').update({ avatar_url: url, avatar_tipo: tipo }).eq('auth_id', me).select('auth_id,avatar_url,avatar_tipo');
         if (r.error) {
-            var semColuna = /avatar_|column|schema cache/i.test(r.error.message || '') || r.error.code === 'PGRST204' || r.error.code === '42703';
-            msg(semColuna ? 'Foto de perfil ainda não ativada no servidor (falta o SQL 47). Suas iniciais continuam aparecendo.' : ('Não foi possível salvar: ' + r.error.message));
+            var cod = String(r.error.code || '');
+            var semColuna = cod === 'PGRST204' || cod === '42703' || /does not exist|schema cache/i.test(r.error.message || '');
+            if (cod !== '23514' && cod !== '42501' && !semColuna) console.warn('avatar: gravar', cod, r.error.message);
+            msg(semColuna ? 'Foto de perfil ainda não ativada no servidor (falta o SQL 47). Suas iniciais continuam aparecendo.'
+                : cod === '23514' ? 'O servidor recusou esta foto agora. Tente um avatar pronto ou tente de novo mais tarde.'
+                : cod === '42501' ? 'Sem permissão para usar esta foto.'
+                : 'Não foi possível salvar. Tente de novo.');
             return false;
         }
         if (!r.data || !r.data.length) { msg('Não foi possível salvar (sem permissão).'); return false; }
