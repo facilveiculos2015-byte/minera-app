@@ -12,12 +12,14 @@
 
     // Colunas que o celular manda (calculadas ficam com o banco)
     const COLS_CARRADA = ['id', 'client_id', 'data', 'minerio', 'comprador', 'placa', 'motorista', 'ticket_numero', 'nf_numero',
-        'peso_bruto_kg', 'tara_kg', 'peso_liquido_kg', 'umidade_pct', 'umidade_franquia_pct', 'teor', 'preco_modo', 'peso_base',
-        'preco_ponto', 'preco_t_informado', 'valor_informado', 'ajuste', 'custo_minerio', 'frete_base', 'frete_unit',
+        'peso_bruto_kg', 'tara_kg', 'peso_liquido_kg', 'umidade_pct', 'teor', 'preco_modo',
+        'preco_ponto', 'preco_t_informado', 'valor_informado', 'ajuste', 'tabela_id', 'tabela_teor_ref', 'preco_manual', 'custo_minerio', 'frete_base', 'frete_unit',
         'carregamento_base', 'carregamento_unit', 'impostos_pct', 'outros_custos', 'status', 'ticket_foto_path', 'observacao', 'deleted_at'];
     const COLS_LANC = ['id', 'client_id', 'data', 'tipo', 'valor', 'categoria_id', 'descricao', 'observacao', 'forma_pagto',
         'status', 'vencimento', 'carrada_id', 'comprovante_path', 'deleted_at'];
-    const NUM_CARRADA = ['peso_bruto_kg', 'tara_kg', 'peso_liquido_kg', 'umidade_pct', 'umidade_franquia_pct', 'teor', 'preco_ponto',
+    const COLS_CAT = ['id', 'nome', 'tipo', 'icone', 'ordem', 'arquivada'];
+    const COLS_TAB = ['id', 'client_id', 'nome', 'minerio', 'comprador', 'modo', 'observacao', 'deleted_at'];
+    const NUM_CARRADA = ['peso_bruto_kg', 'tara_kg', 'peso_liquido_kg', 'umidade_pct', 'teor', 'preco_ponto',
         'preco_t_informado', 'valor_informado', 'ajuste', 'custo_minerio', 'frete_unit', 'carregamento_unit', 'impostos_pct', 'outros_custos'];
     const TXT_CARRADA = ['data', 'minerio', 'comprador', 'placa', 'motorista', 'ticket_numero', 'nf_numero', 'observacao'];
     const CATS_PADRAO = [ // offline antes da 1ª sincronização (ids reais vêm do banco)
@@ -31,7 +33,7 @@
         ['outras_entradas', 'Outras entradas', 'entrada', '➕']];
 
     let uid = null;
-    let db = { carradas: [], lancamentos: [], categorias: [] };
+    let db = { carradas: [], lancamentos: [], categorias: [], tabelas: [] };
     let outbox = [];
     let flushing = false;
     let semRede = false; // último envio falhou por rede/servidor fora
@@ -64,6 +66,7 @@
     }
     function lerLocal() {
         try { const c = JSON.parse(localStorage.getItem(chave('cache')) || 'null'); if (c) db = Object.assign(db, c); } catch (e) { /* ignore */ }
+        if (!Array.isArray(db.tabelas)) db.tabelas = [];
         try { outbox = JSON.parse(localStorage.getItem(chave('outbox')) || '[]') || []; } catch (e) { outbox = []; }
         if (!db.categorias.length) {
             db.categorias = CATS_PADRAO.map((c, i) => ({ id: 'preset:' + c[0], slug: c[0], nome: c[1], tipo: c[2], icone: c[3], ordem: i, auth_id: null }));
@@ -127,6 +130,9 @@
 
     // ---------- dados ----------
     const carradasVivas = () => db.carradas.filter((c) => !c.deleted_at);
+    const tabelasVivas = () => db.tabelas.filter((t) => !t.deleted_at).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
+    const catsVivas = () => db.categorias.filter((c) => !c.arquivada);
+    function carradaViva(id) { const c = id && db.carradas.find((x) => x.id === id); return c && !c.deleted_at && c.status !== 'cancelada' ? c : null; }
     const lancVivos = () => db.lancamentos.filter((l) => !l.deleted_at);
     function despesasDe(cid) { return lancVivos().filter((l) => l.carrada_id === cid && l.tipo === 'saida'); }
     function calc(c) { return G.calcCarrada(c, despesasDe(c.id).reduce((s, l) => s + Number(l.valor || 0), 0)); }
@@ -135,11 +141,14 @@
         const arr = db[tab]; const i = arr.findIndex((x) => x.id === row.id);
         if (i >= 0) arr[i] = Object.assign({}, arr[i], row); else arr.unshift(row);
     }
+    const TABELAS = { carradas: ['gf_carradas', COLS_CARRADA], lancamentos: ['gf_lancamentos', COLS_LANC], categorias: ['gf_categorias', COLS_CAT] };
     function gravar(tab, row) {
-        const tabela = tab === 'carradas' ? 'gf_carradas' : 'gf_lancamentos';
-        const cols = tab === 'carradas' ? COLS_CARRADA : COLS_LANC;
         upsertLocal(tab, row);
-        outbox.push({ table: tabela, tab, row: pick(row, cols) });
+        if (tab === 'tabelas') { // tabela + linhas: 1 RPC atômica (idempotente)
+            outbox.push({ rpc: 'gf_tabela_preco_salvar', tab, row: Object.assign(pick(row, COLS_TAB), { linhas: (row.linhas || []).map((l) => ({ teor: l.teor, valor: l.valor })) }) });
+        } else {
+            outbox.push({ table: TABELAS[tab][0], tab, row: pick(row, TABELAS[tab][1]) });
+        }
         salvarLocal(); render(); flush();
     }
 
@@ -162,6 +171,12 @@
                 } else if (it.fotoDel) {
                     const { error } = await supabaseClient.storage.from(BUCKET).remove([it.fotoDel]);
                     if (error && isNetErr(error)) { semRede = true; break; }
+                } else if (it.rpc) {
+                    const r = it.row;
+                    const { data, error } = await supabaseClient.rpc(it.rpc, { p_tabela: pick(r, COLS_TAB), p_linhas: r.linhas || null });
+                    if (error && isNetErr(error)) { semRede = true; break; }
+                    if (error) { servidorErro = error.message || 'erro'; toast('Não salvou a tabela: ' + servidorErro); }
+                    else if (data && !outbox.slice(1).some((o) => o.row && o.row.id === data.id)) upsertLocal('tabelas', data);
                 } else if (it.row) {
                     const row = Object.assign({}, it.row);
                     if (row.categoria_id && String(row.categoria_id).startsWith('preset:')) {
@@ -193,12 +208,13 @@
     async function puxar() {
         if (!navigator.onLine) { renderSync(); return; }
         try {
-            const [cat, car, lan] = await Promise.all([
+            const [cat, car, lan, tab] = await Promise.all([
                 supabaseClient.from('gf_categorias').select('*').order('ordem'),
                 supabaseClient.from('gf_carradas').select('*').is('deleted_at', null).order('data', { ascending: false }).range(0, 1999),
-                supabaseClient.from('gf_lancamentos').select('*').is('deleted_at', null).order('data', { ascending: false }).range(0, 4999)
+                supabaseClient.from('gf_lancamentos').select('*').is('deleted_at', null).order('data', { ascending: false }).range(0, 4999),
+                supabaseClient.from('gf_tabelas_preco').select('*, linhas:gf_tabelas_preco_linhas(teor, valor)').is('deleted_at', null).order('nome')
             ]);
-            const err = cat.error || car.error || lan.error;
+            const err = cat.error || car.error || lan.error || tab.error;
             if (err) {
                 if (!isNetErr(err)) servidorErro = 'Servidor do Gestor indisponível (' + (err.message || err.code) + ').';
                 renderSync(); return;
@@ -214,7 +230,8 @@
                 });
                 return m;
             };
-            db.categorias = (cat.data || []).length ? cat.data : db.categorias;
+            db.categorias = (cat.data || []).length ? mesclar(cat.data, 'categorias') : db.categorias;
+            db.tabelas = mesclar((tab.data || []).map((t) => Object.assign(t, { linhas: (t.linhas || []).map((l) => ({ teor: Number(l.teor), valor: Number(l.valor) })).sort((a, b) => a.teor - b.teor) })), 'tabelas');
             db.carradas = mesclar(car.data || [], 'carradas');
             db.lancamentos = mesclar(lan.data || [], 'lancamentos');
             salvarLocal(); render(); flush();
@@ -241,13 +258,18 @@
     function cardCarrada(c0) {
         const c = calc(c0);
         const cls = c.lucro > 0 ? 'pos' : c.lucro < 0 ? 'neg' : '';
-        const pesos = c.peso_umido_t != null ? G.fmtNum(c.peso_umido_t, 2) + ' TU · ' + G.fmtNum(c.peso_seco_t, 2) + ' TMS' : 'sem peso';
+        const pesos = c.peso_umido_t != null ? G.fmtNum(c.peso_umido_t, 2) + ' t líq. · ' + G.fmtNum(c.peso_seco_t, 2) + ' t seco' : 'sem peso';
         const lbl = c.status === 'finalizada' ? 'Lucro' : 'Lucro (prévia)';
-        return '<button type="button" class="gf-item gf-carrada" data-carrada="' + esc(c.id) + '">' +
+        return '<div class="gf-item gf-carrada"><button type="button" class="gf-item-main" data-carrada="' + esc(c.id) + '">' +
             '<span class="gf-item-top"><span class="gf-item-tit">🚛 ' + esc(ddmm(c.data)) + ' · ' + esc(c.minerio || 'Minério') +
             (c.placa ? ' · ' + esc(c.placa) : '') + '</span>' + statusBadge(c) + '</span>' +
-            '<span class="gf-item-sub">' + esc(pesos) + (c.comprador ? ' · ' + esc(c.comprador) : '') + (pendente(c.id) ? ' · ⏳' : '') + '</span>' +
-            '<span class="gf-item-lucro ' + cls + '"><small>' + lbl + '</small> ' + esc(G.fmtBRL(c.lucro)) + '</span></button>';
+            '<span class="gf-item-sub">' + esc(pesos) + (c.teor != null ? ' · teor ' + esc(G.fmtNum(c.teor, 2)) + '%' : '') + (c.comprador ? ' · ' + esc(c.comprador) : '') + (pendente(c.id) ? ' · ⏳' : '') + '</span>' +
+            '<span class="gf-item-lucro ' + cls + '"><small>' + lbl + '</small> ' + esc(G.fmtBRL(c.lucro)) + '</span></button>' +
+            acoes('carrada', c.id) + '</div>';
+    }
+    function acoes(tipo, id) {
+        return '<div class="gf-item-acoes"><button type="button" class="gf-acao" data-ed="' + tipo + ':' + esc(id) + '">✏️ Editar</button>' +
+            '<button type="button" class="gf-acao gf-acao-del" data-del="' + tipo + ':' + esc(id) + '">🗑️ Excluir</button></div>';
     }
     function vazio(txt) { return '<p class="gf-vazio">' + txt + '</p>'; }
 
@@ -270,7 +292,7 @@
         const mes = sel.value;
         const fin = carradasVivas().filter((c) => c.status === 'finalizada' && (c.data || '').startsWith(mes)).map(calc);
         const lucro = fin.reduce((s, c) => s + c.lucro, 0);
-        const avulsas = lancVivos().filter((l) => !l.carrada_id && (l.data || '').startsWith(mes));
+        const avulsas = lancVivos().filter((l) => !carradaViva(l.carrada_id) && (l.data || '').startsWith(mes));
         const desp = avulsas.filter((l) => l.tipo === 'saida').reduce((s, l) => s + Number(l.valor), 0);
         const ent = avulsas.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + Number(l.valor), 0);
         const res = lucro + ent - desp;
@@ -293,14 +315,32 @@
         const cat = catPor(l.categoria_id);
         const car = l.carrada_id && db.carradas.find((c) => c.id === l.carrada_id);
         const sinal = l.tipo === 'entrada' ? '+' : '−';
-        return '<button type="button" class="gf-item gf-lanc" data-lanc="' + esc(l.id) + '">' +
+        return '<div class="gf-item gf-lanc-wrap"><button type="button" class="gf-item-main gf-lanc" data-lanc="' + esc(l.id) + '">' +
             '<span class="gf-lanc-ico" aria-hidden="true">' + esc((cat && cat.icone) || (l.tipo === 'entrada' ? '➕' : '➖')) + '</span>' +
             '<span class="gf-lanc-meio"><span class="gf-item-tit">' + esc(l.descricao || (cat && cat.nome) || (l.tipo === 'entrada' ? 'Entrada' : 'Despesa')) + '</span>' +
             '<span class="gf-item-sub">' + esc(ddmm(l.data)) + (cat && l.descricao ? ' · ' + esc(cat.nome) : '') +
             (car ? ' · 🚛 ' + esc(ddmm(car.data)) + (car.placa ? ' ' + esc(car.placa) : '') : '') +
             (l.status === 'pendente' ? ' · <span class="gf-pend">pendente</span>' : '') +
             (l.comprovante_path ? ' · 📎' : '') + (pendente(l.id) ? ' · ⏳' : '') + '</span></span>' +
-            '<span class="gf-lanc-valor ' + (l.tipo === 'entrada' ? 'pos' : 'neg') + '">' + sinal + ' ' + esc(G.fmtBRL(Number(l.valor))) + '</span></button>';
+            '<span class="gf-lanc-valor ' + (l.tipo === 'entrada' ? 'pos' : 'neg') + '">' + sinal + ' ' + esc(G.fmtBRL(Number(l.valor))) + '</span></button>' +
+            acoes('lanc', l.id) + '</div>';
+    }
+    function renderCadastros() {
+        const tabs = tabelasVivas();
+        $('#lista-tabelas').innerHTML = tabs.length ? tabs.map((t) => {
+            const L = (t.linhas || []).slice().sort((a, b) => a.teor - b.teor);
+            const faixa = L.length ? G.fmtNum(L[0].teor, 2) + '% a ' + G.fmtNum(L[L.length - 1].teor, 2) + '%' : 'sem linhas';
+            return '<div class="gf-item"><button type="button" class="gf-item-main" data-ed="tabela:' + esc(t.id) + '">' +
+                '<span class="gf-item-tit">📋 ' + esc(t.nome) + (pendente(t.id) ? ' ⏳' : '') + '</span>' +
+                '<span class="gf-item-sub">' + esc([t.minerio, t.comprador].filter(Boolean).join(' · ') || 'Qualquer minério') + '</span>' +
+                '<span class="gf-item-sub">' + L.length + ' linha(s) · ' + esc(faixa) + ' · ' + (t.modo === 'tonelada' ? 'R$ por tonelada' : 'R$ por ponto') + '</span></button>' +
+                acoes('tabela', t.id) + '</div>';
+        }).join('') : vazio('Nenhuma tabela ainda. Toque em <b>＋ Nova tabela</b>.');
+        const minhas = catsVivas().filter((c) => c.auth_id);
+        $('#lista-categorias').innerHTML = (minhas.length ? minhas.map((c) =>
+            '<div class="gf-item"><button type="button" class="gf-item-main" data-ed="cat:' + esc(c.id) + '"><span class="gf-item-tit">' + esc(c.icone || '•') + ' ' + esc(c.nome) + (pendente(c.id) ? ' ⏳' : '') + '</span>' +
+            '<span class="gf-item-sub">' + (c.tipo === 'entrada' ? 'Entrada' : 'Despesa') + '</span></button>' + acoes('cat', c.id) + '</div>').join('')
+            : vazio('Você ainda não criou categorias.')) + '<p class="sub gf-ajuda">🔒 As categorias padrão do app não podem ser alteradas.</p>';
     }
     function renderDespesas() {
         const l = lancVivos().sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criado_em || '').localeCompare(a.criado_em || ''));
@@ -317,7 +357,8 @@
         if (aba === 'resumo') renderResumo();
         if (aba === 'carradas') renderCarradas();
         if (aba === 'despesas') renderDespesas();
-        $('#gf-fab').classList.toggle('oculto', aba === 'resumo');
+        if (aba === 'cadastros') renderCadastros();
+        $('#gf-fab').classList.toggle('oculto', aba === 'resumo' || aba === 'cadastros');
         if (!$('#sheet-carrada').classList.contains('oculto')) atualizarConta();
     }
     function irAba(a) {
@@ -371,17 +412,20 @@
         const f = fCar();
         const ult = lembretes();
         fc = id ? Object.assign({}, db.carradas.find((c) => c.id === id)) : {
-            id: null, data: hoje(), preco_modo: 'ponto', peso_base: 'tms', frete_base: ult.frete_base || 'por_t',
+            id: null, data: hoje(), preco_modo: 'ponto', frete_base: ult.frete_base || 'por_t', tabela_id: ult.tabela_id || null, preco_manual: false,
             carregamento_base: ult.carregamento_base || 'por_t', status: 'aberta', minerio: ult.minerio || 'Manganês',
             preco_ponto: ult.preco_ponto, frete_unit: ult.frete_unit, carregamento_unit: ult.carregamento_unit, comprador: ult.comprador
         };
         TXT_CARRADA.forEach((k) => { if (f.elements[k]) f.elements[k].value = fc[k] || ''; });
         if (fc.data) f.elements.data.value = fc.data;
         NUM_CARRADA.forEach((k) => { if (f.elements[k]) f.elements[k].value = G.numInput(fc[k]); });
-        ['preco_modo', 'peso_base', 'frete_base', 'carregamento_base'].forEach((k) => segSet(f, k, fc[k]));
+        ['preco_modo', 'frete_base', 'carregamento_base'].forEach((k) => segSet(f, k, fc[k]));
         $('#sc-titulo').textContent = id ? 'Carrada ' + ddmm(fc.data) : 'Nova carrada';
-        $('details.gf-mais', f).open = fc.umidade_franquia_pct != null || !!Number(fc.ajuste || 0);
+        $('details.gf-mais', f).open = !!Number(fc.ajuste || 0);
+        if (!id && fc.tabela_id && !tabelasVivas().some((t) => t.id === fc.tabela_id)) fc.tabela_id = null;
+        opcoesTabela(fc.tabela_id);
         estadoCarrada();
+        if (!id) aplicarTabela(); else infoTabelaSalva();
         abrir('sheet-carrada');
     }
     function lerCarrada() {
@@ -390,7 +434,9 @@
         TXT_CARRADA.forEach((k) => { const v = f.elements[k].value.trim(); o[k] = v || null; });
         if (!o.data) o.data = hoje();
         NUM_CARRADA.forEach((k) => { o[k] = G.parseBR(f.elements[k].value); });
-        ['preco_modo', 'peso_base', 'frete_base', 'carregamento_base'].forEach((k) => { o[k] = segGet(f, k); });
+        ['preco_modo', 'frete_base', 'carregamento_base'].forEach((k) => { o[k] = segGet(f, k); });
+        o.tabela_id = f.elements.tabela_id.value && f.elements.tabela_id.value !== '__nova' ? f.elements.tabela_id.value : null;
+        if (!o.tabela_id) { o.tabela_teor_ref = null; o.preco_manual = false; }
         if (o.placa) o.placa = o.placa.toUpperCase().replace(/[^A-Z0-9]/g, '') || null;
         return o;
     }
@@ -398,7 +444,6 @@
         const f = fCar();
         const modo = segGet(f, 'preco_modo');
         $$('[data-modo]', f).forEach((d) => d.classList.toggle('oculto', d.dataset.modo !== modo));
-        $('[data-modo-peso]', f).classList.toggle('oculto', modo === 'total');
         const fin = fc.status === 'finalizada';
         $('#sc-campos').disabled = fin;
         $('#sc-status').outerHTML = '<span id="sc-status">' + (fc.id ? statusBadge(fc) : '') + '</span>';
@@ -415,9 +460,9 @@
         const t = c.peso_pago_t, tu = c.peso_umido_t;
         let det = '';
         if (c.preco_modo === 'total') det = 'valor informado';
-        else if (t != null && c.preco_t != null) det = G.fmtNum(t, 2) + ' t ' + (c.umidade_franquia_pct != null ? '(c/ franquia)' : c.peso_base === 'tu' ? 'TU' : 'TMS') + ' × ' + G.fmtBRL(c.preco_t);
+        else if (t != null && c.preco_t != null) det = G.fmtNum(t, 2) + ' t seco × ' + G.fmtBRL(c.preco_t);
         if (c.ajuste) det += (det ? ' ' : '') + (c.ajuste > 0 ? '+ ' : '− ') + G.fmtBRL(Math.abs(c.ajuste));
-        const fdet = (base, unit) => base === 'viagem' ? 'por viagem' : (tu != null && unit ? G.fmtNum(tu, 2) + ' TU × ' + G.fmtBRL(unit) : '');
+        const fdet = (base, unit) => base === 'viagem' ? 'por viagem' : (tu != null && unit ? G.fmtNum(tu, 2) + ' t × ' + G.fmtBRL(unit) : '');
         const nD = despesasDe(c.id).length;
         return linhaConta('Valor de venda', G.fmtBRL(c.valor_venda), det, 'gf-conta-venda') +
             linhaConta('− Custo do minério', G.fmtBRL(c.custo_minerio || 0)) +
@@ -433,10 +478,10 @@
         if (fc.id) { const atual = db.carradas.find((x) => x.id === fc.id); if (atual) fc.status = atual.status; }
         const c = calc(lerCarrada());
         $('#sc-pesos').innerHTML = c.erro ? '<span class="neg">⚠️ ' + esc(c.erro) + '</span>'
-            : c.peso_umido_t != null ? 'Líquido ' + G.fmtNum(c.peso_liquido_kg, 0) + ' kg = <b>' + G.fmtNum(c.peso_umido_t, 2) + ' TU</b> · <b>' + G.fmtNum(c.peso_seco_t, 2) + ' TMS</b>' : 'Digite bruto e tara (ou o líquido).';
+            : c.peso_umido_t != null ? 'Peso líquido <b>' + G.fmtNum(c.peso_umido_t, 2) + ' t</b>' + (c.umidade_pct ? ' − ' + G.fmtNum(c.umidade_pct, 2) + '% umidade' : '') + ' = <b>' + G.fmtNum(c.peso_seco_t, 2) + ' t seco</b>' : 'Digite bruto e tara (ou o líquido).';
         $('#sc-preco').innerHTML = c.preco_modo === 'ponto'
             ? 'Preço da tonelada: <b>' + G.fmtBRL(c.preco_t) + '</b>' + (c.preco_ponto && c.teor ? ' <small>(' + G.fmtBRL(c.preco_ponto) + ' × ' + G.fmtNum(c.teor, 2) + ' pontos)</small>' : '') +
-              '<br>Total: <b>' + G.fmtBRL(c.valor_venda) + '</b>'
+              '<br>Total: <b>' + G.fmtBRL(c.valor_venda) + '</b>' + (c.peso_seco_t != null && c.preco_t ? ' <small>(' + G.fmtNum(c.peso_seco_t, 2) + ' t seco × ' + G.fmtBRL(c.preco_t) + ')</small>' : '')
             : 'Total: <b>' + G.fmtBRL(c.valor_venda) + '</b>';
         $('#sc-conta').innerHTML = contaHtml(c);
         const ds = fc.id ? despesasDe(fc.id) : [];
@@ -450,11 +495,135 @@
         if (status) o.status = status;
         fc = o;
         localStorage.setItem(chave('ultimos'), JSON.stringify({
-            minerio: o.minerio, preco_ponto: o.preco_ponto, frete_unit: o.frete_unit, frete_base: o.frete_base,
+            minerio: o.minerio, tabela_id: o.tabela_id, preco_ponto: o.preco_ponto, frete_unit: o.frete_unit, frete_base: o.frete_base,
             carregamento_unit: o.carregamento_unit, carregamento_base: o.carregamento_base, comprador: o.comprador
         }));
         gravar('carradas', o);
         return o;
+    }
+
+    // ---------- tabela de preço na carrada ----------
+    function opcoesTabela(sel) {
+        const min = fCar().elements.minerio.value;
+        const l = tabelasVivas().slice().sort((a, b) => (b.minerio === min) - (a.minerio === min));
+        if (sel && !l.some((t) => t.id === sel)) { const t = db.tabelas.find((x) => x.id === sel); if (t) l.push(t); } // tabela excluída mas usada
+        $('#sc-tabela').innerHTML = '<option value="">— Sem tabela (digitar preço) —</option>' + l.map((t) =>
+            '<option value="' + esc(t.id) + '"' + (t.id === sel ? ' selected' : '') + '>' + esc(t.nome + (t.minerio ? ' · ' + t.minerio : '') + (t.deleted_at ? ' (excluída)' : '')) + '</option>').join('') +
+            '<option value="__nova">＋ Cadastrar nova tabela…</option>';
+    }
+    /** Acha o preço do teor na tabela e preenche o campo (se não foi digitado à mão) */
+    function aplicarTabela() {
+        const f = fCar();
+        const tid = f.elements.tabela_id.value;
+        const info = $('#sc-tabela-info');
+        const t = tid && db.tabelas.find((x) => x.id === tid);
+        if (!t) { info.classList.add('oculto'); fc.tabela_teor_ref = null; return; }
+        info.classList.remove('oculto');
+        const un = t.modo === 'tonelada' ? 'por tonelada' : 'por ponto';
+        if (fc.preco_manual) {
+            info.innerHTML = '✏️ Preço digitado à mão (tabela ignorada). <button type="button" class="gf-btn gf-btn-mini gf-btn-sec" id="sc-usar-tabela">Usar tabela</button>';
+            return;
+        }
+        const teor = G.parseBR(f.elements.teor.value);
+        const L = (t.linhas || []).slice().sort((a, b) => a.teor - b.teor);
+        if (teor == null) { info.innerHTML = '📋 Digite o teor para achar o preço na tabela.'; fc.tabela_teor_ref = null; return; }
+        const r = G.lookupTabela(L, teor);
+        if (!r) {
+            fc.tabela_teor_ref = null;
+            info.innerHTML = '⚠️ Teor ' + esc(G.fmtNum(teor, 2)) + '% está abaixo da 1ª linha da tabela' + (L.length ? ' (' + esc(G.fmtNum(L[0].teor, 2)) + '%)' : '') + '. Digite o preço.';
+            return;
+        }
+        fc.tabela_teor_ref = r.teor;
+        if (t.modo === 'tonelada') { segSet(f, 'preco_modo', 'tonelada'); f.elements.preco_t_informado.value = G.numInput(r.valor); }
+        else { segSet(f, 'preco_modo', 'ponto'); f.elements.preco_ponto.value = G.numInput(r.valor); }
+        $$('[data-modo]', f).forEach((d) => d.classList.toggle('oculto', d.dataset.modo !== segGet(f, 'preco_modo')));
+        info.innerHTML = '📋 <b>' + esc(t.nome) + '</b>: usou a linha <b>' + esc(G.fmtNum(r.teor, 2)) + '%</b> → ' + esc(G.fmtBRL(r.valor)) + ' ' + un +
+            (r.exato ? ' (linha exata)' : ' (faixa: teor ' + esc(G.fmtNum(teor, 2)) + '% ≥ ' + esc(G.fmtNum(r.teor, 2)) + '%)');
+    }
+
+    // Carrada já salva: mostra a linha usada sem recalcular (preço é "foto" do dia)
+    function infoTabelaSalva() {
+        const info = $('#sc-tabela-info');
+        const t = fc.tabela_id && db.tabelas.find((x) => x.id === fc.tabela_id);
+        if (!t) { info.classList.add('oculto'); return; }
+        info.classList.remove('oculto');
+        info.innerHTML = fc.preco_manual ? '✏️ Preço digitado à mão (tabela <b>' + esc(t.nome) + '</b> ignorada).'
+            : fc.tabela_teor_ref != null ? '📋 <b>' + esc(t.nome) + '</b>: usou a linha <b>' + esc(G.fmtNum(fc.tabela_teor_ref, 2)) + '%</b>. Mude o teor ou a tabela para recalcular.'
+            : '📋 <b>' + esc(t.nome) + '</b>';
+    }
+
+    // ---------- tabela de preço (cadastro) ----------
+    let ft = null;
+    const fTab = () => $('#form-tabela');
+    function linhasDoForm() {
+        return $$('#st-linhas .gf-tab-linha').map((el) => ({ teor: G.parseBR($('[data-k=teor]', el).value), valor: G.parseBR($('[data-k=valor]', el).value) }));
+    }
+    function renderLinhas(linhas) {
+        $('#st-linhas').innerHTML = linhas.map((l, i) => '<div class="gf-tab-linha" data-i="' + i + '">' +
+            '<input type="text" inputmode="decimal" data-k="teor" aria-label="Teor %" placeholder="40" value="' + esc(G.numInput(l.teor)) + '">' +
+            '<input type="text" inputmode="decimal" data-k="valor" aria-label="Valor" placeholder="10,00" value="' + esc(G.numInput(l.valor)) + '">' +
+            '<button type="button" class="gf-acao gf-acao-del gf-linha-del" data-del-linha="' + i + '" aria-label="Excluir linha">🗑️</button></div>').join('') ||
+            '<p class="gf-vazio">Sem linhas. Toque em ＋ Adicionar linha ou cole da planilha.</p>';
+    }
+    function modoTabelaUi() {
+        const m = segGet(fTab(), 'modo');
+        $('#st-col-valor').textContent = m === 'tonelada' ? 'R$ por tonelada' : 'R$ por ponto';
+        $('#st-ajuda').textContent = m === 'tonelada'
+            ? 'Cada linha é o preço da tonelada seca para aquela faixa de teor.'
+            : 'Cada linha é o R$ por ponto (1% de teor) por tonelada: preço/t = valor × teor da carga.';
+    }
+    function abrirTabela(id, minerio) {
+        const f = fTab();
+        ft = id ? JSON.parse(JSON.stringify(db.tabelas.find((t) => t.id === id))) : { id: null, nome: '', minerio: minerio || '', comprador: '', modo: 'ponto', linhas: [{ teor: null, valor: null }] };
+        f.elements.nome.value = ft.nome || ''; f.elements.minerio.value = ft.minerio || ''; f.elements.comprador.value = ft.comprador || '';
+        segSet(f, 'modo', ft.modo || 'ponto'); modoTabelaUi();
+        renderLinhas((ft.linhas || []).slice().sort((a, b) => (a.teor == null) - (b.teor == null) || a.teor - b.teor));
+        $('#st-colar').value = ''; $('#st-colar-box').open = false;
+        $('#st-titulo').textContent = id ? 'Editar tabela' : 'Nova tabela de preço';
+        $('#st-excluir').classList.toggle('oculto', !id);
+        abrir('sheet-tabela');
+    }
+    function salvarTabela() {
+        const f = fTab();
+        const nome = f.elements.nome.value.trim();
+        if (!nome) { toast('Dê um nome para a tabela'); f.elements.nome.focus(); return; }
+        const brutas = linhasDoForm().filter((l) => l.teor != null || l.valor != null);
+        if (brutas.some((l) => l.teor == null || l.valor == null)) { toast('Preencha teor e valor em todas as linhas'); return; }
+        if (brutas.some((l) => l.teor < 0 || l.teor > 100 || l.valor < 0)) { toast('Teor deve ser de 0 a 100%'); return; }
+        const teores = brutas.map((l) => l.teor);
+        if (new Set(teores).size !== teores.length) { toast('Tem teor repetido na tabela'); return; }
+        if (!brutas.length) { toast('Adicione pelo menos 1 linha'); return; }
+        const o = Object.assign({}, ft, { nome, minerio: f.elements.minerio.value || null, comprador: f.elements.comprador.value.trim() || null,
+            modo: segGet(f, 'modo'), linhas: brutas.sort((a, b) => a.teor - b.teor) });
+        if (!o.id) { o.id = novoId(); o.client_id = o.id; }
+        gravar('tabelas', o);
+        fecharTopo();
+        toast('Tabela salva');
+        if (pilha[pilha.length - 1] === 'sheet-carrada') { opcoesTabela(o.id); fc.preco_manual = false; aplicarTabela(); atualizarConta(); }
+    }
+
+    // ---------- categoria do usuário ----------
+    let fk = null;
+    function abrirCategoria(id, tipo) {
+        const f = $('#form-categoria');
+        fk = id ? Object.assign({}, db.categorias.find((c) => c.id === id)) : { id: null, tipo: tipo || 'saida', nome: '', icone: '' };
+        segSet(f, 'tipo', fk.tipo); f.elements.nome.value = fk.nome || ''; f.elements.icone.value = fk.icone || '';
+        $('#sk-titulo').textContent = id ? 'Editar categoria' : 'Nova categoria';
+        $('#sk-excluir').classList.toggle('oculto', !id);
+        abrir('sheet-categoria');
+    }
+    function salvarCategoria() {
+        const f = $('#form-categoria');
+        const nome = f.elements.nome.value.trim();
+        if (!nome) { toast('Digite o nome'); return; }
+        const tipo = segGet(f, 'tipo');
+        if (catsVivas().some((c) => c.id !== fk.id && c.tipo === tipo && c.nome.toLowerCase() === nome.toLowerCase())) { toast('Já existe essa categoria'); return; }
+        const o = Object.assign({}, fk, { nome, tipo, icone: f.elements.icone.value.trim() || null, arquivada: false });
+        if (!o.id) { o.id = novoId(); o.ordem = 200; o.auth_id = uid; }
+        gravar('categorias', o);
+        fecharTopo();
+        toast('Categoria salva');
+        if (pilha[pilha.length - 1] === 'sheet-despesa' && fd && segGet(fDes(), 'tipo') === o.tipo) { fd.categoria_id = o.id; renderCats(); }
     }
 
     // ---------- despesa ----------
@@ -462,9 +631,10 @@
     const fDes = () => $('#form-despesa');
     function renderCats() {
         const tipo = segGet(fDes(), 'tipo');
-        $('#sd-cats').innerHTML = db.categorias.filter((c) => c.tipo === tipo && !c.arquivada).map((c) =>
+        $('#sd-cats').innerHTML = catsVivas().filter((c) => c.tipo === tipo).map((c) =>
             '<button type="button" class="gf-cat' + (fd.categoria_id === c.id ? ' on' : '') + '" data-cat="' + esc(c.id) + '"><span aria-hidden="true">' +
-            esc(c.icone || '•') + '</span>' + esc(c.nome) + '</button>').join('');
+            esc(c.icone || '•') + '</span>' + esc(c.nome) + '</button>').join('') +
+            '<button type="button" class="gf-cat gf-cat-nova" data-acao="nova-categoria-aqui"><span aria-hidden="true">＋</span>Nova categoria</button>';
     }
     function opcoesCarrada(sel) {
         const l = carradasVivas().filter((c) => c.status !== 'cancelada' && (c.status === 'aberta' || c.id === sel))
@@ -529,10 +699,26 @@
     }
 
     // ---------- excluir c/ desfazer ----------
-    function excluir(tab, id, nome) {
-        const r = db[tab].find((x) => x.id === id); if (!r) return;
-        gravar(tab, Object.assign({}, r, { deleted_at: new Date().toISOString() }));
-        toast(nome + ' excluída', () => gravar(tab, Object.assign({}, r, { deleted_at: null })));
+    const NOMES = { carradas: ['Carrada', 'Excluir esta carrada? As despesas dela passam a contar como avulsas.'],
+        lancamentos: ['Lançamento', 'Excluir este lançamento?'], tabelas: ['Tabela', 'Excluir esta tabela de preço? As carradas já feitas não mudam.'],
+        categorias: ['Categoria', 'Excluir esta categoria? Os lançamentos antigos continuam com ela.'] };
+    function excluir(tab, id, semConfirmar) {
+        const r = db[tab].find((x) => x.id === id); if (!r) return false;
+        if (!semConfirmar && !confirm(NOMES[tab][1])) return false;
+        const campo = tab === 'categorias' ? { arquivada: true } : { deleted_at: new Date().toISOString() };
+        const volta = tab === 'categorias' ? { arquivada: false } : { deleted_at: null };
+        gravar(tab, Object.assign({}, r, campo));
+        toast(NOMES[tab][0] + ' excluída', () => { gravar(tab, Object.assign({}, r, volta)); toast('Desfeito'); });
+        return true;
+    }
+    function editarCarrada(id) {
+        const c = db.carradas.find((x) => x.id === id); if (!c) return;
+        if (c.status === 'finalizada') {
+            if (!confirm('Esta carrada está finalizada. Reabrir para editar?')) return;
+            gravar('carradas', Object.assign({}, c, { status: 'aberta' }));
+            toast('Carrada reaberta');
+        }
+        abrirCarrada(id);
     }
 
     // ---------- CSV ----------
@@ -549,9 +735,10 @@
         const cols = [
             ['Data', (c) => G.dataBR(c.data)], ['Status', (c) => c.status], ['Minério', (c) => c.minerio], ['Placa', (c) => c.placa],
             ['Motorista', (c) => c.motorista], ['Comprador', (c) => c.comprador], ['Ticket', (c) => c.ticket_numero], ['NF', (c) => c.nf_numero],
-            ['Peso líquido (kg)', (c) => c.peso_liquido_kg], ['Umidade %', (c) => c.umidade_pct], ['TU', (c) => c.peso_umido_t], ['TMS', (c) => c.peso_seco_t],
-            ['Teor %', (c) => c.teor], ['Modo preço', (c) => modo[c.preco_modo] || c.preco_modo], ['Peso base', (c) => (c.peso_base || '').toUpperCase()],
-            ['Preço por ponto', (c) => c.preco_ponto], ['Preço/t', (c) => c.preco_t], ['Toneladas pagas', (c) => c.peso_pago_t],
+            ['Peso líquido (kg)', (c) => c.peso_liquido_kg], ['Umidade %', (c) => c.umidade_pct], ['Peso líquido (t)', (c) => c.peso_umido_t], ['Peso seco (t)', (c) => c.peso_seco_t],
+            ['Teor %', (c) => c.teor], ['Modo preço', (c) => modo[c.preco_modo] || c.preco_modo],
+            ['Tabela', (c) => { const t = c.tabela_id && db.tabelas.find((x) => x.id === c.tabela_id); return t ? t.nome : ''; }],
+            ['Linha da tabela (teor %)', (c) => c.tabela_teor_ref], ['Preço por ponto', (c) => c.preco_ponto], ['Preço/t', (c) => c.preco_t],
             ['Valor de venda', (c) => c.valor_venda], ['Custo minério', (c) => c.custo_minerio || 0], ['Frete', (c) => c.frete_total],
             ['Carregamento', (c) => c.carregamento_total], ['Impostos', (c) => c.impostos_total], ['Outros custos', (c) => c.outros_custos || 0],
             ['Despesas vinculadas', (c) => c.despesas_total], ['Lucro', (c) => c.lucro], ['Observação', (c) => c.observacao]
@@ -574,17 +761,39 @@
     function bind() {
         $$('.gf-tab').forEach((b) => b.addEventListener('click', () => irAba(b.dataset.aba)));
         document.addEventListener('click', (e) => {
-            const t = e.target.closest('[data-acao],[data-carrada],[data-lanc],[data-ir],[data-fechar],[data-f],[data-cat],.gf-seg button');
+            const t = e.target.closest('[data-acao],[data-carrada],[data-lanc],[data-ir],[data-fechar],[data-f],[data-cat],[data-ed],[data-del],[data-del-linha],#sc-usar-tabela,.gf-seg button');
             if (!t) return;
             if (t.matches('.gf-seg button')) {
                 const seg = t.closest('.gf-seg'), form = t.closest('form');
                 if (form && form.querySelector('fieldset:disabled') && form.querySelector('fieldset:disabled').contains(t)) return;
                 segSet(form, seg.dataset.campo, t.dataset.v);
-                if (form.id === 'form-carrada') estadoCarrada();
+                if (form.id === 'form-carrada') { if (seg.dataset.campo === 'preco_modo' && form.elements.tabela_id.value) { fc.preco_manual = true; aplicarTabela(); } estadoCarrada(); }
+                if (form.id === 'form-tabela') modoTabelaUi();
                 if (form.id === 'form-despesa' && seg.dataset.campo === 'tipo') { fd.categoria_id = null; renderCats(); $('#sd-titulo').textContent = t.dataset.v === 'entrada' ? 'Nova entrada' : 'Nova despesa'; }
                 return;
             }
-            if (t.dataset.acao === 'nova-carrada') abrirCarrada(null);
+            if (t.id === 'sc-usar-tabela') { fc.preco_manual = false; aplicarTabela(); atualizarConta(); return; }
+            if (t.dataset.ed) {
+                const [tipo, id] = t.dataset.ed.split(':');
+                if (tipo === 'carrada') editarCarrada(id); else if (tipo === 'lanc') abrirDespesa(id);
+                else if (tipo === 'tabela') abrirTabela(id); else if (tipo === 'cat') abrirCategoria(id);
+                return;
+            }
+            if (t.dataset.del) {
+                const [tipo, id] = t.dataset.del.split(':');
+                excluir({ carrada: 'carradas', lanc: 'lancamentos', tabela: 'tabelas', cat: 'categorias' }[tipo], id);
+                return;
+            }
+            if (t.dataset.delLinha != null) { // linha da tabela em edição: some na hora, com Desfazer
+                const linhas = linhasDoForm(); const i = Number(t.dataset.delLinha); const tirada = linhas.splice(i, 1)[0];
+                renderLinhas(linhas);
+                toast('Linha excluída', () => { const l2 = linhasDoForm(); l2.splice(i, 0, tirada); renderLinhas(l2); });
+                return;
+            }
+            if (t.dataset.acao === 'nova-tabela') abrirTabela(null);
+            else if (t.dataset.acao === 'nova-categoria') abrirCategoria(null);
+            else if (t.dataset.acao === 'nova-categoria-aqui') abrirCategoria(null, segGet(fDes(), 'tipo'));
+            else if (t.dataset.acao === 'nova-carrada') abrirCarrada(null);
             else if (t.dataset.acao === 'nova-despesa') abrirDespesa(null);
             else if (t.dataset.carrada) abrirCarrada(t.dataset.carrada);
             else if (t.dataset.lanc) abrirDespesa(t.dataset.lanc);
@@ -596,7 +805,15 @@
             else if (t.dataset.cat) { fd.categoria_id = fd.categoria_id === t.dataset.cat ? null : t.dataset.cat; renderCats(); }
         });
         $('#gf-fab').addEventListener('click', () => (aba === 'despesas' ? abrirDespesa(null) : abrirCarrada(null)));
-        fCar().addEventListener('input', atualizarConta);
+        fCar().addEventListener('input', (e) => {
+            const n = e.target.name;
+            if (n === 'tabela_id') {
+                if (e.target.value === '__nova') { e.target.value = fc.tabela_id || ''; abrirTabela(null, fCar().elements.minerio.value); return; }
+                fc.tabela_id = e.target.value || null; fc.preco_manual = false; aplicarTabela();
+            } else if (n === 'teor' || n === 'minerio') { if (n === 'minerio') opcoesTabela(fCar().elements.tabela_id.value); aplicarTabela(); }
+            else if (['preco_ponto', 'preco_t_informado', 'valor_informado'].includes(n) && fCar().elements.tabela_id.value) { fc.preco_manual = true; aplicarTabela(); }
+            atualizarConta();
+        });
         fCar().addEventListener('submit', (e) => {
             e.preventDefault();
             if (salvarCarrada()) { fecharTopo(); toast('Carrada salva'); }
@@ -612,8 +829,8 @@
         });
         $('#sc-reabrir').addEventListener('click', () => { gravar('carradas', Object.assign({}, fc, { status: 'aberta' })); fc.status = 'aberta'; estadoCarrada(); toast('Carrada reaberta'); });
         $('#sc-excluir').addEventListener('click', () => {
-            if (!fc.id || !confirm('Excluir esta carrada? As despesas ficam como avulsas.')) return;
-            const id = fc.id; fecharTopo(); excluir('carradas', id, 'Carrada');
+            if (!fc.id || !confirm(NOMES.carradas[1])) return;
+            const id = fc.id; fecharTopo(); excluir('carradas', id, true);
         });
         $('#sc-add-despesa').addEventListener('click', () => {
             if (!fc.id) { const o = salvarCarrada(); if (!o) return; estadoCarrada(); }
@@ -621,8 +838,8 @@
         });
         fDes().addEventListener('submit', (e) => { e.preventDefault(); salvarDespesa(); });
         $('#sd-excluir').addEventListener('click', () => {
-            if (!fd.id) return;
-            const id = fd.id; fecharTopo(); excluir('lancamentos', id, fd.tipo === 'entrada' ? 'Entrada' : 'Despesa');
+            if (!fd.id || !confirm(NOMES.lancamentos[1])) return;
+            const id = fd.id; fecharTopo(); excluir('lancamentos', id, true);
         });
         $('#sd-foto-btn').addEventListener('click', () => $('#sd-foto-input').click());
         $('#sd-foto-input').addEventListener('change', async (e) => {
@@ -638,6 +855,28 @@
             $('#mf-img').src = src; $('#modal-foto').classList.remove('oculto');
         });
         $('#resumo-mes').addEventListener('change', renderResumo);
+        fTab().addEventListener('submit', (e) => { e.preventDefault(); salvarTabela(); });
+        $('#st-add-linha').addEventListener('click', () => {
+            const l = linhasDoForm(); l.push({ teor: null, valor: null }); renderLinhas(l);
+            const ins = $$('#st-linhas [data-k=teor]'); if (ins.length) ins[ins.length - 1].focus();
+        });
+        $('#st-importar').addEventListener('click', () => {
+            const novas = G.parseTabelaColada($('#st-colar').value);
+            if (!novas.length) { toast('Não achei linhas (teor e valor por linha)'); return; }
+            const atuais = linhasDoForm().filter((l) => l.teor != null || l.valor != null);
+            if (atuais.length && !confirm('Trocar as ' + atuais.length + ' linha(s) atuais pelas ' + novas.length + ' coladas?')) return;
+            renderLinhas(novas); $('#st-colar').value = ''; $('#st-colar-box').open = false;
+            toast(novas.length + ' linha(s) importada(s) — confira e salve');
+        });
+        $('#st-excluir').addEventListener('click', () => {
+            if (!ft.id || !confirm(NOMES.tabelas[1])) return;
+            const id = ft.id; fecharTopo(); excluir('tabelas', id, true);
+        });
+        $('#form-categoria').addEventListener('submit', (e) => { e.preventDefault(); salvarCategoria(); });
+        $('#sk-excluir').addEventListener('click', () => {
+            if (!fk.id || !confirm(NOMES.categorias[1])) return;
+            const id = fk.id; fecharTopo(); excluir('categorias', id, true);
+        });
         $('#btn-csv-carradas').addEventListener('click', csvCarradas);
         $('#btn-csv-despesas').addEventListener('click', csvDespesas);
         window.addEventListener('online', () => { servidorErro = ''; puxar(); });

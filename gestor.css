@@ -11,7 +11,7 @@
 
 .gf-tabs { display: flex; gap: 6px; background: var(--card-bg); border: 1px solid var(--border-subtle);
     border-radius: 14px; padding: 4px; margin-bottom: 14px; position: sticky; top: 0; z-index: 50; }
-.gf-tab { flex: 1; min-height: 44px; background: transparent; color: var(--muted); border-radius: 10px; font-size: 1rem; }
+.gf-tab { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 8px 2px; background: transparent; color: var(--muted); border-radius: 10px; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gf-tab:hover { background: transparent; }
 .gf-tab.on { background: var(--accent-color); color: #0f172a; }
 
@@ -32,10 +32,32 @@
 .gf-btn-mini { min-height: 40px; width: auto; font-size: 0.9rem; }
 
 .gf-lista { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-.gf-item { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; width: 100%;
+.gf-item { display: flex; flex-direction: column; align-items: stretch; width: 100%; overflow: hidden;
     background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md); padding: 12px 14px; font-weight: 400; box-shadow: 0 2px 8px var(--shadow); }
-.gf-item:hover { background: var(--card-bg); border-color: var(--accent-color); }
+    border-radius: var(--radius-md); box-shadow: 0 2px 8px var(--shadow); }
+.gf-item-main { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; width: 100%;
+    background: transparent; color: var(--text-color); padding: 12px 14px; font-weight: 400; border-radius: 0; }
+.gf-item-main:hover { background: transparent; }
+.gf-item-main:active { background: var(--bg-elevated); }
+.gf-item-acoes { display: flex; border-top: 1px solid var(--border-subtle); }
+.gf-acao { flex: 1; min-height: 44px; background: transparent; color: var(--text-color); font-size: 0.92rem; font-weight: 700; border-radius: 0; padding: 8px; }
+.gf-acao:hover { background: transparent; }
+.gf-acao + .gf-acao { border-left: 1px solid var(--border-subtle); }
+.gf-acao-del { color: var(--danger); }
+.gf-h2-row .gf-h2 { min-width: 0; }
+.gf-h2-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
+.gf-h2-row .gf-h2 { margin: 6px 2px; }
+.gf-h2-row .gf-btn-mini { min-height: 44px; }
+.gf-tab-grade { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 8px; }
+.gf-tab-cab, .gf-tab-linha { display: grid; grid-template-columns: 1fr 1.3fr 48px; gap: 8px; align-items: center; }
+.gf-tab-cab { font-size: 0.8rem; color: var(--muted); font-weight: 700; padding: 0 2px 6px; }
+.gf-tab-linha { margin-bottom: 8px; }
+.gf-tab-linha input { min-width: 0; }
+.gf-linha-del { min-height: 48px; border: 1px solid var(--border); border-radius: 10px; padding: 0; }
+.gf-cat-nova { border-style: dashed; color: var(--accent-color); }
+.gf-tab-info { font-size: 0.9rem; }
+.gf-tab-info .gf-btn-mini { margin-left: 6px; min-height: 36px; }
+#sheet-tabela, #sheet-categoria { z-index: 1650; }
 .gf-item-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .gf-item-tit { font-weight: 700; font-size: 1rem; min-width: 0; overflow-wrap: anywhere; }
 .gf-item-sub { color: var(--muted); font-size: 0.88rem; }
@@ -104,9 +126,8 @@ body.gf-sheet-aberta { overflow: hidden; }
 .gf-seg button { flex: 1; min-height: 44px; background: transparent; color: var(--text-color); font-size: 0.92rem; padding: 6px 4px; border-radius: 9px; font-weight: 600; }
 .gf-seg button:hover { background: transparent; }
 .gf-seg button.on { background: var(--accent-color); color: #0f172a; font-weight: 800; }
-.gf-linha-custo { display: grid; grid-template-columns: 1fr 132px; gap: 8px; align-items: end; }
-.gf-seg-mini { height: 48px; }
-.gf-seg-mini button { min-height: 38px; font-size: 0.85rem; }
+.gf-linha-custo { display: flex; flex-direction: column; gap: 6px; }
+.gf-seg-mini button { min-height: 40px; font-size: 0.9rem; }
 .gf-mais { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 12px; }
 .gf-mais summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
 .gf-mais[open] summary { margin-bottom: 8px; }
@@ -149,6 +170,6 @@ body.gf-sheet-aberta { overflow: hidden; }
 
 @media (max-width: 370px) {
     .gf-seg button { font-size: 0.85rem; }
-    .gf-linha-custo { grid-template-columns: 1fr 118px; }
+    .gf-tab { font-size: 0.9rem; }
     .gf-item-lucro { font-size: 1.15rem; }
 }

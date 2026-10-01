@@ -37,11 +37,10 @@
             o.erro = o.tara_kg > o.peso_bruto_kg ? 'Tara maior que o peso bruto' : null;
             o.peso_liquido_kg = o.peso_bruto_kg - o.tara_kg;
         }
+        // peso líquido (t) e peso seco = líquido × (1 − umidade/100); preço sempre no seco
         o.peso_umido_t = o.peso_liquido_kg == null ? null : r(o.peso_liquido_kg / 1000, 4);
         o.peso_seco_t = o.peso_umido_t == null ? null : r(o.peso_umido_t * (1 - u / 100), 4);
-        if (o.peso_umido_t == null) o.peso_pago_t = null;
-        else if (o.umidade_franquia_pct != null) o.peso_pago_t = r(o.peso_umido_t * (1 - Math.max(0, u - o.umidade_franquia_pct) / 100), 4);
-        else o.peso_pago_t = o.peso_base === 'tu' ? o.peso_umido_t : o.peso_seco_t;
+        o.peso_pago_t = o.peso_seco_t;
 
         const modo = o.preco_modo || 'ponto';
         o.preco_t = modo === 'ponto' ? r((o.preco_ponto || 0) * (o.teor || 0), 4)
@@ -49,14 +48,39 @@
         const bruto = modo === 'total' ? o.valor_informado
             : (o.peso_pago_t == null || o.preco_t == null ? null : o.peso_pago_t * o.preco_t);
         o.valor_venda = r((bruto || 0) + (o.ajuste || 0), 2);
-        const tu = o.peso_umido_t || 0;
-        o.frete_total = r(o.frete_base === 'viagem' ? (o.frete_unit || 0) : tu * (o.frete_unit || 0), 2);
-        o.carregamento_total = r(o.carregamento_base === 'viagem' ? (o.carregamento_unit || 0) : tu * (o.carregamento_unit || 0), 2);
+        const liq = o.peso_umido_t || 0; // frete/carregamento por tonelada = sobre o peso líquido
+        o.frete_total = r(o.frete_base === 'viagem' ? (o.frete_unit || 0) : liq * (o.frete_unit || 0), 2);
+        o.carregamento_total = r(o.carregamento_base === 'viagem' ? (o.carregamento_unit || 0) : liq * (o.carregamento_unit || 0), 2);
         o.impostos_total = r(Math.max(o.valor_venda, 0) * (o.impostos_pct || 0) / 100, 2);
         o.despesas_total = r(despesas || 0, 2);
         o.lucro = r(o.valor_venda - (o.custo_minerio || 0) - o.frete_total - o.carregamento_total
             - o.impostos_total - (o.outros_custos || 0) - o.despesas_total, 2);
         return o;
+    }
+
+    /** Tabela de preço: maior linha com teor <= teor da carga (faixa). null se abaixo da 1ª. */
+    function lookupTabela(linhas, teor) {
+        if (teor == null || !Array.isArray(linhas)) return null;
+        let best = null;
+        linhas.forEach((l) => {
+            const t = Number(l.teor);
+            if (isFinite(t) && t <= teor + 1e-9 && (!best || t > Number(best.teor))) best = l;
+        });
+        return best ? { teor: Number(best.teor), valor: Number(best.valor), exato: Math.abs(Number(best.teor) - teor) < 1e-9 } : null;
+    }
+    /** Colar da planilha: "teor<TAB ou ;>valor" por linha; aceita "40%", "R$ 10,00"; ignora cabeçalho */
+    function parseTabelaColada(txt) {
+        const out = [];
+        String(txt || '').split(/\r?\n/).forEach((linha) => {
+            const cols = linha.split(/\t|;/).map((c) => c.trim()).filter((c) => c !== '');
+            if (cols.length < 2) return;
+            const teor = parseBR(cols[0].replace('%', ''));
+            const valor = parseBR(cols[1]);
+            if (teor == null || valor == null || teor < 0 || teor > 100 || valor < 0) return;
+            const i = out.findIndex((x) => x.teor === teor);
+            if (i >= 0) out[i].valor = valor; else out.push({ teor, valor });
+        });
+        return out.sort((a, b) => a.teor - b.teor);
     }
 
     /** CSV p/ Excel pt-BR: BOM + ";" + vírgula decimal */
@@ -77,7 +101,7 @@
         return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso);
     }
 
-    const api = { parseBR, fmtNum, fmtBRL, fmtT, numInput, calcCarrada, csv, dataBR };
+    const api = { parseBR, fmtNum, fmtBRL, fmtT, numInput, calcCarrada, lookupTabela, parseTabelaColada, csv, dataBR };
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.GestorCalc = api;
 })(typeof window !== 'undefined' ? window : this);

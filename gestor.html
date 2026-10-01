@@ -38,6 +38,7 @@
             <button type="button" class="gf-tab on" role="tab" data-aba="resumo" aria-selected="true">Resumo</button>
             <button type="button" class="gf-tab" role="tab" data-aba="carradas" aria-selected="false">Carradas</button>
             <button type="button" class="gf-tab" role="tab" data-aba="despesas" aria-selected="false">Despesas</button>
+            <button type="button" class="gf-tab" role="tab" data-aba="cadastros" aria-selected="false">Tabelas</button>
         </div>
 
         <!-- RESUMO: carradas e lucro primeiro; mês só como resumo pequeno -->
@@ -75,6 +76,17 @@
 
         <section class="gf-aba oculto" id="aba-despesas">
             <div id="lista-despesas" class="gf-lista"></div>
+        </section>
+
+        <!-- Tabelas de preço por ponto + categorias (editar / excluir) -->
+        <section class="gf-aba oculto" id="aba-cadastros">
+            <div class="gf-h2-row"><h2 class="gf-h2">Tabelas de preço</h2>
+                <button type="button" class="gf-btn gf-btn-mini" data-acao="nova-tabela">＋ Nova tabela</button></div>
+            <p class="sub gf-ajuda">Cadastre a tabela do comprador (teor % → R$ por ponto). Na carrada o app acha o preço pelo teor.</p>
+            <div id="lista-tabelas" class="gf-lista"></div>
+            <div class="gf-h2-row"><h2 class="gf-h2">Minhas categorias</h2>
+                <button type="button" class="gf-btn gf-btn-mini" data-acao="nova-categoria">＋ Categoria</button></div>
+            <div id="lista-categorias" class="gf-lista"></div>
         </section>
     </div>
 
@@ -114,9 +126,13 @@
                 <label>Umidade (%)<input type="text" inputmode="decimal" name="umidade_pct" placeholder="8"></label>
             </div>
             <p class="gf-calc" id="sc-pesos">—</p>
-            <p class="sub gf-ajuda">TU = tonelada úmida (peso da balança). TMS = peso seco (sem a água).</p>
+            <p class="sub gf-ajuda">A umidade é descontada: peso seco = peso líquido − umidade. O preço é sempre sobre o peso seco.</p>
 
             <h3 class="gf-h3">💰 Preço</h3>
+            <label>Tabela de preço
+                <select name="tabela_id" id="sc-tabela"></select>
+            </label>
+            <p class="gf-calc gf-tab-info oculto" id="sc-tabela-info"></p>
             <div class="gf-seg" data-campo="preco_modo">
                 <button type="button" data-v="ponto">Por ponto</button>
                 <button type="button" data-v="tonelada">Por tonelada</button>
@@ -132,41 +148,33 @@
             <div data-modo="total">
                 <label>Valor total da venda (R$)<input type="text" inputmode="decimal" name="valor_informado" placeholder="11.040,00"></label>
             </div>
-            <div data-modo-peso>
-                <span class="gf-lbl">Peso que o comprador paga</span>
-                <div class="gf-seg" data-campo="peso_base">
-                    <button type="button" data-v="tms">TMS (peso seco)</button>
-                    <button type="button" data-v="tu">TU (úmida)</button>
-                </div>
-            </div>
             <p class="gf-calc" id="sc-preco">—</p>
             <details class="gf-mais">
-                <summary>Franquia de umidade e ajuste ±</summary>
-                <label>Franquia de umidade (%) — desconta só o que passar<input type="text" inputmode="decimal" name="umidade_franquia_pct" placeholder="ex.: 6"></label>
-                <label>Ajuste ± (R$) — bônus ou desconto<input type="text" inputmode="decimal" name="ajuste" placeholder="ex.: -150"></label>
+                <summary>Ajuste ± (bônus ou desconto)</summary>
+                <label>Ajuste ± (R$)<input type="text" inputmode="decimal" name="ajuste" placeholder="ex.: -150"></label>
             </details>
 
             <h3 class="gf-h3">🧾 Custos da carrada</h3>
             <label>Custo do minério (R$)<input type="text" inputmode="decimal" name="custo_minerio" placeholder="0,00"></label>
             <div class="gf-linha-custo">
-                <label>Frete<input type="text" inputmode="decimal" name="frete_unit" placeholder="60,00"></label>
+                <label>Frete (R$)<input type="text" inputmode="decimal" name="frete_unit" placeholder="60,00"></label>
                 <div class="gf-seg gf-seg-mini" data-campo="frete_base">
-                    <button type="button" data-v="por_t">por t</button>
-                    <button type="button" data-v="viagem">viagem</button>
+                    <button type="button" data-v="por_t">por tonelada</button>
+                    <button type="button" data-v="viagem">por viagem</button>
                 </div>
             </div>
             <div class="gf-linha-custo">
-                <label>Carregamento<input type="text" inputmode="decimal" name="carregamento_unit" placeholder="8,00"></label>
+                <label>Carregamento (R$)<input type="text" inputmode="decimal" name="carregamento_unit" placeholder="8,00"></label>
                 <div class="gf-seg gf-seg-mini" data-campo="carregamento_base">
-                    <button type="button" data-v="por_t">por t</button>
-                    <button type="button" data-v="viagem">viagem</button>
+                    <button type="button" data-v="por_t">por tonelada</button>
+                    <button type="button" data-v="viagem">por viagem</button>
                 </div>
             </div>
             <div class="gf-grid2">
                 <label>Impostos (%)<input type="text" inputmode="decimal" name="impostos_pct" placeholder="0"></label>
                 <label>Outros custos (R$)<input type="text" inputmode="decimal" name="outros_custos" placeholder="0,00"></label>
             </div>
-            <p class="sub gf-ajuda">Frete e carregamento "por t" contam sobre a TU (peso da balança).</p>
+            <p class="sub gf-ajuda">"Por tonelada" conta sobre o peso líquido da balança.</p>
 
             <div class="gf-grid2">
                 <label>Nº ticket<input type="text" name="ticket_numero"></label>
@@ -182,8 +190,8 @@
                 <button type="submit" class="gf-btn-grande" id="sc-salvar">Salvar carrada</button>
                 <button type="button" class="gf-btn-grande gf-btn-ok" id="sc-finalizar">✅ Finalizar carrada</button>
                 <button type="button" class="gf-btn gf-btn-sec" id="sc-add-despesa">➖ Despesa desta carrada</button>
-                <button type="button" class="gf-btn gf-btn-sec oculto" id="sc-reabrir">↩️ Reabrir para editar</button>
-                <button type="button" class="gf-btn gf-btn-perigo" id="sc-excluir">Excluir carrada</button>
+                <button type="button" class="gf-btn gf-btn-sec oculto" id="sc-reabrir">✏️ Reabrir para editar</button>
+                <button type="button" class="gf-btn gf-btn-perigo" id="sc-excluir">🗑️ Excluir carrada</button>
             </div>
         </form>
     </div>
@@ -229,7 +237,68 @@
             <label>Observação<textarea name="observacao" rows="3" placeholder="Anote o que quiser"></textarea></label>
             <div class="gf-sheet-acoes">
                 <button type="submit" class="gf-btn-grande" id="sd-salvar">Salvar</button>
-                <button type="button" class="gf-btn gf-btn-perigo oculto" id="sd-excluir">Excluir</button>
+                <button type="button" class="gf-btn gf-btn-perigo oculto" id="sd-excluir">🗑️ Excluir</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Folha: tabela de preço -->
+    <div class="gf-sheet oculto" id="sheet-tabela" role="dialog" aria-modal="true" aria-labelledby="st-titulo">
+        <div class="gf-sheet-top">
+            <button type="button" class="gf-x" data-fechar aria-label="Fechar">←</button>
+            <h2 id="st-titulo">Nova tabela de preço</h2>
+        </div>
+        <form id="form-tabela" class="gf-form" novalidate>
+            <label>Nome da tabela<input type="text" name="nome" placeholder="ex.: Siderúrgica X — Manganês" required></label>
+            <div class="gf-grid2">
+                <label>Minério
+                    <select name="minerio">
+                        <option value="">Qualquer</option><option>Manganês</option><option>Ferro</option><option>Cobre</option>
+                        <option>Níquel</option><option>Cassiterita</option><option>Outro</option>
+                    </select>
+                </label>
+                <label>Comprador<input type="text" name="comprador" placeholder="opcional"></label>
+            </div>
+            <span class="gf-lbl">O valor de cada linha é</span>
+            <div class="gf-seg" data-campo="modo">
+                <button type="button" data-v="ponto">R$ por ponto</button>
+                <button type="button" data-v="tonelada">R$ por tonelada</button>
+            </div>
+            <p class="sub gf-ajuda" id="st-ajuda"></p>
+            <div class="gf-tab-grade">
+                <div class="gf-tab-cab"><span>Teor (%)</span><span id="st-col-valor">R$ por ponto</span><span></span></div>
+                <div id="st-linhas"></div>
+            </div>
+            <button type="button" class="gf-btn gf-btn-sec" id="st-add-linha">＋ Adicionar linha</button>
+            <details class="gf-mais" id="st-colar-box">
+                <summary>📋 Colar da planilha</summary>
+                <p class="sub gf-ajuda">Copie 2 colunas no Excel (teor e valor) e cole aqui. Aceita tab ou ";".</p>
+                <textarea id="st-colar" rows="5" placeholder="35	9,00&#10;40	10,00&#10;45	11,00"></textarea>
+                <button type="button" class="gf-btn gf-btn-sec" id="st-importar">Usar estas linhas</button>
+            </details>
+            <div class="gf-sheet-acoes">
+                <button type="submit" class="gf-btn-grande">Salvar tabela</button>
+                <button type="button" class="gf-btn gf-btn-perigo oculto" id="st-excluir">🗑️ Excluir tabela</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Folha: categoria do usuário -->
+    <div class="gf-sheet oculto" id="sheet-categoria" role="dialog" aria-modal="true" aria-labelledby="sk-titulo">
+        <div class="gf-sheet-top">
+            <button type="button" class="gf-x" data-fechar aria-label="Fechar">←</button>
+            <h2 id="sk-titulo">Nova categoria</h2>
+        </div>
+        <form id="form-categoria" class="gf-form" novalidate>
+            <div class="gf-seg" data-campo="tipo">
+                <button type="button" data-v="saida">➖ Despesa</button>
+                <button type="button" data-v="entrada">➕ Entrada</button>
+            </div>
+            <label>Nome<input type="text" name="nome" maxlength="40" placeholder="ex.: Pneus" required></label>
+            <label>Emoji (opcional)<input type="text" name="icone" maxlength="4" placeholder="🛞"></label>
+            <div class="gf-sheet-acoes">
+                <button type="submit" class="gf-btn-grande">Salvar categoria</button>
+                <button type="button" class="gf-btn gf-btn-perigo oculto" id="sk-excluir">🗑️ Excluir categoria</button>
             </div>
         </form>
     </div>

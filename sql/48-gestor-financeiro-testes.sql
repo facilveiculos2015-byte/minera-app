@@ -1,5 +1,5 @@
 -- Testes do SQL 48 — rode DEPOIS do 48 (SQL Editor ou psql). Tudo em BEGIN … ROLLBACK: não grava nada.
--- Saída esperada: tabela com 25 PASS e 0 FAIL. Verificado em PostgreSQL 17 + shim do Supabase (auth.uid, storage).
+-- Saída esperada: todas as linhas PASS e 0 FAIL. Verificado em PostgreSQL 17 + shim do Supabase (auth.uid, storage).
 BEGIN;
 CREATE TEMP TABLE r (n serial, teste text, ok boolean, detalhe text);
 GRANT ALL ON r TO authenticated, anon; GRANT ALL ON SEQUENCE r_n_seq TO authenticated, anon;
@@ -11,13 +11,13 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
 
 -- T1 exemplo embutido (por ponto, base TMS)
-INSERT INTO gf_carradas (id, minerio, placa, peso_bruto_kg, tara_kg, umidade_pct, teor, preco_modo, peso_base, preco_ponto, frete_unit, carregamento_unit, auth_id)
-VALUES ('aaaaaaaa-0000-0000-0000-000000000001','Manganês','qwe 1a23',45000,15000,8,40,'ponto','tms',10,60,8,
+INSERT INTO gf_carradas (id, minerio, placa, peso_bruto_kg, tara_kg, umidade_pct, teor, preco_modo, preco_ponto, frete_unit, carregamento_unit, auth_id)
+VALUES ('aaaaaaaa-0000-0000-0000-000000000001','Manganês','qwe 1a23',45000,15000,8,40,'ponto',10,60,8,
         '99999999-9999-9999-9999-999999999999');  -- tenta spoofar dono
-SELECT pg_temp.chk('T1 exemplo: TU/TMS/preço/venda/frete/carreg/lucro',
+SELECT pg_temp.chk('T1 exemplo: líquido/seco/preço/venda/frete/carreg/lucro',
   (peso_umido_t, peso_seco_t, preco_t, valor_venda, frete_total, carregamento_total, lucro)
   = (30.0000, 27.6000, 400.0000, 11040.00, 1800.00, 240.00, 9000.00),
-  format('%s TU %s TMS %s R$/t venda %s frete %s carreg %s lucro %s', peso_umido_t, peso_seco_t, preco_t, valor_venda, frete_total, carregamento_total, lucro))
+  format('%s t líq %s t seco %s R$/t venda %s frete %s carreg %s lucro %s', peso_umido_t, peso_seco_t, preco_t, valor_venda, frete_total, carregamento_total, lucro))
 FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000001';
 SELECT pg_temp.chk('T2 auth_id forçado = auth.uid() (spoof ignorado) + placa normalizada',
   auth_id = '11111111-1111-1111-1111-111111111111' AND placa='QWE1A23', auth_id::text||' '||placa)
@@ -42,15 +42,52 @@ FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000001';
 UPDATE gf_carradas SET status='aberta' WHERE id='aaaaaaaa-0000-0000-0000-000000000001';
 SELECT pg_temp.chk('T4c reabrir limpa finalizada_em', finalizada_em IS NULL) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000001';
 
--- T5 base TU, franquia, preço por tonelada, total, frete por viagem, ajuste
-INSERT INTO gf_carradas (id, peso_liquido_kg, umidade_pct, teor, preco_ponto, peso_base) VALUES ('aaaaaaaa-0000-0000-0000-000000000002', 30000, 8, 40, 10, 'tu');
-SELECT pg_temp.chk('T5a base TU: 30 t × 400 = 12000', peso_pago_t=30 AND valor_venda=12000, valor_venda::text) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
-UPDATE gf_carradas SET umidade_franquia_pct=6 WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
-SELECT pg_temp.chk('T5b franquia 6 %: 30×(1−0,02)=29,4 t × 400 = 11760', peso_pago_t=29.4 AND valor_venda=11760, valor_venda::text) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
-UPDATE gf_carradas SET umidade_franquia_pct=NULL, preco_modo='tonelada', preco_t_informado=350, peso_base='tms', ajuste=-100, frete_base='viagem', frete_unit=1500 WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
+-- T5 preço sempre no peso seco (colunas legadas ignoradas), tonelada, total, viagem, ajuste
+INSERT INTO gf_carradas (id, peso_liquido_kg, umidade_pct, teor, preco_ponto, peso_base, umidade_franquia_pct) VALUES ('aaaaaaaa-0000-0000-0000-000000000002', 30000, 8, 40, 10, 'tu', 6);
+SELECT pg_temp.chk('T5a legado peso_base=tu/franquia ignorados: 27,6 t seco × 400 = 11040', peso_pago_t=27.6 AND valor_venda=11040 AND peso_base='tms' AND umidade_franquia_pct IS NULL, valor_venda::text) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
+UPDATE gf_carradas SET umidade_pct=0 WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
+SELECT pg_temp.chk('T5b umidade 0 → seco = líquido (30 × 400 = 12000)', peso_seco_t=30 AND valor_venda=12000, valor_venda::text) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
+UPDATE gf_carradas SET umidade_pct=8, preco_modo='tonelada', preco_t_informado=350, ajuste=-100, frete_base='viagem', frete_unit=1500 WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
 SELECT pg_temp.chk('T5c por tonelada 27,6×350−100 = 9560; frete viagem 1500; lucro 8060', valor_venda=9560 AND frete_total=1500 AND lucro=8060, format('%s %s %s', valor_venda, frete_total, lucro)) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
 UPDATE gf_carradas SET preco_modo='total', valor_informado=10000, ajuste=0 WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
 SELECT pg_temp.chk('T5d valor total 10000', valor_venda=10000 AND preco_t IS NULL, valor_venda::text) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000002';
+
+-- T13 tabela de preço: salvar (RPC), editar, faixa, carrada usando a tabela
+SELECT pg_temp.chk('T13a salvar tabela c/ 4 linhas',
+  jsonb_array_length(gf_tabela_preco_salvar('{"id":"cccccccc-0000-0000-0000-000000000001","nome":"Siderúrgica X – Mn","minerio":"Manganês","modo":"ponto"}',
+    '[{"teor":30,"valor":8},{"teor":35,"valor":9},{"teor":40,"valor":10},{"teor":45,"valor":11}]')->'linhas') = 4);
+SELECT pg_temp.chk('T13b salvar de novo (idempotente) e editar linhas: troca p/ 3 linhas',
+  jsonb_array_length(gf_tabela_preco_salvar('{"id":"cccccccc-0000-0000-0000-000000000001","nome":"Siderúrgica X – Mn","modo":"ponto"}',
+    '[{"teor":35,"valor":9},{"teor":40,"valor":10},{"teor":45,"valor":11}]')->'linhas') = 3
+  AND (SELECT count(*) FROM gf_tabelas_preco WHERE id='cccccccc-0000-0000-0000-000000000001') = 1
+  AND (SELECT auth_id FROM gf_tabelas_preco_linhas LIMIT 1) = auth.uid());
+SELECT pg_temp.chk('T13c faixa: teor 42 → linha 40 (R$ 10); 40 exato → 40; 50 → 45; 30 → nada',
+  (SELECT teor FROM gf_preco_lookup('cccccccc-0000-0000-0000-000000000001', 42)) = 40
+  AND (SELECT valor FROM gf_preco_lookup('cccccccc-0000-0000-0000-000000000001', 40)) = 10
+  AND (SELECT teor FROM gf_preco_lookup('cccccccc-0000-0000-0000-000000000001', 50)) = 45
+  AND NOT EXISTS (SELECT 1 FROM gf_preco_lookup('cccccccc-0000-0000-0000-000000000001', 30)));
+INSERT INTO gf_carradas (id, peso_bruto_kg, tara_kg, umidade_pct, teor, preco_modo, preco_ponto, tabela_id, tabela_teor_ref, frete_unit, carregamento_unit)
+VALUES ('aaaaaaaa-0000-0000-0000-000000000003', 45000, 15000, 8, 42, 'ponto', 10, 'cccccccc-0000-0000-0000-000000000001', 40, 60, 8);
+SELECT pg_temp.chk('T13d carrada teor 42 pela tabela: 10 × 42 = 420/t × 27,6 = 11592; lucro 9552', preco_t=420 AND valor_venda=11592 AND lucro=9552, format('%s %s %s', preco_t, valor_venda, lucro)) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000003';
+DO $$ BEGIN
+  BEGIN PERFORM gf_tabela_preco_salvar('{"id":"cccccccc-0000-0000-0000-000000000001","nome":"x"}', '[{"teor":40,"valor":1},{"teor":40,"valor":2}]');
+        PERFORM pg_temp.chk('T13e teor repetido rejeitado', false);
+  EXCEPTION WHEN unique_violation THEN PERFORM pg_temp.chk('T13e teor repetido rejeitado', true); END;
+END $$;
+SELECT gf_tabela_preco_salvar('{"id":"cccccccc-0000-0000-0000-000000000001","nome":"Siderúrgica X – Mn","deleted_at":"2026-10-01T12:00:00Z"}', NULL) IS NOT NULL AS excluiu;
+SELECT pg_temp.chk('T13f excluir tabela (soft) → lookup vazio; carrada mantém preço',
+  (SELECT deleted_at FROM gf_tabelas_preco WHERE id='cccccccc-0000-0000-0000-000000000001') IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM gf_preco_lookup('cccccccc-0000-0000-0000-000000000001', 42))
+  AND (SELECT valor_venda FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000003') = 11592);
+SELECT pg_temp.chk('T13g desfazer exclusão da tabela', (gf_tabela_preco_salvar('{"id":"cccccccc-0000-0000-0000-000000000001","nome":"Siderúrgica X – Mn"}', NULL)->>'deleted_at') IS NULL
+  AND jsonb_array_length(gf_tabela_preco_salvar('{"id":"cccccccc-0000-0000-0000-000000000001","nome":"Siderúrgica X – Mn"}', NULL)->'linhas') = 3);
+
+-- T14 categoria do usuário: editar, excluir (arquivada) e recriar mesmo nome
+INSERT INTO gf_categorias (id, nome, tipo, icone) VALUES ('dddddddd-0000-0000-0000-000000000001','Pneus','saida','🛞');
+UPDATE gf_categorias SET nome='Pneus e câmaras' WHERE id='dddddddd-0000-0000-0000-000000000001';
+UPDATE gf_categorias SET arquivada=true WHERE id='dddddddd-0000-0000-0000-000000000001';
+INSERT INTO gf_categorias (nome, tipo) VALUES ('Pneus e câmaras','saida');
+SELECT pg_temp.chk('T14 categoria editar/excluir(arquivar)/recriar', (SELECT count(*) FROM gf_categorias WHERE nome='Pneus e câmaras') = 2);
 
 -- T6 erros esperados
 DO $$ BEGIN
@@ -96,11 +133,22 @@ SELECT pg_temp.chk('T9a B não vê carradas/lançamentos/fotos de A',
   AND (SELECT count(*) FROM storage.objects WHERE bucket_id='gestor-docs')=0
   AND (SELECT count(*) FROM gf_categorias WHERE auth_id IS NOT NULL)=0);
 SELECT pg_temp.chk('T9b B vê os presets', (SELECT count(*) FROM gf_categorias)=15);
+SELECT pg_temp.chk('T9e B não vê tabelas/linhas de A', (SELECT count(*) FROM gf_tabelas_preco)=0 AND (SELECT count(*) FROM gf_tabelas_preco_linhas)=0
+  AND NOT EXISTS (SELECT 1 FROM gf_preco_lookup('cccccccc-0000-0000-0000-000000000001', 42)));
 UPDATE gf_carradas SET lucro=1 WHERE id='aaaaaaaa-0000-0000-0000-000000000001';
 DO $$ BEGIN
   BEGIN INSERT INTO gf_lancamentos (tipo, valor, carrada_id) VALUES ('saida', 10, 'aaaaaaaa-0000-0000-0000-000000000001');
         PERFORM pg_temp.chk('T9c B não vincula despesa à carrada de A', false);
   EXCEPTION WHEN raise_exception THEN PERFORM pg_temp.chk('T9c B não vincula despesa à carrada de A', true, SQLERRM); END;
+  BEGIN PERFORM gf_tabela_preco_salvar('{"id":"cccccccc-0000-0000-0000-000000000001","nome":"hack"}', '[]');
+        PERFORM pg_temp.chk('T9f B não sobrescreve tabela de A', false);
+  EXCEPTION WHEN insufficient_privilege OR raise_exception THEN PERFORM pg_temp.chk('T9f B não sobrescreve tabela de A', true, SQLERRM); END;
+  BEGIN INSERT INTO gf_carradas (tabela_id) VALUES ('cccccccc-0000-0000-0000-000000000001');
+        PERFORM pg_temp.chk('T9g B não usa tabela de A na carrada', false);
+  EXCEPTION WHEN raise_exception THEN PERFORM pg_temp.chk('T9g B não usa tabela de A na carrada', true, SQLERRM); END;
+  BEGIN INSERT INTO gf_tabelas_preco_linhas (tabela_id, teor, valor) VALUES ('cccccccc-0000-0000-0000-000000000001', 50, 99);
+        PERFORM pg_temp.chk('T9h B não injeta linha na tabela de A', false);
+  EXCEPTION WHEN raise_exception OR insufficient_privilege THEN PERFORM pg_temp.chk('T9h B não injeta linha na tabela de A', true, SQLERRM); END;
   BEGIN INSERT INTO gf_carradas (id, preco_ponto) VALUES ('aaaaaaaa-0000-0000-0000-000000000001', 1) ON CONFLICT (id) DO UPDATE SET preco_ponto=1;
         PERFORM pg_temp.chk('T9d B não sobrescreve carrada de A via upsert', false);
   EXCEPTION WHEN insufficient_privilege OR raise_exception THEN PERFORM pg_temp.chk('T9d B não sobrescreve carrada de A via upsert', true, SQLERRM); END;
@@ -115,6 +163,8 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 SELECT pg_temp.chk('T11 A continua intacto (lucro não mudou por B)', lucro=5779.20, lucro::text) FROM gf_carradas WHERE id='aaaaaaaa-0000-0000-0000-000000000001';
+SELECT pg_temp.chk('T15 tabela de A intacta após tentativas de B', (SELECT nome FROM gf_tabelas_preco WHERE id='cccccccc-0000-0000-0000-000000000001')='Siderúrgica X – Mn'
+  AND (SELECT count(*) FROM gf_tabelas_preco_linhas WHERE tabela_id='cccccccc-0000-0000-0000-000000000001')=3);
 SELECT pg_temp.chk('T12 bucket privado', NOT public) FROM storage.buckets WHERE id='gestor-docs';
 
 SELECT n, CASE WHEN ok THEN 'PASS' ELSE 'FAIL' END AS res, teste, detalhe FROM r ORDER BY n;
