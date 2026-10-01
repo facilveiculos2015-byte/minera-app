@@ -718,6 +718,21 @@ document.addEventListener('click', async (e) => {
 })();
 
 
+/* 📒 Card Gestor financeiro: oculto no modo admin; resumo rápido do cache local (gestor.js). */
+(async function gestorCardInit() {
+    for (let i = 0; i < 100 && !perfilAtual; i++) await new Promise(r => setTimeout(r, 50));
+    const card = document.getElementById('card-gestor');
+    if (!card || !perfilAtual) return;
+    if (maModoAdmin()) { card.classList.add('oculto'); return; }
+    try {
+        const c = JSON.parse(localStorage.getItem('gf_cache_' + perfilAtual.auth_id) || 'null');
+        const abertas = c && Array.isArray(c.carradas) ? c.carradas.filter(x => !x.deleted_at && x.status === 'aberta').length : 0;
+        const el = document.getElementById('gestor-resumo');
+        if (abertas && el) { el.textContent = '🚛 ' + abertas + (abertas === 1 ? ' carrada aberta' : ' carradas abertas'); el.classList.remove('oculto'); }
+    } catch (e) { /* ignore */ }
+})();
+
+
 /* ⚙️ Configurações (Editar perfil + Preferências): recolhido sempre que o Perfil abre. */
 (function bindConfigToggle() {
     const btn = document.getElementById('btn-config-toggle');

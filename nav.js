@@ -432,6 +432,7 @@ function paginaAtualId() {
 function destinoVoltarPadrao() {
     const id = paginaAtualId();
     if (id === 'lote-detalhe') return 'inicio.html';
+    if (id === 'gestor') return 'perfil.html';
     if (id === 'financeiro' || id === 'mapa' || id === 'frete' || id === 'processamento') return 'inicio.html';
     if (id === 'admin' || id === 'estoque' || id === 'expedicao' || id === 'relatorios' || id === 'tutorial') return 'inicio.html';
     return 'inicio.html';

@@ -121,3 +121,10 @@ Garante isolamento de arquivos por usuário (admin-as-user não vaza storage alh
 ## 37-lotes-midia-teor.sql
 Incremental: `lotes.fotos` (JSONB), `video_url`, `teor`, `cobre_tipo`. Backfill `imagem_url` → `fotos[]`. Idempotente. NÃO wipe.
 **Parent deve aplicar no Supabase SQL Editor após 36.**
+
+## 45–47
+Não existem no repo (numeração reservada). Confirmar com os outros workers antes de aplicar o 48.
+
+## 48-gestor-financeiro.sql (+ 48-gestor-financeiro-testes.sql)
+Gestor financeiro (gestor.html) — caderno PESSOAL, não é o Minera Bank: `gf_categorias` (15 presets), `gf_carradas` (cálculo por trigger: TU/TMS, preço por ponto de teor × teor, franquia de umidade, ajuste ±, frete/carregamento por t (TU) ou viagem, impostos %, lucro POR CARRADA incluindo despesas vinculadas; status aberta → finalizada), `gf_lancamentos` (despesas/entradas, `carrada_id`, `observacao`, `comprovante_path`). RLS owner-only (admin NÃO lê), `auth_id` forçado por trigger, `anon` revogado, upsert offline por id/client_id. Storage PRIVADO `gestor-docs/{auth.uid()}/…` com policies owner-only (ver por signed URL). Idempotente (testado 2×). NÃO wipe.
+**Parent deve aplicar o SQL 48 no Supabase SQL Editor após 44a; depois rodar 48-gestor-financeiro-testes.sql (esperado 25 PASS, 0 FAIL, tudo em ROLLBACK).**

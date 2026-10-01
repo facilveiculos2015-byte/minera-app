@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Minera Pará - Gestor financeiro</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261001a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261001a">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#F5A623">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+    <link rel="stylesheet" href="style.css?v=20261001a">
+    <link rel="stylesheet" href="gestor.css?v=20261001a">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+    <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body class="pagina-gestor">
+    <div class="container">
+        <a class="gf-voltar" id="gf-voltar" href="perfil.html" aria-label="Voltar ao Perfil">← Perfil</a>
+        <header class="header-row">
+            <div class="brand-title">
+                <h1>Gestor financeiro</h1>
+                <p id="user-label">Carregando...</p>
+            </div>
+        </header>
+        <nav id="app-nav" class="nav-chips oculto"></nav>
+
+        <!-- Aviso: não é o Minera Bank -->
+        <div class="gf-aviso" role="note">
+            <span aria-hidden="true">📒</span>
+            <span><strong>Gestor (só anotação)</strong> — não mexe no seu dinheiro do Minera Bank.</span>
+        </div>
+        <div id="gf-sync" class="gf-sync oculto" aria-live="polite"></div>
+
+        <div class="gf-tabs" role="tablist">
+            <button type="button" class="gf-tab on" role="tab" data-aba="resumo" aria-selected="true">Resumo</button>
+            <button type="button" class="gf-tab" role="tab" data-aba="carradas" aria-selected="false">Carradas</button>
+            <button type="button" class="gf-tab" role="tab" data-aba="despesas" aria-selected="false">Despesas</button>
+        </div>
+
+        <!-- RESUMO: carradas e lucro primeiro; mês só como resumo pequeno -->
+        <section class="gf-aba" id="aba-resumo">
+            <div class="gf-acoes">
+                <button type="button" class="gf-btn-grande" data-acao="nova-carrada">🚛 Nova carrada</button>
+                <button type="button" class="gf-btn-grande gf-btn-sec" data-acao="nova-despesa">➖ Nova despesa</button>
+            </div>
+            <h2 class="gf-h2">Lucro por carrada</h2>
+            <div id="resumo-carradas" class="gf-lista"></div>
+            <div class="gf-mes card">
+                <div class="gf-mes-head">
+                    <span>Resumo do mês</span>
+                    <select id="resumo-mes" aria-label="Mês do resumo"></select>
+                </div>
+                <div id="resumo-mes-box" class="gf-mes-grid"></div>
+            </div>
+            <div class="gf-export card">
+                <p class="sub">Planilha para Excel (CSV)</p>
+                <div class="gf-acoes">
+                    <button type="button" class="gf-btn gf-btn-sec" id="btn-csv-carradas">⬇️ Carradas</button>
+                    <button type="button" class="gf-btn gf-btn-sec" id="btn-csv-despesas">⬇️ Despesas</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="gf-aba oculto" id="aba-carradas">
+            <div class="gf-chips" id="filtro-carradas">
+                <button type="button" class="gf-chip on" data-f="aberta">Abertas</button>
+                <button type="button" class="gf-chip" data-f="finalizada">Finalizadas</button>
+                <button type="button" class="gf-chip" data-f="todas">Todas</button>
+            </div>
+            <div id="lista-carradas" class="gf-lista"></div>
+        </section>
+
+        <section class="gf-aba oculto" id="aba-despesas">
+            <div id="lista-despesas" class="gf-lista"></div>
+        </section>
+    </div>
+
+    <button type="button" class="gf-fab" id="gf-fab" aria-label="Novo">＋</button>
+
+    <!-- Folha: carrada -->
+    <div class="gf-sheet oculto" id="sheet-carrada" role="dialog" aria-modal="true" aria-labelledby="sc-titulo">
+        <div class="gf-sheet-top">
+            <button type="button" class="gf-x" data-fechar aria-label="Fechar">←</button>
+            <h2 id="sc-titulo">Nova carrada</h2>
+            <span id="sc-status" class="gf-badge"></span>
+        </div>
+        <form id="form-carrada" class="gf-form" novalidate>
+            <fieldset id="sc-campos">
+            <div class="gf-grid2">
+                <label>Data<input type="date" name="data" required></label>
+                <label>Minério
+                    <select name="minerio">
+                        <option>Manganês</option><option>Ferro</option><option>Cobre</option>
+                        <option>Níquel</option><option>Cassiterita</option><option>Outro</option>
+                    </select>
+                </label>
+            </div>
+            <div class="gf-grid2">
+                <label>Placa<input type="text" name="placa" autocapitalize="characters" placeholder="ABC1D23"></label>
+                <label>Motorista<input type="text" name="motorista" placeholder="Nome"></label>
+            </div>
+            <label>Comprador<input type="text" name="comprador" placeholder="Para quem vendeu"></label>
+
+            <h3 class="gf-h3">⚖️ Balança</h3>
+            <div class="gf-grid2">
+                <label>Peso bruto (kg)<input type="text" inputmode="decimal" name="peso_bruto_kg" placeholder="45.000"></label>
+                <label>Tara (kg)<input type="text" inputmode="decimal" name="tara_kg" placeholder="15.000"></label>
+            </div>
+            <div class="gf-grid2">
+                <label>Peso líquido (kg)<input type="text" inputmode="decimal" name="peso_liquido_kg" placeholder="ou digite direto"></label>
+                <label>Umidade (%)<input type="text" inputmode="decimal" name="umidade_pct" placeholder="8"></label>
+            </div>
+            <p class="gf-calc" id="sc-pesos">—</p>
+            <p class="sub gf-ajuda">TU = tonelada úmida (peso da balança). TMS = peso seco (sem a água).</p>
+
+            <h3 class="gf-h3">💰 Preço</h3>
+            <div class="gf-seg" data-campo="preco_modo">
+                <button type="button" data-v="ponto">Por ponto</button>
+                <button type="button" data-v="tonelada">Por tonelada</button>
+                <button type="button" data-v="total">Valor total</button>
+            </div>
+            <div data-modo="ponto">
+                <label>Preço por ponto (R$ por 1% de teor, por tonelada)<input type="text" inputmode="decimal" name="preco_ponto" placeholder="10,00"></label>
+                <label>Teor (%)<input type="text" inputmode="decimal" name="teor" placeholder="40"></label>
+            </div>
+            <div data-modo="tonelada">
+                <label>Preço da tonelada (R$/t)<input type="text" inputmode="decimal" name="preco_t_informado" placeholder="400,00"></label>
+            </div>
+            <div data-modo="total">
+                <label>Valor total da venda (R$)<input type="text" inputmode="decimal" name="valor_informado" placeholder="11.040,00"></label>
+            </div>
+            <div data-modo-peso>
+                <span class="gf-lbl">Peso que o comprador paga</span>
+                <div class="gf-seg" data-campo="peso_base">
+                    <button type="button" data-v="tms">TMS (peso seco)</button>
+                    <button type="button" data-v="tu">TU (úmida)</button>
+                </div>
+            </div>
+            <p class="gf-calc" id="sc-preco">—</p>
+            <details class="gf-mais">
+                <summary>Franquia de umidade e ajuste ±</summary>
+                <label>Franquia de umidade (%) — desconta só o que passar<input type="text" inputmode="decimal" name="umidade_franquia_pct" placeholder="ex.: 6"></label>
+                <label>Ajuste ± (R$) — bônus ou desconto<input type="text" inputmode="decimal" name="ajuste" placeholder="ex.: -150"></label>
+            </details>
+
+            <h3 class="gf-h3">🧾 Custos da carrada</h3>
+            <label>Custo do minério (R$)<input type="text" inputmode="decimal" name="custo_minerio" placeholder="0,00"></label>
+            <div class="gf-linha-custo">
+                <label>Frete<input type="text" inputmode="decimal" name="frete_unit" placeholder="60,00"></label>
+                <div class="gf-seg gf-seg-mini" data-campo="frete_base">
+                    <button type="button" data-v="por_t">por t</button>
+                    <button type="button" data-v="viagem">viagem</button>
+                </div>
+            </div>
+            <div class="gf-linha-custo">
+                <label>Carregamento<input type="text" inputmode="decimal" name="carregamento_unit" placeholder="8,00"></label>
+                <div class="gf-seg gf-seg-mini" data-campo="carregamento_base">
+                    <button type="button" data-v="por_t">por t</button>
+                    <button type="button" data-v="viagem">viagem</button>
+                </div>
+            </div>
+            <div class="gf-grid2">
+                <label>Impostos (%)<input type="text" inputmode="decimal" name="impostos_pct" placeholder="0"></label>
+                <label>Outros custos (R$)<input type="text" inputmode="decimal" name="outros_custos" placeholder="0,00"></label>
+            </div>
+            <p class="sub gf-ajuda">Frete e carregamento "por t" contam sobre a TU (peso da balança).</p>
+
+            <div class="gf-grid2">
+                <label>Nº ticket<input type="text" name="ticket_numero"></label>
+                <label>Nº NF<input type="text" name="nf_numero"></label>
+            </div>
+            <label>Observação<textarea name="observacao" rows="2"></textarea></label>
+            </fieldset>
+
+            <div class="gf-conta" id="sc-conta"></div>
+            <div id="sc-despesas"></div>
+
+            <div class="gf-sheet-acoes">
+                <button type="submit" class="gf-btn-grande" id="sc-salvar">Salvar carrada</button>
+                <button type="button" class="gf-btn-grande gf-btn-ok" id="sc-finalizar">✅ Finalizar carrada</button>
+                <button type="button" class="gf-btn gf-btn-sec" id="sc-add-despesa">➖ Despesa desta carrada</button>
+                <button type="button" class="gf-btn gf-btn-sec oculto" id="sc-reabrir">↩️ Reabrir para editar</button>
+                <button type="button" class="gf-btn gf-btn-perigo" id="sc-excluir">Excluir carrada</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Folha: despesa / entrada -->
+    <div class="gf-sheet oculto" id="sheet-despesa" role="dialog" aria-modal="true" aria-labelledby="sd-titulo">
+        <div class="gf-sheet-top">
+            <button type="button" class="gf-x" data-fechar aria-label="Fechar">←</button>
+            <h2 id="sd-titulo">Nova despesa</h2>
+        </div>
+        <form id="form-despesa" class="gf-form" novalidate>
+            <div class="gf-seg" data-campo="tipo">
+                <button type="button" data-v="saida">➖ Despesa</button>
+                <button type="button" data-v="entrada">➕ Entrada</button>
+            </div>
+            <label class="gf-valor-lbl">Valor (R$)<input type="text" inputmode="decimal" name="valor" class="gf-valor" placeholder="0,00" required></label>
+            <span class="gf-lbl">Categoria</span>
+            <div class="gf-cats" id="sd-cats"></div>
+            <div class="gf-grid2">
+                <label>Data<input type="date" name="data" required></label>
+                <label>Pagamento
+                    <select name="forma_pagto">
+                        <option value="pix">Pix</option><option value="dinheiro">Dinheiro</option>
+                        <option value="transferencia">Transferência</option><option value="boleto">Boleto</option>
+                        <option value="cartao">Cartão</option><option value="cheque">Cheque</option><option value="outro">Outro</option>
+                    </select>
+                </label>
+            </div>
+            <label>Carrada (opcional)<select name="carrada_id" id="sd-carrada"></select></label>
+            <label>Descrição<input type="text" name="descricao" placeholder="ex.: Diesel ida"></label>
+            <div class="gf-seg" data-campo="status">
+                <button type="button" data-v="pago">Pago</button>
+                <button type="button" data-v="pendente">Pendente</button>
+            </div>
+            <div class="gf-foto">
+                <input type="file" accept="image/*" id="sd-foto-input" hidden>
+                <button type="button" class="gf-btn gf-btn-sec" id="sd-foto-btn">📷 Foto do comprovante</button>
+                <div class="gf-foto-prev oculto" id="sd-foto-prev">
+                    <img alt="Comprovante" id="sd-foto-img">
+                    <button type="button" class="gf-btn gf-btn-perigo gf-btn-mini" id="sd-foto-remover">Remover foto</button>
+                </div>
+            </div>
+            <label>Observação<textarea name="observacao" rows="3" placeholder="Anote o que quiser"></textarea></label>
+            <div class="gf-sheet-acoes">
+                <button type="submit" class="gf-btn-grande" id="sd-salvar">Salvar</button>
+                <button type="button" class="gf-btn gf-btn-perigo oculto" id="sd-excluir">Excluir</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Resultado ao finalizar -->
+    <div class="gf-modal oculto" id="modal-lucro" role="dialog" aria-modal="true">
+        <div class="gf-modal-box">
+            <h2>Carrada finalizada</h2>
+            <div id="ml-conta"></div>
+            <button type="button" class="gf-btn-grande" data-fechar>OK</button>
+        </div>
+    </div>
+    <div class="gf-modal oculto" id="modal-foto" role="dialog" aria-modal="true">
+        <div class="gf-modal-box gf-modal-foto">
+            <img alt="Comprovante" id="mf-img">
+            <button type="button" class="gf-btn-grande" data-fechar>Fechar</button>
+        </div>
+    </div>
+    <div class="gf-toast oculto" id="gf-toast" role="status"><span id="gf-toast-txt"></span><button type="button" id="gf-toast-btn" class="oculto">Desfazer</button></div>
+
+    <script src="config.js?v=20261001a"></script>
+    <script src="auth-guard.js?v=20261001a"></script>
+    <script src="suporte.js?v=20261001a"></script>
+    <script src="chat-realtime.js?v=20261001a"></script>
+    <script src="nav.js?v=20261001a"></script>
+    <script src="gestor-calc.js?v=20261001a"></script>
+    <script src="gestor.js?v=20261001a"></script>
+    <script src="pwa.js?v=20261001a"></script>
+</body>
+</html>

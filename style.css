@@ -6242,3 +6242,10 @@ body.pagina-chat .wa-attach-item .ai { background: var(--bg-elevated); border: 1
 html[data-theme="light"] body.pagina-chat .chat-msg-sheet-panel { box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.12); }
 .gk-amigos-title { color: var(--text-color); }
 .gk-amigo-txt strong { color: var(--text-color); }
+
+/* Perfil → card Gestor financeiro (gestor.html) */
+.card-gestor .gestor-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.card-gestor .gestor-acoes a { display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: 14px;
+    text-decoration: none; font-weight: 700; font-size: 1rem; text-align: center; padding: 8px; }
+.card-gestor .gestor-abrir { grid-column: 1 / -1; background: var(--bg-elevated); color: var(--text-color); border: 1px solid var(--border); }
+.card-gestor .gestor-resumo { margin-top: 6px; font-size: 0.9rem; color: var(--label); }
