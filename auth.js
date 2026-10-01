@@ -97,6 +97,20 @@ async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
         row.papeis = papeis;
         row.tipo = papeis.includes('admin') ? 'admin' : 'operador';
     }
+    // Perfil já existe (todo login) → UPDATE direto. O upsert dispara o gatilho de
+    // unicidade nome+apelido no INSERT e conta a própria linha → 409 no console a cada login.
+    try {
+        const { data: ja } = await supabaseClient.from('usuarios').select('auth_id').eq('auth_id', user.id).maybeSingle();
+        if (ja && ja.auth_id === user.id) {
+            const upd0 = { nome: row.nome, email: row.email, senha_hash: 'supabase-auth', apelido: row.apelido };
+            if (Array.isArray(papeis)) { upd0.papeis = row.papeis; upd0.tipo = row.tipo; }
+            const { error: e0 } = await supabaseClient.from('usuarios').update(upd0).eq('auth_id', user.id);
+            if (!e0) return { error: null };
+            if (typeof erroUnicidadeNomeApelido === 'function' && erroUnicidadeNomeApelido(e0)) return { error: e0 };
+            console.warn('update own usuario:', e0.message);
+            return { error: e0 };
+        }
+    } catch (e) { /* segue p/ upsert */ }
     // Conflict target MUST be auth_id only — never overwrite another profile by email/id
     const { error } = await supabaseClient
         .from('usuarios')

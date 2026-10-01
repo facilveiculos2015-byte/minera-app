@@ -6249,3 +6249,7 @@ html[data-theme="light"] body.pagina-chat .chat-msg-sheet-panel { box-shadow: 0 
     text-decoration: none; font-weight: 700; font-size: 1rem; text-align: center; padding: 8px; }
 .card-gestor .gestor-abrir { grid-column: 1 / -1; background: var(--bg-elevated); color: var(--text-color); border: 1px solid var(--border); }
 .card-gestor .gestor-resumo { margin-top: 6px; font-size: 0.9rem; color: var(--label); }
+/* Fechar/ghost legível no Claro (painéis do chat) */
+html[data-theme="light"] body.pagina-chat .btn-ghost { color: var(--text-color); border-color: #cbd5e1; background: #ffffff; font-weight: 700; }
+html[data-theme="light"] body.pagina-chat .btn-ghost:hover { background: #f1f5f9; }
+body.pagina-chat .chat-msg-sheet-panel .btn-ghost { width: 100%; min-height: 44px; margin-top: 6px; }
