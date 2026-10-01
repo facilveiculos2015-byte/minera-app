@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20260925d">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260925d">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261001a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261001a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20260925d">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css?v=20261001a">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body class="pagina-chat">
@@ -34,33 +34,24 @@
                 <div class="wa-chips" id="wa-filter-chips" role="group" aria-label="Filtros">
                     <button type="button" class="wa-chip on" data-wa="todas">Todas</button>
                     <button type="button" class="wa-chip" data-wa="nao_lidas">Não lidas</button>
-                    <button type="button" class="wa-chip" data-wa="favoritos">Favoritos</button>
                 </div>
-                <div class="wa-archived" id="wa-archived" role="button" tabindex="0">📁 Arquivadas</div>
                 <div id="chat-contatos-list" class="chat-contatos-list"></div>
             </aside>
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20260925d" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261001a" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
-                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20260925d">
-                    <div class="wa-thread-head chat-thread-head" data-build="20260925d">
-                        <button type="button" class="wa-back-chev chat-back" id="btn-chat-back" aria-label="Voltar"><span class="wa-back-ico" aria-hidden="true">‹</span><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
-                        <div class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</div>
-                        <div class="wa-thread-info chat-thread-head-info">
-                            <strong id="chat-com-nome" class="wa-thread-name">—</strong>
-                            <p id="chat-com-papel" class="sub wa-thread-papel" hidden aria-hidden="true"></p>
-                        </div>
-                        <div class="wa-call-btns chat-thread-head-actions">
-                            <div class="wa-call-pill" role="group" aria-label="Chamadas">
-                                <button type="button" class="wa-call-ico" id="btn-chat-video" title="Vídeo" aria-label="Vídeo">📹</button>
-                                <button type="button" class="wa-call-ico" id="btn-chat-phone" title="Ligar" aria-label="Ligar">📞</button>
-                            </div>
-                            <button type="button" class="wa-menu-btn" id="btn-chat-menu" title="Opções" aria-label="Opções" aria-haspopup="menu">⋮</button>
-                        </div>
+                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261001a">
+                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261001a">
+                        <button type="button" class="gk-circ gk-back chat-back" id="btn-chat-back" aria-label="Voltar para as conversas"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
+                        <button type="button" class="gk-pill" id="btn-chat-menu" aria-label="Opções da conversa" aria-haspopup="menu">
+                            <span class="gk-av-wrap"><span class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</span><span class="gk-dot oculto" id="chat-com-online" aria-hidden="true"></span></span>
+                            <span class="gk-pill-txt"><strong id="chat-com-nome" class="wa-thread-name">—</strong><span id="chat-com-status" class="wa-thread-status" hidden aria-live="polite"></span></span>
+                        </button>
+                        <button type="button" class="gk-circ gk-amigos" id="btn-chat-amigos" aria-label="Amigos"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.6c2.6.2 4.5 2 4.5 4.9"/></g></svg></button>
                     </div>
                     <div id="chat-head-menu" class="chat-head-menu oculto" role="menu">
                         <button type="button" role="menuitem" id="btn-apagar-hist-mim">Apagar conversa para mim</button>
@@ -68,6 +59,7 @@
                     </div>
                     <p id="chat-lote-ctx" class="sub oculto"></p>
                     <div id="chat-msgs" class="chat-msgs"></div>
+                    <button type="button" id="chat-jump" class="chat-jump oculto" aria-label="Ir para as mensagens mais recentes">↓<span class="chat-jump-n oculto"></span></button>
 
                     <div id="chat-rec-bar" class="chat-rec-bar wa-rec-overlay oculto" role="status" aria-live="polite">
                         <span class="rec-dot" aria-hidden="true"></span>
@@ -94,19 +86,17 @@
                         <button type="button" class="chat-reply-cancel" id="btn-cancel-reply" title="Cancelar resposta" aria-label="Cancelar resposta">×</button>
                     </div>
 
-                    <form id="form-chat" class="wa-composer chat-form">
-                        <!-- + | [pill] | mic | send (sempre visíveis; câmera só no +) -->
-                        <button type="button" class="wa-comp-btn wa-comp-plus" id="btn-chat-plus" aria-label="Anexar">＋</button>
-                        <div class="wa-comp-pill">
-                            <input type="text" id="chat-texto" class="wa-comp-input" placeholder="Mensagem" maxlength="2000" autocomplete="off" enterkeyhint="send">
-                            <button type="button" class="wa-comp-in-emoji" id="btn-chat-emoji" aria-label="Emoji" title="Emoji">😊</button>
+                    <form id="form-chat" class="wa-composer chat-form gk-composer">
+                        <button type="button" class="gk-circ wa-comp-plus" id="btn-chat-plus" aria-label="Anexar">＋</button>
+                        <div class="wa-comp-pill gk-comp-pill">
+                            <textarea id="chat-texto" rows="1" class="wa-comp-input" placeholder="Mensagem…" maxlength="4000" autocomplete="off" enterkeyhint="enter"></textarea>
+                            <button type="button" class="gk-in-btn mic" id="btn-audio" title="Segure para gravar" aria-label="Gravar áudio (segure)"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></g></svg></button>
+                            <button type="submit" class="gk-in-btn send" id="btn-chat-enviar" aria-label="Enviar" title="Enviar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                         </div>
                         <input type="file" id="chat-foto" accept="image/*" capture="environment" class="oculto">
                         <input type="file" id="chat-video" accept="video/*" class="oculto">
                         <input type="file" id="chat-audio-file" accept="audio/*" class="oculto">
                         <input type="file" id="chat-doc" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,image/*" class="oculto">
-                        <button type="button" class="wa-comp-btn mic" id="btn-audio" title="Segure para gravar" aria-label="Gravar áudio">🎤</button>
-                        <button type="submit" class="wa-comp-btn send" id="btn-chat-enviar" aria-label="Enviar" title="Enviar">➤</button>
                     </form>
                     <!-- legacy toolbar hooks (hidden) -->
                     <div class="chat-toolbar oculto" aria-hidden="true">
@@ -148,6 +138,17 @@
         </div>
     </div>
 
+    <div id="chat-amigos-sheet" class="chat-msg-sheet oculto gk-amigos-sheet" role="dialog" aria-modal="true" aria-labelledby="amigos-titulo">
+        <div class="chat-msg-sheet-backdrop" data-close-amigos="1"></div>
+        <div class="chat-msg-sheet-panel">
+            <div class="chat-msg-sheet-handle" aria-hidden="true"></div>
+            <div class="gk-amigos-top"><p id="amigos-titulo" class="gk-amigos-title">Amigos</p><button type="button" class="btn-sm" id="btn-amigos-add">＋ Adicionar</button></div>
+            <input type="search" id="amigos-busca" class="wa-search" placeholder="Buscar por nome ou apelido…" autocomplete="off">
+            <div id="amigos-lista" class="gk-amigos-lista"></div>
+            <button type="button" class="btn-ghost" data-close-amigos="1">Fechar</button>
+        </div>
+    </div>
+
     <div id="wa-attach-sheet" class="chat-msg-sheet oculto wa-attach-sheet" role="dialog" aria-modal="true" aria-label="Anexar">
         <div class="chat-msg-sheet-backdrop" data-close-attach="1"></div>
         <div class="chat-msg-sheet-panel">
@@ -166,155 +167,43 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260925d"></script>
-    <script src="auth-guard.js?v=20260925d"></script>
-    <script src="suporte.js?v=20260925d"></script>
-    <script src="nav.js?v=20260925d"></script>
-    <script src="anti-golpe.js?v=20260925d"></script>
-    <script src="chat.js?v=20260925d"></script>
-    <script src="lightbox.js?v=20260925d"></script>
-    <script src="pwa.js?v=20260925d"></script>
+    <script src="config.js?v=20261001a"></script>
+    <script src="auth-guard.js?v=20261001a"></script>
+    <script src="suporte.js?v=20261001a"></script>
+    <script src="chat-realtime.js?v=20261001a"></script>
+    <script src="nav.js?v=20261001a"></script>
+    <script src="anti-golpe.js?v=20261001a"></script>
+    <script src="chat-store.js?v=20261001a"></script>
+    <script src="chat-midia.js?v=20261001a"></script>
+    <script src="chat.js?v=20261001a"></script>
+    <script src="lightbox.js?v=20261001a"></script>
+    <script src="pwa.js?v=20261001a"></script>
     <script>
     (function waChrome() {
-        function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); else alert(t); }
-        const video = document.getElementById('btn-chat-video');
-        const phone = document.getElementById('btn-chat-phone');
-        if (video) video.addEventListener('click', () => toast('Chamada de vídeo em breve'));
-        if (phone) phone.addEventListener('click', () => toast('Chamada de voz em breve'));
-        function openCameraCapture() {
-            if (typeof contatoAtivo === 'undefined' || !contatoAtivo || !contatoAtivo.auth_id) {
-                toast('Abra uma conversa para enviar foto.');
-                return;
-            }
-            const f = document.getElementById('chat-foto');
-            if (f) f.click();
-        }
+        function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); }
         const cam = document.getElementById('btn-chat-cam');
-        if (cam) cam.addEventListener('click', openCameraCapture);
-        const camBar = document.getElementById('btn-chat-camera');
-        if (camBar) camBar.addEventListener('click', openCameraCapture);
+        if (cam) cam.addEventListener('click', function () {
+            if (typeof contatoAtivo === 'undefined' || !contatoAtivo || !contatoAtivo.auth_id) { toast('Abra uma conversa para enviar foto.'); return; }
+            const f = document.getElementById('chat-foto'); if (f) f.click();
+        });
         const plus = document.getElementById('btn-chat-plus');
         const sheet = document.getElementById('wa-attach-sheet');
         function openSheet(o) { if (sheet) sheet.classList.toggle('oculto', !o); }
-        if (plus) plus.addEventListener('click', () => openSheet(true));
-        if (sheet) sheet.addEventListener('click', (e) => {
-            if (e.target && e.target.getAttribute('data-close-attach')) openSheet(false);
-        });
-        const ag = document.getElementById('btn-attach-agendar');
-        if (ag) ag.addEventListener('click', () => {
-            openSheet(false);
-            const box = document.getElementById('chat-agendar-box');
-            const tog = document.getElementById('btn-toggle-agendar');
-            if (tog) tog.click();
-            else if (box) box.classList.remove('oculto');
-        });
-        const gal = document.getElementById('chat-foto-gal');
-        const foto = document.getElementById('chat-foto');
-        if (gal && foto) {
-            gal.addEventListener('change', () => {
-                if (gal.files && gal.files[0]) {
-                    const dt = new DataTransfer();
-                    dt.items.add(gal.files[0]);
-                    foto.files = dt.files;
-                    foto.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-                openSheet(false);
-            });
-        }
-        ['chat-foto', 'chat-video', 'chat-audio-file', 'chat-doc'].forEach(function (id) {
-            const el = document.getElementById(id);
-            if (!el || el._sheetCloseBound) return;
-            el._sheetCloseBound = true;
-            el.addEventListener('change', function () { openSheet(false); });
-        });
-        const docIn = document.getElementById('chat-doc');
-        if (docIn && !docIn._docBound) {
-            docIn._docBound = true;
-            docIn.addEventListener('change', async function (e) {
-                const file = e.target.files && e.target.files[0];
-                e.target.value = '';
-                if (!file) return;
-                if (typeof pickMidiaArquivo === 'function') {
-                    const isImg = /^image\//.test(file.type);
-                    await pickMidiaArquivo(file, isImg ? 'imagem' : 'documento');
-                }
-            });
-        }
-        const texto = document.getElementById('chat-texto');
-        const mic = document.getElementById('btn-audio');
-        const send = document.getElementById('btn-chat-enviar');
-        function syncSend() {
-            /* Mic + enviar ficam sempre visíveis (câmera só no + Anexar) */
-            if (mic) mic.classList.remove('oculto');
-            if (send) send.classList.remove('oculto');
-        }
-        if (texto) {
-            texto.addEventListener('input', syncSend);
-            // Keep composer above keyboard when focusing
-            texto.addEventListener('focus', function () {
-                setTimeout(function () {
-                    try {
-                        const box = document.getElementById('chat-msgs');
-                        if (box) box.scrollTop = box.scrollHeight;
-                    } catch (err) {}
-                }, 280);
-            });
-        }
-        syncSend();
-        const emojiBtn = document.getElementById('btn-chat-emoji');
-        if (emojiBtn && texto) {
-            emojiBtn.addEventListener('click', function () {
-                const em = '😊';
-                const start = texto.selectionStart || texto.value.length;
-                const end = texto.selectionEnd || start;
-                texto.value = texto.value.slice(0, start) + em + texto.value.slice(end);
-                texto.focus();
-                const pos = start + em.length;
-                try { texto.setSelectionRange(pos, pos); } catch (err) {}
-                syncSend();
-            });
-        }
-        document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(b => b.classList.remove('on'));
-                btn.classList.add('on');
-                const f = btn.getAttribute('data-wa') || 'todas';
-                if (typeof aplicarFiltroListaChat === 'function') aplicarFiltroListaChat(f);
-                else if (f === 'favoritos') toast('Favoritos em breve');
-                else if (typeof carregarContatos === 'function') carregarContatos(true);
-            });
-        });
-        const arch = document.getElementById('wa-archived');
-        if (arch) arch.addEventListener('click', () => toast('Arquivadas em breve'));
+        if (plus) plus.addEventListener('click', function () { openSheet(true); });
+        if (sheet) sheet.addEventListener('click', function (e) { if (e.target && e.target.getAttribute('data-close-attach')) openSheet(false); });
         const menuList = document.getElementById('btn-chat-menu-list');
-        if (menuList && !menuList._bound) {
-            menuList._bound = true;
-            menuList.addEventListener('click', () => {
-                const add = document.getElementById('btn-add-contato');
-                if (add) add.click();
-                else toast('Use ＋ para nova conversa');
-            });
-        }
-        // Update avatar initials when name changes
+        if (menuList) menuList.addEventListener('click', function () { const add = document.getElementById('btn-add-contato'); if (add) add.click(); });
+        // Iniciais do avatar quando o nome muda
         const nomeEl = document.getElementById('chat-com-nome');
         const av = document.getElementById('chat-com-av');
         if (nomeEl && av && typeof MutationObserver !== 'undefined') {
-            const mo = new MutationObserver(() => {
+            const mo = new MutationObserver(function () {
                 const n = (nomeEl.textContent || '?').trim();
                 const parts = n.split(/\s+/);
-                av.textContent = parts.length > 1 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : n.slice(0,2).toUpperCase();
+                av.textContent = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : n.slice(0, 2).toUpperCase();
             });
             mo.observe(nomeEl, { childList: true, characterData: true, subtree: true });
         }
-        // PDF card enhancement for document links in bubbles
-        document.addEventListener('click', (e) => {
-            const a = e.target && e.target.closest && e.target.closest('.bubble-media a');
-            if (!a) return;
-            const href = a.getAttribute('href') || '';
-            if (/\.pdf($|\?)/i.test(href) || /application\/pdf/i.test(href)) {
-                /* native open */
-            }
-        });
     })();
     </script>
 </body>

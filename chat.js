@@ -1,31 +1,44 @@
+/* Minera Pará — Chat (interface).
+ * Dados/fila/cache: chat-store.js · Tempo real: chat-realtime.js · Mídia: chat-midia.js
+ * Regras: conversa abre com as 40 mais recentes (antigas ao rolar p/ cima),
+ * envio otimista com client_id + fila offline, ticks ⏱ ✓ ✓✓ ✓✓azul,
+ * DOM incremental (nunca redesenha a conversa inteira por causa de 1 mensagem).
+ */
+
 let perfilAtual = null;
-let pollTimer = null;
-let contactsPollTimer = null;
 let meuAuthId = null;
 let loteCtx = null;
-let anexoPendente = null;
-let gravando = false;
-let mediaRecorder = null;
-let audioChunks = [];
-let audioTimerInterval = null;
-let audioSeconds = 0;
-let agendarAtivo = false;
-
-/** Contato ativo: { auth_id, nome, papeis, tipo, apelido } — sem email */
+/** Contato ativo: { auth_id, nome, papeis, tipo, apelido } — sem email. Global (nav.js/chat.html usam). */
 let contatoAtivo = null;
-let filtroListaChat = 'todas'; // todas | nao_lidas | favoritos
-
+let filtroListaChat = 'todas'; // todas | nao_lidas
 let contatosCache = [];
 let diretorioCache = [];
-let lastThreadMsgIds = new Set();
-let lastContactsSig = '';
-let renderedMsgOrder = []; // ids currently in DOM (stable order)
-let renderedMsgSigs = new Map();
-let threadInitialized = false;
 /** Mensagem sendo respondida: { id, texto, de_nome, tipo } | null */
 let replyToMsg = null;
-/** Cache id → mensagem da thread ativa (p/ quotes e menu) */
-let threadMsgsById = new Map();
+let agendarAtivo = false;
+/** Áudio gravado em modo "toque" aguardando o botão Enviar */
+let anexoPendente = null;
+
+/* Estado da conversa aberta */
+const T = {
+    peer: null,
+    gen: 0,                 // muda a cada troca de conversa (descarta respostas atrasadas)
+    msgs: new Map(),        // id → mensagem do servidor
+    minId: null,
+    maxId: 0,
+    temMais: false,
+    carregandoAntigas: false,
+    peerLida: 0,
+    peerEntregue: 0,
+    pertoDoFim: true,
+    novasAbaixo: 0,
+    ultimoSync: 0,
+    lidoPend: null,
+    online: false
+};
+/* Mensagens ainda não confirmadas pelo servidor (todas as conversas): client_id → item */
+const pendentes = new Map();
+let ultimoInboxPoll = 0;
 
 const ROLE_GROUPS = [
     { id: 'minerador', title: 'Mineradores/Vendedores', match: ['minerador'] },
@@ -36,32 +49,23 @@ const ROLE_GROUPS = [
     { id: 'outros', title: 'Outros', match: null }
 ];
 
+window.__chatPerf = window.__chatPerf || {};
+
+/* ============================ utilitários ============================ */
+function $(id) { return document.getElementById(id); }
 function esc(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-
-function looksLikeEmail(s) {
-    return /@/.test(String(s || ''));
-}
-
-/** Nunca exponha e-mail de terceiros no chat/diretório (anti-golpe). */
+function looksLikeEmail(s) { return /@/.test(String(s || '')); }
 function stripEmailFields(u) {
     if (!u || typeof u !== 'object') return u;
     const out = Object.assign({}, u);
-    delete out.email;
-    delete out.Email;
-    delete out.e_mail;
-    // Se nome/apelido forem literalmente um e-mail, não mostre
+    delete out.email; delete out.Email; delete out.e_mail;
     if (looksLikeEmail(out.nome)) out.nome = '';
     if (looksLikeEmail(out.apelido)) out.apelido = '';
     return out;
 }
-
-function sanitizeDirList(rows) {
-    return (rows || []).map(stripEmailFields);
-}
-
 function displayNome(u) {
     if (!u) return 'Contato';
     const ap = String(u.apelido || '').trim();
@@ -70,1891 +74,1379 @@ function displayNome(u) {
     if (no && !looksLikeEmail(no)) return no;
     return 'Contato';
 }
-
-function meuNomePublico() {
-    return displayNome(perfilAtual) || 'Usuário';
-}
-
+function meuNomePublico() { return displayNome(perfilAtual) || 'Usuário'; }
 function nomePublicoTexto(valor, fallback) {
     const s = String(valor || '').trim();
     return s && !looksLikeEmail(s) ? s : (fallback || 'Contato');
 }
-
-function lerLoteQuery() {
-    try {
-        const u = new URL(window.location.href);
-        return (u.searchParams.get('lote') || '').trim();
-    } catch (e) { return ''; }
+function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); }
+function msgErro(t) { const el = $('chat-msg'); if (el) { el.textContent = t || ''; el.className = t ? 'msg erro' : 'msg'; } }
+function rotuloGrupoPapel(papeis, tipo) {
+    const arr = (Array.isArray(papeis) ? papeis : []).map(p => String(p).toLowerCase());
+    if (!arr.length && tipo) arr.push(String(tipo).toLowerCase());
+    for (const g of ROLE_GROUPS) { if (g.match && g.match.some(m => arr.includes(m))) return g.id; }
+    return 'outros';
 }
-
-function lerParaQuery() {
-    try {
-        const u = new URL(window.location.href);
-        // com= = vendedor (Negociar); para=/dm= aliases
-        return (u.searchParams.get('com') || u.searchParams.get('para') || u.searchParams.get('dm') || '').trim();
-    } catch (e) { return ''; }
+function labelPapelCurto(papeis, tipo) {
+    const labels = {
+        minerador: 'Minerador', comprador: 'Comprador', transportador: 'Transportador',
+        transportador_mina_britador: 'Transportador (Mina–Britador)', transportador_britador_porto: 'Transportador (Britador–Porto)',
+        dono_britador: 'Dono de Britador', carregamento: 'Carregador', admin: 'Admin'
+    };
+    const arr = (Array.isArray(papeis) ? papeis : []).map(p => String(p).toLowerCase());
+    if (!arr.length && tipo) return labels[String(tipo).toLowerCase()] || tipo;
+    return arr.map(p => labels[p] || p).join(', ') || 'Outros';
 }
-
+function iniciais(n) {
+    const parts = String(n || '?').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+function lerQuery(nome) { try { return (new URL(location.href).searchParams.get(nome) || '').trim(); } catch (e) { return ''; } }
+function lerParaQuery() { return lerQuery('com') || lerQuery('para') || lerQuery('dm'); }
+function ehAdminEu() { return typeof ehAdmin === 'function' && ehAdmin(perfilAtual); }
+function visivel() { return document.visibilityState !== 'hidden'; }
 
 function lerLocalizacaoQuery() {
     try {
-        const u = new URL(window.location.href);
+        const u = new URL(location.href);
         const lat = parseFloat(u.searchParams.get('lat'));
         const lng = parseFloat(u.searchParams.get('lng'));
         const label = (u.searchParams.get('label') || '').trim();
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-            // fallback sessionStorage (mapa → chat)
             try {
                 const raw = sessionStorage.getItem('minera_share_loc');
                 if (!raw) return null;
                 const o = JSON.parse(raw);
                 if (!o || !Number.isFinite(Number(o.lat)) || !Number.isFinite(Number(o.lng))) return null;
                 if (o.ts && Date.now() - o.ts > 30 * 60 * 1000) return null;
-                return {
-                    lat: Number(o.lat),
-                    lng: Number(o.lng),
-                    label: String(o.label || '').trim(),
-                    texto: String(o.texto || '').trim(),
-                    link: String(o.link || '')
-                };
+                return { lat: Number(o.lat), lng: Number(o.lng), label: String(o.label || '').trim(), texto: String(o.texto || '').trim(), link: String(o.link || '') };
             } catch (e2) { return null; }
         }
         const link = 'https://maps.google.com/?q=' + encodeURIComponent(lat + ',' + lng);
-        const texto =
-            '📍 ' + (label || ('Local ' + lat.toFixed(5) + ', ' + lng.toFixed(5))) + '\n' +
-            'Coords: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '\n' +
-            link;
-        return { lat: lat, lng: lng, label: label, texto: texto, link: link };
+        const texto = '📍 ' + (label || ('Local ' + lat.toFixed(5) + ', ' + lng.toFixed(5))) + '\n' +
+            'Coords: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '\n' + link;
+        return { lat, lng, label, texto, link };
     } catch (e) { return null; }
 }
-
 function preencherLocalizacaoNoComposer(loc) {
     if (!loc) return;
-    const input = document.getElementById('chat-texto');
+    const input = $('chat-texto');
     if (input) {
-        const texto = loc.texto || (
-            '📍 ' + (loc.label || 'Localização') + '\n' +
-            'Coords: ' + Number(loc.lat).toFixed(6) + ', ' + Number(loc.lng).toFixed(6) + '\n' +
-            (loc.link || ('https://maps.google.com/?q=' + loc.lat + ',' + loc.lng))
-        );
+        const texto = loc.texto || ('📍 ' + (loc.label || 'Localização') + '\n' + 'Coords: ' + Number(loc.lat).toFixed(6) + ', ' +
+            Number(loc.lng).toFixed(6) + '\n' + (loc.link || ('https://maps.google.com/?q=' + loc.lat + ',' + loc.lng)));
         if (!input.value.trim()) input.value = texto;
         else if (input.value.indexOf('maps.google.com') === -1) input.value = input.value.trim() + '\n\n' + texto;
-        try { input.focus(); } catch (e) {}
+        autoCrescer();
     }
-    const ctxEl = document.getElementById('chat-lote-ctx');
+    const ctxEl = $('chat-lote-ctx');
     if (ctxEl && !loteCtx) {
         ctxEl.textContent = 'Localização pronta para enviar — escolha um contato se ainda não houver conversa.';
         ctxEl.classList.remove('oculto');
     }
-    try { sessionStorage.removeItem('minera_share_loc'); } catch (e) {}
+    try { sessionStorage.removeItem('minera_share_loc'); } catch (e) { /* ignore */ }
 }
-
-
 function setAnexoInfo(txt) {
-    const el = document.getElementById('chat-anexo-info');
+    const el = $('chat-anexo-info');
     if (!el) return;
-    if (!txt) {
-        el.classList.add('oculto');
-        el.textContent = '';
-        return;
-    }
-    el.textContent = txt;
-    el.classList.remove('oculto');
+    el.textContent = txt || '';
+    el.classList.toggle('oculto', !txt);
 }
 
-function lsKeyLeituras() {
-    return 'minera_chat_leituras_' + (meuAuthId || 'anon');
-}
-
-function lerLeiturasLocal() {
-    try {
-        return JSON.parse(localStorage.getItem(lsKeyLeituras()) || '{}') || {};
-    } catch (e) { return {}; }
-}
-
-function salvarLeituraLocal(comAuthId, msgId) {
-    if (!comAuthId || !msgId) return;
-    const map = lerLeiturasLocal();
-    const prev = Number(map[comAuthId] || 0);
-    if (Number(msgId) > prev) {
-        map[comAuthId] = Number(msgId);
-        try { localStorage.setItem(lsKeyLeituras(), JSON.stringify(map)); } catch (e) { /* ignore */ }
-    }
-}
-
-function getLeituraLocal(comAuthId) {
-    return Number(lerLeiturasLocal()[comAuthId] || 0);
-}
-
-async function marcarLido(comAuthId, ultimaId) {
-    if (!comAuthId || !ultimaId) return;
-    const antes = getLeituraLocal(comAuthId);
-    salvarLeituraLocal(comAuthId, ultimaId);
-    // Limpa sino / aba Chat / lembrete na hora (sem esperar o próximo poll)
-    if (Number(ultimaId) > antes && window.MineraNotif && MineraNotif.poll) {
-        try { MineraNotif.poll(); } catch (e) { /* ignore */ }
-    }
-    try {
-        await supabaseClient.from('chat_leituras').upsert([{
-            auth_id: meuAuthId,
-            com_auth_id: comAuthId,
-            ultima_lida_id: ultimaId,
-            lido_em: new Date().toISOString()
-        }], { onConflict: 'auth_id,com_auth_id' });
-    } catch (e) {
-        console.warn('chat_leituras', e);
-    }
-}
-
-function rotuloGrupoPapel(papeis, tipo) {
-    const arr = (Array.isArray(papeis) ? papeis : [])
-        .map(p => String(p).toLowerCase());
-    if (!arr.length && tipo) arr.push(String(tipo).toLowerCase());
-    for (const g of ROLE_GROUPS) {
-        if (!g.match) continue;
-        if (g.match.some(m => arr.includes(m))) return g.id;
-    }
-    return 'outros';
-}
-
-function labelPapelCurto(papeis, tipo) {
-    const labels = {
-        minerador: 'Minerador',
-        comprador: 'Comprador',
-        transportador: 'Transportador',
-        transportador_mina_britador: 'Transportador (Mina–Britador)',
-        transportador_britador_porto: 'Transportador (Britador–Porto)',
-        dono_britador: 'Dono de Britador',
-        carregamento: 'Carregador',
-        admin: 'Admin'
-    };
-    const arr = (Array.isArray(papeis) ? papeis : []).map(p => String(p).toLowerCase());
-    if (!arr.length && tipo) return labels[String(tipo).toLowerCase()] || tipo;
-    return arr.map(p => labels[p] || p).join(', ') || 'Outros';
-}
-
-/** Base MIME without codecs (Storage rejects some ";codecs=..." types). */
-function baseMime(t) {
-    const s = String(t || '').split(';')[0].trim().toLowerCase();
-    return s || '';
-}
-
-function extForMime(mime, fallback) {
-    const m = baseMime(mime);
-    if (m === 'audio/webm' || m === 'video/webm') return 'webm';
-    if (m === 'audio/ogg' || m === 'video/ogg') return 'ogg';
-    if (m === 'audio/mp4' || m === 'audio/aac' || m === 'audio/x-m4a') return 'm4a';
-    if (m === 'audio/mpeg' || m === 'audio/mp3') return 'mp3';
-    if (m === 'audio/wav' || m === 'audio/wave') return 'wav';
-    if (m === 'image/jpeg') return 'jpg';
-    if (m === 'image/png') return 'png';
-    if (m === 'image/gif') return 'gif';
-    if (m === 'image/webp') return 'webp';
-    if (m === 'video/mp4') return 'mp4';
-    return fallback || 'bin';
-}
-
-function pickRecorderMime() {
-    if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
-        return '';
-    }
-    const ua = navigator.userAgent || '';
-    const isAppleTouch = /iPhone|iPad|iPod/i.test(ua);
-    const isSafari = (/Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|Firefox|FxiOS|OPR/i.test(ua)) || isAppleTouch;
-    const appleFirst = [
-        'audio/mp4',
-        'audio/aac',
-        'audio/mp4;codecs=mp4a.40.2',
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/ogg'
-    ];
-    const webFirst = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/ogg',
-        'audio/mp4',
-        'audio/aac'
-    ];
-    const candidates = (isSafari || isAppleTouch) ? appleFirst : webFirst;
-    for (let i = 0; i < candidates.length; i++) {
-        try {
-            if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
-        } catch (e) { /* ignore */ }
-    }
-    return '';
-}
-
-let lastUploadError = '';
-
-async function uploadMidia(file, pasta) {
-    if (!file) return null;
-    lastUploadError = '';
-    const mime = baseMime(file.type) || (pasta === 'audios' ? 'audio/webm' : 'application/octet-stream');
-    const ext = extForMime(mime, (file.name || '').split('.').pop() || 'bin');
-    const safeName = String(file.name || ('arquivo.' + ext)).replace(/[^\w.\-]/g, '_');
-    const stem = safeName.replace(/\.[^.]+$/, '') || 'arquivo';
-    const uid = (typeof meuAuthId !== 'undefined' && meuAuthId) ? String(meuAuthId) : 'anon';
-    const path = uid + '/' + (pasta || 'geral') + '/' + Date.now() + '_' + stem + '.' + ext;
-    // Re-wrap so Content-Type never carries ";codecs=..." (Storage/CDN often rejects it)
-    let payload = file;
-    try {
-        if (baseMime(file.type) !== mime || /;/.test(String(file.type || ''))) {
-            payload = new File([file], stem + '.' + ext, { type: mime });
-        }
-    } catch (eWrap) {
-        payload = file;
-    }
-    try {
-        const { data, error } = await supabaseClient.storage
-            .from('chat-midia')
-            .upload(path, payload, {
-                upsert: false,
-                contentType: mime,
-                cacheControl: '3600'
-            });
-        if (!error && data) {
-            const { data: pub } = supabaseClient.storage.from('chat-midia').getPublicUrl(data.path || path);
-            if (pub && pub.publicUrl) return pub.publicUrl;
-            lastUploadError = 'Upload ok mas sem URL pública — rode SQL 27 (bucket público).';
-        } else {
-            lastUploadError = (error && error.message) || 'Falha no upload Storage';
-            console.warn('Storage upload falhou:', lastUploadError);
-        }
-    } catch (e) {
-        lastUploadError = (e && e.message) || 'Storage indisponível';
-        console.warn('Storage indisponível:', e);
-    }
-    // Fallbacks: data-URL for short voice (~3–5MB) so sender still hears it if bucket missing
-    const maxImg = 400000;
-    const maxAudio = 4500000; // ~4.5MB — short voice notes when Storage fails
-    if (mime && mime.startsWith('image/') && file.size <= maxImg) {
-        try { return await fileToDataUrl(file); } catch (e2) { console.warn(e2); }
-    }
-    if ((mime && mime.startsWith('audio/')) || pasta === 'audios') {
-        if (file.size <= maxAudio) {
-            try { return await fileToDataUrl(file); } catch (e2) { console.warn(e2); }
-        } else {
-            lastUploadError = lastUploadError || ('Áudio grande demais para fallback (' + Math.round(file.size / 1000) + ' KB).');
-        }
-    }
-    return null;
-}
-
-function fileToDataUrl(file) {
-    return new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-    });
-}
-
-async function promoverAgendadas(lista) {
-    const agora = Date.now();
-    const pend = (lista || []).filter(m =>
-        (m.status || '') === 'agendada' &&
-        m.agendado_para &&
-        new Date(m.agendado_para).getTime() <= agora &&
-        !m.deleted_at
-    );
-    for (const m of pend) {
-        try {
-            await supabaseClient.from('chat_mensagens')
-                .update({ status: 'enviada' })
-                .eq('id', m.id);
-            m.status = 'enviada';
-        } catch (e) {
-            console.warn('promover agendada', e);
-        }
-    }
-}
-
-function mimeFromMediaUrl(url) {
-    const s = String(url || '');
-    if (s.startsWith('data:audio/')) {
-        return baseMime(s.slice(5).split(',')[0]);
-    }
-    const u = s.split('?')[0].toLowerCase();
-    if (/\.webm$/i.test(u)) return 'audio/webm';
-    if (/\.ogg$/i.test(u)) return 'audio/ogg';
-    if (/\.m4a$/i.test(u) || /\.mp4$/i.test(u)) return 'audio/mp4';
-    if (/\.mp3$/i.test(u) || /\.mpeg$/i.test(u)) return 'audio/mpeg';
-    if (/\.wav$/i.test(u)) return 'audio/wav';
-    return '';
-}
-
-function renderMedia(m) {
-    const url = m.midia_url;
-    const loading = !!m._loading;
-    const localPreview = m._localPreview || '';
-    const tipo = (m.tipo || 'text').toLowerCase();
-
-    if (loading && localPreview) {
-        if (tipo === 'imagem' || localPreview.startsWith('data:image') || localPreview.startsWith('blob:')) {
-            return '<div class="bubble-media bubble-media-loading">' +
-                '<img src="' + esc(localPreview) + '" alt="enviando">' +
-                '<div class="media-upload-overlay">Enviando…</div></div>';
-        }
-        if (tipo === 'video') {
-            return '<div class="bubble-media bubble-media-loading">' +
-                '<video src="' + esc(localPreview) + '" muted playsinline></video>' +
-                '<div class="media-upload-overlay">Enviando…</div></div>';
-        }
-        if (tipo === 'audio') {
-            return '<div class="bubble-media bubble-media-loading">' +
-                '<audio src="' + esc(localPreview) + '" controls playsinline webkit-playsinline></audio>' +
-                '<div class="media-upload-overlay">Enviando…</div></div>';
-        }
-    }
-
-    if (!url) return '';
-    if (tipo === 'imagem' || url.startsWith('data:image')) {
-        return '<div class="bubble-media"><img src="' + esc(url) + '" alt="imagem" loading="lazy"></div>';
-    }
-    if (tipo === 'video') {
-        return '<div class="bubble-media"><video src="' + esc(url) + '" controls playsinline></video></div>';
-    }
-    if (tipo === 'audio') {
-        const amime = mimeFromMediaUrl(url);
-        const typeAttr = amime ? ' type="' + esc(amime) + '"' : '';
-        const isWebm = amime === 'audio/webm' || /\.webm($|\?)/i.test(String(url));
-        const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-        let html = '<div class="bubble-media bubble-audio">' +
-            '<div class="wa-wave" aria-hidden="true">▁▂▃▅▃▂▅▆▄▂▃▅▂▁</div>' +
-            '<audio controls preload="metadata" playsinline webkit-playsinline' +
-            (isWebm && isIos ? ' data-ios-webm="1"' : '') + '>' +
-            '<source src="' + esc(url) + '"' + typeAttr + '>' +
-            '</audio>';
-        if (isWebm) {
-            html += '<a class="btn-sm bubble-audio-dl' + (isIos ? '' : ' oculto') +
-                '" href="' + esc(url) + '" download target="_blank" rel="noopener">Baixar áudio</a>';
-        }
-        html += '</div>';
-        return html;
-    }
-    if (tipo === 'documento' || tipo === 'doc' || tipo === 'pdf' || /\.pdf($|\?)/i.test(url) || String(url).indexOf('application/pdf') >= 0) {
-        const name = (m.texto || 'Documento.pdf').slice(0, 40);
-        return '<div class="bubble-media bubble-doc">' +
-            '<div class="bubble-doc-ico">📄</div>' +
-            '<div class="bubble-doc-body"><strong>' + esc(name) + '</strong>' +
-            '<span class="sub">PDF · toque para abrir</span></div>' +
-            '<a class="btn-sm" href="' + esc(url) + '" target="_blank" rel="noopener">Abrir</a></div>';
-    }
-    return '<div class="bubble-media"><a href="' + esc(url) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
-}
-
-function messageSignature(m) {
-    return JSON.stringify([
-        m.id, m.texto || '', m.tipo || '', m.midia_url || '', m.status || '',
-        m.agendado_para || '', m.moderacao || '', m.deleted_at || '',
-        m.resposta_a_id || '', (m.apagada_para || []).join(',')
-    ]);
-}
-
-function snippetMsg(m) {
-    if (!m) return '';
-    if (m.deleted_at) return 'Mensagem apagada';
-    const raw = (m.texto || '').trim();
-    if (raw) return raw.slice(0, 120);
-    if (m.tipo === 'audio') return '🎙️ Áudio';
-    if (m.tipo === 'imagem') return '📷 Foto';
-    if (m.tipo === 'video') return '🎬 Vídeo';
-    if (m.tipo && m.tipo !== 'text') return '[' + m.tipo + ']';
-    return '(sem texto)';
-}
-
-
-function dayKey(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
-}
+/* ============================ bolhas ============================ */
+function dayKey(iso) { if (!iso) return ''; const d = new Date(iso); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }
 function dayLabel(iso) {
     if (!iso) return '';
-    const d = new Date(iso);
     const now = new Date();
     if (dayKey(iso) === dayKey(now.toISOString())) return 'Hoje';
     const y = new Date(now); y.setDate(y.getDate() - 1);
     if (dayKey(iso) === dayKey(y.toISOString())) return 'Ontem';
-    return d.toLocaleDateString('pt-BR');
+    return new Date(iso).toLocaleDateString('pt-BR');
 }
-function bubblesWithDayDividers(lista) {
-    let last = null;
-    let html = '';
-    (lista || []).forEach(m => {
-        const k = dayKey(m.criado_em);
-        if (k && k !== last) {
-            last = k;
-            html += '<div class="wa-day-div"><span>' + dayLabel(m.criado_em) + '</span></div>';
-        }
-        html += bubbleHtml(m);
-    });
-    return html;
+function divDiaHtml(iso) { return '<div class="wa-day-div" data-dia="' + dayKey(iso) + '"><span>' + esc(dayLabel(iso)) + '</span></div>'; }
+function snippetMsg(m) {
+    if (!m) return '';
+    if (m.deleted_at) return 'Mensagem apagada';
+    const raw = (m.texto || '').trim();
+    if (raw && m.tipo !== 'documento') return raw.slice(0, 120);
+    if (m.tipo === 'audio') return '🎙️ Áudio';
+    if (m.tipo === 'imagem') return '📷 Foto';
+    if (m.tipo === 'video') return '🎬 Vídeo';
+    if (m.tipo === 'documento') return '📄 ' + (raw || 'Documento');
+    if (m.tipo && m.tipo !== 'text' && m.tipo !== 'agendada') return '[' + m.tipo + ']';
+    return raw || '(sem texto)';
+}
+function ehMinha(m) { return !!(m && m.de_auth_id && meuAuthId && String(m.de_auth_id) === String(meuAuthId)); }
+function chaveMsg(m) { return m.id != null ? 'm' + m.id : 'c' + m.client_id; }
+
+function renderMedia(m) {
+    const tipo = String(m.tipo || 'text').toLowerCase();
+    const local = m._localUrl || '';
+    const pend = m.id == null;
+    if (pend && local) {
+        const ov = m._estado === 'falhou' ? '' : '<div class="media-upload-overlay">Enviando…</div>';
+        if (tipo === 'imagem') return '<div class="bubble-media bubble-media-loading"><img src="' + esc(local) + '" alt="enviando">' + ov + '</div>';
+        if (tipo === 'video') return '<div class="bubble-media bubble-media-loading"><video src="' + esc(local) + '" muted playsinline></video>' + ov + '</div>';
+        if (tipo === 'audio') return '<div class="bubble-media bubble-media-loading"><audio src="' + esc(local) + '" controls playsinline></audio>' + ov + '</div>';
+    }
+    const url = m.midia_url;
+    if (!url) {
+        if (pend && tipo === 'documento') return '<div class="bubble-media bubble-doc"><div class="bubble-doc-ico">📄</div><div class="bubble-doc-body"><strong>' + esc((m.texto || 'Documento').slice(0, 40)) + '</strong><span class="sub">enviando…</span></div></div>';
+        return '';
+    }
+    if (tipo === 'imagem' || url.startsWith('data:image')) {
+        return '<div class="bubble-media"><img src="' + esc(url) + '" alt="imagem" loading="lazy" decoding="async"></div>';
+    }
+    if (tipo === 'video') return '<div class="bubble-media"><video src="' + esc(url) + '" controls playsinline preload="metadata"></video></div>';
+    if (tipo === 'audio') {
+        const amime = ChatMidia.mimeFromMediaUrl(url);
+        const typeAttr = amime ? ' type="' + esc(amime) + '"' : '';
+        const isWebm = amime === 'audio/webm';
+        const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+        let h = '<div class="bubble-media bubble-audio"><div class="wa-wave" aria-hidden="true">▁▂▃▅▃▂▅▆▄▂▃▅▂▁</div>' +
+            '<audio controls preload="metadata" playsinline webkit-playsinline' + (isWebm && isIos ? ' data-ios-webm="1"' : '') + '>' +
+            '<source src="' + esc(url) + '"' + typeAttr + '></audio>';
+        if (isWebm) h += '<a class="btn-sm bubble-audio-dl' + (isIos ? '' : ' oculto') + '" href="' + esc(url) + '" download target="_blank" rel="noopener">Baixar áudio</a>';
+        return h + '</div>';
+    }
+    if (tipo === 'documento' || tipo === 'doc' || tipo === 'pdf' || /\.pdf($|\?)/i.test(url)) {
+        const name = (m.texto || 'Documento.pdf').slice(0, 40);
+        return '<div class="bubble-media bubble-doc"><div class="bubble-doc-ico">📄</div><div class="bubble-doc-body"><strong>' + esc(name) +
+            '</strong><span class="sub">Documento · toque para abrir</span></div><a class="btn-sm" href="' + esc(url) + '" target="_blank" rel="noopener">Abrir</a></div>';
+    }
+    return '<div class="bubble-media"><a href="' + esc(url) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
+}
+
+/** Tick (só nas minhas): ⏱ pendente · ✓ enviada · ✓✓ entregue · ✓✓ azul lida · ⚠ falhou */
+function tickHtml(m) {
+    if (!ehMinha(m)) return '';
+    if (m._estado === 'falhou') return '<span class="tk tk-falhou" aria-label="Não enviada">⚠</span>';
+    if (m.id == null) return '<span class="tk tk-pend" aria-label="Enviando">⏱</span>';
+    if ((m.status || '') === 'agendada') return '<span class="tk tk-ag" aria-label="Agendada">🗓</span>';
+    if (m.deleted_at) return '';
+    if (T.peerLida && Number(m.id) <= T.peerLida) return '<span class="tk tk-lida" aria-label="Lida">✓✓</span>';
+    if (T.peerEntregue && Number(m.id) <= T.peerEntregue) return '<span class="tk tk-entregue" aria-label="Entregue">✓✓</span>';
+    return '<span class="tk tk-env" aria-label="Enviada">✓</span>';
 }
 
 function bubbleHtml(m) {
-    const mine = !!(m.de_auth_id && meuAuthId && String(m.de_auth_id) === String(meuAuthId));
-    const when = m.criado_em
-        ? new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        : (m._pending ? 'agora' : '');
-    const st = (m.status || 'enviada');
-    const sched = st === 'agendada';
-    const agLabel = sched && m.agendado_para
-        ? ' · agendada p/ ' + new Date(m.agendado_para).toLocaleString('pt-BR')
-        : '';
-    const flag = m.moderacao ? ' · 🚩 ' + esc(m.moderacao) : '';
-    const isAdmin = typeof ehAdmin === 'function' && ehAdmin(perfilAtual);
-    const pendingCls = m._pending || m._loading ? ' pending' : '';
+    const mine = ehMinha(m);
     const deleted = !!m.deleted_at;
-    const idAttr = m.id != null ? ' data-msg-id="' + esc(String(m.id)) + '"' : (m._tempId ? ' data-temp-id="' + esc(m._tempId) + '"' : '');
-    const deAttr = m.de_auth_id ? ' data-de-auth="' + esc(String(m.de_auth_id)) + '"' : '';
-    let quoteHtml = '';
+    const sched = (m.status || '') === 'agendada';
+    const iso = m.criado_em || m._criadoLocal;
+    const hora = iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+    let quote = '';
     if (!deleted && m.resposta_a_id) {
-        const orig = threadMsgsById.get(Number(m.resposta_a_id)) || threadMsgsById.get(String(m.resposta_a_id));
-        const qNome = orig ? nomePublicoTexto(orig.de_nome, 'Mensagem') : 'Mensagem';
-        const qTxt = orig ? snippetMsg(orig) : ('#' + m.resposta_a_id);
-        quoteHtml = '<div class="bubble-quote"><span class="bubble-quote-name">' + esc(qNome) +
-            '</span><span class="bubble-quote-text">' + esc(qTxt) + '</span></div>';
+        const o = T.msgs.get(Number(m.resposta_a_id));
+        quote = '<div class="bubble-quote"><span class="bubble-quote-name">' + esc(o ? (ehMinha(o) ? 'Você' : nomePublicoTexto(o.de_nome, 'Mensagem')) : 'Mensagem') +
+            '</span><span class="bubble-quote-text">' + esc(o ? snippetMsg(o) : 'Mensagem anterior') + '</span></div>';
     }
+    const txtVisivel = m.texto && String(m.tipo) !== 'documento';
     const body = deleted
-        ? '<div class="bubble-text bubble-deleted">Mensagem apagada</div>'
-        : ((m.texto ? '<div class="bubble-text">' + esc((typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto)) + '</div>' : '') +
-            renderMedia(m));
-    return `<div class="bubble ${mine ? 'mine sent' : 'theirs'}${sched ? ' scheduled' : ''}${deleted ? ' deleted' : ''}${pendingCls}"${idAttr}${deAttr}>
-        ${mine ? '' : `<div class="bubble-meta">${esc(nomePublicoTexto(m.de_nome, 'Alguém'))}</div>`}
-        ${quoteHtml}
-        ${body}
-        <div class="bubble-status"><span class="bubble-clock">${when}</span> ${esc(deleted ? 'apagada' : (m._loading ? 'enviando' : st))}${isAdmin && m.id ? ' · #' + m.id : ''}</div>
-    </div>`;
+        ? '<div class="bubble-text bubble-deleted">🚫 Mensagem apagada</div>'
+        : ((txtVisivel ? '<div class="bubble-text">' + esc(typeof AntiGolpe !== 'undefined' ? AntiGolpe.mascarar(m.texto) : m.texto) + '</div>' : '') + renderMedia(m));
+    let extra = '';
+    if (sched && m.agendado_para) extra += ' · agendada p/ ' + new Date(m.agendado_para).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    if (m.editado_em && !deleted) extra += ' · editada';
+    if (m.moderacao && ehAdminEu()) extra += ' · 🚩 ' + esc(m.moderacao);
+    if (ehAdminEu() && m.id != null) extra += ' · #' + m.id;
+    const falhou = m._estado === 'falhou';
+    const cls = 'bubble ' + (mine ? 'mine sent' : 'theirs') + (sched ? ' scheduled' : '') + (deleted ? ' deleted' : '') +
+        (m.id == null ? ' pending' : '') + (falhou ? ' bubble-failed' : '');
+    const attrs = ' data-key="' + chaveMsg(m) + '" data-dia="' + dayKey(iso) + '"' +
+        (m.id != null ? ' data-msg-id="' + m.id + '"' : ' data-cid="' + esc(m.client_id) + '"') +
+        (m.de_auth_id ? ' data-de-auth="' + esc(m.de_auth_id) + '"' : '');
+    return '<div class="' + cls + '"' + attrs + '>' +
+        (mine ? '' : '<div class="bubble-meta">' + esc(nomePublicoTexto(m.de_nome, 'Alguém')) + '</div>') +
+        quote + body +
+        (falhou ? '<button type="button" class="bubble-retry" data-retry="' + esc(m.client_id) + '">↻ Não enviada — toque para reenviar</button>' : '') +
+        '<div class="bubble-status"><span class="bubble-clock">' + hora + extra + '</span>' + tickHtml(m) + '</div></div>';
 }
-
-function isNearBottom(box, threshold) {
-    if (!box) return true;
-    const t = threshold == null ? 80 : threshold;
-    return (box.scrollHeight - box.scrollTop - box.clientHeight) <= t;
+function elDeHtml(html) { const w = document.createElement('div'); w.innerHTML = html; return w.firstElementChild; }
+function boxMsgs() { return $('chat-msgs'); }
+function isNearBottom(box, th) { if (!box) return true; return (box.scrollHeight - box.scrollTop - box.clientHeight) <= (th == null ? 120 : th); }
+function rolarFim(suave) {
+    const box = boxMsgs(); if (!box) return;
+    if (suave && box.scrollTo) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+    else box.scrollTop = box.scrollHeight;
+    T.pertoDoFim = true; T.novasAbaixo = 0; atualizarBotaoFim();
 }
+function ultimaBolha(box) { const l = box.querySelectorAll('.bubble'); return l.length ? l[l.length - 1] : null; }
 
-async function rpcDiretorio(busca) {
-    try {
-        const termo = String(busca || '').trim();
-        // Nunca busque por e-mail no cliente
-        if (looksLikeEmail(termo)) return [];
-        if (termo.length >= 1) {
-            const { data, error } = await supabaseClient.rpc('chat_buscar_nome', { p_nome: termo });
-            if (!error && data) return sanitizeDirList(data);
+/* ============================ conversa: render ============================ */
+function renderConversaCompleta(lista, opts) {
+    opts = opts || {};
+    const box = boxMsgs(); if (!box) return;
+    let html = '<div class="chat-topo" id="chat-topo">' + (T.temMais ? '<span class="chat-topo-load">Carregando anteriores…</span>' : '<span class="chat-topo-ini">🔒 Início da conversa</span>') + '</div>';
+    let ultimo = null;
+    const primeiroNaoLido = opts.primeiroNaoLido || null;
+    lista.forEach(m => {
+        const k = dayKey(m.criado_em);
+        if (k && k !== ultimo) { ultimo = k; html += divDiaHtml(m.criado_em); }
+        if (primeiroNaoLido && Number(m.id) === Number(primeiroNaoLido)) {
+            html += '<div class="chat-naolidas-div" id="chat-naolidas-div"><span>' + opts.qtdNaoLidas + (opts.qtdNaoLidas === 1 ? ' mensagem não lida' : ' mensagens não lidas') + '</span></div>';
         }
-        const { data, error } = await supabaseClient.rpc('chat_diretorio');
-        if (error) throw error;
-        const list = sanitizeDirList(data);
-        if (!termo) return list;
-        const t = termo.toLowerCase();
-        return list.filter(u =>
-            String(u.nome || '').toLowerCase().includes(t) ||
-            String(u.apelido || '').toLowerCase().includes(t)
-        );
-    } catch (e) {
-        console.warn('chat_diretorio/buscar_nome', e);
-        return [];
-    }
-}
-
-async function rpcPerfis(ids) {
-    if (!ids || !ids.length) return [];
-    try {
-        const { data, error } = await supabaseClient.rpc('chat_perfis_publicos', { p_ids: ids });
-        if (error) throw error;
-        return sanitizeDirList(data);
-    } catch (e) {
-        console.warn('chat_perfis_publicos', e);
-        return [];
-    }
-}
-
-function contactsSignature(list) {
-    return (list || []).map(c =>
-        [c.auth_id, c.nome, c.unread || 0,
-            c.last && c.last.id, c.last && (c.last.texto || '').slice(0, 40), c.last && c.last.tipo].join(':')
-    ).join('|') + '|' + (contatoAtivo && contatoAtivo.auth_id || '');
-}
-
-
-function aplicarFiltroListaChat(filtro) {
-    filtroListaChat = filtro || 'todas';
-    if (filtroListaChat === 'favoritos') {
-        if (typeof toastMsg === 'function') toastMsg('Favoritos em breve');
-        // Keep visual chip; show all until feature lands
-        filtroListaChat = 'todas';
-        const fav = document.querySelector('#wa-filter-chips .wa-chip[data-wa="favoritos"]');
-        const todas = document.querySelector('#wa-filter-chips .wa-chip[data-wa="todas"]');
-        if (fav) fav.classList.remove('on');
-        if (todas) todas.classList.add('on');
-    }
-    if (typeof carregarContatos === 'function') carregarContatos(true);
-}
-window.aplicarFiltroListaChat = aplicarFiltroListaChat;
-
-function renderContatosList(filtered) {
-    const box = document.getElementById('chat-contatos-list');
-    if (!filtered.length) {
-        box.innerHTML = '<div class="chat-contacts-empty">' +
-            '<p><strong>Nenhuma conversa ainda</strong></p>' +
-            '<p class="sub">Toque em <strong>＋ Adicionar por nome</strong> para achar por nome ou apelido.</p>' +
-            '</div>';
-        return;
-    }
-
-    const grouped = {};
-    ROLE_GROUPS.forEach(g => { grouped[g.id] = []; });
-    filtered.forEach(c => {
-        const gid = rotuloGrupoPapel(c.papeis, c.tipo);
-        (grouped[gid] || grouped.outros).push(c);
+        html += bubbleHtml(m);
     });
+    // pendentes desta conversa (fila offline / enviando)
+    let temPend = false;
+    pendentes.forEach(it => { if (it.para === T.peer) { html += bubbleHtml(it); temPend = true; } });
+    if (!lista.length && !temPend) html += '<p class="sub chat-vazio">Nenhuma mensagem ainda. Diga oi! 👋</p>';
+    box.innerHTML = html;
+}
+function removerVazio(box) { const v = box.querySelector('.chat-vazio'); if (v) v.remove(); }
 
-    function initials(n) {
-        const parts = String(n || '?').trim().split(/\s+/).filter(Boolean);
-        if (!parts.length) return '?';
-        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/** Acrescenta no fim (ou na posição certa, se for mais antiga que a última). */
+function inserirBolha(m) {
+    const box = boxMsgs(); if (!box) return null;
+    removerVazio(box);
+    const el = elDeHtml(bubbleHtml(m));
+    const iso = m.criado_em || m._criadoLocal;
+    if (m.id != null && Number(m.id) < T.maxId) {
+        // chegou fora de ordem (ex.: agendada promovida) → antes da 1ª bolha com id maior
+        const depois = Array.from(box.querySelectorAll('.bubble[data-msg-id]')).find(b => Number(b.getAttribute('data-msg-id')) > Number(m.id));
+        if (depois) { box.insertBefore(el, depois); return el; }
     }
-    function timeRight(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        const now = new Date();
-        const same = d.toDateString() === now.toDateString();
-        if (same) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    }
-    let html = '';
-    // Flat WhatsApp-style list (keep group order but no heavy headers)
-    ROLE_GROUPS.forEach(g => {
-        const list = grouped[g.id] || [];
-        list.forEach(c => {
-            const preview = c.last
-                ? ((c.last.de_auth_id === meuAuthId ? 'Você: ' : '') +
-                    (c.last.texto || (c.last.tipo && c.last.tipo !== 'text' ? '[' + c.last.tipo + ']' : ''))).slice(0, 56)
-                : 'Sem mensagens';
-            const on = contatoAtivo && contatoAtivo.auth_id === c.auth_id ? ' on' : '';
-            const badge = c.unread ? '<span class="wa-unread">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '';
-            const t = timeRight(c.last && c.last.criado_em);
-            html += '<button type="button" class="wa-row chat-contact-item' + on + '" data-auth="' + esc(c.auth_id) + '">' +
-                '<div class="wa-av">' + esc(initials(c.nome)) + '</div>' +
-                '<div class="wa-row-mid">' +
-                '<div class="wa-row-name">' + esc(c.nome) + '</div>' +
-                '<div class="wa-row-prev">' + esc(preview) + '</div>' +
-                '</div><div class="wa-row-right"><span class="wa-row-time">' + esc(t) + '</span>' + badge + '</div></button>';
-        });
-    });
-    box.innerHTML = html || '<div class="chat-contacts-empty"><p><strong>Nenhuma conversa ainda</strong></p></div>';
-    box.querySelectorAll('.chat-contact-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = btn.getAttribute('data-auth');
-            const c = contatosCache.find(x => x.auth_id === id);
-            if (c) abrirThread(c);
-        });
+    const ult = ultimaBolha(box);
+    const dia = dayKey(iso);
+    if (dia && (!ult || ult.getAttribute('data-dia') !== dia)) box.appendChild(elDeHtml(divDiaHtml(iso)));
+    box.appendChild(el);
+    return el;
+}
+function trocarBolha(chave, m) {
+    const box = boxMsgs(); if (!box) return null;
+    const atual = box.querySelector('[data-key="' + chave + '"]');
+    if (!atual) return null;
+    const novo = elDeHtml(bubbleHtml(m));
+    atual.replaceWith(novo);
+    return novo;
+}
+function removerBolha(chave) {
+    const box = boxMsgs(); if (!box) return;
+    const el = box.querySelector('[data-key="' + chave + '"]');
+    if (!el) return;
+    const ant = el.previousElementSibling, prox = el.nextElementSibling;
+    el.remove();
+    if (ant && ant.classList.contains('wa-day-div') && (!prox || !prox.classList.contains('bubble'))) ant.remove(); // divisor órfão
+}
+function assinatura(m) {
+    return [m.id, m.texto || '', m.tipo || '', m.midia_url || '', m.status || '', m.agendado_para || '', m.moderacao || '', m.deleted_at || '', m.editado_em || ''].join('|');
+}
+/** Só troca o tick das minhas bolhas (sem mexer no resto). */
+function atualizarTicks() {
+    const box = boxMsgs(); if (!box) return;
+    box.querySelectorAll('.bubble.mine[data-msg-id]').forEach(b => {
+        const m = T.msgs.get(Number(b.getAttribute('data-msg-id')));
+        if (!m) return;
+        const st = b.querySelector('.bubble-status');
+        if (!st) return;
+        const velho = st.querySelector('.tk');
+        const novoHtml = tickHtml(m);
+        if (velho && velho.outerHTML === novoHtml) return;
+        if (velho) velho.remove();
+        if (novoHtml) st.insertAdjacentHTML('beforeend', novoHtml);
     });
 }
 
-async function carregarContatos(force) {
-    const box = document.getElementById('chat-contatos-list');
-    const busca = ((document.getElementById('chat-busca-contatos') || {}).value || '').trim().toLowerCase();
-    try {
-        const { data: rowsRaw, error } = await supabaseClient
-            .from('chat_contatos')
-            .select('*')
-            .eq('auth_id', meuAuthId)
-            .order('criado_em', { ascending: false });
-        if (error) throw error;
-        const rows = (rowsRaw || []).slice();
-
-        const ids = rows.map(r => r.contato_auth_id).filter(Boolean);
-        const perfis = await rpcPerfis(ids);
-        const byId = {};
-        perfis.forEach(p => { byId[p.auth_id] = p; });
-
-        const { data: msgs } = await supabaseClient
-            .from('chat_mensagens')
-            .select('id,de_auth_id,para_auth_id,texto,tipo,criado_em,status,deleted_at,de_nome,apagada_para')
-            .or('de_auth_id.eq.' + meuAuthId + ',para_auth_id.eq.' + meuAuthId)
-            .order('criado_em', { ascending: false })
-            .limit(400);
-
-        let ocultasMap = {};
-        try {
-            const { data: oc } = await supabaseClient
-                .from('chat_conversas_ocultas')
-                .select('outro_auth_id,oculto_em')
-                .eq('auth_id', meuAuthId);
-            (oc || []).forEach(r => { ocultasMap[r.outro_auth_id] = r.oculto_em; });
-        } catch (e) { /* SQL 28 */ }
-
-        const lastByPeer = {};
-        (msgs || []).forEach(m => {
-            if (m.deleted_at) return;
-            const ap = m.apagada_para || [];
-            if (Array.isArray(ap) && ap.indexOf(meuAuthId) >= 0) return;
-            const peer = m.de_auth_id === meuAuthId ? m.para_auth_id : m.de_auth_id;
-            if (!peer || lastByPeer[peer]) return;
-            lastByPeer[peer] = m;
-        });
-
-        const known = new Set(ids);
-        Object.keys(lastByPeer).forEach(peer => {
-            if (!known.has(peer)) {
-                rows.push({
-                    auth_id: meuAuthId,
-                    contato_auth_id: peer,
-                    apelido: null,
-                    criado_em: lastByPeer[peer].criado_em,
-                    _virtual: true
-                });
-                known.add(peer);
-            }
-        });
-        const missing = Object.keys(lastByPeer).filter(p => !byId[p]);
-        if (missing.length) {
-            const extra = await rpcPerfis(missing);
-            extra.forEach(p => { byId[p.auth_id] = p; });
-        }
-
-        const unreadByPeer = {};
-        (msgs || []).forEach(m => {
-            if (m.deleted_at) return;
-            if (m.para_auth_id !== meuAuthId) return;
-            if ((m.status || '') === 'agendada') return;
-            const ap = m.apagada_para || [];
-            if (Array.isArray(ap) && ap.indexOf(meuAuthId) >= 0) return;
-            const peer = m.de_auth_id;
-            if (!peer) return;
-            const lastRead = getLeituraLocal(peer);
-            if (Number(m.id) > lastRead) {
-                unreadByPeer[peer] = (unreadByPeer[peer] || 0) + 1;
-            }
-        });
-
-        contatosCache = (rows || []).map(r => {
-            const p = byId[r.contato_auth_id] || {};
-            const last = lastByPeer[r.contato_auth_id];
-            const nome = nomePublicoTexto(r.apelido, displayNome(p));
-            return {
-                auth_id: r.contato_auth_id,
-                nome,
-                papeis: p.papeis || [],
-                tipo: p.tipo || '',
-                apelido: nomePublicoTexto(r.apelido || p.apelido, '') || null,
-                last,
-                unread: unreadByPeer[r.contato_auth_id] || 0
-            };
-        });
-
-        contatosCache.sort((a, b) => {
-            const ta = a.last && a.last.criado_em ? new Date(a.last.criado_em).getTime() : 0;
-            const tb = b.last && b.last.criado_em ? new Date(b.last.criado_em).getTime() : 0;
-            return tb - ta;
-        });
-
-        const filtered = contatosCache.filter(c => {
-            const ocEm = ocultasMap[c.auth_id];
-            if (ocEm) {
-                const lastT = c.last && c.last.criado_em ? new Date(c.last.criado_em).getTime() : 0;
-                if (lastT <= new Date(ocEm).getTime()) return false;
-            }
-            if (filtroListaChat === 'nao_lidas' && !(c.unread > 0)) return false;
-            if (!busca) return true;
-            return (c.nome || '').toLowerCase().includes(busca) ||
-                (c.apelido || '').toLowerCase().includes(busca) ||
-                labelPapelCurto(c.papeis, c.tipo).toLowerCase().includes(busca);
-        });
-
-        const sig = contactsSignature(filtered);
-        if (!force && sig === lastContactsSig && box.children.length) {
-            return; // same data — do not rebuild (no flicker)
-        }
-        lastContactsSig = sig;
-        renderContatosList(filtered);
-    } catch (err) {
-        console.error(err);
-        box.innerHTML = '<p class="erro">Contatos indisponíveis: ' + esc(err.message) +
-            '. Rode o SQL 18 + 22 no Supabase.</p>';
-        lastContactsSig = '';
-    }
+/* ============================ conversa: dados ============================ */
+function registrarMsgs(lista) {
+    lista.forEach(m => {
+        T.msgs.set(Number(m.id), m);
+        if (T.minId == null || Number(m.id) < T.minId) T.minId = Number(m.id);
+        if (Number(m.id) > T.maxId) T.maxId = Number(m.id);
+    });
 }
+function msgsOrdenadas() { return Array.from(T.msgs.values()).sort((a, b) => a.id - b.id); }
+function salvarCacheConversa() { if (T.peer) ChatStore.cacheThreadGravar(T.peer, msgsOrdenadas()); }
+let cacheConvT = null;
+function salvarCacheConversaDepois() { clearTimeout(cacheConvT); cacheConvT = setTimeout(salvarCacheConversa, 800); }
 
 function showThreadUI(show) {
-    const empty = document.getElementById('chat-thread-empty');
-    const active = document.getElementById('chat-thread-active');
-    const pane = document.getElementById('chat-wa');
+    const empty = $('chat-thread-empty'), active = $('chat-thread-active'), pane = $('chat-wa');
     if (empty) empty.classList.toggle('oculto', show);
     if (active) active.classList.toggle('oculto', !show);
     if (pane) pane.classList.toggle('thread-open', !!show);
-    // WA mobile: hide bottom nav while inside a thread (CSS: body.chat-thread-open)
-    if (document.body) document.body.classList.toggle('chat-thread-open', !!show);
+    document.body.classList.toggle('chat-thread-open', !!show);
+}
+function calcNaoLidas(lista, lidaAntes, naoLidasLista) {
+    const recebidas = lista.filter(m => !ehMinha(m) && Number(m.id) > lidaAntes && !m.deleted_at);
+    if (!recebidas.length || !(naoLidasLista > 0 || lidaAntes > 0)) return {};
+    return { primeiroNaoLido: recebidas[0].id, qtdNaoLidas: recebidas.length };
+}
+function posicionarAoAbrir() {
+    const box = boxMsgs(); if (!box) return;
+    const div = $('chat-naolidas-div');
+    if (div) box.scrollTop = Math.max(0, div.offsetTop - 60);
+    else box.scrollTop = box.scrollHeight;
+    T.pertoDoFim = isNearBottom(box);
+    atualizarBotaoFim();
+}
+function atualizarTopo() {
+    const topo = $('chat-topo'); if (!topo) return;
+    topo.innerHTML = T.temMais ? '<span class="chat-topo-load">Carregando anteriores…</span>' : '<span class="chat-topo-ini">🔒 Início da conversa</span>';
 }
 
-async function abrirThread(contato) {
+async function abrirThread(contato, opts) {
+    opts = opts || {};
+    if (!contato || !contato.auth_id) return;
+    const t0 = performance.now();
+    const trocou = T.peer !== contato.auth_id;
     contatoAtivo = contato;
+    T.gen++;
+    const gen = T.gen;
+    T.peer = contato.auth_id;
+    T.msgs = new Map(); T.minId = null; T.maxId = 0; T.temMais = false; T.carregandoAntigas = false;
+    T.peerLida = Number(contato.peerLida || 0); T.peerEntregue = Number(contato.peerEntregue || 0);
+    T.novasAbaixo = 0; T.pertoDoFim = true; T.online = false;
     setReplyTo(null);
     fecharChatHeadMenu();
+    mostrarEstadoOutro(null);
     showThreadUI(true);
-    document.getElementById('chat-com-nome').textContent = displayNome(contato);
-    const papelEl = document.getElementById('chat-com-papel');
-    if (papelEl) { papelEl.textContent = ''; papelEl.hidden = true; }
-    lastThreadMsgIds = new Set();
-    renderedMsgOrder = [];
-    renderedMsgSigs = new Map();
-    threadMsgsById = new Map();
-    threadInitialized = false;
-    const box = document.getElementById('chat-msgs');
-    if (box) box.innerHTML = '';
+    $('chat-com-nome').textContent = displayNome(contato);
+    // Voltar do Android/navegador fecha a conversa (volta p/ lista sem sair do chat)
     try {
-        await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contato.auth_id });
-    } catch (e) { /* SQL 28 opcional */ }
-    await carregarThread(true);
-    await carregarContatos(true);
+        if (history.state && history.state.chatPeer) { if (trocou) history.replaceState({ chatPeer: contato.auth_id }, '', location.href); }
+        else history.pushState({ chatPeer: contato.auth_id }, '', location.href);
+    } catch (e) { /* ignore */ }
+    marcarLinhaAtiva();
+
+    const lidaAntes = ChatStore.leituraLocal(T.peer);
+    const naoLidasLista = Number(contato.unread || 0);
+
+    // 1) cache → pinta na hora
+    const cache = ChatStore.cacheThreadLer(T.peer);
+    if (cache && cache.m && cache.m.length) {
+        const lista = ChatStore.filtrarVisiveis(cache.m);
+        registrarMsgs(lista);
+        T.temMais = true;
+        renderConversaCompleta(lista, calcNaoLidas(lista, lidaAntes, naoLidasLista));
+        posicionarAoAbrir();
+        window.__chatPerf.threadCacheMs = Math.round(performance.now() - t0);
+    } else {
+        boxMsgs().innerHTML = '<div class="chat-topo"><span class="chat-topo-load">Carregando…</span></div>';
+    }
+    if (window.MineraRT) MineraRT.joinDm(T.peer, mostrarEstadoOutro, (on) => { if (gen !== T.gen) return; T.online = !!on; mostrarEstadoOutro(null); }); // digitando/gravando/online
+
+    // 2) rede
     try {
-        await supabaseClient.from('chat_contatos').upsert([{
-            auth_id: meuAuthId,
-            contato_auth_id: contato.auth_id,
-            apelido: displayNome(contato)
-        }], { onConflict: 'auth_id,contato_auth_id' });
-    } catch (e) { /* table may not exist yet */ }
-}
-
-function appendOptimisticBubble(m) {
-    const box = document.getElementById('chat-msgs');
-    if (!box) return null;
-    const emptyHint = box.querySelector(':scope > .sub, :scope > .erro');
-    if (emptyHint) emptyHint.remove();
-    const wrap = document.createElement('div');
-    wrap.innerHTML = bubbleHtml(m);
-    const el = wrap.firstElementChild;
-    box.appendChild(el);
-    box.scrollTop = box.scrollHeight;
-    return el;
-}
-
-function applyThreadDiff(box, lista, forceFull) {
-    const stickBottom = isNearBottom(box);
-    const prevScroll = box.scrollTop;
-
-    if (forceFull || !threadInitialized) {
-        if (!lista.length) {
-            box.innerHTML = '<p class="sub">Nenhuma mensagem ainda. Diga oi!</p>';
-            renderedMsgOrder = [];
-            renderedMsgSigs = new Map();
-            threadInitialized = true;
-            return;
+        const [pg, leit] = await Promise.all([ChatStore.pagina(T.peer, null), ChatStore.leituraDoOutro(T.peer)]);
+        if (gen !== T.gen) return;
+        T.peerLida = Math.max(T.peerLida, leit.lida); T.peerEntregue = Math.max(T.peerEntregue, leit.entregue, leit.lida);
+        let mesmo = false;
+        if (T.msgs.size && pg.msgs.length) {
+            const ini = Number(pg.msgs[0].id);
+            const janela = Array.from(T.msgs.keys()).filter(id => id >= ini);
+            mesmo = janela.length === pg.msgs.length && pg.msgs.every(m => { const c = T.msgs.get(Number(m.id)); return c && assinatura(c) === assinatura(m); });
         }
-        // Preserve pending optimistic bubbles (temp)
-        const pendings = Array.from(box.querySelectorAll('[data-temp-id]'));
-        box.innerHTML = bubblesWithDayDividers(lista);
-        pendings.forEach(p => box.appendChild(p));
-        renderedMsgOrder = lista.map(m => String(m.id));
-        renderedMsgSigs = new Map(lista.map(m => [String(m.id), messageSignature(m)]));
-        threadInitialized = true;
-        box.scrollTop = box.scrollHeight;
-        return;
+        if (mesmo) {
+            registrarMsgs(pg.msgs);
+            T.temMais = pg.temMais;
+            atualizarTopo();
+            atualizarTicks();
+        } else {
+            T.msgs = new Map(); T.minId = null; T.maxId = 0;
+            registrarMsgs(pg.msgs);
+            T.temMais = pg.temMais;
+            renderConversaCompleta(pg.msgs, calcNaoLidas(pg.msgs, lidaAntes, naoLidasLista));
+            posicionarAoAbrir();
+        }
+        window.__chatPerf.threadRedeMs = Math.round(performance.now() - t0);
+        T.ultimoSync = Date.now();
+        salvarCacheConversa();
+        marcarLidoSeVisivel();
+        promoverMinhasAgendadas();
+    } catch (err) {
+        console.warn('abrir conversa', err);
+        if (gen !== T.gen) return;
+        if (!T.msgs.size) boxMsgs().innerHTML = '<p class="sub chat-vazio">Sem conexão. As mensagens aparecem quando a internet voltar.</p>';
     }
-
-    const incomingIds = lista.map(m => String(m.id));
-    const sameSet = incomingIds.length === renderedMsgOrder.length &&
-        incomingIds.every((id, i) => id === renderedMsgOrder[i]);
-
-    if (sameSet) {
-        // Identical data: do absolutely nothing. If one bubble changed, patch only it.
-        lista.forEach(m => {
-            const id = String(m.id);
-            const sig = messageSignature(m);
-            if (renderedMsgSigs.get(id) === sig) return;
-            const current = box.querySelector('[data-msg-id="' + CSS.escape(id) + '"]');
-            if (current) {
-                const wrap = document.createElement('div');
-                wrap.innerHTML = bubbleHtml(m);
-                current.replaceWith(wrap.firstElementChild);
-            }
-            renderedMsgSigs.set(id, sig);
-        });
-        return;
+    // conversa reexibida (se estava "apagada para mim") + contato salvo
+    try { await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contato.auth_id }); } catch (e) { /* SQL 28 opcional */ }
+    if (!contatosCache.some(c => c.auth_id === contato.auth_id)) {
+        try { await supabaseClient.from('chat_contatos').upsert([{ auth_id: meuAuthId, contato_auth_id: contato.auth_id, apelido: displayNome(contato) }], { onConflict: 'auth_id,contato_auth_id' }); } catch (e) { /* ignore */ }
+        agendarInbox(300);
     }
-
-    // If order diverged a lot (deletes), full rebuild once
-    const onlyAppend = incomingIds.length >= renderedMsgOrder.length &&
-        renderedMsgOrder.every((id, i) => incomingIds[i] === id);
-
-    if (!onlyAppend) {
-        const pendings = Array.from(box.querySelectorAll('[data-temp-id]'));
-        box.innerHTML = bubblesWithDayDividers(lista);
-        pendings.forEach(p => box.appendChild(p));
-        renderedMsgOrder = incomingIds;
-        renderedMsgSigs = new Map(lista.map(m => [String(m.id), messageSignature(m)]));
-        if (stickBottom) box.scrollTop = box.scrollHeight;
-        else box.scrollTop = prevScroll;
-        return;
-    }
-
-    // Diff-append new messages only
-    const emptyHint = box.querySelector(':scope > .sub');
-    if (emptyHint) emptyHint.remove();
-    const newOnes = lista.slice(renderedMsgOrder.length);
-    newOnes.forEach(m => {
-        const wrap = document.createElement('div');
-        wrap.innerHTML = bubbleHtml(m);
-        box.appendChild(wrap.firstElementChild);
-        renderedMsgOrder.push(String(m.id));
-        renderedMsgSigs.set(String(m.id), messageSignature(m));
-        // Drop matching optimistic temp if present
-        const temp = box.querySelector('[data-temp-id]');
-        if (temp && m.de_auth_id === meuAuthId) temp.remove();
-    });
-    if (stickBottom) box.scrollTop = box.scrollHeight;
-    else box.scrollTop = prevScroll;
 }
 
-async function carregarThread(forceFull) {
-    const box = document.getElementById('chat-msgs');
-    if (!contatoAtivo || !contatoAtivo.auth_id) {
-        showThreadUI(false);
+/** Rolou até perto do topo → busca as 40 anteriores e mantém a posição (âncora). */
+async function carregarAntigas() {
+    if (!T.peer || !T.temMais || T.carregandoAntigas || T.minId == null) return;
+    T.carregandoAntigas = true;
+    const gen = T.gen;
+    try {
+        const pg = await ChatStore.pagina(T.peer, T.minId);
+        if (gen !== T.gen) return;
+        const box = boxMsgs();
+        const novas = pg.msgs.filter(m => !T.msgs.has(Number(m.id)));
+        registrarMsgs(novas);
+        T.temMais = pg.temMais;
+        if (novas.length) {
+            const antesAltura = box.scrollHeight, antesTopo = box.scrollTop;
+            let html = '', ultimo = null;
+            novas.forEach(m => { const k = dayKey(m.criado_em); if (k !== ultimo) { ultimo = k; html += divDiaHtml(m.criado_em); } html += bubbleHtml(m); });
+            const topo = $('chat-topo');
+            const tmp = document.createElement('div'); tmp.innerHTML = html;
+            const ref = topo ? topo.nextSibling : box.firstChild;
+            Array.from(tmp.childNodes).forEach(n => box.insertBefore(n, ref));
+            if (ref && ref.classList && ref.classList.contains('wa-day-div') && ref.getAttribute('data-dia') === ultimo) ref.remove(); // divisor duplicado na emenda
+            box.scrollTop = antesTopo + (box.scrollHeight - antesAltura);
+        }
+        atualizarTopo();
+    } catch (e) {
+        console.warn('antigas', e);
+    } finally {
+        T.carregandoAntigas = false;
+    }
+}
+
+/** Mensagem nova/alterada (tempo real, poll ou resposta do insert). */
+function receberRow(row) {
+    if (!row || row.id == null) return;
+    const peer = row.de_auth_id === meuAuthId ? row.para_auth_id : row.de_auth_id;
+    // confirma bolha otimista (mesmo client_id) — pode chegar pelo tempo real antes da resposta do insert
+    if (row.client_id && pendentes.has(row.client_id)) confirmarPendente(pendentes.get(row.client_id), row);
+    patchInboxComMsg(row, peer);
+    if (!T.peer || peer !== T.peer) return;
+    const visiveis = ChatStore.filtrarVisiveis([row]);
+    const box = boxMsgs();
+    const id = Number(row.id);
+    if (!visiveis.length) {
+        if (T.msgs.has(id)) { T.msgs.delete(id); removerBolha('m' + id); salvarCacheConversaDepois(); }
         return;
     }
-    const them = contatoAtivo.auth_id;
+    const velho = T.msgs.get(id);
+    if (velho) {
+        if (assinatura(velho) !== assinatura(row)) { T.msgs.set(id, row); trocarBolha('m' + id, row); salvarCacheConversaDepois(); }
+        return;
+    }
+    if (T.minId != null && id < T.minId && T.temMais) return; // mais antiga que o carregado: vem ao rolar
+    const estavaNoFim = isNearBottom(box);
+    registrarMsgs([row]);
+    inserirBolha(row);
+    if (ehMinha(row) || estavaNoFim) rolarFim(false);
+    else { T.novasAbaixo++; atualizarBotaoFim(); }
+    if (!ehMinha(row)) { mostrarEstadoOutro(null); marcarLidoSeVisivel(); }
+    salvarCacheConversaDepois();
+}
+
+/** Lido só quando a conversa está visível e chegou algo novo (o store ignora repetição). */
+function marcarLidoSeVisivel() {
+    if (!T.peer || !visivel() || !document.body.classList.contains('chat-thread-open')) return;
+    let maxIn = 0;
+    T.msgs.forEach(m => { if (!ehMinha(m) && Number(m.id) > maxIn) maxIn = Number(m.id); });
+    if (!maxIn) return;
+    clearTimeout(T.lidoPend);
+    const peer = T.peer;
+    T.lidoPend = setTimeout(() => {
+        ChatStore.marcarLido(peer, maxIn);
+        const c = contatosCache.find(x => x.auth_id === peer);
+        if (c && c.unread) { c.unread = 0; renderLista(); }
+    }, 250);
+}
+
+/** Reserva (sem tempo real) e ressincronização: busca as 40 mais recentes e aplica só a diferença. */
+let syncando = false;
+async function sincronizarConversa() {
+    if (!T.peer || syncando) return;
+    syncando = true;
+    const gen = T.gen;
     try {
-        const { data, error } = await supabaseClient
-            .from('chat_mensagens')
-            .select('*')
-            .or('de_auth_id.eq.' + meuAuthId + ',para_auth_id.eq.' + meuAuthId)
-            .order('criado_em', { ascending: true })
-            .limit(400);
-        if (error) throw error;
+        const [pg, leit] = await Promise.all([ChatStore.pagina(T.peer, null), ChatStore.leituraDoOutro(T.peer)]);
+        if (gen !== T.gen) return;
+        T.ultimoSync = Date.now();
+        const ids = new Set(pg.msgs.map(m => Number(m.id)));
+        const menor = pg.msgs.length ? Number(pg.msgs[0].id) : Infinity;
+        Array.from(T.msgs.keys()).forEach(id => { if (id >= menor && !ids.has(id)) { T.msgs.delete(id); removerBolha('m' + id); } }); // sumiram (apagada p/ mim / moderada)
+        pg.msgs.forEach(m => receberRow(m));
+        if (leit.lida > T.peerLida || leit.entregue > T.peerEntregue) {
+            T.peerLida = Math.max(T.peerLida, leit.lida); T.peerEntregue = Math.max(T.peerEntregue, leit.entregue, leit.lida);
+            atualizarTicks();
+        }
+        promoverMinhasAgendadas();
+    } catch (e) { /* offline: tenta no próximo ciclo */ } finally { syncando = false; }
+}
 
-        let lista = (data || []).filter(m => {
-            const ap = m.apagada_para || [];
-            if (Array.isArray(ap) && ap.indexOf(meuAuthId) >= 0) return false;
-            if ((m.moderacao || '') === 'removida' && !m.deleted_at) return false;
-            const inDm = (m.de_auth_id === meuAuthId && m.para_auth_id === them) ||
-                (m.de_auth_id === them && m.para_auth_id === meuAuthId);
-            if (!inDm) return false;
-            if ((m.status || '') === 'agendada' && m.de_auth_id !== meuAuthId) return false;
-            return true;
-        });
-        threadMsgsById = new Map(lista.map(m => [Number(m.id), m]));
-        await promoverAgendadas(lista.filter(m => !m.deleted_at));
+/* Agendadas: quem enviou promove quando vence (comportamento existente) */
+let agendaT = null;
+async function promoverMinhasAgendadas() {
+    clearTimeout(agendaT);
+    const agora = Date.now();
+    let proxima = Infinity;
+    const vencidas = [];
+    T.msgs.forEach(m => {
+        if (!ehMinha(m) || (m.status || '') !== 'agendada' || m.deleted_at || !m.agendado_para) return;
+        const t = new Date(m.agendado_para).getTime();
+        if (t <= agora) vencidas.push(m); else proxima = Math.min(proxima, t);
+    });
+    for (const m of vencidas) {
+        try {
+            const { error } = await supabaseClient.from('chat_mensagens').update({ status: 'enviada' }).eq('id', m.id);
+            if (!error) { const n = Object.assign({}, m, { status: 'enviada' }); T.msgs.set(Number(m.id), n); trocarBolha('m' + m.id, n); }
+        } catch (e) { /* ignore */ }
+    }
+    if (proxima < Infinity) agendaT = setTimeout(promoverMinhasAgendadas, Math.min(proxima - agora + 500, 2147483000));
+}
 
-        const incoming = lista.filter(m =>
-            m.para_auth_id === meuAuthId &&
-            m.de_auth_id === them &&
-            !lastThreadMsgIds.has(m.id) &&
-            lastThreadMsgIds.size > 0
-        );
-        lista.forEach(m => lastThreadMsgIds.add(m.id));
+/* ============================ digitando / gravando ============================ */
+let estadoOutroT = null;
+function mostrarEstadoOutro(p) {
+    const el = $('chat-com-status');
+    clearTimeout(estadoOutroT);
+    const txt = p && p.estado === 'digitando' ? 'digitando…' : (p && p.estado === 'gravando' ? 'gravando áudio…' : '');
+    const linha = txt || (T.online ? 'online' : '');
+    if (el) { el.textContent = linha; el.hidden = !linha; el.classList.toggle('ativo', !!txt); }
+    const dot = $('chat-com-online'); if (dot) dot.classList.toggle('oculto', !T.online);
+    const row = T.peer && document.querySelector('#chat-contatos-list .wa-row[data-auth="' + CSS.escape(T.peer) + '"] .wa-row-prev');
+    if (row) row.classList.toggle('digitando', !!txt);
+    if (txt) estadoOutroT = setTimeout(() => mostrarEstadoOutro(null), 6000);
+}
+let digitandoEnviadoEm = 0, digitandoParouT = null;
+function avisarDigitando() {
+    if (!window.MineraRT || !T.peer) return;
+    const v = ($('chat-texto') || {}).value || '';
+    clearTimeout(digitandoParouT);
+    if (!v.trim()) { pararDigitando(); return; }
+    if (Date.now() - digitandoEnviadoEm > 3000) { if (MineraRT.sendEstado('digitando')) digitandoEnviadoEm = Date.now(); }
+    digitandoParouT = setTimeout(pararDigitando, 4000);
+}
+function pararDigitando() {
+    clearTimeout(digitandoParouT);
+    if (digitandoEnviadoEm && window.MineraRT) MineraRT.sendEstado('parou');
+    digitandoEnviadoEm = 0;
+}
 
-        applyThreadDiff(box, lista, !!forceFull);
+/* ============================ envio (otimista + fila) ============================ */
+function novoItem(campos) {
+    return Object.assign({
+        client_id: ChatStore.uuid(),
+        para: T.peer,
+        de_auth_id: meuAuthId,
+        de_nome: meuNomePublico(),
+        texto: '',
+        tipo: 'text',
+        midia_url: null,
+        status: 'enviada',
+        agendado_para: null,
+        resposta_a_id: replyToMsg && replyToMsg.id ? Number(replyToMsg.id) : null,
+        _criadoLocal: null,
+        _estado: 'pendente',
+        tentativas: 0
+    }, campos || {});
+}
+function novoItemFinal(it) { it._criadoLocal = it.criado_local = new Date().toISOString(); return it; }
+/** Mostra a bolha na hora (antes de qualquer rede) e dispara o envio em 2º plano. */
+function enfileirar(item) {
+    if (!item._criadoLocal) novoItemFinal(item);
+    pendentes.set(item.client_id, item);
+    if (!item._file) ChatStore.outboxPut(item); // mídia só entra na fila persistida depois do upload
+    if (item.para === T.peer) {
+        inserirBolha(item);
+        const div = $('chat-naolidas-div'); if (div) div.remove();
+        rolarFim(false);
+    }
+    patchInboxComMsg(Object.assign({}, item, { id: null, criado_em: item._criadoLocal }), item.para);
+    processarItem(item);
+}
+function atualizarBolhaPendente(item) {
+    if (item.para !== T.peer) return;
+    if (!trocarBolha('c' + item.client_id, item)) inserirBolha(item);
+}
+function confirmarPendente(item, row) {
+    pendentes.delete(item.client_id);
+    ChatStore.outboxDel(item.client_id);
+    if (item._localUrl && /^blob:/.test(item._localUrl)) setTimeout(() => { try { URL.revokeObjectURL(item._localUrl); } catch (e) { /* ignore */ } }, 20000);
+    if (item.para !== T.peer) return;
+    const id = Number(row.id);
+    const jaTem = T.msgs.has(id);
+    registrarMsgs([row]);
+    if (jaTem) removerBolha('c' + item.client_id); // o poll já tinha trazido
+    else if (!trocarBolha('c' + item.client_id, row)) inserirBolha(row);
+    salvarCacheConversaDepois();
+}
 
-        const maxIn = lista.filter(m => m.para_auth_id === meuAuthId).reduce((mx, m) => Math.max(mx, Number(m.id) || 0), 0);
-        if (maxIn) await marcarLido(them, maxIn);
-
-        incoming.forEach(m => {
-            if (typeof toastMsg === 'function') {
-                toastMsg('Nova mensagem de ' + (nomePublicoTexto(m.de_nome, displayNome(contatoAtivo))));
+async function processarItem(item) {
+    if (item._enviando) return;
+    item._enviando = true;
+    try {
+        if (item._file && !item.midia_url) {
+            try {
+                let f = item._file;
+                if (item.tipo === 'imagem') {
+                    const c = await ChatMidia.comprimirImagem(f, 1600, 0.8);
+                    f = c.file;
+                    window.__chatPerf.ultimaCompressao = { antes: c.antes, depois: c.depois, w: c.w, h: c.h };
+                }
+                item.midia_url = await ChatMidia.upload(f, ChatMidia.pastaPara(item.tipo), meuAuthId);
+                item._file = null;
+                ChatStore.outboxPut(item);
+            } catch (e) {
+                const rede = !navigator.onLine || ChatStore.ehErroRede(e) || /fetch|network/i.test(String(e && e.message));
+                item._estado = rede ? 'pendente' : 'falhou';
+                item.erro = (e && e.message) || 'Falha no upload';
+                if (rede) agendarRetry();
+                else { atualizarBolhaPendente(item); toast('Não foi possível enviar a mídia. Toque em ↻ para tentar de novo.'); }
+                return;
+            }
+        }
+        item.tentativas = (item.tentativas || 0) + 1;
+        const r = await ChatStore.inserir(item);
+        if (r.ok) {
+            item._estado = 'ok';
+            confirmarPendente(item, r.row);
+            receberRow(r.row);
+            if (item.tentativas === 1) { try { supabaseClient.rpc('chat_desocultar_conversa', { p_outro: item.para }).then(() => {}, () => {}); } catch (e) { /* ignore */ } }
+        } else if (r.rede) {
+            item._estado = 'pendente';
+            ChatStore.outboxPut(item);
+            agendarRetry();
+        } else {
+            item._estado = 'falhou';
+            item.erro = (r.erro && r.erro.message) || 'Erro';
+            ChatStore.outboxPut(item);
+            atualizarBolhaPendente(item);
+            toast('Mensagem não enviada: ' + item.erro);
+        }
+    } finally {
+        item._enviando = false;
+    }
+}
+let retryT = null, retryN = 0, processando = false;
+function agendarRetry() {
+    if (retryT) return;
+    const ms = Math.min(30000, 2000 * Math.pow(2, Math.min(retryN, 4)));
+    retryN++;
+    retryT = setTimeout(() => { retryT = null; reenviarFila(); }, ms);
+}
+/** Reenvia o que está pendente (online / foco / tempo real reconectou / backoff). */
+async function reenviarFila() {
+    if (processando || !meuAuthId) return;
+    processando = true;
+    try {
+        ChatStore.outboxLer().forEach(o => { // itens de sessões anteriores
+            if (!pendentes.has(o.client_id)) {
+                const it = Object.assign({}, o);
+                it._estado = 'pendente'; it._enviando = false;
+                it._criadoLocal = o.criado_local || new Date().toISOString();
+                pendentes.set(it.client_id, it);
+                if (it.para === T.peer) inserirBolha(it);
             }
         });
-    } catch (err) {
-        console.error(err);
-        box.innerHTML = '<p class="erro">Chat indisponível: ' + esc(err.message) +
-            '. Rode o SQL 18 + 22 no Supabase.</p>';
-        renderedMsgOrder = [];
-        renderedMsgSigs = new Map();
-        threadInitialized = false;
-    }
+        const fila = Array.from(pendentes.values()).filter(it => it._estado === 'pendente')
+            .sort((a, b) => String(a._criadoLocal).localeCompare(String(b._criadoLocal)));
+        for (const it of fila) {
+            if (!navigator.onLine) { agendarRetry(); break; }
+            await processarItem(it);
+        }
+        if (!Array.from(pendentes.values()).some(it => it._estado === 'pendente')) retryN = 0;
+    } finally { processando = false; }
+}
+function reenviarUm(cid) {
+    const it = pendentes.get(cid);
+    if (!it) return;
+    it._estado = 'pendente';
+    atualizarBolhaPendente(it);
+    processarItem(it);
 }
 
 async function enviarMensagem(opts) {
     opts = opts || {};
-    const msgEl = document.getElementById('chat-msg');
-    const input = document.getElementById('chat-texto');
-    if (!contatoAtivo || !contatoAtivo.auth_id) {
-        msgEl.textContent = 'Selecione um contato primeiro.';
-        msgEl.className = 'msg erro';
-        return;
-    }
-    let texto = (opts.texto != null ? opts.texto : input.value).trim();
-    const urlManual = (document.getElementById('chat-url-midia').value || '').trim();
-    let tipo = opts.tipo || 'text';
-    let midia_url = opts.midia_url || null;
-
-    if (anexoPendente && !opts.midia_url) {
-        tipo = anexoPendente.tipo;
-        midia_url = anexoPendente.midia_url;
-    } else if (urlManual && !midia_url) {
-        midia_url = urlManual;
-        if (tipo === 'text') {
-            if (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(urlManual) || urlManual.startsWith('data:image')) tipo = 'imagem';
-            else if (/\.(mp4|webm|mov)(\?|$)/i.test(urlManual)) tipo = 'video';
-            else if (/\.(mp3|wav|ogg|m4a)(\?|$)/i.test(urlManual)) tipo = 'audio';
-            else tipo = 'imagem';
-        }
-    }
-
-    if (loteCtx && texto && !texto.includes(loteCtx)) {
-        texto = '[Lote ' + loteCtx + '] ' + texto;
-    }
-
-    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Chat')) {
-        msgEl.textContent = 'Conta bloqueada — pague a comissão no Perfil.';
-        msgEl.className = 'msg erro';
-        return;
-    }
-
+    const input = $('chat-texto');
+    if (!contatoAtivo || !contatoAtivo.auth_id) { msgErro('Selecione um contato primeiro.'); return false; }
+    let texto = String(opts.texto != null ? opts.texto : (input ? input.value : '')).replace(/\s+$/, '').replace(/^\s*\n/, '');
+    if (!texto.trim()) return false; // toque duplo / vazio: ignora em silêncio
+    if (loteCtx && !texto.includes(loteCtx)) texto = '[Lote ' + loteCtx + '] ' + texto;
+    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Chat')) { msgErro('Conta bloqueada — pague a comissão no Perfil.'); return false; }
     if (typeof AntiGolpe !== 'undefined') {
         const chk = AntiGolpe.validarTexto(texto);
-        if (!chk.ok) {
-            msgEl.textContent = chk.motivo;
-            msgEl.className = 'msg erro';
-            if (typeof toastMsg === 'function') toastMsg(chk.motivo);
-            return;
-        }
-        if (urlManual && !urlManual.startsWith('data:')) {
-            if (/wa\.me|t\.me|instagram|whatsapp|@|tel:/i.test(urlManual) || /@/.test(urlManual)) {
-                msgEl.textContent = AntiGolpe.MSG_BLOQUEIO;
-                msgEl.className = 'msg erro';
-                toastMsg(AntiGolpe.MSG_BLOQUEIO);
-                return;
-            }
-        }
+        if (!chk.ok) { msgErro(chk.motivo); toast(chk.motivo); return false; }
     }
-
-    if (!texto && !midia_url) {
-        msgEl.textContent = 'Escreva algo ou anexe mídia.';
-        msgEl.className = 'msg erro';
-        return;
+    let status = 'enviada', agendado_para = null, tipo = 'text';
+    if (agendarAtivo) {
+        const dt = ($('chat-agendar-em') || {}).value;
+        if (!dt) { msgErro('Escolha data/hora para agendar.'); return false; }
+        const quando = new Date(dt);
+        if (quando.getTime() > Date.now()) { status = 'agendada'; agendado_para = quando.toISOString(); tipo = 'agendada'; }
     }
-
-    let status = 'enviada';
-    let agendado_para = null;
-    if (agendarAtivo && !opts.skipAgendar) {
-        const dt = document.getElementById('chat-agendar-em').value;
-        if (!dt) {
-            msgEl.textContent = 'Escolha data/hora para agendar.';
-            msgEl.className = 'msg erro';
-            return;
-        }
-        agendado_para = new Date(dt).toISOString();
-        if (new Date(agendado_para).getTime() <= Date.now()) {
-            status = 'enviada';
-            agendado_para = null;
-        } else {
-            status = 'agendada';
-            tipo = tipo === 'text' ? 'agendada' : tipo;
-        }
-    }
-
-    const row = {
-        de_auth_id: meuAuthId,
-        de_nome: meuNomePublico(),
-        texto: texto || '',
-        tipo,
-        midia_url,
-        para_auth_id: contatoAtivo.auth_id,
-        status,
-        agendado_para
-    };
-    if (replyToMsg && replyToMsg.id) {
-        row.resposta_a_id = Number(replyToMsg.id);
-    }
-
-    const { error } = await supabaseClient.from('chat_mensagens').insert([row]);
-    if (error) {
-        const hint = /resposta_a_id|column/i.test(error.message || '')
-            ? ' (rode SQL 28)'
-            : (/policy|RLS|row-level/i.test(error.message || '') ? ' (rode SQL 18)' : '');
-        msgEl.textContent = 'Erro: ' + error.message + hint;
-        msgEl.className = 'msg erro';
-        return false;
-    }
-
-    msgEl.textContent = status === 'agendada' ? 'Mensagem agendada!' : '';
-    msgEl.className = status === 'agendada' ? 'msg ok' : 'msg';
-    if (!opts.keepInput) input.value = '';
-    document.getElementById('chat-url-midia').value = '';
-    anexoPendente = null;
-    setAnexoInfo('');
-    setReplyTo(null);
-    if (typeof showMediaPreview === 'function') showMediaPreview(null);
-    resetAudioBtn();
-    try {
-        await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contatoAtivo.auth_id });
-    } catch (e) { /* ok */ }
-    await carregarThread();
-    await carregarContatos(true);
+    const t0 = performance.now();
+    if (input && opts.texto == null) { input.value = ''; autoCrescer(); } // limpa JÁ: 2º toque encontra o campo vazio
+    msgErro('');
+    const item = novoItem({ texto, tipo, status, agendado_para });
+    setReplyTo(null, true);
+    pararDigitando();
+    if (agendarAtivo && status === 'agendada') { toggleAgendar(false); toast('Mensagem agendada!'); }
+    enfileirar(item);
+    window.__chatPerf.envioBolhaMs = Math.round((performance.now() - t0) * 10) / 10;
     return true;
 }
 
-/** Preview strip (composer) + optimistic bubble for image/video/audio */
-function showMediaPreview(opts) {
-    const box = document.getElementById('chat-media-preview');
-    if (!box) return;
-    if (!opts) {
-        box.classList.add('oculto');
-        box.innerHTML = '';
+/** Foto / vídeo / áudio / documento: bolha com prévia local na hora; comprime + sobe em 2º plano. */
+function enviarMidia(tipo, file) {
+    if (!contatoAtivo || !contatoAtivo.auth_id) { toast('Abra uma conversa primeiro.'); return; }
+    if (!file) return;
+    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Chat')) return;
+    const max = tipo === 'video' ? 50 * 1024 * 1024 : 20 * 1024 * 1024;
+    if (file.size > max) { toast('Arquivo grande demais (máx. ' + Math.round(max / 1048576) + ' MB).'); return; }
+    let localUrl = null;
+    try { if (tipo !== 'documento') localUrl = URL.createObjectURL(file); } catch (e) { /* ignore */ }
+    const item = novoItem({ tipo, texto: tipo === 'documento' ? String(file.name || 'Documento').slice(0, 80) : '', _file: file, _localUrl: localUrl });
+    setReplyTo(null, true);
+    enfileirar(item);
+}
+
+/* ============================ lista de conversas ============================ */
+function timeRight(iso) {
+    if (!iso) return '';
+    const d = new Date(iso), now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Ontem';
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+function previewLinha(c) {
+    if (!c.last) return { txt: 'Toque para conversar', tick: '' };
+    const l = c.last;
+    const minha = l.de_auth_id === meuAuthId;
+    const txt = l.deleted_at ? '🚫 Mensagem apagada' : snippetMsg(l);
+    let tick = '';
+    if (minha && !l.deleted_at) {
+        if (l.id == null) tick = '<span class="tk tk-pend">⏱</span>';
+        else if (c.peerLida && l.id <= c.peerLida) tick = '<span class="tk tk-lida">✓✓</span>';
+        else if (c.peerEntregue && l.id <= c.peerEntregue) tick = '<span class="tk tk-entregue">✓✓</span>';
+        else tick = '<span class="tk tk-env">✓</span>';
+    }
+    return { txt: (minha ? 'Você: ' : '') + txt, tick };
+}
+function linhaHtml(c) {
+    const p = previewLinha(c);
+    const badge = c.unread ? '<span class="wa-unread">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '';
+    return '<div class="wa-av">' + esc(iniciais(c.nome)) + '</div>' +
+        '<div class="wa-row-mid"><div class="wa-row-name">' + esc(c.nome) + '</div>' +
+        '<div class="wa-row-prev">' + p.tick + '<span class="wa-row-prev-txt">' + esc(p.txt.slice(0, 80)) + '</span><span class="wa-row-typing">digitando…</span></div></div>' +
+        '<div class="wa-row-right"><span class="wa-row-time' + (c.unread ? ' on' : '') + '">' + esc(timeRight(c.last && c.last.criado_em)) + '</span>' + badge + '</div>';
+}
+function filtrarLista() {
+    const busca = (($('chat-busca-contatos') || {}).value || '').trim().toLowerCase();
+    return contatosCache.filter(c => {
+        if (filtroListaChat === 'nao_lidas' && !(c.unread > 0)) return false;
+        if (!busca) return true;
+        return (c.nome || '').toLowerCase().includes(busca) || (c.apelido || '').toLowerCase().includes(busca) ||
+            (c.nomeReal || '').toLowerCase().includes(busca) || labelPapelCurto(c.papeis, c.tipo).toLowerCase().includes(busca);
+    });
+}
+/** Reconciliação por linha (não recria a lista toda). Ordem = recência (nunca agrupa por papel). */
+function renderLista() {
+    atualizarBackUnread();
+    const box = $('chat-contatos-list'); if (!box) return;
+    const lista = filtrarLista();
+    if (!lista.length) {
+        box.innerHTML = '<div class="chat-contacts-empty"><p><strong>' + (contatosCache.length ? 'Nada encontrado' : 'Nenhuma conversa ainda') + '</strong></p>' +
+            '<p class="sub">Toque em <strong>＋</strong> para achar alguém por nome ou apelido.</p></div>';
         return;
     }
-    const uploading = opts.uploading
-        ? '<span class="media-uploading-spin" aria-hidden="true"></span> Enviando…'
-        : '';
-    let body = '';
-    if ((opts.tipo === 'imagem' || opts.tipo === 'video') && opts.localUrl) {
-        const tag = opts.tipo === 'video' ? 'video' : 'img';
-        const extra = opts.tipo === 'video' ? ' muted playsinline' : ' alt="prévia"';
-        body = '<' + tag + ' class="media-preview-thumb" src="' + esc(opts.localUrl) + '"' + extra + '></' + tag + '>';
-    } else if (opts.tipo === 'audio') {
-        body = '<div class="media-preview-audio">🎙️ Áudio ' + esc(opts.duracao || '') + '</div>' +
-            (opts.localUrl ? '<audio src="' + esc(opts.localUrl) + '" controls playsinline webkit-playsinline style="max-width:180px"></audio>' : '');
-    } else {
-        body = '<div class="media-preview-audio">' + esc(opts.nome || 'Mídia') + '</div>';
+    Array.from(box.children).forEach(el => { if (!el.classList.contains('wa-row')) el.remove(); });
+    const existentes = new Map();
+    box.querySelectorAll('.wa-row[data-auth]').forEach(el => existentes.set(el.getAttribute('data-auth'), el));
+    const manter = new Set();
+    let anterior = null;
+    lista.forEach(c => {
+        manter.add(c.auth_id);
+        const html = linhaHtml(c);
+        let el = existentes.get(c.auth_id);
+        if (!el) {
+            el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'wa-row chat-contact-item';
+            el.setAttribute('data-auth', c.auth_id);
+            el.innerHTML = html; el._sig = html;
+        } else if (el._sig !== html) { el.innerHTML = html; el._sig = html; }
+        el.classList.toggle('on', !!(contatoAtivo && contatoAtivo.auth_id === c.auth_id));
+        const alvo = anterior ? anterior.nextSibling : box.firstChild;
+        if (alvo !== el) box.insertBefore(el, alvo);
+        anterior = el;
+    });
+    existentes.forEach((el, id) => { if (!manter.has(id)) el.remove(); });
+}
+function marcarLinhaAtiva() {
+    document.querySelectorAll('#chat-contatos-list .wa-row').forEach(el => el.classList.toggle('on', !!(contatoAtivo && el.getAttribute('data-auth') === contatoAtivo.auth_id)));
+}
+let inboxT = null, inboxEmCurso = false, inboxDeNovo = false;
+function agendarInbox(ms) { clearTimeout(inboxT); inboxT = setTimeout(atualizarInbox, ms == null ? 400 : ms); }
+async function atualizarInbox() {
+    if (!meuAuthId) return;
+    if (inboxEmCurso) { inboxDeNovo = true; return; }
+    inboxEmCurso = true;
+    ultimoInboxPoll = Date.now();
+    try {
+        const t0 = performance.now();
+        const lista = await ChatStore.inbox();
+        const abertaVisivel = visivel() && document.body.classList.contains('chat-thread-open');
+        lista.forEach(c => { if (T.peer === c.auth_id && abertaVisivel) c.unread = 0; });
+        // preserva prévia otimista (mensagem ainda na fila)
+        pendentes.forEach(it => {
+            const c = lista.find(x => x.auth_id === it.para);
+            if (c && (!c.last || String(c.last.criado_em) < it._criadoLocal)) c.last = { id: null, de_auth_id: meuAuthId, texto: it.texto, tipo: it.tipo, criado_em: it._criadoLocal };
+        });
+        contatosCache = lista;
+        ChatStore.cacheInboxGravar(lista);
+        renderLista();
+        if (!window.__chatPerf.inboxRedeMs) window.__chatPerf.inboxRedeMs = Math.round(performance.now() - t0);
+        window.__chatPerf.inboxModo = ChatStore.temV44() ? 'rpc' : 'legado';
+        const ativo = T.peer && lista.find(c => c.auth_id === T.peer);
+        if (ativo && (ativo.peerLida > T.peerLida || ativo.peerEntregue > T.peerEntregue)) {
+            T.peerLida = Math.max(T.peerLida, ativo.peerLida || 0); T.peerEntregue = Math.max(T.peerEntregue, ativo.peerEntregue || 0);
+            atualizarTicks();
+        }
+    } catch (err) {
+        console.warn('lista de conversas', err);
+        const box = $('chat-contatos-list');
+        if (!contatosCache.length && box && !box.querySelector('.wa-row')) {
+            box.innerHTML = '<div class="chat-contacts-empty"><p><strong>Sem conexão</strong></p><p class="sub">A lista aparece quando a internet voltar.</p></div>';
+        }
+    } finally {
+        inboxEmCurso = false;
+        if (inboxDeNovo) { inboxDeNovo = false; agendarInbox(300); }
     }
-    const sendBtn = opts.readyToSend
-        ? '<button type="button" class="btn-sm btn-ok" id="btn-send-anexo">Enviar</button>'
-        : '';
-    box.innerHTML = body +
-        (uploading ? '<div class="media-preview-status">' + uploading + '</div>' : '') +
-        sendBtn +
+}
+/** Atualiza a linha do contato na hora (tempo real/envio) e sobe para o topo. */
+function patchInboxComMsg(row, peer) {
+    if (!peer) return;
+    const c = contatosCache.find(x => x.auth_id === peer);
+    if (!c) { agendarInbox(500); return; }
+    const visiveis = row.id == null ? [row] : ChatStore.filtrarVisiveis([row]);
+    if (!visiveis.length) { agendarInbox(800); return; }
+    const novo = !c.last || row.id == null || c.last.id == null || Number(row.id) >= Number(c.last.id);
+    if (!novo) return;
+    const eraNova = row.id != null && (!c.last || c.last.id == null || Number(row.id) > Number(c.last.id));
+    c.last = { id: row.id, de_auth_id: row.de_auth_id, texto: row.deleted_at ? '' : row.texto, tipo: row.tipo, criado_em: row.criado_em || row._criadoLocal, deleted_at: row.deleted_at };
+    const abertaVisivel = T.peer === peer && visivel() && document.body.classList.contains('chat-thread-open');
+    if (eraNova && row.de_auth_id !== meuAuthId && !abertaVisivel && (row.status || '') !== 'agendada') c.unread = (c.unread || 0) + 1;
+    contatosCache = [c].concat(contatosCache.filter(x => x !== c));
+    renderLista();
+    ChatStore.cacheInboxGravar(contatosCache);
+}
+function aplicarFiltroListaChat(filtro) {
+    filtroListaChat = filtro === 'nao_lidas' ? 'nao_lidas' : 'todas';
+    renderLista();
+}
+window.aplicarFiltroListaChat = aplicarFiltroListaChat;
+function carregarContatos() { return atualizarInbox(); } // compat
+
+/* ============================ composer ============================ */
+function autoCrescer() {
+    const t = $('chat-texto'); if (!t || t.tagName !== 'TEXTAREA') return;
+    const f = $('form-chat'); if (f) f.classList.toggle('tem-texto', !!t.value.trim()); // mic ↔ enviar
+    t.style.height = 'auto';
+    t.style.height = Math.min(t.scrollHeight, 140) + 'px';
+}
+function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }
+
+/* ============================ áudio (segurar p/ gravar) ============================ */
+let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
+let audioCancelado = false, audioHoldMode = false, audioPointerId = null, audioAutoSend = false, audioRecStartedAt = 0;
+function formatAudioTimer(sec) { const s = Math.max(0, Math.floor(sec)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function showRecBar(show) { const bar = $('chat-rec-bar'); if (bar) bar.classList.toggle('oculto', !show); }
+function updateRecTimer() { const t = $('chat-rec-timer'); if (t) t.textContent = formatAudioTimer(audioSeconds); }
+function startAudioTimer() {
+    audioSeconds = 0; updateRecTimer(); clearInterval(audioTimerInterval);
+    audioTimerInterval = setInterval(() => { audioSeconds++; updateRecTimer(); if (window.MineraRT && audioSeconds % 3 === 0) MineraRT.sendEstado('gravando'); }, 1000);
+}
+function stopAudioTimer() { clearInterval(audioTimerInterval); audioTimerInterval = null; }
+function resetAudioBtn() {
+    const btn = $('btn-audio'); if (!btn) return;
+    btn.textContent = '🎤'; btn.removeAttribute('data-recording');
+    btn.classList.remove('btn-danger', 'recording', 'btn-ok'); btn.title = 'Segure para gravar';
+}
+function showMediaPreview(opts) {
+    const box = $('chat-media-preview'); if (!box) return;
+    if (!opts) { box.classList.add('oculto'); box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="media-preview-audio">🎙️ Áudio ' + esc(opts.duracao || '') + '</div>' +
+        (opts.localUrl ? '<audio src="' + esc(opts.localUrl) + '" controls playsinline style="max-width:180px"></audio>' : '') +
+        '<button type="button" class="btn-sm btn-ok" id="btn-send-anexo">Enviar</button>' +
         '<button type="button" class="btn-sm btn-danger" id="btn-cancel-anexo">Cancelar</button>';
     box.classList.remove('oculto');
-    const cancel = document.getElementById('btn-cancel-anexo');
-    if (cancel) cancel.onclick = () => {
-        if (opts.localUrl && String(opts.localUrl).startsWith('blob:')) {
-            try { URL.revokeObjectURL(opts.localUrl); } catch (e) { /* ignore */ }
-        }
-        anexoPendente = null;
-        showMediaPreview(null);
-        setAnexoInfo('');
-        resetAudioBtn();
+    $('btn-cancel-anexo').onclick = () => {
+        if (anexoPendente && anexoPendente.localUrl) { try { URL.revokeObjectURL(anexoPendente.localUrl); } catch (e) { /* ignore */ } }
+        anexoPendente = null; showMediaPreview(null); setAnexoInfo(''); resetAudioBtn();
     };
-    const send = document.getElementById('btn-send-anexo');
-    if (send) send.onclick = () => enviarAnexoPendente();
+    $('btn-send-anexo').onclick = enviarAnexoPendente;
 }
-
-async function enviarAnexoPendente() {
+function enviarAnexoPendente() {
     if (!anexoPendente) return;
-    const pend = anexoPendente;
-    const localUrl = pend.localUrl || null;
-    const tempId = 'tmp_' + Date.now();
-    appendOptimisticBubble({
-        _tempId: tempId,
-        _pending: true,
-        _loading: true,
-        _localPreview: localUrl,
-        de_auth_id: meuAuthId,
-        de_nome: meuNomePublico(),
-        texto: '',
-        tipo: pend.tipo,
-        status: 'enviando',
-        criado_em: new Date().toISOString()
-    });
-    showMediaPreview({
-        tipo: pend.tipo,
-        localUrl: localUrl,
-        uploading: true,
-        duracao: pend.duracao,
-        nome: pend.nome
-    });
-    setAnexoInfo('Enviando…');
-
-    let url = pend.midia_url || null;
-    if (!url && pend.file) {
-        const pasta = pend.tipo === 'imagem' ? 'imagens' : (pend.tipo === 'video' ? 'videos' : 'audios');
-        url = await uploadMidia(pend.file, pasta);
-        if (!url) {
-            try { url = await fileToDataUrl(pend.file); } catch (e) { /* ignore */ }
-        }
-    }
-    const tempEl = document.querySelector('[data-temp-id="' + tempId + '"]');
-    if (!url) {
-        if (tempEl) {
-            const st = tempEl.querySelector('.bubble-status');
-            if (st) st.textContent = 'falha no envio';
-            tempEl.classList.add('bubble-failed');
-        }
-        showMediaPreview(null);
-        const detail = lastUploadError ? (' ' + lastUploadError) : '';
-        setAnexoInfo('Falha no upload de mídia. Aplique SQL 27 (bucket chat-midia público) ou tente de novo.');
-        const msgEl = document.getElementById('chat-msg');
-        if (msgEl) {
-            msgEl.textContent = 'Não foi possível enviar a mídia.' + detail;
-            msgEl.className = 'msg erro';
-        }
-        if (typeof toastMsg === 'function') toastMsg('Falha ao enviar mídia. Rode SQL 27 se o erro continuar.');
-        // Keep anexoPendente so user can retry Enviar
-        resetAudioBtn();
-        if (pend.tipo === 'audio' && pend.file) {
-            const btn = document.getElementById('btn-audio');
-            if (btn) {
-                btn.textContent = '➤ Enviar';
-                btn.classList.add('btn-ok');
-            }
-        }
-        return;
-    }
-    anexoPendente = null;
-    showMediaPreview(null);
-    setAnexoInfo('');
-    resetAudioBtn();
-    const ok = await enviarMensagem({ tipo: pend.tipo, midia_url: url, texto: '', keepInput: true });
-    if (tempEl) tempEl.remove();
-    if (!ok && localUrl) {
-        // Insert failed — restore pending so user can retry
-        anexoPendente = pend;
-        setAnexoInfo('Envio falhou — toque Enviar para tentar de novo.');
-    }
-    // Delay revoke so optimistic/local playback isn't killed mid-transition
-    if (localUrl && String(localUrl).startsWith('blob:')) {
-        setTimeout(() => {
-            try { URL.revokeObjectURL(localUrl); } catch (e) { /* ignore */ }
-        }, 15000);
-    }
+    const p = anexoPendente; anexoPendente = null;
+    showMediaPreview(null); setAnexoInfo(''); resetAudioBtn();
+    if (p.localUrl) { try { URL.revokeObjectURL(p.localUrl); } catch (e) { /* ignore */ } }
+    enviarMidia('audio', p.file);
 }
-
-/** Image/video: thumbnail preview + spinner until storage/url ready, then bubble */
-async function pickMidiaArquivo(file, tipo) {
-    if (!contatoAtivo || !contatoAtivo.auth_id) {
-        const msgEl = document.getElementById('chat-msg');
-        if (msgEl) {
-            msgEl.textContent = 'Selecione um contato primeiro.';
-            msgEl.className = 'msg erro';
-        }
-        if (typeof toastMsg === 'function') toastMsg('Selecione um contato primeiro.');
-        return;
-    }
-    const localUrl = URL.createObjectURL(file);
-    const token = localUrl;
-    anexoPendente = { tipo, file, localUrl, nome: file.name, midia_url: null };
-    showMediaPreview({ tipo, localUrl, uploading: true, nome: file.name });
-
-    const pasta = tipo === 'imagem' ? 'imagens' : (tipo === 'video' ? 'videos' : 'audios');
-    let url = await uploadMidia(file, pasta);
-    if (!url) {
-        try { url = await fileToDataUrl(file); } catch (e) { /* ignore */ }
-    }
-    if (!anexoPendente || anexoPendente.localUrl !== token) {
-        try { URL.revokeObjectURL(localUrl); } catch (e) { /* ignore */ }
-        return;
-    }
-    if (!url) {
-        showMediaPreview({ tipo, localUrl, uploading: false, nome: file.name });
-        setAnexoInfo('Upload falhou. Tente novamente ou cole uma URL.');
-        return;
-    }
-    anexoPendente.midia_url = url;
-    await enviarAnexoPendente();
-}
-
-/* ---- Audio: press-and-hold OR tap → recording bar → Enviar ---- */
-let audioCancelado = false;
-let audioHoldMode = false;
-let audioPointerId = null;
-let audioAutoSend = false;
-let audioRecStartedAt = 0;
-
-function formatAudioTimer(sec) {
-    const s = Math.max(0, Math.floor(sec));
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return m + ':' + String(r).padStart(2, '0');
-}
-
-function showRecBar(show) {
-    const bar = document.getElementById('chat-rec-bar');
-    if (bar) bar.classList.toggle('oculto', !show);
-}
-
-function updateRecTimer() {
-    const t = document.getElementById('chat-rec-timer');
-    const btn = document.getElementById('btn-audio');
-    const label = formatAudioTimer(audioSeconds);
-    if (t) t.textContent = label;
-    if (btn && gravando) {
-        // Keep 🎤 glyph stable — timer lives on #chat-rec-timer
-        btn.setAttribute('data-recording', '1');
-        btn.classList.add('recording', 'btn-danger');
-        if (btn.textContent.indexOf('🎤') < 0 && btn.textContent.indexOf('➤') < 0) {
-            btn.textContent = '🎤';
-        }
-    }
-}
-
-function startAudioTimer() {
-    audioSeconds = 0;
-    updateRecTimer();
-    clearInterval(audioTimerInterval);
-    audioTimerInterval = setInterval(() => {
-        audioSeconds += 1;
-        updateRecTimer();
-    }, 1000);
-}
-
-function stopAudioTimer() {
-    clearInterval(audioTimerInterval);
-    audioTimerInterval = null;
-}
-
-function resetAudioBtn() {
-    const btn = document.getElementById('btn-audio');
-    if (!btn) return;
-    btn.textContent = '🎤';
-    btn.removeAttribute('data-recording');
-    btn.classList.remove('btn-danger', 'recording', 'btn-ok');
-    btn.title = 'Segure para gravar';
-}
-
 function onRecordingReady(blob) {
-    const mime = baseMime(blob.type) || 'audio/webm';
-    const ext = extForMime(mime, 'webm');
-    const file = new File([blob], 'audio_' + Date.now() + '.' + ext, { type: mime });
+    const mime = ChatMidia.baseMime(blob.type) || 'audio/webm';
+    const file = new File([blob], 'audio_' + Date.now() + '.' + ChatMidia.extForMime(mime, 'webm'), { type: mime });
+    const doSend = audioAutoSend; audioAutoSend = false;
+    if (doSend) { resetAudioBtn(); setAnexoInfo(''); enviarMidia('audio', file); return; }
     const localUrl = URL.createObjectURL(blob);
-    const doSend = audioAutoSend;
-    audioAutoSend = false;
-    anexoPendente = {
-        tipo: 'audio',
-        file,
-        blob,
-        localUrl,
-        nome: file.name,
-        midia_url: null,
-        duracao: formatAudioTimer(audioSeconds)
-    };
-    showMediaPreview({
-        tipo: 'audio',
-        localUrl,
-        uploading: !!doSend,
-        readyToSend: !doSend,
-        duracao: formatAudioTimer(audioSeconds)
-    });
-    if (doSend) {
-        setAnexoInfo('Enviando áudio…');
-        enviarAnexoPendente();
-        return;
-    }
-    const btn = document.getElementById('btn-audio');
-    if (btn) {
-        btn.textContent = '➤ Enviar';
-        btn.classList.remove('btn-danger', 'recording');
-        btn.classList.add('btn-ok');
-        btn.title = 'Enviar áudio';
-    }
+    anexoPendente = { tipo: 'audio', file, localUrl, duracao: formatAudioTimer(audioSeconds) };
+    showMediaPreview({ localUrl, duracao: formatAudioTimer(audioSeconds) });
+    const btn = $('btn-audio');
+    if (btn) { btn.textContent = '➤'; btn.classList.remove('btn-danger', 'recording'); btn.classList.add('btn-ok'); btn.title = 'Enviar áudio'; }
     setAnexoInfo('Áudio pronto — toque Enviar');
 }
-
-function toastAudio(msg) {
-    const msgEl = document.getElementById('chat-msg');
-    if (msgEl) {
-        msgEl.textContent = msg;
-        msgEl.className = 'msg erro';
-    }
-    if (typeof toastMsg === 'function') toastMsg(msg);
-    setAnexoInfo(msg);
-}
-
+function toastAudio(msg) { msgErro(msg); toast(msg); setAnexoInfo(msg); }
 async function startRecording(fromHold) {
-    if (!contatoAtivo || !contatoAtivo.auth_id) {
-        toastAudio('Selecione um contato primeiro.');
-        return;
-    }
-    if (!window.isSecureContext) {
-        toastAudio('Microfone exige HTTPS. Use “Anexo” ou abra o site seguro.');
-        return;
-    }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
-        toastAudio('Gravação não suportada neste navegador. Use “Anexo”.');
-        return;
-    }
+    if (!contatoAtivo || !contatoAtivo.auth_id) { toastAudio('Selecione um contato primeiro.'); return; }
+    if (!window.isSecureContext) { toastAudio('Microfone exige HTTPS.'); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Áudio.'); return; }
     if (gravando) return;
     audioCancelado = false;
     audioHoldMode = !!fromHold;
     try {
-        // getUserMedia deve rodar no gesto do usuário (pointerdown), sem setTimeout
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // no gesto do usuário
         audioChunks = [];
-        const mime = pickRecorderMime();
-        mediaRecorder = mime
-            ? new MediaRecorder(stream, { mimeType: mime })
-            : new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = (ev) => {
-            if (ev.data && ev.data.size) audioChunks.push(ev.data);
-        };
+        const mime = ChatMidia.pickRecorderMime();
+        mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) audioChunks.push(ev.data); };
         mediaRecorder.onstop = () => {
             stream.getTracks().forEach(t => t.stop());
-            stopAudioTimer();
-            showRecBar(false);
-            gravando = false;
-            if (audioCancelado) {
-                audioChunks = [];
-                audioRecStartedAt = 0;
-                resetAudioBtn();
-                setAnexoInfo('');
-                return;
-            }
-            const blobType = baseMime(mediaRecorder.mimeType) || baseMime(mime) || 'audio/webm';
-            const blob = new Blob(audioChunks, { type: blobType });
+            stopAudioTimer(); showRecBar(false); gravando = false;
+            if (window.MineraRT) MineraRT.sendEstado('parou');
+            if (audioCancelado) { audioChunks = []; audioRecStartedAt = 0; resetAudioBtn(); setAnexoInfo(''); return; }
+            const blob = new Blob(audioChunks, { type: ChatMidia.baseMime(mediaRecorder.mimeType) || ChatMidia.baseMime(mime) || 'audio/webm' });
             const elapsed = audioRecStartedAt ? (Date.now() - audioRecStartedAt) : 0;
             audioRecStartedAt = 0;
-            // Reject empty / too-short taps (empty blob bug + accidental taps)
-            if (!blob.size || blob.size < 500 || elapsed < 400) {
-                audioChunks = [];
-                audioAutoSend = false;
-                resetAudioBtn();
-                toastAudio('Segure um pouco mais');
-                return;
-            }
+            if (!blob.size || blob.size < 500 || elapsed < 400) { audioChunks = []; audioAutoSend = false; resetAudioBtn(); toastAudio('Segure um pouco mais'); return; }
             onRecordingReady(blob);
         };
-        // timeslice garante chunks em browsers que só emitem no stop com atraso
         try { mediaRecorder.start(250); } catch (eStart) { mediaRecorder.start(); }
         gravando = true;
         audioRecStartedAt = Date.now();
         startAudioTimer();
         showRecBar(true);
-        const btn = document.getElementById('btn-audio');
-        if (btn) {
-            btn.textContent = '🎤';
-            btn.setAttribute('data-recording', '1');
-            btn.classList.add('btn-danger', 'recording');
-        }
+        if (window.MineraRT) MineraRT.sendEstado('gravando');
+        const btn = $('btn-audio');
+        if (btn) { btn.textContent = '🎤'; btn.setAttribute('data-recording', '1'); btn.classList.add('btn-danger', 'recording'); }
         setAnexoInfo(fromHold ? 'Gravando… solte p/ enviar · ← deslize p/ cancelar' : 'Gravando… toque de novo para parar');
         showMediaPreview(null);
     } catch (err) {
         console.warn(err);
-        gravando = false;
-        resetAudioBtn();
+        gravando = false; resetAudioBtn();
         const name = (err && err.name) || '';
         let msg = 'Não foi possível acessar o microfone.';
-        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-            msg = 'Permissão do microfone negada. Libere o mic nas configurações do navegador ou use “Anexo”.';
-        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-            msg = 'Nenhum microfone encontrado. Use “Anexo”.';
-        } else if (name === 'NotReadableError' || name === 'TrackStartError') {
-            msg = 'Microfone em uso por outro app. Feche-o ou use “Anexo”.';
-        } else if (err && err.message) {
-            msg = 'Microfone: ' + err.message;
-        }
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') msg = 'Permissão do microfone negada. Libere o mic nas configurações do navegador.';
+        else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') msg = 'Nenhum microfone encontrado.';
+        else if (name === 'NotReadableError' || name === 'TrackStartError') msg = 'Microfone em uso por outro app.';
         toastAudio(msg);
     }
 }
-
 function stopRecording(cancel) {
-    if (cancel) {
-        audioCancelado = true;
-        audioAutoSend = false;
-    } else {
-        // Hold-to-send / stop → upload automático (evita bolha quebrada sem Enviar)
-        audioAutoSend = true;
-    }
-    gravando = false;
-    showRecBar(false);
-    stopAudioTimer();
+    if (cancel) { audioCancelado = true; audioAutoSend = false; } else if (audioHoldMode) audioAutoSend = true;
+    gravando = false; showRecBar(false); stopAudioTimer();
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        try {
-            // Flush last chunk before stop (fixes empty blob on some browsers)
-            if (typeof mediaRecorder.requestData === 'function') {
-                try { mediaRecorder.requestData(); } catch (eReq) { /* ignore */ }
+        try { if (typeof mediaRecorder.requestData === 'function') { try { mediaRecorder.requestData(); } catch (e) { /* ignore */ } } mediaRecorder.stop(); } catch (e) { /* ignore */ }
+    } else if (cancel) resetAudioBtn();
+}
+function bindAudioButton() {
+    const btn = $('btn-audio');
+    if (!btn || btn._audioBound) return;
+    btn._audioBound = true;
+    let holdStarted = false, pointerDown = false, suppressClick = false, downAt = 0, downX = 0, slidCancel = false;
+    btn.addEventListener('pointerdown', (e) => {
+        if (e.button != null && e.button !== 0) return;
+        if ((anexoPendente && !gravando) || gravando) return;
+        holdStarted = true; pointerDown = true; slidCancel = false; downAt = Date.now(); downX = e.clientX; audioPointerId = e.pointerId;
+        try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        startRecording(true).then(() => {
+            if (!pointerDown && gravando && audioHoldMode) {
+                if (Date.now() - downAt < 280) { audioHoldMode = false; setAnexoInfo('Gravando… toque de novo para parar'); }
+                else stopRecording(false);
             }
-            mediaRecorder.stop();
-        } catch (e) { /* ignore */ }
-    } else if (cancel) {
-        resetAudioBtn();
-    }
+        });
+    });
+    btn.addEventListener('pointermove', (e) => {
+        if (!pointerDown || !holdStarted) return;
+        if (audioPointerId != null && e.pointerId !== audioPointerId) return;
+        if (downX - e.clientX > 72) { // deslizar p/ esquerda cancela
+            slidCancel = true;
+            if (gravando && audioHoldMode) { stopRecording(true); setAnexoInfo('Gravação cancelada'); }
+            pointerDown = false; holdStarted = false; suppressClick = true; audioPointerId = null;
+        }
+    });
+    btn.addEventListener('pointerup', (e) => {
+        if (audioPointerId != null && e.pointerId !== audioPointerId) return;
+        const wasDown = pointerDown; pointerDown = false;
+        if (!wasDown || !holdStarted || slidCancel) { holdStarted = false; audioPointerId = null; slidCancel = false; return; }
+        suppressClick = true;
+        if (gravando && audioHoldMode) {
+            if (Date.now() - downAt >= 280) { audioAutoSend = true; stopRecording(false); }
+            else { audioHoldMode = false; setAnexoInfo('Gravando… toque de novo para parar'); }
+        }
+        holdStarted = false; audioPointerId = null;
+        try { e.preventDefault(); } catch (err) { /* ignore */ }
+    });
+    btn.addEventListener('pointercancel', () => {
+        pointerDown = false; suppressClick = holdStarted;
+        if (gravando && audioHoldMode) stopRecording(true);
+        holdStarted = false; audioPointerId = null;
+    });
+    btn.addEventListener('click', async (e) => {
+        if (suppressClick) { e.preventDefault(); suppressClick = false; return; }
+        if (anexoPendente && !gravando) { e.preventDefault(); enviarAnexoPendente(); return; }
+        if (gravando) { stopRecording(false); return; }
+        await startRecording(false);
+    });
 }
 
-/* ---- Adicionar contato modal ---- */
+/* ============================ adicionar contato (diretório) ============================ */
+async function rpcDiretorio(busca) {
+    try {
+        const termo = String(busca || '').trim();
+        if (looksLikeEmail(termo)) return []; // nunca busca por e-mail no cliente
+        if (termo.length >= 1) {
+            const { data, error } = await supabaseClient.rpc('chat_buscar_nome', { p_nome: termo });
+            if (!error && data) return data.map(stripEmailFields);
+        }
+        const { data, error } = await supabaseClient.rpc('chat_diretorio');
+        if (error) throw error;
+        const list = (data || []).map(stripEmailFields);
+        if (!termo) return list;
+        const t = termo.toLowerCase();
+        return list.filter(u => String(u.nome || '').toLowerCase().includes(t) || String(u.apelido || '').toLowerCase().includes(t));
+    } catch (e) { console.warn('chat_diretorio/buscar_nome', e); return []; }
+}
 function abrirModalAdd() {
-    const m = document.getElementById('modal-add-contato');
-    if (m) m.classList.remove('oculto');
-    const titulo = document.getElementById('modal-add-titulo');
-    if (titulo) titulo.textContent = 'Adicionar por nome';
-    const msg = document.getElementById('add-contato-msg');
-    if (msg) { msg.textContent = ''; msg.className = 'msg'; }
+    const m = $('modal-add-contato'); if (m) m.classList.remove('oculto');
+    const titulo = $('modal-add-titulo'); if (titulo) titulo.textContent = 'Adicionar por nome';
+    const msg = $('add-contato-msg'); if (msg) { msg.textContent = ''; msg.className = 'msg'; }
     renderRoleFilters();
     carregarDiretorioAdd('');
 }
-
-function fecharModalAdd() {
-    const m = document.getElementById('modal-add-contato');
-    if (m) m.classList.add('oculto');
-}
-
+function fecharModalAdd() { const m = $('modal-add-contato'); if (m) m.classList.add('oculto'); }
 function renderRoleFilters() {
-    const el = document.getElementById('add-role-filters');
-    if (!el) return;
+    const el = $('add-role-filters'); if (!el) return;
     el.innerHTML = '<button type="button" class="chip on" data-role="">Todos</button>' +
-        ROLE_GROUPS.filter(g => g.id !== 'outros').map(g =>
-            '<button type="button" class="chip" data-role="' + g.id + '">' + esc(g.title.split('/')[0]) + '</button>'
-        ).join('');
-    el.querySelectorAll('.chip').forEach(btn => {
-        btn.addEventListener('click', () => {
-            el.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
-            btn.classList.add('on');
-            renderDiretorioList(diretorioCache, btn.getAttribute('data-role') || '');
-        });
-    });
+        ROLE_GROUPS.filter(g => g.id !== 'outros').map(g => '<button type="button" class="chip" data-role="' + g.id + '">' + esc(g.title.split('/')[0]) + '</button>').join('');
+    el.querySelectorAll('.chip').forEach(btn => btn.addEventListener('click', () => {
+        el.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+        btn.classList.add('on');
+        renderDiretorioList(diretorioCache, btn.getAttribute('data-role') || '');
+    }));
 }
-
 async function carregarDiretorioAdd(busca) {
-    const box = document.getElementById('add-diretorio');
+    const box = $('add-diretorio'); if (!box) return;
     box.innerHTML = '<p class="sub">Carregando...</p>';
     diretorioCache = await rpcDiretorio(busca);
     const roleBtn = document.querySelector('#add-role-filters .chip.on');
-    const role = roleBtn ? (roleBtn.getAttribute('data-role') || '') : '';
-    renderDiretorioList(diretorioCache, role);
+    renderDiretorioList(diretorioCache, roleBtn ? (roleBtn.getAttribute('data-role') || '') : '');
 }
-
 function renderDiretorioList(lista, roleFilter) {
-    const box = document.getElementById('add-diretorio');
+    const box = $('add-diretorio'); if (!box) return;
     const ja = new Set(contatosCache.map(c => c.auth_id));
-    let items = lista || [];
+    let items = (lista || []).filter(u => u.auth_id !== meuAuthId);
     if (roleFilter) {
         const g = ROLE_GROUPS.find(x => x.id === roleFilter);
-        if (g && g.match) {
-            items = items.filter(u => {
-                const papeis = (u.papeis || []).map(p => String(p).toLowerCase());
-                return g.match.some(m => papeis.includes(m) || String(u.tipo || '').toLowerCase() === m);
-            });
-        }
+        if (g && g.match) items = items.filter(u => { const ps = (u.papeis || []).map(p => String(p).toLowerCase()); return g.match.some(m => ps.includes(m) || String(u.tipo || '').toLowerCase() === m); });
     }
-    // Group by role for display
-    if (!items.length) {
-        box.innerHTML = '<p class="sub">Nenhum usuário encontrado. Busque por nome ou apelido.</p>';
-        return;
-    }
-
-    const grouped = {};
-    ROLE_GROUPS.forEach(g => { grouped[g.id] = []; });
-    items.forEach(u => {
-        const gid = rotuloGrupoPapel(u.papeis, u.tipo);
-        (grouped[gid] || grouped.outros).push(u);
-    });
-
+    if (!items.length) { box.innerHTML = '<p class="sub">Nenhum usuário encontrado. Busque por nome ou apelido.</p>'; return; }
+    const grouped = {}; ROLE_GROUPS.forEach(g => { grouped[g.id] = []; });
+    items.forEach(u => { (grouped[rotuloGrupoPapel(u.papeis, u.tipo)] || grouped.outros).push(u); });
     let html = '';
     ROLE_GROUPS.forEach(g => {
-        const list = grouped[g.id] || [];
-        if (!list.length) return;
+        const list = grouped[g.id] || []; if (!list.length) return;
         html += '<div class="chat-group"><div class="chat-group-title">' + esc(g.title) + '</div>';
         list.forEach(u => {
-            const done = ja.has(u.auth_id);
             const nome = displayNome(u);
-            html += '<div class="chat-dir-item">' +
-                '<div><strong>' + esc(nome) + '</strong>' +
-                (u.apelido && u.nome && u.apelido !== u.nome
-                    ? '<div class="hint">' + esc(u.nome) + '</div>' : '') +
+            html += '<div class="chat-dir-item"><div><strong>' + esc(nome) + '</strong>' +
+                (u.apelido && u.nome && u.apelido !== u.nome ? '<div class="hint">' + esc(u.nome) + '</div>' : '') +
                 '<div class="contact-role">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</div></div>' +
-                (done
-                    ? '<span class="badge">Já adicionado</span>'
-                    : '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Adicionar</button>') +
-                '</div>';
+                (ja.has(u.auth_id) ? '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Abrir</button>'
+                    : '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Adicionar</button>') + '</div>';
         });
         html += '</div>';
     });
     box.innerHTML = html;
-    box.querySelectorAll('.btn-add-dir').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const id = btn.getAttribute('data-auth');
-            const u = diretorioCache.find(x => x.auth_id === id);
-            if (u) await adicionarContato(u);
-        });
-    });
+    box.querySelectorAll('.btn-add-dir').forEach(btn => btn.addEventListener('click', async () => {
+        const u = diretorioCache.find(x => x.auth_id === btn.getAttribute('data-auth'));
+        if (u) await adicionarContato(u);
+    }));
 }
-
 async function adicionarContato(user) {
-    const msg = document.getElementById('add-contato-msg');
+    const msg = $('add-contato-msg');
     if (!user || !user.auth_id) return;
-    if (user.auth_id === meuAuthId) {
-        msg.textContent = 'Não pode adicionar a si mesmo.';
-        msg.className = 'msg erro';
-        return;
+    if (user.auth_id === meuAuthId) { if (msg) { msg.textContent = 'Não pode adicionar a si mesmo.'; msg.className = 'msg erro'; } return; }
+    if (!contatosCache.some(c => c.auth_id === user.auth_id)) {
+        const { error } = await supabaseClient.from('chat_contatos').upsert([{ auth_id: meuAuthId, contato_auth_id: user.auth_id, apelido: displayNome(user) }], { onConflict: 'auth_id,contato_auth_id' });
+        if (error) { if (msg) { msg.textContent = 'Erro: ' + error.message; msg.className = 'msg erro'; } return; }
+        contatosCache.push({ auth_id: user.auth_id, nome: displayNome(user), apelido: user.apelido || null, nomeReal: user.nome || '', papeis: user.papeis || [], tipo: user.tipo || '', last: null, unread: 0, peerLida: 0, peerEntregue: 0 });
+        renderLista();
+        agendarInbox(500);
     }
-    const { error } = await supabaseClient.from('chat_contatos').upsert([{
-        auth_id: meuAuthId,
-        contato_auth_id: user.auth_id,
-        apelido: displayNome(user)
-    }], { onConflict: 'auth_id,contato_auth_id' });
-    if (error) {
-        msg.textContent = 'Erro: ' + error.message + ' (SQL 18/22?)';
-        msg.className = 'msg erro';
-        return;
-    }
-    msg.textContent = 'Contato adicionado!';
-    msg.className = 'msg ok';
-    await carregarContatos(true);
-    await abrirThread({
-        auth_id: user.auth_id,
-        nome: displayNome(user),
-        papeis: user.papeis || [],
-        tipo: user.tipo || '',
-        apelido: displayNome(user)
-    });
     fecharModalAdd();
+    const c = contatosCache.find(x => x.auth_id === user.auth_id);
+    abrirThread(c || { auth_id: user.auth_id, nome: displayNome(user), papeis: user.papeis || [], tipo: user.tipo || '', apelido: displayNome(user) });
 }
 
-document.getElementById('form-chat').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await enviarMensagem();
-});
-
-document.getElementById('chat-foto').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    await pickMidiaArquivo(file, 'imagem');
-});
-
-document.getElementById('chat-video').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    await pickMidiaArquivo(file, 'video');
-});
-
-document.getElementById('chat-audio-file').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    await pickMidiaArquivo(file, 'audio');
-});
-
-(function bindAudioButton() {
-    const btn = document.getElementById('btn-audio');
-    if (!btn || btn._audioBound) return;
-    btn._audioBound = true;
-    let holdStarted = false;
-    let pointerDown = false;
-    let suppressClick = false;
-    let downAt = 0;
-    let startPromise = null;
-    let downX = 0;
-    let slidCancel = false;
-
-    btn.addEventListener('pointerdown', (e) => {
-        if (e.button != null && e.button !== 0) return;
-        if (anexoPendente && anexoPendente.tipo === 'audio' && !gravando) return;
-        if (gravando) return;
-        holdStarted = true;
-        pointerDown = true;
-        slidCancel = false;
-        downAt = Date.now();
-        downX = e.clientX;
-        audioPointerId = e.pointerId;
-        try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-        // Inicia no gesto do usuário (não em setTimeout) — evita fallback silencioso ao file picker
-        startPromise = startRecording(true).then(() => {
-            if (!pointerDown && gravando && audioHoldMode) {
-                // soltou antes do mic abrir: se foi toque curto, vira modo toggle
-                if (Date.now() - downAt < 280) {
-                    audioHoldMode = false;
-                    setAnexoInfo('Gravando… toque de novo para parar');
-                } else {
-                    stopRecording(false);
-                }
-            }
-        });
-    });
-
-    btn.addEventListener('pointermove', (e) => {
-        if (!pointerDown || !holdStarted) return;
-        if (audioPointerId != null && e.pointerId !== audioPointerId) return;
-        // WA: slide left to cancel
-        if (downX - e.clientX > 72) {
-            slidCancel = true;
-            if (gravando && audioHoldMode) {
-                stopRecording(true);
-                setAnexoInfo('Gravação cancelada');
-            }
-            pointerDown = false;
-            holdStarted = false;
-            suppressClick = true;
-            audioPointerId = null;
-        }
-    });
-
-    const endHold = (e) => {
-        if (audioPointerId != null && e.pointerId !== audioPointerId && e.type !== 'pointercancel') return;
-        const wasDown = pointerDown;
-        pointerDown = false;
-        if (!wasDown || !holdStarted || slidCancel) {
-            holdStarted = false;
-            audioPointerId = null;
-            slidCancel = false;
-            return;
-        }
-        const dur = Date.now() - downAt;
-        suppressClick = true;
-        if (gravando && audioHoldMode) {
-            if (dur >= 280) {
-                // release = send (WA hold-to-record)
-                audioAutoSend = true;
-                stopRecording(false);
-            } else {
-                // Toque curto: continua gravando até segundo toque (estilo toggle)
-                audioHoldMode = false;
-                setAnexoInfo('Gravando… toque de novo para parar');
-            }
-        }
-        holdStarted = false;
-        audioPointerId = null;
-        try { e.preventDefault(); } catch (err) { /* ignore */ }
-    };
-
-    btn.addEventListener('pointerup', endHold);
-    btn.addEventListener('pointercancel', () => {
-        pointerDown = false;
-        suppressClick = holdStarted;
-        if (gravando && audioHoldMode) stopRecording(true);
-        holdStarted = false;
-        audioPointerId = null;
-    });
-
-    btn.addEventListener('click', async (e) => {
-        if (suppressClick) {
-            e.preventDefault();
-            suppressClick = false;
-            return;
-        }
-        if (anexoPendente && anexoPendente.tipo === 'audio' && anexoPendente.file && !gravando) {
-            e.preventDefault();
-            await enviarAnexoPendente();
-            return;
-        }
-        if (gravando) {
-            stopRecording(false);
-            return;
-        }
-        // Clique sem pointerdown (teclado/acessibilidade)
-        await startRecording(false);
-    });
-})();
-
-const btnCancelRec = document.getElementById('btn-cancel-rec');
-if (btnCancelRec) btnCancelRec.addEventListener('click', () => stopRecording(true));
-
-document.getElementById('btn-toggle-agendar').addEventListener('click', () => {
-    agendarAtivo = !agendarAtivo;
-    const box = document.getElementById('chat-agendar-box');
-    const btn = document.getElementById('btn-toggle-agendar');
-    box.classList.toggle('oculto', !agendarAtivo);
-    btn.classList.toggle('btn-ok', agendarAtivo);
-    btn.textContent = agendarAtivo ? '🗓️ Agendar msg (ativo)' : '🗓️ Agendar msg';
-});
-
-document.getElementById('btn-add-contato').addEventListener('click', abrirModalAdd);
-document.getElementById('btn-fechar-add').addEventListener('click', fecharModalAdd);
-document.getElementById('modal-add-contato').addEventListener('click', (e) => {
-    if (e.target && e.target.getAttribute('data-close-add') === '1') fecharModalAdd();
-});
-
-let buscaTimer = null;
-document.getElementById('chat-busca-contatos').addEventListener('input', () => {
-    clearTimeout(buscaTimer);
-    buscaTimer = setTimeout(() => carregarContatos(true), 200);
-});
-
-let addBuscaTimer = null;
-document.getElementById('add-busca').addEventListener('input', () => {
-    clearTimeout(addBuscaTimer);
-    addBuscaTimer = setTimeout(() => {
-        carregarDiretorioAdd(document.getElementById('add-busca').value.trim());
-    }, 300);
-});
-
-document.getElementById('btn-chat-back').addEventListener('click', () => {
-    contatoAtivo = null;
-    showThreadUI(false);
-    carregarContatos(true);
-});
-
-
-(function bindImageEnlarge() {
-    document.addEventListener('click', (e) => {
-        const img = e.target && e.target.closest && e.target.closest('.bubble-media img');
-        if (!img || img.closest('.bubble-media-loading')) return;
-        if (window.MineraLightbox) {
-            // Lightbox único (lightbox.js): todas as fotos da conversa, começando pela tocada
-            const imgs = Array.from(document.querySelectorAll('.bubble-media img'))
-                .filter((x) => !x.closest('.bubble-media-loading') && x.getAttribute('src'));
-            const urls = imgs.map((x) => x.getAttribute('src'));
-            window.MineraLightbox.open(urls, Math.max(0, imgs.indexOf(img)));
-            return;
-        }
-        let lb = document.getElementById('chat-lightbox');
-        if (!lb) {
-            lb = document.createElement('div');
-            lb.id = 'chat-lightbox';
-            lb.className = 'chat-lightbox oculto';
-            lb.innerHTML = '<button type="button" class="chat-lightbox-close" aria-label="Fechar">×</button><img alt="">';
-            document.body.appendChild(lb);
-            lb.addEventListener('click', (ev) => {
-                if (ev.target === lb || ev.target.classList.contains('chat-lightbox-close')) lb.classList.add('oculto');
-            });
-        }
-        lb.querySelector('img').src = img.getAttribute('src');
-        lb.classList.remove('oculto');
-    });
-})();
-
-
-(function bindAudioPlaybackErrors() {
-    document.addEventListener('error', (e) => {
-        const el = e.target;
-        if (!el || el.tagName !== 'AUDIO') return;
-        const wrap = el.closest && el.closest('.bubble-audio');
-        if (!wrap || wrap.querySelector('.audio-err')) return;
-        const d = document.createElement('div');
-        d.className = 'audio-err hint';
-        d.textContent = 'Erro ao tocar áudio (URL privada/rede). Aplique SQL 27.';
-        wrap.appendChild(d);
-    }, true);
-})();
-
-
-/* ===== Ações de mensagem (responder / apagar / histórico) ===== */
-let sheetMsg = null;
-let longPressTimer = null;
-let longPressStart = null;
+/* ============================ ações de mensagem ============================ */
+let sheetMsg = null, longPressTimer = null, longPressStart = null;
 const LONG_PRESS_MS = 400;
-
-function setReplyTo(m) {
+function setReplyTo(m, semFoco) {
     replyToMsg = m || null;
-    const bar = document.getElementById('chat-reply-bar');
-    const snip = document.getElementById('chat-reply-snippet');
+    const bar = $('chat-reply-bar'), snip = $('chat-reply-snippet');
     if (!bar) return;
-    if (!replyToMsg) {
-        bar.classList.add('oculto');
-        if (snip) snip.textContent = '';
-        return;
-    }
-    if (snip) {
-        const who = nomePublicoTexto(replyToMsg.de_nome, 'Mensagem');
-        snip.textContent = who + ': ' + snippetMsg(replyToMsg);
-    }
+    if (!replyToMsg) { bar.classList.add('oculto'); if (snip) snip.textContent = ''; return; }
+    if (snip) snip.textContent = (ehMinha(replyToMsg) ? 'Você' : nomePublicoTexto(replyToMsg.de_nome, 'Mensagem')) + ': ' + snippetMsg(replyToMsg);
     bar.classList.remove('oculto');
-    const input = document.getElementById('chat-texto');
-    if (input) input.focus();
+    if (!semFoco) { const input = $('chat-texto'); if (input) input.focus(); }
 }
-
-function fecharChatHeadMenu() {
-    const menu = document.getElementById('chat-head-menu');
-    if (menu) menu.classList.add('oculto');
-}
-
-function toggleChatHeadMenu() {
-    const menu = document.getElementById('chat-head-menu');
-    if (!menu) return;
-    menu.classList.toggle('oculto');
-}
-
-function fecharMsgSheet() {
-    const sheet = document.getElementById('chat-msg-sheet');
-    if (sheet) sheet.classList.add('oculto');
-    sheetMsg = null;
-}
-
+function fecharChatHeadMenu() { const menu = $('chat-head-menu'); if (menu) menu.classList.add('oculto'); }
+function toggleChatHeadMenu() { const menu = $('chat-head-menu'); if (menu) menu.classList.toggle('oculto'); }
+function fecharMsgSheet() { const s = $('chat-msg-sheet'); if (s) s.classList.add('oculto'); sheetMsg = null; }
 function abrirMsgSheet(m) {
-    if (!m || !m.id || m._pending || m._loading) return;
+    if (!m || !m.id) return;
     sheetMsg = m;
-    const sheet = document.getElementById('chat-msg-sheet');
-    const prev = document.getElementById('chat-msg-sheet-preview');
-    const btnTodos = document.getElementById('sheet-apagar-todos');
+    const prev = $('chat-msg-sheet-preview'), btnTodos = $('sheet-apagar-todos');
     if (prev) prev.textContent = snippetMsg(m);
-    if (btnTodos) {
-        const souRemetente = m.de_auth_id === meuAuthId;
-        btnTodos.classList.toggle('oculto', !souRemetente);
-    }
-    if (sheet) sheet.classList.remove('oculto');
+    if (btnTodos) btnTodos.classList.toggle('oculto', !ehMinha(m));
+    const s = $('chat-msg-sheet'); if (s) s.classList.remove('oculto');
 }
-
 function msgFromBubbleEl(el) {
-    const bubble = el && el.closest ? el.closest('.bubble[data-msg-id]') : null;
-    if (!bubble) return null;
-    const id = Number(bubble.getAttribute('data-msg-id'));
-    if (!id) return null;
-    return threadMsgsById.get(id) || threadMsgsById.get(String(id)) || { id: id, de_auth_id: bubble.getAttribute('data-de-auth'), texto: (bubble.querySelector('.bubble-text') || {}).textContent || '' };
+    const b = el && el.closest ? el.closest('.bubble[data-msg-id]') : null;
+    if (!b) return null;
+    const id = Number(b.getAttribute('data-msg-id'));
+    return id ? (T.msgs.get(id) || null) : null;
 }
-
 async function apagarMsgParaMim(m) {
     if (!m || !m.id) return;
+    fecharMsgSheet();
     const { error } = await supabaseClient.rpc('chat_apagar_para_mim', { p_msg_id: Number(m.id) });
-    if (error) {
-        if (typeof toastMsg === 'function') toastMsg('Erro ao apagar: ' + error.message + ' (SQL 28?)');
-        return;
-    }
-    fecharMsgSheet();
-    await carregarThread(true);
-    await carregarContatos(true);
+    if (error) { toast('Erro ao apagar: ' + error.message); return; }
+    T.msgs.delete(Number(m.id)); removerBolha('m' + m.id); salvarCacheConversa();
+    agendarInbox(200);
 }
-
 async function apagarMsgParaTodos(m) {
-    if (!m || !m.id) return;
-    if (m.de_auth_id !== meuAuthId) return;
+    if (!m || !m.id || !ehMinha(m)) return;
     if (!confirm('Apagar esta mensagem para todos?')) return;
-    const { error } = await supabaseClient.rpc('chat_apagar_para_todos', { p_msg_id: Number(m.id) });
-    if (error) {
-        if (typeof toastMsg === 'function') toastMsg('Erro: ' + error.message + ' (SQL 28?)');
-        return;
-    }
     fecharMsgSheet();
-    await carregarThread(true);
-    await carregarContatos(true);
+    const { error } = await supabaseClient.rpc('chat_apagar_para_todos', { p_msg_id: Number(m.id) });
+    if (error) { toast('Erro: ' + error.message); return; }
+    const n = Object.assign({}, m, { deleted_at: new Date().toISOString() });
+    T.msgs.set(Number(m.id), n); trocarBolha('m' + m.id, n); salvarCacheConversa();
+    patchInboxComMsg(n, T.peer);
 }
-
 async function apagarConversaParaMim() {
     if (!contatoAtivo || !contatoAtivo.auth_id) return;
     fecharChatHeadMenu();
     if (!confirm('Apagar conversa para mim? As mensagens somem só do seu lado.')) return;
-    const { error } = await supabaseClient.rpc('chat_ocultar_conversa', { p_outro: contatoAtivo.auth_id });
-    if (error) {
-        if (typeof toastMsg === 'function') toastMsg('Erro: ' + error.message + ' (SQL 28?)');
-        return;
-    }
-    contatoAtivo = null;
-    showThreadUI(false);
-    await carregarContatos(true);
+    const peer = contatoAtivo.auth_id;
+    const { error } = await supabaseClient.rpc('chat_ocultar_conversa', { p_outro: peer });
+    if (error) { toast('Erro: ' + error.message); return; }
+    ChatStore.cacheThreadGravar(peer, []);
+    contatosCache = contatosCache.filter(c => c.auth_id !== peer); renderLista();
+    fecharConversa();
+    agendarInbox(300);
 }
-
 async function apagarHistoricoParaTodos() {
     if (!contatoAtivo || !contatoAtivo.auth_id) return;
     fecharChatHeadMenu();
     if (!confirm('Isso remove o histórico para os dois lados. Continuar?')) return;
-    const { error } = await supabaseClient.rpc('chat_apagar_historico_para_todos', { p_outro: contatoAtivo.auth_id });
-    if (error) {
-        if (typeof toastMsg === 'function') toastMsg('Erro: ' + error.message + ' (SQL 28?)');
-        return;
-    }
-    contatoAtivo = null;
+    const peer = contatoAtivo.auth_id;
+    const { error } = await supabaseClient.rpc('chat_apagar_historico_para_todos', { p_outro: peer });
+    if (error) { toast('Erro: ' + error.message); return; }
+    ChatStore.cacheThreadGravar(peer, []);
+    fecharConversa();
+    agendarInbox(300);
+}
+function fecharConversa(viaPopstate) {
+    pararDigitando();
+    if (window.MineraRT) MineraRT.leaveDm();
+    salvarCacheConversa();
+    contatoAtivo = null; T.peer = null; T.gen++;
     showThreadUI(false);
-    await carregarContatos(true);
+    marcarLinhaAtiva();
+    if (!viaPopstate && history.state && history.state.chatPeer) { try { history.back(); } catch (e) { /* ignore */ } }
+    agendarInbox(100);
 }
 
-(function bindMsgActions() {
-    const box = document.getElementById('chat-msgs');
+/* ============================ botão "ir para o fim" ============================ */
+function atualizarBotaoFim() {
+    const btn = $('chat-jump'); if (!btn) return;
+    const box = boxMsgs();
+    const longe = box && !isNearBottom(box, 240);
+    btn.classList.toggle('oculto', !longe && !T.novasAbaixo);
+    const n = btn.querySelector('.chat-jump-n');
+    if (n) { n.textContent = T.novasAbaixo > 99 ? '99+' : String(T.novasAbaixo || ''); n.classList.toggle('oculto', !T.novasAbaixo); }
+}
+
+/* ============================ agendar / anexar ============================ */
+function toggleAgendar(forcar) {
+    agendarAtivo = typeof forcar === 'boolean' ? forcar : !agendarAtivo;
+    const box = $('chat-agendar-box'), btn = $('btn-toggle-agendar');
+    if (box) box.classList.toggle('oculto', !agendarAtivo);
+    if (btn) { btn.classList.toggle('btn-ok', agendarAtivo); btn.textContent = agendarAtivo ? '🗓️ Agendar msg (ativo)' : '🗓️ Agendar msg'; }
+}
+function fecharAnexar() { const s = $('wa-attach-sheet'); if (s) s.classList.add('oculto'); }
+function atualizarBackUnread() {
+    const el = $('chat-back-unread'); if (!el) return;
+    const n = contatosCache.reduce((s, c) => s + (c.auth_id !== T.peer ? (c.unread || 0) : 0), 0);
+    el.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
+    el.classList.toggle('oculto', !n);
+}
+
+/* ============================ painel Amigos (botão do topo da conversa) ============================ */
+let amigosBuscaT = null, amigosDir = [];
+function abrirAmigos() {
+    const s = $('chat-amigos-sheet'); if (!s) return;
+    fecharChatHeadMenu();
+    s.classList.remove('oculto');
+    const b = $('amigos-busca'); if (b) b.value = '';
+    renderAmigos('');
+}
+function fecharAmigos() { const s = $('chat-amigos-sheet'); if (s) s.classList.add('oculto'); }
+function amigoLinha(u, ja) {
+    const nome = displayNome(u);
+    return '<div class="gk-amigo" data-auth="' + esc(u.auth_id) + '"><span class="wa-av">' + esc(iniciais(nome)) + '</span>' +
+        '<span class="gk-amigo-txt"><strong>' + esc(nome) + '</strong><span class="sub">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</span></span>' +
+        '<button type="button" class="btn-sm" data-amigo="' + esc(u.auth_id) + '">' + (ja ? 'Conversar' : 'Adicionar') + '</button></div>';
+}
+async function renderAmigos(termo) {
+    const box = $('amigos-lista'); if (!box) return;
+    const t = String(termo || '').trim().toLowerCase();
+    const meus = contatosCache.filter(c => !t || (c.nome || '').toLowerCase().includes(t) || (c.apelido || '').toLowerCase().includes(t) || (c.nomeReal || '').toLowerCase().includes(t));
+    let html = meus.length ? '<div class="chat-group-title">Seus contatos</div>' + meus.map(c => amigoLinha(c, true)).join('') : '';
+    box.innerHTML = html + (t ? '<p class="sub">Buscando…</p>' : (meus.length ? '' : '<p class="sub">Nenhum contato ainda. Busque por nome ou apelido.</p>'));
+    if (!t) return;
+    const pedido = t;
+    amigosDir = await rpcDiretorio(t);
+    if ((($('amigos-busca') || {}).value || '').trim().toLowerCase() !== pedido) return;
+    const ja = new Set(contatosCache.map(c => c.auth_id));
+    const novos = amigosDir.filter(u => u.auth_id !== meuAuthId && !ja.has(u.auth_id));
+    box.innerHTML = html + (novos.length ? '<div class="chat-group-title">Outras pessoas no Minera Pará</div>' + novos.map(u => amigoLinha(u, false)).join('')
+        : (meus.length ? '' : '<p class="sub">Ninguém encontrado com esse nome.</p>'));
+}
+function bindAmigos() {
+    const btn = $('btn-chat-amigos'); if (btn) btn.addEventListener('click', abrirAmigos);
+    const s = $('chat-amigos-sheet');
+    if (s) s.addEventListener('click', async (e) => {
+        if (e.target && e.target.getAttribute && e.target.getAttribute('data-close-amigos')) { fecharAmigos(); return; }
+        const b = e.target.closest && e.target.closest('[data-amigo]');
+        if (!b) return;
+        const id = b.getAttribute('data-amigo');
+        const c = contatosCache.find(x => x.auth_id === id);
+        fecharAmigos();
+        if (c) { abrirThread(c); return; }
+        const u = amigosDir.find(x => x.auth_id === id);
+        if (u) await adicionarContato(u);
+    });
+    const busca = $('amigos-busca');
+    if (busca) busca.addEventListener('input', () => { clearTimeout(amigosBuscaT); amigosBuscaT = setTimeout(() => renderAmigos(busca.value), 250); });
+    const add = $('btn-amigos-add'); if (add) add.addEventListener('click', () => { fecharAmigos(); abrirModalAdd(); });
+}
+
+/* ============================ eventos da tela ============================ */
+function bindTela() {
+    bindAmigos();
+    const form = $('form-chat');
+    if (form) form.addEventListener('submit', (e) => { e.preventDefault(); enviarMensagem(); });
+    const input = $('chat-texto');
+    if (input) {
+        input.addEventListener('input', () => { autoCrescer(); avisarDigitando(); });
+        input.addEventListener('keydown', (e) => {
+            // Enter envia só com teclado físico; no celular Enter = nova linha (botão ➤ envia)
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !tecladoMobile()) { e.preventDefault(); enviarMensagem(); }
+        });
+        input.addEventListener('blur', () => setTimeout(pararDigitando, 300));
+    }
+    const send = $('btn-chat-enviar');
+    // não tira o foco do campo (teclado continua aberto no celular)
+    if (send) send.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') e.preventDefault(); });
+    if (send) send.addEventListener('mousedown', (e) => e.preventDefault());
+
+    const arquivo = (id, fn) => {
+        const el = $(id); if (!el) return;
+        el.addEventListener('change', (e) => {
+            const f = e.target.files && e.target.files[0];
+            e.target.value = '';
+            fecharAnexar();
+            if (f) fn(f);
+        });
+    };
+    arquivo('chat-foto', f => enviarMidia('imagem', f));
+    arquivo('chat-foto-gal', f => enviarMidia('imagem', f));
+    arquivo('chat-video', f => enviarMidia('video', f));
+    arquivo('chat-audio-file', f => enviarMidia('audio', f));
+    arquivo('chat-doc', f => enviarMidia(/^image\//.test(f.type) ? 'imagem' : 'documento', f));
+
+    bindAudioButton();
+    const btnCancelRec = $('btn-cancel-rec');
+    if (btnCancelRec) btnCancelRec.addEventListener('click', () => stopRecording(true));
+    const tog = $('btn-toggle-agendar'); if (tog) tog.addEventListener('click', () => toggleAgendar());
+    const ag = $('btn-attach-agendar'); if (ag) ag.addEventListener('click', () => { fecharAnexar(); toggleAgendar(true); });
+
+    const add = $('btn-add-contato'); if (add) add.addEventListener('click', abrirModalAdd);
+    const fAdd = $('btn-fechar-add'); if (fAdd) fAdd.addEventListener('click', fecharModalAdd);
+    const mAdd = $('modal-add-contato'); if (mAdd) mAdd.addEventListener('click', (e) => { if (e.target && e.target.getAttribute('data-close-add') === '1') fecharModalAdd(); });
+    let buscaT = null;
+    const busca = $('chat-busca-contatos'); if (busca) busca.addEventListener('input', () => { clearTimeout(buscaT); buscaT = setTimeout(renderLista, 120); });
+    let addBuscaT = null;
+    const addBusca = $('add-busca'); if (addBusca) addBusca.addEventListener('input', () => { clearTimeout(addBuscaT); addBuscaT = setTimeout(() => carregarDiretorioAdd(addBusca.value.trim()), 300); });
+
+    const back = $('btn-chat-back'); if (back) back.addEventListener('click', () => fecharConversa(false));
+    window.addEventListener('popstate', () => {
+        if (T.peer && !(history.state && history.state.chatPeer)) fecharConversa(true);
+    });
+
+    const lista = $('chat-contatos-list');
+    if (lista) lista.addEventListener('click', (e) => {
+        const row = e.target.closest && e.target.closest('.wa-row[data-auth]');
+        if (!row) return;
+        const c = contatosCache.find(x => x.auth_id === row.getAttribute('data-auth'));
+        if (c) abrirThread(c);
+    });
+    document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('#wa-filter-chips .wa-chip').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        aplicarFiltroListaChat(btn.getAttribute('data-wa') || 'todas');
+    }));
+
+    const box = boxMsgs();
     if (box) {
-        const clearLp = () => {
-            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-            longPressStart = null;
+        let rafScroll = 0;
+        box.addEventListener('scroll', () => {
+            if (rafScroll) return;
+            rafScroll = requestAnimationFrame(() => {
+                rafScroll = 0;
+                if (box.scrollTop < 400) carregarAntigas();
+                T.pertoDoFim = isNearBottom(box);
+                if (T.pertoDoFim && T.novasAbaixo) T.novasAbaixo = 0;
+                atualizarBotaoFim();
+            });
+        }, { passive: true });
+        box.addEventListener('click', (e) => {
+            const r = e.target.closest && e.target.closest('[data-retry]');
+            if (r) { reenviarUm(r.getAttribute('data-retry')); return; }
+            const img = e.target.closest && e.target.closest('.bubble-media img');
+            if (img && !img.closest('.bubble-media-loading') && window.MineraLightbox) {
+                const imgs = Array.from(box.querySelectorAll('.bubble-media img')).filter(x => !x.closest('.bubble-media-loading') && x.getAttribute('src'));
+                window.MineraLightbox.open(imgs.map(x => x.getAttribute('src')), Math.max(0, imgs.indexOf(img)));
+            }
+        });
+        // mídia carregando depois do posicionamento aumenta a altura → mantém no fim se o usuário estava no fim
+        const manterFim = (e) => {
+            const t = e.target;
+            if (!t || !/^(IMG|VIDEO|AUDIO)$/.test(t.tagName)) return;
+            if (T.pertoDoFim && !T.carregandoAntigas) box.scrollTop = box.scrollHeight;
         };
+        box.addEventListener('load', manterFim, true);
+        box.addEventListener('loadedmetadata', manterFim, true);
+        const clearLp = () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } longPressStart = null; };
         box.addEventListener('pointerdown', (e) => {
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             const m = msgFromBubbleEl(e.target);
             if (!m || m.deleted_at) return;
-            // não atrapalhar áudio/links/botões
             if (e.target.closest && e.target.closest('audio, video, a, button, input')) return;
-            longPressStart = { x: e.clientX, y: e.clientY, m: m };
-            longPressTimer = setTimeout(() => {
-                if (longPressStart) abrirMsgSheet(longPressStart.m);
-                clearLp();
-            }, LONG_PRESS_MS);
+            longPressStart = { x: e.clientX, y: e.clientY, m };
+            longPressTimer = setTimeout(() => { if (longPressStart) abrirMsgSheet(longPressStart.m); clearLp(); }, LONG_PRESS_MS);
         });
         box.addEventListener('pointermove', (e) => {
             if (!longPressStart) return;
-            const dx = Math.abs(e.clientX - longPressStart.x);
-            const dy = Math.abs(e.clientY - longPressStart.y);
-            if (dx > 12 || dy > 12) clearLp();
+            if (Math.abs(e.clientX - longPressStart.x) > 12 || Math.abs(e.clientY - longPressStart.y) > 12) clearLp();
         });
         box.addEventListener('pointerup', clearLp);
         box.addEventListener('pointercancel', clearLp);
@@ -1962,141 +1454,160 @@ async function apagarHistoricoParaTodos() {
             const m = msgFromBubbleEl(e.target);
             if (!m || m.deleted_at) return;
             if (e.target.closest && e.target.closest('audio, video, a')) return;
-            e.preventDefault();
-            abrirMsgSheet(m);
+            e.preventDefault(); abrirMsgSheet(m);
         });
+        box.addEventListener('error', (e) => {
+            const el = e.target;
+            if (!el || el.tagName !== 'AUDIO' && el.tagName !== 'SOURCE') return;
+            const wrap = el.closest && el.closest('.bubble-audio');
+            if (!wrap || wrap.querySelector('.audio-err')) return;
+            const d = document.createElement('div'); d.className = 'audio-err hint'; d.textContent = 'Não foi possível tocar este áudio.';
+            wrap.appendChild(d);
+        }, true);
     }
+    const jump = $('chat-jump'); if (jump) jump.addEventListener('click', () => rolarFim(true));
 
-    const sheet = document.getElementById('chat-msg-sheet');
-    if (sheet) {
-        sheet.addEventListener('click', (e) => {
-            if (e.target && e.target.getAttribute && e.target.getAttribute('data-close-sheet')) fecharMsgSheet();
-        });
-    }
-    const btnResp = document.getElementById('sheet-responder');
-    if (btnResp) btnResp.addEventListener('click', () => {
-        if (sheetMsg) setReplyTo(sheetMsg);
-        fecharMsgSheet();
-    });
-    const btnMim = document.getElementById('sheet-apagar-mim');
-    if (btnMim) btnMim.addEventListener('click', () => apagarMsgParaMim(sheetMsg));
-    const btnTodos = document.getElementById('sheet-apagar-todos');
-    if (btnTodos) btnTodos.addEventListener('click', () => apagarMsgParaTodos(sheetMsg));
-
-    const btnCancelReply = document.getElementById('btn-cancel-reply');
-    if (btnCancelReply) btnCancelReply.addEventListener('click', () => setReplyTo(null));
-
-    const btnMenu = document.getElementById('btn-chat-menu');
-    if (btnMenu) btnMenu.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleChatHeadMenu();
-    });
-    const btnHistMim = document.getElementById('btn-apagar-hist-mim');
-    if (btnHistMim) btnHistMim.addEventListener('click', () => apagarConversaParaMim());
-    const btnHistTodos = document.getElementById('btn-apagar-hist-todos');
-    if (btnHistTodos) btnHistTodos.addEventListener('click', () => apagarHistoricoParaTodos());
-
+    const sheet = $('chat-msg-sheet');
+    if (sheet) sheet.addEventListener('click', (e) => { if (e.target && e.target.getAttribute && e.target.getAttribute('data-close-sheet')) fecharMsgSheet(); });
+    const bResp = $('sheet-responder'); if (bResp) bResp.addEventListener('click', () => { const m = sheetMsg; fecharMsgSheet(); if (m) setReplyTo(m); });
+    const bMim = $('sheet-apagar-mim'); if (bMim) bMim.addEventListener('click', () => apagarMsgParaMim(sheetMsg));
+    const bTodos = $('sheet-apagar-todos'); if (bTodos) bTodos.addEventListener('click', () => apagarMsgParaTodos(sheetMsg));
+    const bCR = $('btn-cancel-reply'); if (bCR) bCR.addEventListener('click', () => setReplyTo(null, true));
+    const bMenu = $('btn-chat-menu'); if (bMenu) bMenu.addEventListener('click', (e) => { e.stopPropagation(); toggleChatHeadMenu(); });
+    const bHM = $('btn-apagar-hist-mim'); if (bHM) bHM.addEventListener('click', apagarConversaParaMim);
+    const bHT = $('btn-apagar-hist-todos'); if (bHT) bHT.addEventListener('click', apagarHistoricoParaTodos);
     document.addEventListener('click', (e) => {
-        const menu = document.getElementById('chat-head-menu');
+        const menu = $('chat-head-menu');
         if (!menu || menu.classList.contains('oculto')) return;
         if (e.target.closest && (e.target.closest('#chat-head-menu') || e.target.closest('#btn-chat-menu'))) return;
         fecharChatHeadMenu();
     });
+    document.addEventListener('visibilitychange', () => { if (visivel()) marcarLidoSeVisivel(); });
+}
+
+/* ============================ tempo real + reserva ============================ */
+function ligarTempoReal() {
+    if (!window.MineraRT) return;
+    MineraRT.start(meuAuthId);
+    MineraRT.on('msg', (ev) => receberRow(ev.row));
+    MineraRT.on('leitura', (r) => {
+        const peer = r.auth_id;
+        const lida = Number(r.ultima_lida_id || 0), ent = Math.max(Number(r.ultima_entregue_id || 0), lida);
+        const c = contatosCache.find(x => x.auth_id === peer);
+        if (c && (lida > (c.peerLida || 0) || ent > (c.peerEntregue || 0))) {
+            c.peerLida = Math.max(c.peerLida || 0, lida); c.peerEntregue = Math.max(c.peerEntregue || 0, ent);
+            renderLista();
+        }
+        if (peer === T.peer && (lida > T.peerLida || ent > T.peerEntregue)) {
+            T.peerLida = Math.max(T.peerLida, lida); T.peerEntregue = Math.max(T.peerEntregue, ent);
+            atualizarTicks();
+        }
+    });
+    const ressync = () => { if (T.peer) sincronizarConversa(); agendarInbox(200); reenviarFila(); };
+    MineraRT.on('resync', ressync);
+    MineraRT.on('visivel', ressync);
+    MineraRT.on('online', ressync);
+}
+function loopReserva() {
+    setInterval(() => {
+        if (!visivel() || !meuAuthId) return;
+        const live = !!(window.MineraRT && MineraRT.isLive());
+        const agora = Date.now();
+        if (T.peer && agora - T.ultimoSync > (live ? 45000 : 4000)) sincronizarConversa();
+        if (agora - ultimoInboxPoll > (live ? 90000 : 12000)) atualizarInbox();
+    }, 2000);
+    window.addEventListener('online', () => reenviarFila());
+}
+
+/* Pinta a lista do cache antes de qualquer rede (último usuário deste aparelho) */
+(function pintarDoCache() {
+    try {
+        const uid = localStorage.getItem('minera_chat_last_uid');
+        if (!uid) return;
+        meuAuthId = uid;
+        ChatStore.setUid(uid);
+        const c = ChatStore.cacheInboxLer();
+        const l = c && Array.isArray(c.l) ? c.l : null;
+        if (l && l.length) {
+            contatosCache = l;
+            renderLista();
+            window.__chatPerf.inboxCacheMs = Math.round(performance.now());
+        }
+    } catch (e) { /* ignore */ }
 })();
 
-(async function init() {
+async function init() {
+    bindTela();
     const session = await requireSession();
     if (!session) return;
+    if (meuAuthId && meuAuthId !== session.user.id) { contatosCache = []; renderLista(); }
     meuAuthId = session.user.id;
-    perfilAtual = await getPerfil(session);
+    ChatStore.setUid(meuAuthId);
+    try { localStorage.setItem('minera_chat_last_uid', meuAuthId); } catch (e) { /* ignore */ }
+    ligarTempoReal();
+    const [perfil] = await Promise.all([getPerfil(session), atualizarInbox()]);
+    perfilAtual = perfil;
     aplicarUserLabel(perfilAtual);
     montarNav('chat', perfilAtual);
-    loteCtx = lerLoteQuery();
-    const ctxEl = document.getElementById('chat-lote-ctx');
+    loteCtx = lerQuery('lote') || null;
+    const ctxEl = $('chat-lote-ctx');
     if (loteCtx && ctxEl) {
         ctxEl.textContent = 'Negociando lote: ' + loteCtx;
         ctxEl.classList.remove('oculto');
-        const input = document.getElementById('chat-texto');
+        const input = $('chat-texto');
         if (input && !input.value) input.placeholder = 'Mensagem sobre o lote ' + loteCtx + '...';
     }
-
-    await carregarContatos(true);
-
     const para = lerParaQuery();
-    if (para) {
-        const perfis = await rpcPerfis([para]);
-        const p = perfis[0] || { auth_id: para, nome: 'Contato', papeis: [], tipo: '' };
-        await abrirThread({
-            auth_id: p.auth_id || para,
-            nome: displayNome(p),
-            papeis: p.papeis || [],
-            tipo: p.tipo || '',
-            apelido: p.apelido || null
-        });
+    if (para && para !== meuAuthId) {
+        let c = contatosCache.find(x => x.auth_id === para);
+        if (!c) {
+            const perfis = await ChatStore.perfis([para]);
+            const p = perfis[0] || { auth_id: para, nome: 'Contato', papeis: [], tipo: '' };
+            c = { auth_id: para, nome: displayNome(p), papeis: p.papeis || [], tipo: p.tipo || '', apelido: p.apelido || null };
+        }
+        abrirThread(c, { semHistorico: true });
     }
-
-    // Prefill localização vinda do mapa (?lat=&lng=&label=)
     preencherLocalizacaoNoComposer(lerLocalizacaoQuery());
+    reenviarFila();
+    ChatStore.promoverAgendadasVencidas();
+    if (window.MineraNotif && MineraNotif.start) MineraNotif.start(meuAuthId);
+    loopReserva();
+}
+init();
 
-    pollTimer = setInterval(async () => {
-        if (contatoAtivo) await carregarThread(false);
-    }, 4000);
-    contactsPollTimer = setInterval(() => carregarContatos(false), 12000);
+window.addEventListener('beforeunload', () => { stopAudioTimer(); salvarCacheConversa(); });
 
-    if (typeof window.MineraNotif !== 'undefined' && MineraNotif.start) {
-        MineraNotif.start(meuAuthId);
-    }
-})();
-
-window.addEventListener('beforeunload', () => {
-    if (pollTimer) clearInterval(pollTimer);
-    if (contactsPollTimer) clearInterval(contactsPollTimer);
-    stopAudioTimer();
-});
-
-
-/* ---- Keyboard-safe composer (visualViewport) — mobile WA feel ---- */
+/* ---- Teclado (visualViewport): mantém o composer acima do teclado e só gruda no fim se já estava no fim ---- */
 (function bindChatKeyboardSafe() {
+    let estavaNoFim = true;
     function measureComposer() {
-        const form = document.getElementById('form-chat');
+        const form = $('form-chat');
         if (!form || form.classList.contains('oculto')) return;
         const h = Math.ceil(form.getBoundingClientRect().height) || 58;
         document.documentElement.style.setProperty('--composer-h', h + 'px');
     }
     function syncKbInset() {
         const vv = window.visualViewport;
-        if (!vv) {
-            document.documentElement.style.setProperty('--kb-inset', '0px');
-            return;
-        }
-        // Distance from layout bottom to visual viewport bottom (= keyboard overlap)
-        const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+        const box = boxMsgs();
+        const inset = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
         document.documentElement.style.setProperty('--kb-inset', inset + 'px');
+        // conversa em tela cheia = exatamente a área visível (teclado aberto ou não)
+        document.documentElement.style.setProperty('--vvh', (vv ? Math.round(vv.height) : window.innerHeight) + 'px');
+        document.documentElement.style.setProperty('--vvtop', (vv ? Math.round(vv.offsetTop) : 0) + 'px');
         measureComposer();
-        // Keep latest messages visible above composer
-        const box = document.getElementById('chat-msgs');
-        if (box && document.body.classList.contains('chat-thread-open') && inset > 40) {
-            try { box.scrollTop = box.scrollHeight; } catch (e) { /* ignore */ }
-        }
+        if (box && estavaNoFim && document.body.classList.contains('chat-thread-open')) box.scrollTop = box.scrollHeight;
     }
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', syncKbInset);
-        window.visualViewport.addEventListener('scroll', syncKbInset);
-    }
+    function lembrar() { const box = boxMsgs(); estavaNoFim = isNearBottom(box, 80); }
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', syncKbInset); window.visualViewport.addEventListener('scroll', () => { const v = window.visualViewport; document.documentElement.style.setProperty('--vvtop', Math.round(v.offsetTop) + 'px'); }); }
     window.addEventListener('resize', syncKbInset);
     window.addEventListener('orientationchange', () => setTimeout(syncKbInset, 120));
-    document.addEventListener('focusin', (e) => {
-        if (e.target && (e.target.id === 'chat-texto' || e.target.classList.contains('wa-comp-input'))) {
-            setTimeout(syncKbInset, 50);
-            setTimeout(syncKbInset, 300);
-        }
-    });
-    document.addEventListener('focusout', () => setTimeout(syncKbInset, 50));
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => { syncKbInset(); measureComposer(); });
-    } else {
-        syncKbInset();
-        measureComposer();
+    const box = boxMsgs();
+    if (box) box.addEventListener('scroll', lembrar, { passive: true });
+    document.addEventListener('focusin', (e) => { if (e.target && e.target.id === 'chat-texto') { lembrar(); setTimeout(syncKbInset, 60); setTimeout(syncKbInset, 320); } }, true);
+    document.addEventListener('focusout', () => setTimeout(syncKbInset, 60));
+    const form = $('form-chat');
+    if (form && typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(() => { measureComposer(); if (estavaNoFim) { const b = boxMsgs(); if (b) b.scrollTop = b.scrollHeight; } }).observe(form);
     }
+    syncKbInset();
 })();
-

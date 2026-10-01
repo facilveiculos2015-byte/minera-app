@@ -741,7 +741,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20260925d';
+    const src = root + 'logo-escavadeira.png?v=20261001a';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1106,6 +1106,98 @@ const MineraNotif = (function () {
         el.querySelector('.nl-ver').addEventListener('click', () => { guardar(); });
     }
 
+    /** Toast + notificação + "pim" para mensagens novas (vem do poll OU do realtime). */
+    function avisarNovas(lista) {
+        let tocarPim = false, tocarTick = false;
+        (lista || []).forEach(m => {
+            knownIds.add(m.id);
+            setSeenGlobal(m.id);
+            // Conversa aberta e visível no chat: chat.js já mostra/marca como lida → só um "tick" discreto
+            if (conversaAbertaCom(m.de_auth_id)) { tocarTick = true; return; }
+            tocarPim = true;
+            let nome = m.de_nome || 'Alguém';
+            if (/@/.test(String(nome))) nome = 'Alguém';
+            const preview = (m.texto || (m.tipo && m.tipo !== 'text' ? '[' + m.tipo + ']' : 'Nova mensagem')).slice(0, 80);
+            if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome);
+            showBrowserNotif('Minera Pará — ' + nome, preview, {
+                tag: 'dm-' + m.de_auth_id,
+                url: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'chat.html?para=' + encodeURIComponent(m.de_auth_id)
+            });
+        });
+        // Um som por evento (MineraSom tem throttle de 2 s)
+        if (tocarPim && window.MineraSom) MineraSom.pim();
+        else if (tocarTick && window.MineraSom) MineraSom.tick();
+    }
+
+    /* ---------- Tempo real (SQL 44): pim na hora + "entregue" ---------- */
+    let pollAgendado = null;
+    let entregaT = null;
+    let entregaSuportada = true;
+    let leiturasSyncEm = 0;
+    function agendarPoll(ms) {
+        clearTimeout(pollAgendado);
+        pollAgendado = setTimeout(() => { pollAgendado = null; poll(); }, ms || 0);
+    }
+    /** ✓✓ para quem enviou: marca como ENTREGUE tudo que chegou (RPC do SQL 44; sem ele, ignora). */
+    function marcarEntregue(ms) {
+        if (!entregaSuportada || !authId) return;
+        clearTimeout(entregaT);
+        entregaT = setTimeout(async () => {
+            try {
+                const { error } = await supabaseClient.rpc('chat_marcar_entregue_tudo');
+                if (error && (error.code === 'PGRST202' || /function/i.test(error.message || ''))) entregaSuportada = false;
+            } catch (e) { /* offline: tenta no próximo evento */ }
+        }, ms == null ? 800 : ms);
+    }
+    /** Leituras do servidor (outro aparelho) → mapa local usado pelo badge. */
+    async function sincronizarLeituras(force) {
+        if (!authId || (!force && Date.now() - leiturasSyncEm < 60000)) return;
+        leiturasSyncEm = Date.now();
+        try {
+            const { data, error } = await supabaseClient.from('chat_leituras')
+                .select('com_auth_id,ultima_lida_id').eq('auth_id', authId);
+            if (error || !data) return;
+            const k = 'minera_chat_leituras_' + authId;
+            const map = lsLeituras();
+            let mudou = false;
+            data.forEach(r => {
+                const v = Number(r.ultima_lida_id || 0);
+                if (r.com_auth_id && v > Number(map[r.com_auth_id] || 0)) { map[r.com_auth_id] = v; mudou = true; }
+            });
+            if (mudou) localStorage.setItem(k, JSON.stringify(map));
+        } catch (e) { /* ignore */ }
+    }
+    function intervaloPoll() {
+        return (window.MineraRT && MineraRT.isLive()) ? 60000 : 8000;
+    }
+    function reprogramarTimer() {
+        clearInterval(timer);
+        timer = setInterval(() => { if (document.visibilityState !== 'hidden') poll(); }, intervaloPoll());
+    }
+    function ligarRealtime() {
+        if (!window.MineraRT) return;
+        MineraRT.start(authId);
+        MineraRT.on('msg', (ev) => {
+            const m = ev && ev.row;
+            if (!m) return;
+            const paraMim = m.para_auth_id === authId && m.de_auth_id !== authId;
+            if (ev.type === 'INSERT' && paraMim) {
+                const ok = bootstrapped && !m.deleted_at && (m.status || '') !== 'agendada' &&
+                    !knownIds.has(m.id) && Number(m.id) > lsSeenGlobal() &&
+                    !(Array.isArray(m.apagada_para) && m.apagada_para.indexOf(authId) >= 0);
+                if (ok) avisarNovas([m]);
+                marcarEntregue(600);
+                agendarPoll(250);
+            } else if (paraMim) {
+                // agendada promovida / apagada / moderada → recalcula badge
+                agendarPoll(600);
+                if ((m.status || '') === 'enviada') marcarEntregue(900);
+            }
+        });
+        MineraRT.on('status', reprogramarTimer);
+        MineraRT.on('resync', () => { agendarPoll(0); marcarEntregue(300); });
+    }
+
     async function poll() {
         if (!authId || typeof supabaseClient === 'undefined') return;
         try {
@@ -1153,27 +1245,7 @@ const MineraNotif = (function () {
                 if (data && data[0]) setSeenGlobal(data[0].id);
                 bootstrapped = true;
             }
-            {
-                let tocarPim = false, tocarTick = false;
-                avisar.forEach(m => {
-                    knownIds.add(m.id);
-                    setSeenGlobal(m.id);
-                    // Conversa aberta e visível no chat: chat.js já mostra/marca como lida → só um "tick" discreto
-                    if (conversaAbertaCom(m.de_auth_id)) { tocarTick = true; return; }
-                    tocarPim = true;
-                    let nome = m.de_nome || 'Alguém';
-                    if (/@/.test(String(nome))) nome = 'Alguém';
-                    const preview = (m.texto || (m.tipo && m.tipo !== 'text' ? '[' + m.tipo + ']' : 'Nova mensagem')).slice(0, 80);
-                    if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome);
-                    showBrowserNotif('Minera Pará — ' + nome, preview, {
-                        tag: 'dm-' + m.de_auth_id,
-                        url: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'chat.html?para=' + encodeURIComponent(m.de_auth_id)
-                    });
-                });
-                // Um som por evento (MineraSom tem throttle de 2 s)
-                if (tocarPim && window.MineraSom) MineraSom.pim();
-                else if (tocarTick && window.MineraSom) MineraSom.tick();
-            }
+            avisarNovas(avisar);
 
             // Fill dropdown
             const list = document.getElementById('notif-dd-list');
@@ -1251,15 +1323,19 @@ const MineraNotif = (function () {
                 notificarNoBootstrap = true;
             }
         } catch (e) { lembretePendente = true; }
-        poll();
-        timer = setInterval(poll, 8000);
+        sincronizarLeituras(true).then(poll, poll);
+        // Polling = fallback: 8 s sem tempo real, 60 s com; pausado com a aba oculta
+        reprogramarTimer();
+        ligarRealtime();
+        marcarEntregue(1500);
         let hiddenAt = 0;
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
             // Voltou ao app: checa já; lembra de novo se ficou > 5 min fora
             if (hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000) lembretePendente = true;
             hiddenAt = 0;
-            poll();
+            sincronizarLeituras(false).then(poll, poll);
+            marcarEntregue(800);
         });
     }
 
@@ -1268,7 +1344,7 @@ const MineraNotif = (function () {
         if (document.getElementById('notif-lembrete')) return true;
         return started && (!primeiroPollFeito || lembretePendente);
     }
-    return { start, poll, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge, showBrowserNotif, avaliarLembrete, lembreteOcupado };
+    return { start, poll, agendarPoll, marcarEntregue, updateBadge, setAdminEmpPendentes, setAdminAlertas, renderCombinedBadge, showBrowserNotif, avaliarLembrete, lembreteOcupado };
 })();
 window.MineraNotif = MineraNotif;
 
