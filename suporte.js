@@ -783,10 +783,10 @@ async function aplicarDescontoPontosComissao(vendedorAuthId, valorComissaoOrigin
         const maxDescontoReais = original;
         const maxPontos = Math.ceil(maxDescontoReais / 0.1);
         const pontosUsados = Math.min(saldo, maxPontos);
-        let desconto = Math.round(pontosUados * 0.1 * 100) / 100;
+        let desconto = Math.round(pontosUsados * 0.1 * 100) / 100;
         if (desconto > original) desconto = original;
         const final = Math.round((original - desconto) * 100) / 100;
-        const novoSaldo = Math.round((saldo - pontosUados) * 100) / 100;
+        const novoSaldo = Math.round((saldo - pontosUsados) * 100) / 100;
         const { error: updErr } = await supabaseClient
             .from('usuarios')
             .update({ pontos_saldo: novoSaldo })
@@ -797,12 +797,12 @@ async function aplicarDescontoPontosComissao(vendedorAuthId, valorComissaoOrigin
         }
         await supabaseClient.from('indicacao_pontos').insert([{
             auth_id: vendedorAuthId,
-            pontos: -pontosUados,
+            pontos: -pontosUsados,
             motivo: 'Desconto comissão 1% (−R$ ' + desconto.toFixed(2) + ')'
         }]);
         out.valor_comissao = final;
         out.desconto_pontos = desconto;
-        out.pontos_usados = pontosUados;
+        out.pontos_usados = pontosUsados;
         return out;
     } catch (e) {
         console.warn(e);
