@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Perfil</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261002f">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261002f">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261002g">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261002g">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261002f">
+    <link rel="stylesheet" href="style.css?v=20261002g">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -153,6 +153,12 @@
             <button type="button" class="btn-ok" id="btn-vaquinha-pix">Fazer Pix voluntário</button>
         </section>
 
+        <section class="card bp-card oculto" id="card-meus-banners" aria-labelledby="meus-banners-titulo">
+            <div class="bp-card-top"><h2 id="meus-banners-titulo">Meus banners</h2><button type="button" class="btn-ok btn-sm" id="btn-anunciar-empresa">＋ Anunciar minha empresa</button></div>
+            <p class="sub">Banner da sua empresa no carrossel do Início, visto por todos. <span id="bp-preco-txt">R$ 99,90</span> por 30 dias — pague por Pix e envie o comprovante no Fale conosco.</p>
+            <div id="meus-banners-lista" class="bp-lista"></div>
+        </section>
+
         <section class="card oculto" id="card-comissoes">
             <h2>Comissões pendentes</h2>
             <p class="sub" id="comissoes-sub">1% sobre vendas marcadas como Vendido. Pague via Pix para liberar.</p>
@@ -184,16 +190,17 @@
         </section>
 
     </div>
-    <script src="config.js?v=20261002f"></script>
-    <script src="auth-guard.js?v=20261002f"></script>
-    <script src="suporte.js?v=20261002f"></script>
-    <script src="chat-realtime.js?v=20261002f"></script>
-    <script src="avatar.js?v=20261002f"></script>
-    <script src="nav.js?v=20261002f"></script>
-    <script src="pix-brcode.js?v=20261002f"></script>
-    <script src="anuncios-acoes.js?v=20261002f"></script>
-    <script src="avatar-editor.js?v=20261002f"></script>
-    <script src="perfil.js?v=20261002f"></script>
-    <script src="pwa.js?v=20261002f"></script>
+    <script src="config.js?v=20261002g"></script>
+    <script src="auth-guard.js?v=20261002g"></script>
+    <script src="suporte.js?v=20261002g"></script>
+    <script src="chat-realtime.js?v=20261002g"></script>
+    <script src="avatar.js?v=20261002g"></script>
+    <script src="nav.js?v=20261002g"></script>
+    <script src="pix-brcode.js?v=20261002g"></script>
+    <script src="anuncios-acoes.js?v=20261002g"></script>
+    <script src="avatar-editor.js?v=20261002g"></script>
+    <script src="banners.js?v=20261002g"></script>
+    <script src="perfil.js?v=20261002g"></script>
+    <script src="pwa.js?v=20261002g"></script>
 </body>
 </html>

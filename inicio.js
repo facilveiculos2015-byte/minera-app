@@ -179,9 +179,34 @@ async function carregarBannersPromos() {
 
     if (!rows.length) rows = [BANNER_FALLBACK];
 
+    /* Banners pagos de empresas (SQL 50): intercalados com as promos + slide "Anuncie sua empresa aqui" */
+    let slides = rows.map(slideHtml);
+    try {
+        const MB = window.MineraBanners;
+        if (MB && await MB.disponivel()) {
+            const pagos = await MB.ativos();
+            const mix = [];
+            const n = Math.max(slides.length, pagos.length);
+            for (let k = 0; k < n; k++) {
+                if (k < slides.length) mix.push(slides[k]);
+                if (k < pagos.length) mix.push(MB.slideHtml(pagos[k]));
+            }
+            mix.push(MB.slideAnuncieHtml(await MB.preco()));
+            slides = mix;
+        }
+    } catch (e) { console.warn('banners pagos', e); }
+
     if (banner) banner.classList.remove('oculto');
-    track.innerHTML = rows.map(slideHtml).join('');
-    bindCarousel(rows.length);
+    track.innerHTML = slides.join('');
+    if (!track._bpBound) {
+        track._bpBound = true;
+        track.addEventListener('click', (e) => {
+            const a = e.target.closest && e.target.closest('[data-bp-anuncie]');
+            if (a && window.MineraBanners) { e.preventDefault(); window.MineraBanners.abrirCriar(); }
+        });
+        document.addEventListener('minera:banners-mudou', () => { carregarBannersPromos(); });
+    }
+    bindCarousel(slides.length);
 }
 
 

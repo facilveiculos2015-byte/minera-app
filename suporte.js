@@ -321,7 +321,17 @@ function garantirFaleConosco(perfil) {
     if (location.hash === '#fale-conosco' && !garantirFaleConosco._auto) {
         garantirFaleConosco._auto = true;
         try { card.scrollIntoView({ block: 'center' }); } catch (e) { /* ignore */ }
-        setTimeout(() => { try { abrirSuporte(_suportePerfil); } catch (e) { /* ignore */ } }, 400);
+        setTimeout(async () => {
+            try {
+                await abrirSuporte(_suportePerfil);
+                // perfil.html?banner=ID#fale-conosco → já deixa a mensagem do comprovante pronta
+                const bid = new URLSearchParams(location.search).get('banner');
+                const inp = document.getElementById('suporte-input');
+                if (bid && /^[0-9]+$/.test(bid) && inp && !inp.value) {
+                    inp.value = 'Comprovante do banner #' + bid + ' (Anuncie sua empresa) — paguei o Pix. Segue o comprovante: ';
+                }
+            } catch (e) { /* ignore */ }
+        }, 400);
     }
 }
 
