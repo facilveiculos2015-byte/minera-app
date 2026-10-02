@@ -188,7 +188,7 @@ function renderMedia(m) {
         const ov = m._estado === 'falhou' ? '' : '<div class="media-upload-overlay">Enviando…</div>';
         if (tipo === 'imagem') return '<div class="bubble-media bubble-media-loading"><img src="' + esc(local) + '" alt="enviando">' + ov + '</div>';
         if (tipo === 'video') return '<div class="bubble-media bubble-media-loading"><video src="' + esc(local) + '" muted playsinline></video>' + ov + '</div>';
-        if (tipo === 'audio') return '<div class="bubble-media bubble-media-loading"><audio src="' + esc(local) + '" controls playsinline></audio>' + ov + '</div>';
+        if (tipo === 'audio') return '<div class="bubble-media bubble-audio bubble-media-loading">' + ChatAudio.playerHtml(local + (m.midia_frag || '')) + '</div>';
     }
     const url = m.midia_url;
     if (!url) {
@@ -201,13 +201,10 @@ function renderMedia(m) {
     if (tipo === 'video') return '<div class="bubble-media"><video src="' + esc(url) + '" controls playsinline preload="metadata"></video></div>';
     if (tipo === 'audio') {
         const amime = ChatMidia.mimeFromMediaUrl(url);
-        const typeAttr = amime ? ' type="' + esc(amime) + '"' : '';
         const isWebm = amime === 'audio/webm';
         const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-        let h = '<div class="bubble-media bubble-audio"><div class="wa-wave" aria-hidden="true">▁▂▃▅▃▂▅▆▄▂▃▅▂▁</div>' +
-            '<audio controls preload="metadata" playsinline webkit-playsinline' + (isWebm && isIos ? ' data-ios-webm="1"' : '') + '>' +
-            '<source src="' + esc(url) + '"' + typeAttr + '></audio>';
-        if (isWebm) h += '<a class="btn-sm bubble-audio-dl' + (isIos ? '' : ' oculto') + '" href="' + esc(url) + '" download target="_blank" rel="noopener">Baixar áudio</a>';
+        let h = '<div class="bubble-media bubble-audio">' + ChatAudio.playerHtml(url, { mime: amime });
+        if (isWebm && isIos) h += '<a class="btn-sm bubble-audio-dl" href="' + esc(ChatAudio.lerUrl(url).src) + '" download target="_blank" rel="noopener">Baixar áudio</a>';
         return h + '</div>';
     }
     if (tipo === 'documento' || tipo === 'doc' || tipo === 'pdf' || /\.pdf($|\?)/i.test(url)) {
@@ -252,7 +249,10 @@ function bubbleHtml(m) {
     if (m.moderacao && ehAdminEu()) extra += ' · 🚩 ' + esc(m.moderacao);
     if (ehAdminEu() && m.id != null) extra += ' · #' + m.id;
     const falhou = m._estado === 'falhou';
+    const tipoB = String(m.tipo || '').toLowerCase();
+    const soImg = !deleted && !txtVisivel && !quote && (tipoB === 'imagem' || String(m.midia_url || '').startsWith('data:image'));
     const cls = 'bubble ' + (mine ? 'mine sent' : 'theirs') + (sched ? ' scheduled' : '') + (deleted ? ' deleted' : '') +
+        (soImg ? ' bubble-img' : '') + (!deleted && tipoB === 'audio' ? ' bubble-au' : '') +
         (m.id == null ? ' pending' : '') + (falhou ? ' bubble-failed' : '');
     const attrs = ' data-key="' + chaveMsg(m) + '" data-dia="' + dayKey(iso) + '"' +
         (m.id != null ? ' data-msg-id="' + m.id + '"' : ' data-cid="' + esc(m.client_id) + '"') +
@@ -402,6 +402,8 @@ async function abrirThread(contato, opts) {
     setReplyTo(null);
     fecharChatHeadMenu();
     mostrarEstadoOutro(null);
+    aplicarBloqueioUI(Bloq.get(contato.auth_id));
+    const pBloq = carregarBloqueio(contato.auth_id);
     showThreadUI(true);
     $('chat-com-nome').textContent = displayNome(contato);
     if (window.MineraAvatar) MineraAvatar.marcar($('chat-com-av'), contato.auth_id, displayNome(contato));
@@ -462,12 +464,13 @@ async function abrirThread(contato, opts) {
         if (gen !== T.gen) return;
         if (!T.msgs.size) boxMsgs().innerHTML = '<p class="sub chat-vazio">Sem conexão. As mensagens aparecem quando a internet voltar.</p>';
     }
-    // conversa reexibida (se estava "apagada para mim") + contato salvo
+    try {
+        const eB = await pBloq;
+        if (gen === T.gen && eB) { aplicarBloqueioUI(eB); aplicarCorte(eB); }
+    } catch (e) { /* ignore */ }
+    // conversa reexibida (se estava "apagada para mim"). Amigo agora é escolha explícita (menu ⋮ → Adicionar amigo).
     try { await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contato.auth_id }); } catch (e) { /* SQL 28 opcional */ }
-    if (!contatosCache.some(c => c.auth_id === contato.auth_id)) {
-        try { await supabaseClient.from('chat_contatos').upsert([{ auth_id: meuAuthId, contato_auth_id: contato.auth_id, apelido: displayNome(contato) }], { onConflict: 'auth_id,contato_auth_id' }); } catch (e) { /* ignore */ }
-        agendarInbox(300);
-    }
+    if (!contatosCache.some(c => c.auth_id === contato.auth_id)) agendarInbox(300);
 }
 
 /** Rolou até perto do topo → busca as 40 anteriores e mantém a posição (âncora). */
@@ -678,7 +681,7 @@ async function processarItem(item) {
                     f = c.file;
                     window.__chatPerf.ultimaCompressao = { antes: c.antes, depois: c.depois, w: c.w, h: c.h };
                 }
-                item.midia_url = await ChatMidia.upload(f, ChatMidia.pastaPara(item.tipo), meuAuthId);
+                item.midia_url = (await ChatMidia.upload(f, ChatMidia.pastaPara(item.tipo), meuAuthId)) + (item.midia_frag || '');
                 item._file = null;
                 ChatStore.outboxPut(item);
             } catch (e) {
@@ -701,6 +704,14 @@ async function processarItem(item) {
             item._estado = 'pendente';
             ChatStore.outboxPut(item);
             agendarRetry();
+        } else if (ehErroBloqueio(r.erro)) {
+            item._estado = 'falhou';
+            item.erro = 'bloqueado';
+            ChatStore.outboxDel(item.client_id);
+            atualizarBolhaPendente(item);
+            const eu = /desbloqueie/i.test((r.erro && r.erro.message) || '') || /eu_bloqueei/.test((r.erro && r.erro.hint) || '');
+            toast(eu ? 'Você bloqueou este usuário. Desbloqueie para enviar.' : 'Não é possível enviar mensagens para este usuário.');
+            if (item.para === T.peer) aplicarBloqueioUI(Object.assign({}, Bloq.get(T.peer) || {}, eu ? { eu_bloqueei: true } : { me_bloqueou: true }));
         } else {
             item._estado = 'falhou';
             item.erro = (r.erro && r.erro.message) || 'Erro';
@@ -942,93 +953,108 @@ function autoCrescer() {
 }
 function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }
 
-/* ============================ áudio (segurar p/ gravar) ============================ */
+/* ============================ áudio estilo WhatsApp ============================ */
+// Segurar = grava enquanto segura (solta envia; deslize ← cancela).
+// Tocar = grava "travado": barra com 🗑 descartar e ➤ enviar.
+// Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
 let audioCancelado = false, audioHoldMode = false, audioPointerId = null, audioAutoSend = false, audioRecStartedAt = 0;
+let audioVis = null, audioPicos = null, audioStream = null;
 function formatAudioTimer(sec) { const s = Math.max(0, Math.floor(sec)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
-function showRecBar(show) { const bar = $('chat-rec-bar'); if (bar) bar.classList.toggle('oculto', !show); }
+function showRecBar(show) {
+    const bar = $('chat-rec-bar'); if (!bar) return;
+    bar.classList.toggle('oculto', !show);
+    bar.classList.toggle('travado', !!show && !audioHoldMode);
+    document.body.classList.toggle('chat-gravando', !!show);
+}
 function updateRecTimer() { const t = $('chat-rec-timer'); if (t) t.textContent = formatAudioTimer(audioSeconds); }
 function startAudioTimer() {
     audioSeconds = 0; updateRecTimer(); clearInterval(audioTimerInterval);
-    audioTimerInterval = setInterval(() => { audioSeconds++; updateRecTimer(); if (window.MineraRT && audioSeconds % 3 === 0) MineraRT.sendEstado('gravando'); }, 1000);
+    const ini = Date.now();
+    audioTimerInterval = setInterval(() => {
+        const s2 = Math.floor((Date.now() - ini) / 1000);
+        if (s2 !== audioSeconds) { audioSeconds = s2; updateRecTimer(); if (window.MineraRT && audioSeconds % 3 === 0) MineraRT.sendEstado('gravando'); }
+        if (audioSeconds >= 600) stopRecording(false, true); // 10 min
+    }, 250);
 }
 function stopAudioTimer() { clearInterval(audioTimerInterval); audioTimerInterval = null; }
 function resetAudioBtn() {
     const btn = $('btn-audio'); if (!btn) return;
-    btn.textContent = '🎤'; btn.removeAttribute('data-recording');
+    btn.removeAttribute('data-recording');
     btn.classList.remove('btn-danger', 'recording', 'btn-ok'); btn.title = 'Segure para gravar';
 }
 function showMediaPreview(opts) {
     const box = $('chat-media-preview'); if (!box) return;
     if (!opts) { box.classList.add('oculto'); box.innerHTML = ''; return; }
-    box.innerHTML = '<div class="media-preview-audio">🎙️ Áudio ' + esc(opts.duracao || '') + '</div>' +
-        (opts.localUrl ? '<audio src="' + esc(opts.localUrl) + '" controls playsinline style="max-width:180px"></audio>' : '') +
-        '<button type="button" class="btn-sm btn-ok" id="btn-send-anexo">Enviar</button>' +
-        '<button type="button" class="btn-sm btn-danger" id="btn-cancel-anexo">Cancelar</button>';
-    box.classList.remove('oculto');
-    $('btn-cancel-anexo').onclick = () => {
-        if (anexoPendente && anexoPendente.localUrl) { try { URL.revokeObjectURL(anexoPendente.localUrl); } catch (e) { /* ignore */ } }
-        anexoPendente = null; showMediaPreview(null); setAnexoInfo(''); resetAudioBtn();
-    };
-    $('btn-send-anexo').onclick = enviarAnexoPendente;
 }
 function enviarAnexoPendente() {
     if (!anexoPendente) return;
     const p = anexoPendente; anexoPendente = null;
     showMediaPreview(null); setAnexoInfo(''); resetAudioBtn();
-    if (p.localUrl) { try { URL.revokeObjectURL(p.localUrl); } catch (e) { /* ignore */ } }
-    enviarMidia('audio', p.file);
+    enviarAudioGravado(p.file, p.picos, p.dur);
+}
+function enviarAudioGravado(file, picos, dur) {
+    if (!contatoAtivo || !contatoAtivo.auth_id) { toast('Abra uma conversa primeiro.'); return; }
+    if (typeof exigirDesbloqueado === 'function' && !exigirDesbloqueado(perfilAtual, 'Chat')) return;
+    let localUrl = null;
+    try { localUrl = URL.createObjectURL(file); } catch (e) { /* ignore */ }
+    const item = novoItem({ tipo: 'audio', texto: '', _file: file, _localUrl: localUrl, midia_frag: ChatAudio.fragmento(picos, dur) });
+    setReplyTo(null, true);
+    enfileirar(item);
 }
 function onRecordingReady(blob) {
     const mime = ChatMidia.baseMime(blob.type) || 'audio/webm';
     const file = new File([blob], 'audio_' + Date.now() + '.' + ChatMidia.extForMime(mime, 'webm'), { type: mime });
-    const doSend = audioAutoSend; audioAutoSend = false;
-    if (doSend) { resetAudioBtn(); setAnexoInfo(''); enviarMidia('audio', file); return; }
-    const localUrl = URL.createObjectURL(blob);
-    anexoPendente = { tipo: 'audio', file, localUrl, duracao: formatAudioTimer(audioSeconds) };
-    showMediaPreview({ localUrl, duracao: formatAudioTimer(audioSeconds) });
-    const btn = $('btn-audio');
-    if (btn) { btn.textContent = '➤'; btn.classList.remove('btn-danger', 'recording'); btn.classList.add('btn-ok'); btn.title = 'Enviar áudio'; }
-    setAnexoInfo('Áudio pronto — toque Enviar');
+    audioAutoSend = false;
+    resetAudioBtn(); setAnexoInfo('');
+    const dur = audioRecDur || audioSeconds;
+    enviarAudioGravado(file, audioPicos, dur);
 }
+let audioRecDur = 0;
 function toastAudio(msg) { msgErro(msg); toast(msg); setAnexoInfo(msg); }
 async function startRecording(fromHold) {
     if (!contatoAtivo || !contatoAtivo.auth_id) { toastAudio('Selecione um contato primeiro.'); return; }
+    if (bloqueioAtivo()) { toast('Conversa bloqueada.'); return; }
     if (!window.isSecureContext) { toastAudio('Microfone exige HTTPS.'); return; }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Áudio.'); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Documento.'); return; }
     if (gravando) return;
-    audioCancelado = false;
+    audioCancelado = false; audioPicos = null; audioRecDur = 0;
     audioHoldMode = !!fromHold;
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // no gesto do usuário
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); // no gesto do usuário
+        audioStream = stream;
         audioChunks = [];
         const mime = ChatMidia.pickRecorderMime();
         mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
         mediaRecorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) audioChunks.push(ev.data); };
         mediaRecorder.onstop = () => {
             stream.getTracks().forEach(t => t.stop());
+            audioStream = null;
             stopAudioTimer(); showRecBar(false); gravando = false;
+            if (audioVis) { audioPicos = audioVis.parar(); audioVis = null; }
             if (window.MineraRT) MineraRT.sendEstado('parou');
             if (audioCancelado) { audioChunks = []; audioRecStartedAt = 0; resetAudioBtn(); setAnexoInfo(''); return; }
             const blob = new Blob(audioChunks, { type: ChatMidia.baseMime(mediaRecorder.mimeType) || ChatMidia.baseMime(mime) || 'audio/webm' });
             const elapsed = audioRecStartedAt ? (Date.now() - audioRecStartedAt) : 0;
+            audioRecDur = elapsed / 1000;
             audioRecStartedAt = 0;
-            if (!blob.size || blob.size < 500 || elapsed < 400) { audioChunks = []; audioAutoSend = false; resetAudioBtn(); toastAudio('Segure um pouco mais'); return; }
+            if (!blob.size || blob.size < 500 || elapsed < 600) { audioChunks = []; audioAutoSend = false; resetAudioBtn(); toastAudio('Segure para gravar o áudio'); return; }
             onRecordingReady(blob);
         };
         try { mediaRecorder.start(250); } catch (eStart) { mediaRecorder.start(); }
         gravando = true;
         audioRecStartedAt = Date.now();
-        startAudioTimer();
         showRecBar(true);
+        audioVis = ChatAudio.visualizar(stream, $('chat-rec-canvas'));
+        startAudioTimer();
         if (window.MineraRT) MineraRT.sendEstado('gravando');
         const btn = $('btn-audio');
-        if (btn) { btn.textContent = '🎤'; btn.setAttribute('data-recording', '1'); btn.classList.add('btn-danger', 'recording'); }
-        setAnexoInfo(fromHold ? 'Gravando… solte p/ enviar · ← deslize p/ cancelar' : 'Gravando… toque de novo para parar');
-        showMediaPreview(null);
+        if (btn) { btn.setAttribute('data-recording', '1'); btn.classList.add('recording'); }
+        setAnexoInfo('');
+        try { if (navigator.vibrate) navigator.vibrate(18); } catch (e) { /* ignore */ }
     } catch (err) {
         console.warn(err);
-        gravando = false; resetAudioBtn();
+        gravando = false; resetAudioBtn(); showRecBar(false);
         const name = (err && err.name) || '';
         let msg = 'Não foi possível acessar o microfone.';
         if (name === 'NotAllowedError' || name === 'PermissionDeniedError') msg = 'Permissão do microfone negada. Libere o mic nas configurações do navegador.';
@@ -1037,62 +1063,66 @@ async function startRecording(fromHold) {
         toastAudio(msg);
     }
 }
-function stopRecording(cancel) {
-    if (cancel) { audioCancelado = true; audioAutoSend = false; } else if (audioHoldMode) audioAutoSend = true;
-    gravando = false; showRecBar(false); stopAudioTimer();
+function stopRecording(cancel, enviar) {
+    if (cancel) { audioCancelado = true; audioAutoSend = false; } else audioAutoSend = true;
+    gravando = false; stopAudioTimer();
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         try { if (typeof mediaRecorder.requestData === 'function') { try { mediaRecorder.requestData(); } catch (e) { /* ignore */ } } mediaRecorder.stop(); } catch (e) { /* ignore */ }
-    } else if (cancel) resetAudioBtn();
+    } else { showRecBar(false); if (audioVis) { audioVis.parar(); audioVis = null; } if (cancel) resetAudioBtn(); }
+}
+function travarGravacao() {
+    audioHoldMode = false;
+    const bar = $('chat-rec-bar'); if (bar) bar.classList.add('travado');
 }
 function bindAudioButton() {
     const btn = $('btn-audio');
     if (!btn || btn._audioBound) return;
     btn._audioBound = true;
-    let holdStarted = false, pointerDown = false, suppressClick = false, downAt = 0, downX = 0, slidCancel = false;
+    let pointerDown = false, suppressClick = false, downAt = 0, downX = 0, slidCancel = false;
+    const slide = () => $('chat-rec-slide');
     btn.addEventListener('pointerdown', (e) => {
         if (e.button != null && e.button !== 0) return;
-        if ((anexoPendente && !gravando) || gravando) return;
-        holdStarted = true; pointerDown = true; slidCancel = false; downAt = Date.now(); downX = e.clientX; audioPointerId = e.pointerId;
+        if (gravando) return;
+        pointerDown = true; slidCancel = false; downAt = Date.now(); downX = e.clientX; audioPointerId = e.pointerId;
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        try { e.preventDefault(); } catch (err) { /* ignore */ } // não tira o foco/teclado
         startRecording(true).then(() => {
-            if (!pointerDown && gravando && audioHoldMode) {
-                if (Date.now() - downAt < 280) { audioHoldMode = false; setAnexoInfo('Gravando… toque de novo para parar'); }
-                else stopRecording(false);
-            }
+            if (!pointerDown && gravando && audioHoldMode) travarGravacao(); // soltou antes de o mic abrir = toque
         });
     });
     btn.addEventListener('pointermove', (e) => {
-        if (!pointerDown || !holdStarted) return;
-        if (audioPointerId != null && e.pointerId !== audioPointerId) return;
-        if (downX - e.clientX > 72) { // deslizar p/ esquerda cancela
+        if (!pointerDown || (audioPointerId != null && e.pointerId !== audioPointerId)) return;
+        const dx = downX - e.clientX;
+        const sl = slide(); if (sl && gravando && audioHoldMode) sl.style.transform = 'translateX(' + (-Math.max(0, Math.min(90, dx))) + 'px)';
+        if (dx > 90) { // deslizar ← cancela
             slidCancel = true;
-            if (gravando && audioHoldMode) { stopRecording(true); setAnexoInfo('Gravação cancelada'); }
-            pointerDown = false; holdStarted = false; suppressClick = true; audioPointerId = null;
+            if (gravando && audioHoldMode) { stopRecording(true); toast('Gravação cancelada'); }
+            pointerDown = false; suppressClick = true; audioPointerId = null;
+            if (sl) sl.style.transform = '';
         }
     });
     btn.addEventListener('pointerup', (e) => {
         if (audioPointerId != null && e.pointerId !== audioPointerId) return;
-        const wasDown = pointerDown; pointerDown = false;
-        if (!wasDown || !holdStarted || slidCancel) { holdStarted = false; audioPointerId = null; slidCancel = false; return; }
+        const wasDown = pointerDown; pointerDown = false; audioPointerId = null;
+        const sl = slide(); if (sl) sl.style.transform = '';
+        if (!wasDown || slidCancel) { slidCancel = false; return; }
         suppressClick = true;
         if (gravando && audioHoldMode) {
-            if (Date.now() - downAt >= 280) { audioAutoSend = true; stopRecording(false); }
-            else { audioHoldMode = false; setAnexoInfo('Gravando… toque de novo para parar'); }
+            if (Date.now() - downAt >= 350) stopRecording(false, true); // segurou e soltou = envia
+            else travarGravacao(); // toque rápido = trava (🗑 / ➤)
         }
-        holdStarted = false; audioPointerId = null;
         try { e.preventDefault(); } catch (err) { /* ignore */ }
     });
     btn.addEventListener('pointercancel', () => {
-        pointerDown = false; suppressClick = holdStarted;
-        if (gravando && audioHoldMode) stopRecording(true);
-        holdStarted = false; audioPointerId = null;
+        pointerDown = false; audioPointerId = null;
+        if (gravando && audioHoldMode) travarGravacao(); // o sistema roubou o toque: não perde a gravação
     });
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
         if (suppressClick) { e.preventDefault(); suppressClick = false; return; }
-        if (anexoPendente && !gravando) { e.preventDefault(); enviarAnexoPendente(); return; }
-        if (gravando) { stopRecording(false); return; }
-        await startRecording(false);
+        if (gravando) return;
+        startRecording(false).then(() => { if (gravando) travarGravacao(); });
     });
+    const env = $('btn-rec-enviar'); if (env) env.addEventListener('click', () => { if (gravando) stopRecording(false, true); });
 }
 
 /* ============================ adicionar contato (diretório) ============================ */
@@ -1197,7 +1227,12 @@ function setReplyTo(m, semFoco) {
     if (!semFoco) { const input = $('chat-texto'); if (input) input.focus(); }
 }
 function fecharChatHeadMenu() { const menu = $('chat-head-menu'); if (menu) menu.classList.add('oculto'); }
-function toggleChatHeadMenu() { const menu = $('chat-head-menu'); if (menu) menu.classList.toggle('oculto'); }
+function toggleChatHeadMenu() {
+    const menu = $('chat-head-menu'); if (!menu) return;
+    const abrir = menu.classList.contains('oculto');
+    if (abrir) prepararMenuConversa();
+    menu.classList.toggle('oculto', !abrir);
+}
 function fecharMsgSheet() { const s = $('chat-msg-sheet'); if (s) s.classList.add('oculto'); sheetMsg = null; }
 function abrirMsgSheet(m) {
     if (!m || !m.id) return;
@@ -1233,6 +1268,10 @@ async function apagarMsgParaTodos(m) {
 }
 async function apagarConversaParaMim() {
     if (!contatoAtivo || !contatoAtivo.auth_id) return;
+    return apagarConversa(contatoAtivo.auth_id);
+}
+async function apagarConversaParaMimLegado() {
+    if (!contatoAtivo || !contatoAtivo.auth_id) return;
     fecharChatHeadMenu();
     if (!confirm('Apagar conversa para mim? As mensagens somem só do seu lado.')) return;
     const peer = contatoAtivo.auth_id;
@@ -1254,11 +1293,222 @@ async function apagarHistoricoParaTodos() {
     fecharConversa();
     agendarInbox(300);
 }
+/* ============================ bloqueio / apagar conversa (SQL 49) ============================ */
+const SEM49_KEY = 'minera_chat_sem49';
+function sem49() { try { const t = Number(localStorage.getItem(SEM49_KEY) || 0); return !!t && Date.now() - t < 15 * 60e3; } catch (e) { return false; } }
+function marcarSem49(v) { try { if (v) localStorage.setItem(SEM49_KEY, String(Date.now())); else localStorage.removeItem(SEM49_KEY); } catch (e) { /* ignore */ } }
+function ehFuncaoAusente49(err) {
+    const c = (err && err.code) || '', m = (err && err.message) || '';
+    return c === 'PGRST202' || c === '42883' || /Could not find the function|does not exist/i.test(m);
+}
+function ehErroBloqueio(err) { return !!err && /chat_bloqueado/i.test(((err.message || '') + ' ' + (err.details || ''))); }
+const Bloq = { m: new Map(), get(p) { return this.m.get(p) || null; }, set(p, v) { this.m.set(p, v); } };
+const amigosSet = new Set();
+async function carregarBloqueio(peer) {
+    if (!peer || sem49()) return null;
+    try {
+        const r = await supabaseClient.rpc('chat_bloqueio_estado', { p_outro: peer });
+        if (r.error) { if (ehFuncaoAusente49(r.error)) marcarSem49(true); return null; }
+        marcarSem49(false);
+        const d = Array.isArray(r.data) ? r.data[0] : r.data;
+        const e = { eu_bloqueei: !!(d && d.eu_bloqueei), me_bloqueou: !!(d && d.me_bloqueou), limpo_ate_id: Number((d && d.limpo_ate_id) || 0) };
+        Bloq.set(peer, e);
+        return e;
+    } catch (e) { return null; }
+}
+function bloqueioAtivo() { const e = T.peer && Bloq.get(T.peer); return !!(e && (e.eu_bloqueei || e.me_bloqueou)); }
+function aplicarBloqueioUI(e) {
+    if (T.peer && e) Bloq.set(T.peer, e);
+    const bar = $('chat-bloqueio-bar'), txt = $('chat-bloqueio-txt'), btn = $('btn-bloq-desbloquear');
+    const ativo = !!(T.peer && e && (e.eu_bloqueei || e.me_bloqueou));
+    document.body.classList.toggle('chat-bloqueado', ativo);
+    if (bar) bar.classList.toggle('oculto', !ativo);
+    if (!ativo) return;
+    if (e.eu_bloqueei) { if (txt) txt.textContent = 'Você bloqueou ' + displayNome(contatoAtivo) + '.'; if (btn) btn.classList.remove('oculto'); }
+    else { if (txt) txt.textContent = 'Você não pode enviar mensagens nesta conversa.'; if (btn) btn.classList.add('oculto'); }
+    if (gravando) stopRecording(true);
+    const inp = $('chat-texto'); if (inp && document.activeElement === inp) inp.blur();
+}
+/** Corta no cliente o que estiver ≤ limpo_ate_id (cache antigo de outro aparelho). */
+function aplicarCorte(e) {
+    const corte = Number(e && e.limpo_ate_id || 0);
+    if (!corte || !T.msgs.size) return;
+    const ids = Array.from(T.msgs.keys()).filter(id => id <= corte);
+    if (!ids.length) return;
+    const resto = Array.from(T.msgs.values()).filter(m => Number(m.id) > corte);
+    T.msgs = new Map(); T.minId = null; T.maxId = 0;
+    registrarMsgs(resto);
+    renderConversaCompleta(resto, 0);
+    posicionarAoAbrir();
+    salvarCacheConversa();
+}
+async function ehAmigo(peer) {
+    if (amigosSet.has(peer)) return true;
+    try {
+        const r = await supabaseClient.from('chat_contatos').select('contato_auth_id').eq('auth_id', meuAuthId).eq('contato_auth_id', peer).maybeSingle();
+        const ok = !r.error && !!r.data;
+        if (ok) amigosSet.add(peer);
+        return ok;
+    } catch (e) { return false; }
+}
+async function adicionarAmigoAtual() {
+    fecharChatHeadMenu();
+    const c = contatoAtivo; if (!c || !c.auth_id) return;
+    const { error } = await supabaseClient.from('chat_contatos').upsert([{ auth_id: meuAuthId, contato_auth_id: c.auth_id, apelido: displayNome(c) }], { onConflict: 'auth_id,contato_auth_id' });
+    if (error) { toast('Erro ao adicionar: ' + error.message); return; }
+    amigosSet.add(c.auth_id);
+    toast(displayNome(c) + ' adicionado aos amigos');
+    agendarInbox(200);
+}
+function prepararMenuConversa() {
+    const peer = T.peer; if (!peer) return;
+    const bA = $('btn-op-amigo'), bB = $('btn-op-bloquear'), tB = $('btn-op-bloquear-txt');
+    const e = Bloq.get(peer);
+    if (bB) bB.classList.toggle('oculto', sem49());
+    if (tB) tB.textContent = e && e.eu_bloqueei ? 'Desbloquear' : 'Bloquear usuário';
+    if (bA) {
+        bA.classList.toggle('oculto', amigosSet.has(peer));
+        ehAmigo(peer).then(ok => { if (peer === T.peer) bA.classList.toggle('oculto', ok); });
+    }
+}
+function cxConfirm(tit, txt, sim) {
+    return new Promise(res => {
+        const d = $('cx-confirm');
+        if (!d) { res(confirm(txt)); return; }
+        $('cx-confirm-tit').textContent = tit;
+        $('cx-confirm-txt').textContent = txt;
+        const bs = $('cx-confirm-sim'); bs.textContent = sim || 'Confirmar';
+        d.classList.remove('oculto');
+        requestAnimationFrame(() => d.classList.add('aberto'));
+        const fim = (v) => { d.classList.remove('aberto'); d.classList.add('oculto'); d.removeEventListener('click', onC); res(v); };
+        const onC = (ev) => {
+            if (ev.target.closest('#cx-confirm-sim')) fim(true);
+            else if (ev.target.closest('[data-cx-nao]')) fim(false);
+        };
+        d.addEventListener('click', onC);
+    });
+}
+let undoT = null, undoT2 = null;
+function esconderUndo() {
+    const el = $('cx-undo'); if (!el) return;
+    clearTimeout(undoT); el.classList.remove('aberto');
+    clearTimeout(undoT2); undoT2 = setTimeout(() => el.classList.add('oculto'), 220);
+}
+function mostrarUndo(txt, fn) {
+    const el = $('cx-undo'), t = $('cx-undo-txt'), b = $('cx-undo-btn'); if (!el) return;
+    clearTimeout(undoT2);
+    t.textContent = txt;
+    b.classList.toggle('oculto', !fn);
+    el.classList.remove('oculto');
+    requestAnimationFrame(() => el.classList.add('aberto'));
+    b.onclick = async () => { esconderUndo(); try { if (fn) await fn(); } catch (e) { console.warn(e); } };
+    clearTimeout(undoT); undoT = setTimeout(esconderUndo, 6500);
+}
+function nomeDoPeer(peer) {
+    if (contatoAtivo && contatoAtivo.auth_id === peer) return displayNome(contatoAtivo);
+    const c = contatosCache.find(x => x.auth_id === peer);
+    return c ? displayNome(c) : 'este usuário';
+}
+async function apagarConversa(peer) {
+    if (!peer) return;
+    fecharChatHeadMenu(); fecharRowSheet();
+    const nome = nomeDoPeer(peer);
+    if (!(await cxConfirm('Apagar conversa?', 'As mensagens com ' + nome + ' somem só para você. ' + nome + ' continua vendo a conversa.', 'Apagar'))) return;
+    let v2 = false, anterior = 0;
+    if (!sem49()) {
+        const r = await supabaseClient.rpc('chat_apagar_conversa_v2', { p_outro: peer });
+        if (!r.error) { v2 = true; anterior = Number(r.data || 0); }
+        else if (ehFuncaoAusente49(r.error)) marcarSem49(true);
+        else { toast('Erro: ' + r.error.message); return; }
+    }
+    if (!v2) {
+        const { error } = await supabaseClient.rpc('chat_ocultar_conversa', { p_outro: peer });
+        if (error) { toast('Erro: ' + error.message); return; }
+    }
+    const cache = ChatStore.cacheThreadLer(peer);
+    ChatStore.cacheThreadGravar(peer, []);
+    Bloq.m.delete(peer);
+    contatosCache = contatosCache.filter(c => c.auth_id !== peer); renderLista();
+    if (T.peer === peer) fecharConversa();
+    agendarInbox(300);
+    mostrarUndo('Conversa apagada', async () => {
+        if (v2) {
+            const r = await supabaseClient.rpc('chat_desfazer_apagar_conversa', { p_outro: peer, p_anterior: anterior });
+            if (r.error) { toast('Não deu para desfazer: ' + r.error.message); return; }
+        } else {
+            try { await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: peer }); } catch (e) { /* ignore */ }
+        }
+        if (cache && cache.m && cache.m.length) ChatStore.cacheThreadGravar(peer, cache.m);
+        Bloq.m.delete(peer);
+        agendarInbox(50);
+        toast('Conversa restaurada');
+    });
+}
+async function alternarBloqueio(peer) {
+    if (!peer) return;
+    fecharChatHeadMenu(); fecharRowSheet();
+    const nome = nomeDoPeer(peer);
+    const e = Bloq.get(peer) || await carregarBloqueio(peer) || {};
+    if (sem49()) { toast('Bloqueio indisponível no momento.'); return; }
+    if (!e.eu_bloqueei) {
+        if (!(await cxConfirm('Bloquear ' + nome + '?', nome + ' não poderá mais enviar mensagens para você, e você também não envia para ' + nome + '. Ninguém é avisado.', 'Bloquear'))) return;
+        const r = await supabaseClient.rpc('chat_bloquear', { p_outro: peer });
+        if (r.error) { toast(ehFuncaoAusente49(r.error) ? 'Bloqueio indisponível no momento.' : 'Erro: ' + r.error.message); return; }
+        mostrarUndo(nome + ' bloqueado', null);
+    } else {
+        const r = await supabaseClient.rpc('chat_desbloquear', { p_outro: peer });
+        if (r.error) { toast('Erro: ' + r.error.message); return; }
+        mostrarUndo(nome + ' desbloqueado', null);
+    }
+    Bloq.m.delete(peer);
+    const n = await carregarBloqueio(peer);
+    if (peer === T.peer) aplicarBloqueioUI(n || { eu_bloqueei: !e.eu_bloqueei, me_bloqueou: !!e.me_bloqueou });
+}
+let rowSheetPeer = null;
+function fecharRowSheet() { const s = $('chat-row-sheet'); if (s) s.classList.add('oculto'); rowSheetPeer = null; }
+async function abrirRowSheet(peer) {
+    const c = contatosCache.find(x => x.auth_id === peer); if (!c) return;
+    rowSheetPeer = peer;
+    const nm = $('chat-row-sheet-nome'); if (nm) nm.textContent = displayNome(c);
+    const bB = $('row-bloquear');
+    if (bB) { bB.classList.toggle('oculto', sem49()); bB.textContent = 'Bloquear usuário'; }
+    const s = $('chat-row-sheet'); if (s) s.classList.remove('oculto');
+    const e = Bloq.get(peer) || await carregarBloqueio(peer);
+    if (rowSheetPeer === peer && bB) { bB.classList.toggle('oculto', sem49()); if (e) bB.textContent = e.eu_bloqueei ? 'Desbloquear' : 'Bloquear usuário'; }
+}
+function bindLongPressLista(lista) {
+    let t = null, sx = 0, sy = 0, suprimir = false;
+    const cancelar = () => { clearTimeout(t); t = null; };
+    lista.addEventListener('pointerdown', (e) => {
+        suprimir = false;
+        if (e.button != null && e.button !== 0) return;
+        const row = e.target.closest && e.target.closest('.wa-row[data-auth]'); if (!row) return;
+        sx = e.clientX; sy = e.clientY; cancelar();
+        t = setTimeout(() => {
+            t = null; suprimir = true;
+            try { if (navigator.vibrate) navigator.vibrate(15); } catch (err) { /* ignore */ }
+            abrirRowSheet(row.getAttribute('data-auth'));
+        }, 450);
+    });
+    lista.addEventListener('pointermove', (e) => { if (t && (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10)) cancelar(); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => lista.addEventListener(ev, cancelar));
+    lista.addEventListener('contextmenu', (e) => {
+        const row = e.target.closest && e.target.closest('.wa-row[data-auth]'); if (!row) return;
+        e.preventDefault(); cancelar();
+        if (!rowSheetPeer) abrirRowSheet(row.getAttribute('data-auth'));
+        suprimir = true;
+    });
+    lista.addEventListener('click', (e) => { if (suprimir) { suprimir = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+}
+
 function fecharConversa(viaPopstate) {
     pararDigitando();
     if (window.MineraRT) MineraRT.leaveDm();
     salvarCacheConversa();
     contatoAtivo = null; T.peer = null; T.gen++;
+    if (gravando) stopRecording(true);
+    if (window.ChatAudio) ChatAudio.pararTodos();
+    aplicarBloqueioUI(null);
     showThreadUI(false);
     marcarLinhaAtiva();
     if (!viaPopstate && history.state && history.state.chatPeer) { try { history.back(); } catch (e) { /* ignore */ } }
@@ -1282,7 +1532,7 @@ function toggleAgendar(forcar) {
     if (box) box.classList.toggle('oculto', !agendarAtivo);
     if (btn) { btn.classList.toggle('btn-ok', agendarAtivo); btn.textContent = agendarAtivo ? '🗓️ Agendar msg (ativo)' : '🗓️ Agendar msg'; }
 }
-function fecharAnexar() { const s = $('wa-attach-sheet'); if (s) s.classList.add('oculto'); }
+function fecharAnexar() { if (window.waAnexarMenu) window.waAnexarMenu(false); else { const s = $('wa-attach-sheet'); if (s) s.classList.add('oculto'); } }
 function atualizarBackUnread() {
     const el = $('chat-back-unread'); if (!el) return;
     const n = contatosCache.reduce((s, c) => s + (c.auth_id !== T.peer ? (c.unread || 0) : 0), 0);
@@ -1394,6 +1644,7 @@ function bindTela() {
     });
 
     const lista = $('chat-contatos-list');
+    if (lista) bindLongPressLista(lista);
     if (lista) lista.addEventListener('click', (e) => {
         const row = e.target.closest && e.target.closest('.wa-row[data-auth]');
         if (!row) return;
@@ -1407,6 +1658,11 @@ function bindTela() {
     }));
 
     const box = boxMsgs();
+    if (box && window.ChatAudio) {
+        ChatAudio.ligar(box);
+        let obsT = 0;
+        new MutationObserver(() => { if (obsT) return; obsT = setTimeout(() => { obsT = 0; ChatAudio.observar(box); }, 60); }).observe(box, { childList: true, subtree: true });
+    }
     if (box) {
         let rafScroll = 0;
         box.addEventListener('scroll', () => {
@@ -1441,7 +1697,7 @@ function bindTela() {
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             const m = msgFromBubbleEl(e.target);
             if (!m || m.deleted_at) return;
-            if (e.target.closest && e.target.closest('audio, video, a, button, input')) return;
+            if (e.target.closest && e.target.closest('audio, video, a, button, input, .au-wave')) return;
             longPressStart = { x: e.clientX, y: e.clientY, m };
             longPressTimer = setTimeout(() => { if (longPressStart) abrirMsgSheet(longPressStart.m); clearLp(); }, LONG_PRESS_MS);
         });
@@ -1475,12 +1731,20 @@ function bindTela() {
     const bTodos = $('sheet-apagar-todos'); if (bTodos) bTodos.addEventListener('click', () => apagarMsgParaTodos(sheetMsg));
     const bCR = $('btn-cancel-reply'); if (bCR) bCR.addEventListener('click', () => setReplyTo(null, true));
     const bMenu = $('btn-chat-menu'); if (bMenu) bMenu.addEventListener('click', (e) => { e.stopPropagation(); toggleChatHeadMenu(); });
+    const bOp = $('btn-chat-opcoes'); if (bOp) bOp.addEventListener('click', (e) => { e.stopPropagation(); toggleChatHeadMenu(); });
+    const bAm = $('btn-op-amigo'); if (bAm) bAm.addEventListener('click', adicionarAmigoAtual);
+    const bBl = $('btn-op-bloquear'); if (bBl) bBl.addEventListener('click', () => alternarBloqueio(T.peer));
+    const bDes = $('btn-bloq-desbloquear'); if (bDes) bDes.addEventListener('click', () => alternarBloqueio(T.peer));
+    const rs = $('chat-row-sheet');
+    if (rs) rs.addEventListener('click', (e) => { if (e.target && e.target.closest && e.target.closest('[data-close-row]')) fecharRowSheet(); });
+    const rA = $('row-apagar'); if (rA) rA.addEventListener('click', () => apagarConversa(rowSheetPeer));
+    const rB = $('row-bloquear'); if (rB) rB.addEventListener('click', () => alternarBloqueio(rowSheetPeer));
     const bHM = $('btn-apagar-hist-mim'); if (bHM) bHM.addEventListener('click', apagarConversaParaMim);
     const bHT = $('btn-apagar-hist-todos'); if (bHT) bHT.addEventListener('click', apagarHistoricoParaTodos);
     document.addEventListener('click', (e) => {
         const menu = $('chat-head-menu');
         if (!menu || menu.classList.contains('oculto')) return;
-        if (e.target.closest && (e.target.closest('#chat-head-menu') || e.target.closest('#btn-chat-menu'))) return;
+        if (e.target.closest && (e.target.closest('#chat-head-menu') || e.target.closest('#btn-chat-menu') || e.target.closest('#btn-chat-opcoes'))) return;
         fecharChatHeadMenu();
     });
     document.addEventListener('visibilitychange', () => { if (visivel()) marcarLidoSeVisivel(); });

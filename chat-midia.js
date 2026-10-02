@@ -35,7 +35,7 @@
     function mimeFromMediaUrl(url) {
         var s = String(url || '');
         if (s.indexOf('data:audio/') === 0) return baseMime(s.slice(5).split(',')[0]);
-        var u = s.split('?')[0].toLowerCase();
+        var u = s.split(/[?#]/)[0].toLowerCase();
         if (/\.webm$/.test(u)) return 'audio/webm';
         if (/\.ogg$/.test(u)) return 'audio/ogg';
         if (/\.(m4a|mp4)$/.test(u)) return 'audio/mp4';
