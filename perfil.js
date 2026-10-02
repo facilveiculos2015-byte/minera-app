@@ -772,11 +772,6 @@ document.addEventListener('click', async (e) => {
     async function carregar() {
         const ok = await window.MineraBanners.renderMeus(lista);
         card.classList.toggle('oculto', !ok);
-        if (ok) {
-            const p = await window.MineraBanners.preco();
-            const t = document.getElementById('bp-preco-txt');
-            if (t) t.textContent = 'R$ ' + Number(p).toFixed(2).replace('.', ',');
-        }
     }
     const btn = document.getElementById('btn-anunciar-empresa');
     if (btn) btn.addEventListener('click', () => window.MineraBanners.abrirCriar());

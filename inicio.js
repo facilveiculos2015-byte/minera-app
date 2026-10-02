@@ -191,7 +191,7 @@ async function carregarBannersPromos() {
                 if (k < slides.length) mix.push(slides[k]);
                 if (k < pagos.length) mix.push(MB.slideHtml(pagos[k]));
             }
-            mix.push(MB.slideAnuncieHtml(await MB.preco()));
+            mix.push(MB.slideAnuncieHtml());
             slides = mix;
         }
     } catch (e) { console.warn('banners pagos', e); }

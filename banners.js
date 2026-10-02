@@ -60,10 +60,10 @@
         if (href && !opts.preview) return '<a class="olx-banner-slide olx-banner-slide--full bp-slide" href="' + esc(href) + '" target="_blank" rel="noopener sponsored">' + inner + '</a>';
         return '<div class="olx-banner-slide olx-banner-slide--full bp-slide">' + inner + '</div>';
     }
-    function slideAnuncieHtml(valor) {
+    function slideAnuncieHtml() {
         return '<button type="button" class="olx-banner-slide bp-anuncie" data-bp-anuncie="1">' +
             '<span class="bp-anuncie-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4a1 1 0 0 0 1 1h2l5 4V5L6 9H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></g></svg></span>' +
-            '<span class="bp-anuncie-txt"><strong>Anuncie sua empresa aqui</strong><span>Seu banner para todo o Minera Pará · ' + esc(brl(valor || 99.9)) + '/mês</span></span>' +
+            '<span class="bp-anuncie-txt"><strong>Anuncie sua empresa aqui</strong><span>Seu banner para todo o Minera Pará</span></span>' +
             '<span class="bp-anuncie-cta">Anunciar</span></button>';
     }
 
