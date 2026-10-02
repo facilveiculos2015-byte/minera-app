@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Gestor financeiro</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261001l">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261001l">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261002a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261002a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261001l">
-    <link rel="stylesheet" href="gestor.css?v=20261001l">
+    <link rel="stylesheet" href="style.css?v=20261002a">
+    <link rel="stylesheet" href="gestor.css?v=20261002a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -37,7 +37,7 @@
         <div class="gf-tabs" role="tablist">
             <button type="button" class="gf-tab on" role="tab" data-aba="resumo" aria-selected="true">Resumo</button>
             <button type="button" class="gf-tab" role="tab" data-aba="carradas" aria-selected="false">Carradas</button>
-            <button type="button" class="gf-tab" role="tab" data-aba="despesas" aria-selected="false">Despesas</button>
+            <button type="button" class="gf-tab" role="tab" data-aba="despesas" aria-selected="false">Caixa</button>
             <button type="button" class="gf-tab" role="tab" data-aba="cadastros" aria-selected="false">Tabelas</button>
         </div>
 
@@ -51,16 +51,18 @@
             <div id="resumo-carradas" class="gf-lista"></div>
             <div class="gf-mes card">
                 <div class="gf-mes-head">
-                    <span>Resumo do mês</span>
-                    <select id="resumo-mes" aria-label="Mês do resumo"></select>
+                    <span>Período</span>
+                    <select id="resumo-mes" aria-label="Período do resumo"></select>
                 </div>
                 <div id="resumo-mes-box" class="gf-mes-grid"></div>
+                <div id="resumo-chart" class="gf-chart" aria-label="Gráfico do período"></div>
             </div>
             <div class="gf-export card">
-                <p class="sub">Planilha para Excel (CSV)</p>
+                <p class="sub">Planilha e PDF do período selecionado</p>
                 <div class="gf-acoes">
                     <button type="button" class="gf-btn gf-btn-sec" id="btn-csv-carradas">⬇️ Carradas</button>
-                    <button type="button" class="gf-btn gf-btn-sec" id="btn-csv-despesas">⬇️ Despesas</button>
+                    <button type="button" class="gf-btn gf-btn-sec" id="btn-csv-despesas">⬇️ Caixa</button>
+                    <button type="button" class="gf-btn gf-btn-sec" id="btn-pdf-resumo">📄 PDF</button>
                 </div>
             </div>
         </section>
@@ -75,6 +77,21 @@
         </section>
 
         <section class="gf-aba oculto" id="aba-despesas">
+            <div class="gf-mes card">
+                <div class="gf-mes-head">
+                    <span>Caixa</span>
+                    <select id="caixa-mes" aria-label="Período do caixa"></select>
+                </div>
+                <div id="caixa-saldo" class="gf-mes-grid"></div>
+            </div>
+            <div class="gf-acoes">
+                <button type="button" class="gf-btn-grande" data-acao="nova-entrada">＋ Entrada</button>
+                <button type="button" class="gf-btn-grande gf-btn-sec" data-acao="nova-despesa">− Despesa</button>
+            </div>
+            <button type="button" class="gf-btn gf-btn-sec gf-pagar" data-acao="pagar-funcionario">👷 Pagar funcionário</button>
+            <h2 class="gf-h2">Por categoria</h2>
+            <div id="caixa-cats" class="gf-lista"></div>
+            <h2 class="gf-h2">Lançamentos</h2>
             <div id="lista-despesas" class="gf-lista"></div>
         </section>
 
@@ -319,14 +336,14 @@
     </div>
     <div class="gf-toast oculto" id="gf-toast" role="status"><span id="gf-toast-txt"></span><button type="button" id="gf-toast-btn" class="oculto">Desfazer</button></div>
 
-    <script src="config.js?v=20261001l"></script>
-    <script src="auth-guard.js?v=20261001l"></script>
-    <script src="suporte.js?v=20261001l"></script>
-    <script src="chat-realtime.js?v=20261001l"></script>
-    <script src="avatar.js?v=20261001l"></script>
-    <script src="nav.js?v=20261001l"></script>
-    <script src="gestor-calc.js?v=20261001l"></script>
-    <script src="gestor.js?v=20261001l"></script>
-    <script src="pwa.js?v=20261001l"></script>
+    <script src="config.js?v=20261002a"></script>
+    <script src="auth-guard.js?v=20261002a"></script>
+    <script src="suporte.js?v=20261002a"></script>
+    <script src="chat-realtime.js?v=20261002a"></script>
+    <script src="avatar.js?v=20261002a"></script>
+    <script src="nav.js?v=20261002a"></script>
+    <script src="gestor-calc.js?v=20261002a"></script>
+    <script src="gestor.js?v=20261002a"></script>
+    <script src="pwa.js?v=20261002a"></script>
 </body>
 </html>

@@ -95,7 +95,19 @@
 .gf-mes-total { grid-column: 1 / -1; }
 .gf-mes-nota { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; }
 .gf-export { padding: 12px 14px; }
-.gf-export .gf-acoes { margin: 8px 0 0; }
+.gf-export .gf-acoes { margin: 8px 0 0; flex-wrap: wrap; }
+.gf-export .gf-acoes > * { flex: 1 1 30%; min-width: 96px; }
+.gf-pagar { margin: -4px 0 14px; }
+.gf-chart { margin-top: 12px; }
+.gf-chart-tit { margin: 10px 0 6px; font-size: 0.85rem; font-weight: 700; color: var(--label); }
+.gf-barras { display: flex; flex-direction: column; gap: 8px; }
+.gf-barra-top { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85rem; min-width: 0; }
+.gf-barra-top span { min-width: 0; overflow-wrap: anywhere; }
+.gf-barra-top b { white-space: nowrap; }
+.gf-barra-trilho { display: block; height: 10px; margin-top: 3px; background: var(--bg-elevated); border-radius: 999px; overflow: hidden; }
+.gf-barra-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent-color); }
+.gf-barra-fill.pos { background: var(--ok); }
+.gf-barra-fill.neg { background: var(--danger); }
 
 .gf-fab { position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 950;
     width: 60px; height: 60px; border-radius: 50%; font-size: 1.8rem; line-height: 1; padding: 0;

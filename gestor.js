@@ -40,6 +40,7 @@
     let servidorErro = '';
     let aba = 'resumo';
     let filtroCarradas = 'aberta';
+    let filtroMes = ''; // '' = todos os meses; definido no init com o mês de hoje
 
     // ---------- util ----------
     function hoje() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Belem' }); }
@@ -272,6 +273,32 @@
             '<button type="button" class="gf-acao gf-acao-del" data-del="' + tipo + ':' + esc(id) + '">🗑️ Excluir</button></div>';
     }
     function vazio(txt) { return '<p class="gf-vazio">' + txt + '</p>'; }
+    function noPeriodo(data) { return !filtroMes || String(data || '').startsWith(filtroMes); }
+    function nomeMes(m) {
+        if (!m) return 'Todos os meses';
+        return new Date(m + '-15T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    }
+    function htmlMeses() {
+        const meses = new Set([hoje().slice(0, 7)]);
+        if (filtroMes) meses.add(filtroMes);
+        carradasVivas().forEach((c) => c.data && meses.add(String(c.data).slice(0, 7)));
+        lancVivos().forEach((l) => l.data && meses.add(String(l.data).slice(0, 7)));
+        return '<option value="">Todos os meses</option>' + Array.from(meses).sort().reverse().map((m) =>
+            '<option value="' + m + '"' + (m === filtroMes ? ' selected' : '') + '>' + esc(nomeMes(m)) + '</option>').join('');
+    }
+    function barrasHtml(itens) {
+        const max = Math.max.apply(null, [1].concat(itens.map((i) => Math.abs(Number(i.valor) || 0))));
+        return '<div class="gf-barras">' + itens.map((i) => {
+            const v = Number(i.valor) || 0;
+            const w = v === 0 ? 0 : Math.max(2, Math.round(Math.abs(v) / max * 100));
+            const cls = v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+            return '<div class="gf-barra"><div class="gf-barra-top"><span>' + esc(i.label) + '</span><b class="' + cls + '">' + esc(G.fmtBRL(v)) + '</b></div>' +
+                '<span class="gf-barra-trilho"><span class="gf-barra-fill ' + cls + '" style="width:' + w + '%"></span></span></div>';
+        }).join('') + '</div>';
+    }
+    function catFuncionarios() {
+        return catsVivas().find((c) => c.slug === 'funcionarios' || /funcion/i.test(c.nome || '')) || null;
+    }
 
     function renderResumo() {
         const lista = carradasVivas().filter((c) => c.status !== 'cancelada')
@@ -279,31 +306,38 @@
         $('#resumo-carradas').innerHTML = lista.length
             ? lista.slice(0, 15).map(cardCarrada).join('') + (lista.length > 15 ? '<button type="button" class="gf-btn gf-btn-sec" data-ir="carradas">Ver todas (' + lista.length + ')</button>' : '')
             : vazio('Nenhuma carrada ainda. Toque em <b>🚛 Nova carrada</b> para anotar a primeira.');
-        // mês (secundário)
         const sel = $('#resumo-mes');
-        const meses = new Set([hoje().slice(0, 7)]);
-        carradasVivas().forEach((c) => c.data && meses.add(c.data.slice(0, 7)));
-        lancVivos().forEach((l) => l.data && meses.add(l.data.slice(0, 7)));
-        const atual = sel.value || hoje().slice(0, 7);
-        sel.innerHTML = Array.from(meses).sort().reverse().map((m) => {
-            const nome = new Date(m + '-15T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-            return '<option value="' + m + '"' + (m === atual ? ' selected' : '') + '>' + esc(nome) + '</option>';
-        }).join('');
-        const mes = sel.value;
-        const fin = carradasVivas().filter((c) => c.status === 'finalizada' && (c.data || '').startsWith(mes)).map(calc);
+        if (sel) sel.innerHTML = htmlMeses();
+        const fin = carradasVivas().filter((c) => c.status === 'finalizada' && noPeriodo(c.data)).map(calc);
         const lucro = fin.reduce((s, c) => s + c.lucro, 0);
-        const avulsas = lancVivos().filter((l) => !carradaViva(l.carrada_id) && (l.data || '').startsWith(mes));
+        const avulsas = lancVivos().filter((l) => !carradaViva(l.carrada_id) && noPeriodo(l.data));
         const desp = avulsas.filter((l) => l.tipo === 'saida').reduce((s, l) => s + Number(l.valor), 0);
         const ent = avulsas.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + Number(l.valor), 0);
         const res = lucro + ent - desp;
         const abertas = carradasVivas().filter((c) => c.status === 'aberta').length;
+        const rotulo = filtroMes ? 'do período' : 'geral';
         $('#resumo-mes-box').innerHTML =
             '<div><small>Carradas finalizadas</small><b>' + fin.length + '</b></div>' +
             '<div><small>Lucro das carradas</small><b class="' + (lucro >= 0 ? 'pos' : 'neg') + '">' + G.fmtBRL(lucro) + '</b></div>' +
             '<div><small>Despesas avulsas</small><b class="neg">' + G.fmtBRL(desp) + '</b></div>' +
             '<div><small>Entradas avulsas</small><b class="pos">' + G.fmtBRL(ent) + '</b></div>' +
-            '<div class="gf-mes-total"><small>Resultado do mês</small><b class="' + (res >= 0 ? 'pos' : 'neg') + '">' + G.fmtBRL(res) + '</b></div>' +
-            (abertas ? '<p class="sub gf-mes-nota">' + abertas + ' carrada(s) aberta(s) ainda não entram no mês.</p>' : '');
+            '<div class="gf-mes-total"><small>Resultado ' + rotulo + '</small><b class="' + (res >= 0 ? 'pos' : 'neg') + '">' + G.fmtBRL(res) + '</b></div>' +
+            (abertas ? '<p class="sub gf-mes-nota">' + abertas + ' carrada(s) aberta(s) ainda não entram no resultado.</p>' : '');
+        const chart = $('#resumo-chart');
+        if (chart) {
+            const barras = [
+                { label: 'Lucro das carradas', valor: lucro },
+                { label: 'Entradas avulsas', valor: ent },
+                { label: 'Despesas avulsas', valor: -desp },
+                { label: 'Resultado', valor: res }
+            ];
+            const porCarga = fin.slice().sort((a, b) => (b.lucro || 0) - (a.lucro || 0)).slice(0, 8).map((c) => ({
+                label: ddmm(c.data) + (c.placa ? ' ' + c.placa : ''),
+                valor: c.lucro
+            }));
+            chart.innerHTML = '<p class="gf-chart-tit">Gráfico — ' + esc(nomeMes(filtroMes)) + '</p>' + barrasHtml(barras) +
+                (porCarga.length ? '<p class="gf-chart-tit">Lucro por carrada</p>' + barrasHtml(porCarga) : '');
+        }
     }
     function renderCarradas() {
         $$('#filtro-carradas .gf-chip').forEach((b) => b.classList.toggle('on', b.dataset.f === filtroCarradas));
@@ -343,8 +377,33 @@
             : vazio('Você ainda não criou categorias.')) + '<p class="sub gf-ajuda">🔒 As categorias padrão do app não podem ser alteradas.</p>';
     }
     function renderDespesas() {
-        const l = lancVivos().sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criado_em || '').localeCompare(a.criado_em || ''));
-        if (!l.length) { $('#lista-despesas').innerHTML = vazio('Nenhuma despesa ainda. Toque em <b>＋</b> para anotar.'); return; }
+        const sel = $('#caixa-mes');
+        if (sel) sel.innerHTML = htmlMeses();
+        const todos = lancVivos().filter((l) => noPeriodo(l.data));
+        const ent = todos.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + Number(l.valor), 0);
+        const sai = todos.filter((l) => l.tipo === 'saida').reduce((s, l) => s + Number(l.valor), 0);
+        const saldo = ent - sai;
+        const box = $('#caixa-saldo');
+        if (box) {
+            box.innerHTML =
+                '<div><small>Entradas</small><b class="pos">' + G.fmtBRL(ent) + '</b></div>' +
+                '<div><small>Saídas</small><b class="neg">' + G.fmtBRL(sai) + '</b></div>' +
+                '<div class="gf-mes-total"><small>Saldo do caixa</small><b class="' + (saldo >= 0 ? 'pos' : 'neg') + '">' + G.fmtBRL(saldo) + '</b></div>';
+        }
+        const cats = $('#caixa-cats');
+        if (cats) {
+            const map = {};
+            todos.forEach((l) => {
+                const cat = catPor(l.categoria_id);
+                const key = (cat && cat.id) || l.tipo;
+                if (!map[key]) map[key] = { label: cat ? ((cat.icone ? cat.icone + ' ' : '') + cat.nome) : (l.tipo === 'entrada' ? 'Entrada' : 'Despesa'), valor: 0, tipo: l.tipo };
+                map[key].valor += l.tipo === 'entrada' ? Number(l.valor) : -Number(l.valor);
+            });
+            const itens = Object.keys(map).map((k) => map[k]).sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor));
+            cats.innerHTML = itens.length ? barrasHtml(itens) : vazio('Nenhum lançamento neste período.');
+        }
+        const l = todos.slice().sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criado_em || '').localeCompare(a.criado_em || ''));
+        if (!l.length) { $('#lista-despesas').innerHTML = vazio('Nada no caixa neste período. Anote uma entrada, despesa ou pagamento.'); return; }
         let html = '', dia = '';
         l.forEach((x) => {
             if (x.data !== dia) { dia = x.data; html += '<h3 class="gf-dia">' + esc(G.dataBR(dia)) + '</h3>'; }
@@ -457,12 +516,12 @@
         return '<div class="gf-conta-l ' + (cls || '') + '"><span>' + lbl + (det ? '<small>' + det + '</small>' : '') + '</span><b>' + v + '</b></div>';
     }
     function contaHtml(c) {
-        const t = c.peso_pago_t, tu = c.peso_umido_t;
+        const seco = c.peso_pago_t, liq = c.peso_umido_t;
         let det = '';
         if (c.preco_modo === 'total') det = 'valor informado';
-        else if (t != null && c.preco_t != null) det = G.fmtNum(t, 2) + ' t seco × ' + G.fmtBRL(c.preco_t);
+        else if (seco != null && c.preco_t != null) det = G.fmtNum(seco, 2) + ' t seco × ' + G.fmtBRL(c.preco_t);
         if (c.ajuste) det += (det ? ' ' : '') + (c.ajuste > 0 ? '+ ' : '− ') + G.fmtBRL(Math.abs(c.ajuste));
-        const fdet = (base, unit) => base === 'viagem' ? 'por viagem' : (tu != null && unit ? G.fmtNum(tu, 2) + ' t × ' + G.fmtBRL(unit) : '');
+        const fdet = (base, unit) => base === 'viagem' ? 'por viagem' : (liq != null && unit ? G.fmtNum(liq, 2) + ' t × ' + G.fmtBRL(unit) : '');
         const nD = despesasDe(c.id).length;
         return linhaConta('Valor de venda', G.fmtBRL(c.valor_venda), det, 'gf-conta-venda') +
             linhaConta('− Custo do minério', G.fmtBRL(c.custo_minerio || 0)) +
@@ -478,7 +537,10 @@
         if (fc.id) { const atual = db.carradas.find((x) => x.id === fc.id); if (atual) fc.status = atual.status; }
         const c = calc(lerCarrada());
         $('#sc-pesos').innerHTML = c.erro ? '<span class="neg">⚠️ ' + esc(c.erro) + '</span>'
-            : c.peso_umido_t != null ? 'Peso líquido <b>' + G.fmtNum(c.peso_umido_t, 2) + ' t</b>' + (c.umidade_pct ? ' − ' + G.fmtNum(c.umidade_pct, 2) + '% umidade' : '') + ' = <b>' + G.fmtNum(c.peso_seco_t, 2) + ' t seco</b>' : 'Digite bruto e tara (ou o líquido).';
+            : c.peso_umido_t != null ? 'Peso líquido <b>' + G.fmtNum(c.peso_umido_t, 2) + ' t</b>' +
+              (c.peso_liquido_kg != null ? ' (' + G.fmtNum(c.peso_liquido_kg, 0) + ' kg)' : '') +
+              (c.umidade_pct ? ' − ' + G.fmtNum(c.umidade_pct, 2) + '% umidade' : '') +
+              ' = <b>' + G.fmtNum(c.peso_seco_t, 2) + ' t seco</b>' : 'Digite bruto e tara (ou o líquido).';
         $('#sc-preco').innerHTML = c.preco_modo === 'ponto'
             ? 'Preço da tonelada: <b>' + G.fmtBRL(c.preco_t) + '</b>' + (c.preco_ponto && c.teor ? ' <small>(' + G.fmtBRL(c.preco_ponto) + ' × ' + G.fmtNum(c.teor, 2) + ' pontos)</small>' : '') +
               '<br>Total: <b>' + G.fmtBRL(c.valor_venda) + '</b>' + (c.peso_seco_t != null && c.preco_t ? ' <small>(' + G.fmtNum(c.peso_seco_t, 2) + ' t seco × ' + G.fmtBRL(c.preco_t) + ')</small>' : '')
@@ -652,10 +714,11 @@
         } else { prev.classList.add('oculto'); img.removeAttribute('src'); }
         $('#sd-foto-btn').textContent = (fotoNova || (fd.comprovante_path && !fotoRemovida)) ? '📷 Trocar foto' : '📷 Foto do comprovante';
     }
-    function abrirDespesa(id, carradaId) {
+    function abrirDespesa(id, carradaId, opts) {
         const f = fDes();
+        opts = opts || {};
         fd = id ? Object.assign({}, db.lancamentos.find((l) => l.id === id))
-            : { id: null, tipo: 'saida', data: hoje(), status: 'pago', forma_pagto: 'pix', carrada_id: carradaId || null };
+            : { id: null, tipo: opts.tipo || 'saida', data: hoje(), status: 'pago', forma_pagto: 'pix', carrada_id: carradaId || null, categoria_id: opts.categoriaId || null };
         fotoNova = null; fotoRemovida = false;
         f.elements.valor.value = fd.valor != null ? G.numInput(fd.valor) : '';
         f.elements.data.value = fd.data || hoje();
@@ -665,7 +728,9 @@
         segSet(f, 'tipo', fd.tipo); segSet(f, 'status', fd.status);
         opcoesCarrada(fd.carrada_id);
         renderCats();
-        $('#sd-titulo').textContent = id ? (fd.tipo === 'entrada' ? 'Editar entrada' : 'Editar despesa') : 'Nova despesa';
+        $('#sd-titulo').textContent = id ? (fd.tipo === 'entrada' ? 'Editar entrada' : 'Editar despesa') : (opts.titulo || 'Nova despesa');
+        f.elements.descricao.placeholder = opts.placeholderDesc || 'ex.: Diesel ida';
+        f.elements.observacao.placeholder = opts.placeholderObs || 'Anote o que quiser';
         $('#sd-excluir').classList.toggle('oculto', !id);
         mostrarFoto();
         abrir('sheet-despesa');
@@ -708,7 +773,8 @@
         const campo = tab === 'categorias' ? { arquivada: true } : { deleted_at: new Date().toISOString() };
         const volta = tab === 'categorias' ? { arquivada: false } : { deleted_at: null };
         gravar(tab, Object.assign({}, r, campo));
-        toast(NOMES[tab][0] + ' excluída', () => { gravar(tab, Object.assign({}, r, volta)); toast('Desfeito'); });
+        const aviso = { carradas: 'Carrada excluída', lancamentos: 'Lançamento excluído', tabelas: 'Tabela excluída', categorias: 'Categoria excluída' };
+        toast(aviso[tab] || 'Excluído', () => { gravar(tab, Object.assign({}, r, volta)); toast('Desfeito'); });
         return true;
     }
     function editarCarrada(id) {
@@ -722,19 +788,21 @@
     }
 
     // ---------- CSV ----------
-    function baixar(nome, txt) {
-        const blob = new Blob([txt], { type: 'text/csv;charset=utf-8' });
+    function baixar(nome, txt, mime) {
+        const blob = new Blob([txt], { type: mime || 'text/csv;charset=utf-8' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob); a.download = nome;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     }
+    function sufixoPeriodo() { return filtroMes || 'tudo'; }
     function csvCarradas() {
-        const l = carradasVivas().map(calc).sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        const l = carradasVivas().filter((c) => noPeriodo(c.data)).map(calc).sort((a, b) => (a.data || '').localeCompare(b.data || ''));
         const modo = { ponto: 'Por ponto', tonelada: 'Por tonelada', total: 'Valor total' };
         const cols = [
             ['Data', (c) => G.dataBR(c.data)], ['Status', (c) => c.status], ['Minério', (c) => c.minerio], ['Placa', (c) => c.placa],
             ['Motorista', (c) => c.motorista], ['Comprador', (c) => c.comprador], ['Ticket', (c) => c.ticket_numero], ['NF', (c) => c.nf_numero],
+            ['Peso bruto (kg)', (c) => c.peso_bruto_kg], ['Tara (kg)', (c) => c.tara_kg],
             ['Peso líquido (kg)', (c) => c.peso_liquido_kg], ['Umidade %', (c) => c.umidade_pct], ['Peso líquido (t)', (c) => c.peso_umido_t], ['Peso seco (t)', (c) => c.peso_seco_t],
             ['Teor %', (c) => c.teor], ['Modo preço', (c) => modo[c.preco_modo] || c.preco_modo],
             ['Tabela', (c) => { const t = c.tabela_id && db.tabelas.find((x) => x.id === c.tabela_id); return t ? t.nome : ''; }],
@@ -743,10 +811,10 @@
             ['Carregamento', (c) => c.carregamento_total], ['Impostos', (c) => c.impostos_total], ['Outros custos', (c) => c.outros_custos || 0],
             ['Despesas vinculadas', (c) => c.despesas_total], ['Lucro', (c) => c.lucro], ['Observação', (c) => c.observacao]
         ].map(([titulo, v]) => ({ titulo, v }));
-        baixar('gestor-carradas-' + hoje() + '.csv', G.csv(cols, l));
+        baixar('gestor-carradas-' + sufixoPeriodo() + '.csv', G.csv(cols, l), 'text/csv;charset=utf-8');
     }
     function csvDespesas() {
-        const l = lancVivos().sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        const l = lancVivos().filter((x) => noPeriodo(x.data)).sort((a, b) => (a.data || '').localeCompare(b.data || ''));
         const cols = [
             ['Data', (x) => G.dataBR(x.data)], ['Tipo', (x) => (x.tipo === 'entrada' ? 'Entrada' : 'Despesa')],
             ['Categoria', (x) => { const c = catPor(x.categoria_id); return c ? c.nome : ''; }], ['Descrição', (x) => x.descricao],
@@ -754,7 +822,61 @@
             ['Carrada', (x) => { const c = x.carrada_id && db.carradas.find((k) => k.id === x.carrada_id); return c ? G.dataBR(c.data) + ' ' + (c.placa || '') : ''; }],
             ['Tem foto', (x) => (x.comprovante_path ? 'sim' : '')], ['Observação', (x) => x.observacao]
         ].map(([titulo, v]) => ({ titulo, v }));
-        baixar('gestor-despesas-' + hoje() + '.csv', G.csv(cols, l));
+        baixar('gestor-caixa-' + sufixoPeriodo() + '.csv', G.csv(cols, l), 'text/csv;charset=utf-8');
+    }
+    function pdfResumo() {
+        const fin = carradasVivas().filter((c) => c.status !== 'cancelada' && noPeriodo(c.data)).map(calc)
+            .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        const lancs = lancVivos().filter((l) => noPeriodo(l.data)).sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+        const fim = fin.filter((c) => c.status === 'finalizada');
+        const lucro = fim.reduce((s, c) => s + c.lucro, 0);
+        const avulsas = lancs.filter((l) => !carradaViva(l.carrada_id));
+        const desp = avulsas.filter((l) => l.tipo === 'saida').reduce((s, l) => s + Number(l.valor), 0);
+        const entA = avulsas.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + Number(l.valor), 0);
+        const ent = lancs.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + Number(l.valor), 0);
+        const sai = lancs.filter((l) => l.tipo === 'saida').reduce((s, l) => s + Number(l.valor), 0);
+        const linhas = [
+            'Minera Pará - Gestor financeiro',
+            'Período: ' + nomeMes(filtroMes),
+            'Só anotação. Não é o Minera Bank.',
+            '',
+            'RESUMO',
+            'Carradas finalizadas: ' + fim.length,
+            'Lucro das carradas: ' + G.fmtBRL(lucro),
+            'Despesas avulsas: ' + G.fmtBRL(desp),
+            'Entradas avulsas: ' + G.fmtBRL(entA),
+            'Resultado: ' + G.fmtBRL(lucro + entA - desp),
+            '',
+            'CAIXA',
+            'Entradas: ' + G.fmtBRL(ent),
+            'Saídas: ' + G.fmtBRL(sai),
+            'Saldo: ' + G.fmtBRL(ent - sai),
+            ''
+        ];
+        const map = {};
+        lancs.forEach((l) => {
+            const cat = catPor(l.categoria_id);
+            const nome = cat ? cat.nome : (l.tipo === 'entrada' ? 'Entrada' : 'Despesa');
+            map[nome] = (map[nome] || 0) + (l.tipo === 'entrada' ? Number(l.valor) : -Number(l.valor));
+        });
+        linhas.push('Por categoria');
+        Object.keys(map).sort().forEach((k) => linhas.push('- ' + k + ': ' + G.fmtBRL(map[k])));
+        if (!Object.keys(map).length) linhas.push('- (nenhum lancamento)');
+        linhas.push('', 'CARRADAS');
+        if (!fin.length) linhas.push('- (nenhuma)');
+        fin.forEach((c) => linhas.push(
+            G.dataBR(c.data) + ' ' + (c.placa || '') + ' teor ' + (c.teor == null ? '-' : G.fmtNum(c.teor, 2) + '%') +
+            ' seco ' + G.fmtT(c.peso_seco_t) + ' preco/t ' + G.fmtBRL(c.preco_t) + ' lucro ' + G.fmtBRL(c.lucro) + ' [' + c.status + ']'
+        ));
+        linhas.push('', 'LANCAMENTOS');
+        if (!lancs.length) linhas.push('- (nenhum)');
+        lancs.forEach((l) => {
+            const cat = catPor(l.categoria_id);
+            linhas.push(G.dataBR(l.data) + ' ' + (l.tipo === 'entrada' ? 'Entrada' : 'Saida') + ' ' +
+                (cat ? cat.nome : '') + ' ' + (l.descricao || '') + ' ' + G.fmtBRL(Number(l.valor)));
+        });
+        baixar('gestor-resumo-' + sufixoPeriodo() + '.pdf', G.pdfSimples(linhas), 'application/pdf');
+        toast('PDF do período baixado');
     }
 
     // ---------- eventos ----------
@@ -784,7 +906,8 @@
                 excluir({ carrada: 'carradas', lanc: 'lancamentos', tabela: 'tabelas', cat: 'categorias' }[tipo], id);
                 return;
             }
-            if (t.dataset.delLinha != null) { // linha da tabela em edição: some na hora, com Desfazer
+            if (t.dataset.delLinha != null) {
+                if (!confirm('Excluir esta linha da tabela?')) return;
                 const linhas = linhasDoForm(); const i = Number(t.dataset.delLinha); const tirada = linhas.splice(i, 1)[0];
                 renderLinhas(linhas);
                 toast('Linha excluída', () => { const l2 = linhasDoForm(); l2.splice(i, 0, tirada); renderLinhas(l2); });
@@ -794,7 +917,15 @@
             else if (t.dataset.acao === 'nova-categoria') abrirCategoria(null);
             else if (t.dataset.acao === 'nova-categoria-aqui') abrirCategoria(null, segGet(fDes(), 'tipo'));
             else if (t.dataset.acao === 'nova-carrada') abrirCarrada(null);
+            else if (t.dataset.acao === 'nova-entrada') abrirDespesa(null, null, { tipo: 'entrada', titulo: 'Nova entrada' });
             else if (t.dataset.acao === 'nova-despesa') abrirDespesa(null);
+            else if (t.dataset.acao === 'pagar-funcionario') {
+                const cat = catFuncionarios();
+                abrirDespesa(null, null, {
+                    tipo: 'saida', categoriaId: cat && cat.id, titulo: 'Pagar funcionário',
+                    placeholderDesc: 'Nome do funcionário', placeholderObs: 'Dias, função, observações'
+                });
+            }
             else if (t.dataset.carrada) abrirCarrada(t.dataset.carrada);
             else if (t.dataset.lanc) abrirDespesa(t.dataset.lanc);
             else if (t.dataset.ir) irAba(t.dataset.ir);
@@ -854,7 +985,13 @@
             const src = $('#sd-foto-img').src; if (!src) return;
             $('#mf-img').src = src; $('#modal-foto').classList.remove('oculto');
         });
-        $('#resumo-mes').addEventListener('change', renderResumo);
+        function aoMudarPeriodo(e) {
+            filtroMes = e.target.value || '';
+            render();
+        }
+        $('#resumo-mes').addEventListener('change', aoMudarPeriodo);
+        const caixaMes = $('#caixa-mes');
+        if (caixaMes) caixaMes.addEventListener('change', aoMudarPeriodo);
         fTab().addEventListener('submit', (e) => { e.preventDefault(); salvarTabela(); });
         $('#st-add-linha').addEventListener('click', () => {
             const l = linhasDoForm(); l.push({ teor: null, valor: null }); renderLinhas(l);
@@ -879,6 +1016,8 @@
         });
         $('#btn-csv-carradas').addEventListener('click', csvCarradas);
         $('#btn-csv-despesas').addEventListener('click', csvDespesas);
+        const btnPdf = $('#btn-pdf-resumo');
+        if (btnPdf) btnPdf.addEventListener('click', pdfResumo);
         window.addEventListener('online', () => { servidorErro = ''; puxar(); });
         window.addEventListener('offline', renderSync);
         setInterval(() => { if (outbox.length) flush(); }, 20000);
@@ -889,6 +1028,7 @@
         const session = await requireSession();
         if (!session) return;
         uid = session.user.id;
+        filtroMes = hoje().slice(0, 7);
         lerLocal();
         bind();
         render();
@@ -896,6 +1036,16 @@
         if (h) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } }
         if (h === '#nova-carrada') abrirCarrada(null);
         else if (h === '#nova-despesa') abrirDespesa(null);
+        else if (h === '#caixa' || h === '#pagar-funcionario') {
+            irAba('despesas');
+            if (h === '#pagar-funcionario') {
+                const cat = catFuncionarios();
+                abrirDespesa(null, null, {
+                    tipo: 'saida', categoriaId: cat && cat.id, titulo: 'Pagar funcionário',
+                    placeholderDesc: 'Nome do funcionário', placeholderObs: 'Dias, função, observações'
+                });
+            }
+        }
         puxar();
         try {
             const perfil = await getPerfil(session);

@@ -101,7 +101,66 @@
         return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso);
     }
 
-    const api = { parseBR, fmtNum, fmtBRL, fmtT, numInput, calcCarrada, lookupTabela, parseTabelaColada, csv, dataBR };
+    /** Literal PDF (WinAnsi). Acentos pt-BR em U+00A0–U+00FF coincidem com WinAnsi. */
+    function pdfLit(str) {
+        let out = '';
+        const s = String(str == null ? '' : str);
+        for (let i = 0; i < s.length; i++) {
+            const c = s.charCodeAt(i);
+            const b = c < 128 || (c >= 0xA0 && c <= 0xFF) ? c : 0x3F;
+            if (b === 0x28 || b === 0x29 || b === 0x5C) out += '\\' + String.fromCharCode(b);
+            else if (b === 0x0D) out += '\\r';
+            else if (b === 0x0A) out += '\\n';
+            else if (b >= 32 && b < 127) out += String.fromCharCode(b);
+            else out += '\\' + ('000' + b.toString(8)).slice(-3);
+        }
+        return '(' + out + ')';
+    }
+
+    /** PDF texto simples (várias páginas A4). Retorna string ASCII pronta para Blob. */
+    function pdfSimples(linhas) {
+        const per = 46;
+        const src = (Array.isArray(linhas) && linhas.length ? linhas : [' ']).map((l) =>
+            String(l == null ? '' : l).replace(/[\r\n]+/g, ' ').slice(0, 100));
+        const paginas = [];
+        for (let i = 0; i < src.length; i += per) paginas.push(src.slice(i, i + per));
+        const n = paginas.length;
+        const objects = new Array(3 + n * 2);
+        objects[0] = '<< /Type /Catalog /Pages 2 0 R >>';
+        objects[2] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+        const kids = [];
+        paginas.forEach((ls, i) => {
+            const pageId = 4 + i * 2;
+            const contId = pageId + 1;
+            kids.push(pageId + ' 0 R');
+            const cmds = ['BT', '/F1 11 Tf', '48 800 Td', '14 TL'];
+            ls.forEach((line, j) => {
+                if (j) cmds.push('T*');
+                cmds.push(pdfLit(line) + ' Tj');
+            });
+            cmds.push('ET');
+            const stream = cmds.join('\n');
+            objects[pageId - 1] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ' + contId +
+                ' 0 R /Resources << /Font << /F1 3 0 R >> >> >>';
+            objects[contId - 1] = '<< /Length ' + stream.length + ' >>\nstream\n' + stream + '\nendstream';
+        });
+        objects[1] = '<< /Type /Pages /Count ' + n + ' /Kids [' + kids.join(' ') + '] >>';
+
+        let pdf = '%PDF-1.4\n';
+        const xref = [0];
+        objects.forEach((obj, i) => {
+            xref.push(pdf.length);
+            pdf += (i + 1) + ' 0 obj\n' + obj + '\nendobj\n';
+        });
+        const xrefPos = pdf.length;
+        pdf += 'xref\n0 ' + (objects.length + 1) + '\n';
+        pdf += '0000000000 65535 f \n';
+        for (let i = 1; i < xref.length; i++) pdf += String(xref[i]).padStart(10, '0') + ' 00000 n \n';
+        pdf += 'trailer\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF\n';
+        return pdf;
+    }
+
+    const api = { parseBR, fmtNum, fmtBRL, fmtT, numInput, calcCarrada, lookupTabela, parseTabelaColada, csv, dataBR, pdfSimples };
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.GestorCalc = api;
 })(typeof window !== 'undefined' ? window : this);
