@@ -16,14 +16,14 @@
     <meta property="og:title" content="Minera Pará">
     <meta property="og:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
     <meta property="og:url" content="https://minerapara.com.br/">
-    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261002a">
-    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261002a">
+    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261002b">
+    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261002b">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1080">
     <meta property="og:image:height" content="1080">
     <meta property="og:image:alt" content="Minera Pará">
-    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002a">
-    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002a">
+    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002b">
+    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002b">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="464">
     <meta property="og:video:height" content="688">
@@ -32,7 +32,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Minera Pará">
     <meta name="twitter:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
-    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261002a">
+    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261002b">
 
     <style>
         :root { color-scheme: dark; }
@@ -75,7 +75,7 @@
                 code = String(q.get('ref') || q.get('c') || '').trim().toUpperCase();
             } catch (e) { /* ignore */ }
         }
-        var dest = APP + 'index.html';
+        var dest = APP + 'entrar.html';
         if (code) {
             try { localStorage.setItem('minera_ref', code); } catch (e2) { /* ignore */ }
             dest += '?ref=' + encodeURIComponent(code) + '&welcome=1';
@@ -91,7 +91,7 @@
         <p>Abrindo o cadastro do Minera Pará…</p>
         <noscript>
             <p>JavaScript desativado. Abra o app manualmente:</p>
-            <a href="/index.html">Entrar no Minera Pará</a>
+            <a href="/entrar.html">Entrar no Minera Pará</a>
         </noscript>
     </div>
 </body>

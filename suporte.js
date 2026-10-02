@@ -317,6 +317,12 @@ function garantirFaleConosco(perfil) {
         btn._faleBound = true;
         btn.addEventListener('click', () => abrirSuporte(_suportePerfil));
     }
+    // Link do site (minerapara.com.br/#contato → perfil.html#fale-conosco): abre o suporte direto.
+    if (location.hash === '#fale-conosco' && !garantirFaleConosco._auto) {
+        garantirFaleConosco._auto = true;
+        try { card.scrollIntoView({ block: 'center' }); } catch (e) { /* ignore */ }
+        setTimeout(() => { try { abrirSuporte(_suportePerfil); } catch (e) { /* ignore */ } }, 400);
+    }
 }
 
 /* —— Família Minera / indicação —— */

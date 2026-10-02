@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Minera Pará - Entrar</title>
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261002b">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261002b">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#F5A623">
+    <meta name="description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Minera Pará">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:title" content="Minera Pará">
+    <meta property="og:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
+    <meta property="og:url" content="https://minerapara.com.br/">
+    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261002b">
+    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261002b">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1080">
+    <meta property="og:image:height" content="1080">
+    <meta property="og:image:alt" content="Minera Pará">
+    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002b">
+    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002b">
+    <meta property="og:video:type" content="video/mp4">
+    <meta property="og:video:width" content="464">
+    <meta property="og:video:height" content="688">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Minera Pará">
+    <meta name="twitter:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
+    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261002b">
+
+    <link rel="stylesheet" href="style.css?v=20261002b">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+    <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+</head>
+<body>
+    <div class="container">
+        <header class="auth-header">
+            <div class="logo-mark" aria-hidden="true">
+                <img class="brand-logo-lg" src="logo-escavadeira.png?v=20261002b" alt="Minera Pará" width="112" height="112" decoding="async">
+            </div>
+            <h1>Minera Pará</h1>
+            <p>Crie sua conta ou entre para gerenciar lotes</p>
+        </header>
+
+            <button type="button" class="auth-baixar-app" id="btn-baixar-app-login" data-minera-install data-minera-install-host>📲 Baixar app</button>
+
+        <section class="card welcome-card" id="welcome-card" role="dialog" aria-labelledby="welcome-title" aria-modal="true">
+            <h2 id="welcome-title">Bem-vindo ao Minera Pará</h2>
+            <p>Cada conta vê somente os próprios dados financeiros e conversas. Nos lotes públicos aparece o anúncio — não extrato, limite de crédito nem documentos de outras pessoas.</p>
+            <p>Não misturamos perfis: o que é seu permanece na sua área. O cadastro serve para você acessar a própria conta, não para expor dados pessoais no marketplace.</p>
+            
+            <fieldset class="tema-picker" id="tema-picker-welcome">
+                <legend>Como prefere ver o app?</legend>
+                <button type="button" class="tema-opt" data-tema="light" id="tema-opt-light" aria-pressed="false"><span class="tema-ico" aria-hidden="true">☀️</span><span class="tema-lbl">Claro</span></button>
+                <button type="button" class="tema-opt" data-tema="dark" id="tema-opt-dark" aria-pressed="false"><span class="tema-ico" aria-hidden="true">🌙</span><span class="tema-lbl">Escuro</span></button>
+            </fieldset>
+
+            <button type="button" class="btn-ok" id="btn-welcome-continuar">Continuar</button>
+        </section>
+
+        <section class="card oculto" id="auth-card">
+            <div class="tabs">
+                <button type="button" class="tab on" id="tab-entrar">Entrar</button>
+                <button type="button" class="tab" id="tab-cadastrar">Criar conta</button>
+            </div>
+
+            <form id="form-entrar">
+                <label for="login-email">E-mail</label>
+                <input type="email" id="login-email" required placeholder="voce@email.com" autocomplete="email">
+                <label for="login-senha">Senha</label>
+                <input type="password" id="login-senha" required placeholder="••••••••" autocomplete="current-password" minlength="6">
+                <button type="submit">Entrar</button>
+                <button type="button" class="btn-link" id="btn-esqueci">Esqueci minha senha</button>
+            </form>
+
+            <div id="cadastro-welcome" class="callout-institucional oculto" role="note">
+                <strong>Segurança nas suas transações</strong>
+                <p>Esse aplicativo foi desenvolvido para que você tenha segurança nas suas transações e não precise ficar usando as redes sociais nem o WhatsApp e faça tudo por esse aplicativo para que você possa se blindar, pois tudo no aplicativo tem criptografia de ponta e nada fica registrado.</p>
+            </div>
+
+            <form id="form-cadastrar" class="oculto">
+                <fieldset class="tema-picker" id="tema-picker-cadastro">
+                    <legend>Tema do app</legend>
+                    <button type="button" class="tema-opt" data-tema="light" aria-pressed="false"><span class="tema-ico" aria-hidden="true">☀️</span><span class="tema-lbl">Claro</span></button>
+                    <button type="button" class="tema-opt" data-tema="dark" aria-pressed="false"><span class="tema-ico" aria-hidden="true">🌙</span><span class="tema-lbl">Escuro</span></button>
+                </fieldset>
+
+                <label for="cad-nome">Nome</label>
+                <input type="text" id="cad-nome" required placeholder="Seu nome" autocomplete="name">
+                <label for="cad-apelido">Apelido público (opcional)</label>
+                <input type="text" id="cad-apelido" maxlength="40" placeholder="Como quer aparecer no chat" autocomplete="nickname">
+                <label for="cad-email">E-mail</label>
+                <input type="email" id="cad-email" required placeholder="voce@email.com" autocomplete="email">
+                <label for="cad-senha">Senha (mín. 6)</label>
+                <input type="password" id="cad-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <fieldset class="papeis-fieldset">
+                    <legend>Papéis (pode marcar mais de um)</legend>
+                    <label class="check-row"><input type="checkbox" id="papel-minerador" value="minerador"> Minerador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-comprador" value="comprador"> Comprador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-transportador_mina_britador" value="transportador_mina_britador"> Transportador (Mina - Britador)</label>
+                    <label class="check-row"><input type="checkbox" id="papel-transportador_britador_porto" value="transportador_britador_porto"> Transportador (Britador - Porto)</label>
+                    <label class="check-row"><input type="checkbox" id="papel-dono_britador" value="dono_britador"> Dono de Britador</label>
+                    <label class="check-row"><input type="checkbox" id="papel-carregamento" value="carregamento"> Operador de Carregamento</label>
+                </fieldset>
+                <button type="submit">Criar conta</button>
+            </form>
+
+            <form id="form-nova-senha" class="oculto" style="display:none; flex-direction:column; gap:12px;">
+                <h2 style="margin:0; font-size:1.15rem;">Definir nova senha</h2>
+                <p class="sub" style="margin:0;">Digite e confirme a nova senha da sua conta.</p>
+                <label for="nova-senha">Nova senha</label>
+                <input type="password" id="nova-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <label for="nova-senha-confirma">Confirmar senha</label>
+                <input type="password" id="nova-senha-confirma" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <button type="submit">Salvar nova senha</button>
+            </form>
+
+            <p id="auth-msg" class="msg"></p>
+        </section>
+    </div>
+    <script src="config.js?v=20261002b"></script>
+    <script src="auth-guard.js?v=20261002b"></script>
+    <script src="suporte.js?v=20261002b"></script>
+    <script src="auth.js?v=20261002b"></script>
+    <script src="pwa.js?v=20261002b"></script>
+</body>
+</html>

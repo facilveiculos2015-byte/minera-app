@@ -2,133 +2,522 @@
 <html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
+    <script>
+    /* Antes de tudo: quem deve ir direto para o app (entrar.html), sem ver o site.
+     * - App instalado (PWA standalone / iPhone Tela de Início / APK Android TWA)
+     * - Links do Supabase (confirmação de e-mail, redefinir senha) com tokens no hash/query
+     * - Convites (?ref= / ?c= / ?welcome=) */
+    (function () {
+        try {
+            var L = location, s = L.search || '', h = L.hash || '';
+            var go = false, mm = window.matchMedia;
+            if (mm && (mm('(display-mode: standalone)').matches || mm('(display-mode: fullscreen)').matches ||
+                mm('(display-mode: minimal-ui)').matches || mm('(display-mode: window-controls-overlay)').matches)) go = true;
+            if (navigator.standalone === true) go = true;
+            if ((document.referrer || '').indexOf('android-app://') === 0) go = true;
+            if (/[?&](utm_source|source)=(twa|pwa|app)(&|$)/i.test(s) || /[?&]apk=\d/.test(s)) go = true;
+            try { if (sessionStorage.getItem('minera_is_twa') === '1') go = true; } catch (e) {}
+            if (/(access_token|refresh_token|token_hash|error_code|error_description|type=(recovery|signup|invite|magiclink|email_change))/i.test(h + s)) go = true;
+            if (/[?&](code|token|error|ref|c|welcome)=/i.test(s)) go = true;
+            if (go) {
+                document.documentElement.style.visibility = 'hidden';
+                L.replace('entrar.html' + s + h);
+                return;
+            }
+            var t = localStorage.getItem('minera_tema');
+            if (t !== 'light' && t !== 'dark') t = (mm && mm('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+            document.documentElement.classList.add('js');
+        } catch (e) { /* segue no site */ }
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Minera Pará - Entrar</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261002a">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261002a">
+    <title>Minera Pará — Marketplace de minério e serviços do Pará | Família Minera</title>
+    <meta name="description" content="Minera Pará: o marketplace de minério e serviços do Pará. Anuncie lotes de ouro, ferro, cobre e níquel, contrate frete, britagem e maquinário, negocie no Minera Chat e controle suas carradas no Gestor Financeiro. App grátis para Android e iPhone.">
+    <link rel="canonical" href="https://minerapara.com.br/">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261002b">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261002b">
     <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#F5A623">
-    <meta name="description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0b1220">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
 
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Minera Pará">
     <meta property="og:locale" content="pt_BR">
-    <meta property="og:title" content="Minera Pará">
-    <meta property="og:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
+    <meta property="og:title" content="Minera Pará — Marketplace de minério e serviços do Pará">
+    <meta property="og:description" content="Lotes de minério, frete, britagem, maquinário, Minera Chat e Gestor Financeiro num só app. Família Minera.">
     <meta property="og:url" content="https://minerapara.com.br/">
-    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261002a">
-    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261002a">
+    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261002b">
+    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261002b">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1080">
     <meta property="og:image:height" content="1080">
-    <meta property="og:image:alt" content="Minera Pará">
-    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002a">
-    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002a">
+    <meta property="og:image:alt" content="Minera Pará — Família Minera">
+    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002b">
+    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261002b">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="464">
     <meta property="og:video:height" content="688">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Minera Pará">
-    <meta name="twitter:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
-    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261002a">
+    <meta name="twitter:title" content="Minera Pará — Marketplace de minério e serviços do Pará">
+    <meta name="twitter:description" content="Lotes de minério, frete, britagem, maquinário, Minera Chat e Gestor Financeiro num só app.">
+    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261002b">
 
-    <link rel="stylesheet" href="style.css?v=20261002a">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
-    <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+    <link rel="preload" as="image" href="landing/img/banner-familia-720.webp?v=20261002b" type="image/webp" media="(max-width: 599px)">
+    <link rel="preload" as="image" href="landing/img/banner-familia.webp?v=20261002b" type="image/webp" media="(min-width: 600px)">
+    <link rel="stylesheet" href="landing.css?v=20261002b">
+    <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"MobileApplication","name":"Minera Pará","alternateName":"Família Minera","operatingSystem":"Android, iOS","applicationCategory":"BusinessApplication","url":"https://minerapara.com.br/","offers":{"@type":"Offer","price":"0","priceCurrency":"BRL"},"inLanguage":"pt-BR"}
+    </script>
 </head>
 <body>
-    <div class="container">
-        <header class="auth-header">
-            <div class="logo-mark" aria-hidden="true">
-                <img class="brand-logo-lg" src="logo-escavadeira.png?v=20261002a" alt="Minera Pará" width="112" height="112" decoding="async">
-            </div>
-            <h1>Minera Pará</h1>
-            <p>Crie sua conta ou entre para gerenciar lotes</p>
-        </header>
-
-            <button type="button" class="auth-baixar-app" id="btn-baixar-app-login" data-minera-install data-minera-install-host>📲 Baixar app</button>
-
-        <section class="card welcome-card" id="welcome-card" role="dialog" aria-labelledby="welcome-title" aria-modal="true">
-            <h2 id="welcome-title">Bem-vindo ao Minera Pará</h2>
-            <p>Cada conta vê somente os próprios dados financeiros e conversas. Nos lotes públicos aparece o anúncio — não extrato, limite de crédito nem documentos de outras pessoas.</p>
-            <p>Não misturamos perfis: o que é seu permanece na sua área. O cadastro serve para você acessar a própria conta, não para expor dados pessoais no marketplace.</p>
-            
-            <fieldset class="tema-picker" id="tema-picker-welcome">
-                <legend>Como prefere ver o app?</legend>
-                <button type="button" class="tema-opt" data-tema="light" id="tema-opt-light" aria-pressed="false"><span class="tema-ico" aria-hidden="true">☀️</span><span class="tema-lbl">Claro</span></button>
-                <button type="button" class="tema-opt" data-tema="dark" id="tema-opt-dark" aria-pressed="false"><span class="tema-ico" aria-hidden="true">🌙</span><span class="tema-lbl">Escuro</span></button>
-            </fieldset>
-
-            <button type="button" class="btn-ok" id="btn-welcome-continuar">Continuar</button>
-        </section>
-
-        <section class="card oculto" id="auth-card">
-            <div class="tabs">
-                <button type="button" class="tab on" id="tab-entrar">Entrar</button>
-                <button type="button" class="tab" id="tab-cadastrar">Criar conta</button>
-            </div>
-
-            <form id="form-entrar">
-                <label for="login-email">E-mail</label>
-                <input type="email" id="login-email" required placeholder="voce@email.com" autocomplete="email">
-                <label for="login-senha">Senha</label>
-                <input type="password" id="login-senha" required placeholder="••••••••" autocomplete="current-password" minlength="6">
-                <button type="submit">Entrar</button>
-                <button type="button" class="btn-link" id="btn-esqueci">Esqueci minha senha</button>
-            </form>
-
-            <div id="cadastro-welcome" class="callout-institucional oculto" role="note">
-                <strong>Segurança nas suas transações</strong>
-                <p>Esse aplicativo foi desenvolvido para que você tenha segurança nas suas transações e não precise ficar usando as redes sociais nem o WhatsApp e faça tudo por esse aplicativo para que você possa se blindar, pois tudo no aplicativo tem criptografia de ponta e nada fica registrado.</p>
-            </div>
-
-            <form id="form-cadastrar" class="oculto">
-                <fieldset class="tema-picker" id="tema-picker-cadastro">
-                    <legend>Tema do app</legend>
-                    <button type="button" class="tema-opt" data-tema="light" aria-pressed="false"><span class="tema-ico" aria-hidden="true">☀️</span><span class="tema-lbl">Claro</span></button>
-                    <button type="button" class="tema-opt" data-tema="dark" aria-pressed="false"><span class="tema-ico" aria-hidden="true">🌙</span><span class="tema-lbl">Escuro</span></button>
-                </fieldset>
-
-                <label for="cad-nome">Nome</label>
-                <input type="text" id="cad-nome" required placeholder="Seu nome" autocomplete="name">
-                <label for="cad-apelido">Apelido público (opcional)</label>
-                <input type="text" id="cad-apelido" maxlength="40" placeholder="Como quer aparecer no chat" autocomplete="nickname">
-                <label for="cad-email">E-mail</label>
-                <input type="email" id="cad-email" required placeholder="voce@email.com" autocomplete="email">
-                <label for="cad-senha">Senha (mín. 6)</label>
-                <input type="password" id="cad-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
-                <fieldset class="papeis-fieldset">
-                    <legend>Papéis (pode marcar mais de um)</legend>
-                    <label class="check-row"><input type="checkbox" id="papel-minerador" value="minerador"> Minerador</label>
-                    <label class="check-row"><input type="checkbox" id="papel-comprador" value="comprador"> Comprador</label>
-                    <label class="check-row"><input type="checkbox" id="papel-transportador_mina_britador" value="transportador_mina_britador"> Transportador (Mina - Britador)</label>
-                    <label class="check-row"><input type="checkbox" id="papel-transportador_britador_porto" value="transportador_britador_porto"> Transportador (Britador - Porto)</label>
-                    <label class="check-row"><input type="checkbox" id="papel-dono_britador" value="dono_britador"> Dono de Britador</label>
-                    <label class="check-row"><input type="checkbox" id="papel-carregamento" value="carregamento"> Operador de Carregamento</label>
-                </fieldset>
-                <button type="submit">Criar conta</button>
-            </form>
-
-            <form id="form-nova-senha" class="oculto" style="display:none; flex-direction:column; gap:12px;">
-                <h2 style="margin:0; font-size:1.15rem;">Definir nova senha</h2>
-                <p class="sub" style="margin:0;">Digite e confirme a nova senha da sua conta.</p>
-                <label for="nova-senha">Nova senha</label>
-                <input type="password" id="nova-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
-                <label for="nova-senha-confirma">Confirmar senha</label>
-                <input type="password" id="nova-senha-confirma" required placeholder="••••••••" autocomplete="new-password" minlength="6">
-                <button type="submit">Salvar nova senha</button>
-            </form>
-
-            <p id="auth-msg" class="msg"></p>
-        </section>
+<header class="lp-top">
+    <div class="wrap">
+        <a class="lp-brand" href="#topo" aria-label="Minera Pará — início do site">
+            <img src="logo-escavadeira.png?v=20261002b" alt="" width="38" height="38" decoding="async">
+            <span><b>Minera Pará</b><small>Família Minera</small></span>
+        </a>
+        <nav class="lp-nav" aria-label="Seções">
+            <a href="#o-que-e">O que é</a>
+            <a href="#recursos">Recursos</a>
+            <a href="#telas">Telas</a>
+            <a href="#baixar">Baixar</a>
+            <a href="#contato">Fale conosco</a>
+        </nav>
+        <span class="sp"></span>
+        <button type="button" class="lp-icon" id="lp-tema" aria-label="Alternar tema claro/escuro" title="Tema claro/escuro">🌙</button>
+        <a class="btn btn-or" href="entrar.html" data-app-link id="lp-entrar-top">Entrar</a>
     </div>
-    <script src="config.js?v=20261002a"></script>
-    <script src="auth-guard.js?v=20261002a"></script>
-    <script src="suporte.js?v=20261002a"></script>
-    <script src="auth.js?v=20261002a"></script>
-    <script src="pwa.js?v=20261002a"></script>
+</header>
+
+<main id="topo">
+    <!-- HERO -->
+    <section class="hero">
+        <div class="wrap hero-grid">
+            <div class="hero-copy">
+                <div class="hero-banner rv in">
+                    <picture>
+                        <source media="(min-width: 600px)" srcset="landing/img/banner-familia.webp?v=20261002b" type="image/webp">
+                        <img src="landing/img/banner-familia-720.webp?v=20261002b" alt="Minera Pará — Família Minera: negocie minério com segurança. Chat, Bank e Lotes." width="1070" height="600" fetchpriority="high" decoding="async">
+                    </picture>
+                </div>
+                <span class="kicker">⛏️ Família Minera</span>
+                <h1>O marketplace de <em>minério e serviços</em> do Pará</h1>
+                <p class="lead">Anuncie seu lote, encontre comprador, contrate frete, britagem e maquinário e negocie tudo pelo chat — com seus dados protegidos e o controle das carradas na palma da mão.</p>
+                <div class="cta-row">
+                    <a class="btn btn-or btn-lg" href="#baixar">📲 Baixe o app grátis</a>
+                    <a class="btn btn-gh btn-lg" href="entrar.html" data-app-link id="lp-entrar-hero">Entrar</a>
+                </div>
+                <ul class="trust">
+                    <li>Grátis</li>
+                    <li>Android e iPhone</li>
+                    <li>Feito para o garimpo e a mineração do Pará</li>
+                </ul>
+            </div>
+            <div class="hero-media">
+                <div class="phone">
+                    <video id="lp-video" autoplay muted loop playsinline preload="metadata" poster="landing/img/familia-poster.webp?v=20261002b" aria-label="Vídeo de apresentação Família Minera">
+                        <source src="landing/familia-minera.mp4?v=20261002b" type="video/mp4">
+                    </video>
+                    <button type="button" class="vid-toggle" id="lp-video-toggle" aria-label="Pausar vídeo">❚❚</button>
+                    <div class="phone-tag"><b>Família Minera</b> — venha trabalhar com a gente e negociar minério com segurança.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- O QUE É -->
+    <section class="blk alt" id="o-que-e">
+        <div class="wrap">
+            <div class="sec-h rv">
+                <span class="kicker">O que é</span>
+                <h2>Um app para quem vive da mineração no Pará</h2>
+                <p>O Minera Pará junta, num só lugar, quem tem minério, quem compra e quem presta serviço — do garimpo ao porto. Cada conta vê somente os próprios dados: nos anúncios públicos aparece o lote, nunca extrato, documentos ou conversas de outras pessoas.</p>
+            </div>
+            <div class="why">
+                <div class="why-card rv">
+                    <div class="ic">⛏️</div>
+                    <h3>Vender e comprar minério</h3>
+                    <p>Publique lotes de ouro, ferro, cobre, níquel e outros com fotos, teor, peso e local. Compradores da região encontram e chamam no chat.</p>
+                </div>
+                <div class="why-card rv">
+                    <div class="ic">🚚</div>
+                    <h3>Achar serviço de confiança</h3>
+                    <p>Frete, britagem, carregamento e maquinário perto de você — com contato direto pelo Minera Chat, sem expor seu número.</p>
+                </div>
+                <div class="why-card rv">
+                    <div class="ic">📒</div>
+                    <h3>Controlar o seu negócio</h3>
+                    <p>Anote carradas, peso da balança, custos e despesas e veja o lucro de cada carrada e o resumo do mês no Gestor Financeiro.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RECURSOS -->
+    <section class="blk" id="recursos">
+        <div class="wrap">
+            <div class="sec-h rv">
+                <span class="kicker">Recursos</span>
+                <h2>Tudo o que o app já faz</h2>
+                <p>Recursos reais do Minera Pará, prontos para usar no celular.</p>
+            </div>
+            <div class="feat">
+                <article class="f rv">
+                    <div class="ic">🏠</div>
+                    <div>
+                        <h3>Início / Marketplace</h3>
+                        <p>Anúncios por categoria (Todos, Ouro, Ferro, Cobre, Níquel), busca por minério, maquinário ou código, Favoritos e atalhos para Mapa, Serviços e Maquinário.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">📈</div>
+                    <div>
+                        <h3>Cotações do dia</h3>
+                        <p>Dólar, ouro e cobre na tela inicial, com links para LME Copper, LME e Gold LBMA.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">📦</div>
+                    <div>
+                        <h3>Lotes e anúncios de minério</h3>
+                        <p>Crie anúncios com fotos, tipo de minério, teor, peso e local. Edite, marque como vendido e acompanhe tudo em “Meus anúncios”.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🛠️</div>
+                    <div>
+                        <h3>Serviços e maquinário</h3>
+                        <p>Catálogo de prestadores da mineração:</p>
+                        <ul>
+                            <li>Frete / transportador</li>
+                            <li>Britagem / britador e carregamento</li>
+                            <li>Minerador, comprador e maquinário</li>
+                        </ul>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">💬</div>
+                    <div>
+                        <h3>Minera Chat</h3>
+                        <p>Conversa em tempo real com confirmação de entrega e leitura (✓✓), “digitando…”, online, áudio, fotos e vídeos, lista de amigos e envio mesmo com sinal fraco (manda quando a internet volta).</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🛡️</div>
+                    <div>
+                        <h3>Anti-golpe</h3>
+                        <p>Telefones e contatos externos são mascarados no chat e nos anúncios: a negociação fica dentro do app, mais segura para os dois lados.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">📒</div>
+                    <div>
+                        <h3>Gestor Financeiro <span class="pill or">carradas</span></h3>
+                        <p>Registre carradas, balança e peso seco, tabelas de preço por ponto de venda, custos e despesas por categoria. Veja o lucro por carrada, o resumo do mês e exporte planilha (CSV). É só anotação — não mexe em dinheiro.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🚛</div>
+                    <div>
+                        <h3>Fretes e logística</h3>
+                        <p>Organize o caminho do minério — mina, britador e porto — e o acerto do frete.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">⚙️</div>
+                    <div>
+                        <h3>Painel de Britagem</h3>
+                        <p>Para donos de britador: preço por tonelada, tempo estimado, fila de lotes e prazo de retirada.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🗺️</div>
+                    <div>
+                        <h3>Mapa</h3>
+                        <p>Veja anúncios e serviços no mapa e abra a rota direto no app de mapas do celular.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🏦</div>
+                    <div>
+                        <h3>Minera Bank / Caixa <span class="pill">em breve</span></h3>
+                        <p>Caixa com senha própria, Pix, transferências, depósitos e capital de giro. Está passando por melhorias e volta em breve.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">👤</div>
+                    <div>
+                        <h3>Perfil com foto ou logo</h3>
+                        <p>Coloque a foto ou o logo da empresa (com recorte, ou escolha um avatar pronto), escolha seus papéis — minerador, comprador, transportador, britador — e mostre seus anúncios.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🤝</div>
+                    <div>
+                        <h3>Família Minera</h3>
+                        <p>Comunidade do app: convide amigos com seu link de indicação e ganhe pontos quando eles entram.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🤖</div>
+                    <div>
+                        <h3>Fale conosco</h3>
+                        <p>O Robô Minera tira dúvidas na hora sobre lotes, Pix, Caixa, frete e chat — e chama uma pessoa da equipe quando precisa.</p>
+                    </div>
+                </article>
+                <article class="f rv">
+                    <div class="ic">🌗</div>
+                    <div>
+                        <h3>Do seu jeito</h3>
+                        <p>Tema claro ou escuro, notificações de mensagens, tutorial de primeiro acesso e app instalável no Android e no iPhone.</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- TELAS -->
+    <section class="blk alt" id="telas">
+        <div class="wrap">
+            <div class="sec-h rv">
+                <span class="kicker">Telas do app</span>
+                <h2>Veja o Minera Pará por dentro</h2>
+                <p>Telas reais do app no celular.</p>
+            </div>
+            <div class="shots" role="list">
+                <figure class="shot" role="listitem">
+                    <div class="sc"><img src="landing/img/app-inicio-sm.webp?v=20261002b" srcset="landing/img/app-inicio-sm.webp?v=20261002b 270w, landing/img/app-inicio.webp?v=20261002b 540w" sizes="(min-width: 960px) 170px, 240px" alt="Tela Início do app: categorias, busca, atalhos e cotações" width="270" height="584" loading="lazy" decoding="async"></div>
+                    <figcaption>Início<span>Categorias, busca e cotações</span></figcaption>
+                </figure>
+                <figure class="shot" role="listitem">
+                    <div class="sc"><img src="landing/img/app-lote-detalhe-sm.webp?v=20261002b" srcset="landing/img/app-lote-detalhe-sm.webp?v=20261002b 270w, landing/img/app-lote-detalhe.webp?v=20261002b 540w" sizes="(min-width: 960px) 170px, 240px" alt="Detalhe de um anúncio de lote de cobre com botão Negociar no chat" width="270" height="584" loading="lazy" decoding="async"></div>
+                    <figcaption>Anúncio de lote<span>Teor, peso e Negociar no chat</span></figcaption>
+                </figure>
+                <figure class="shot" role="listitem">
+                    <div class="sc"><img src="landing/img/app-chat-sm.webp?v=20261002b" srcset="landing/img/app-chat-sm.webp?v=20261002b 270w, landing/img/app-chat.webp?v=20261002b 540w" sizes="(min-width: 960px) 170px, 240px" alt="Lista de conversas do Minera Chat" width="270" height="584" loading="lazy" decoding="async"></div>
+                    <figcaption>Minera Chat<span>Conversas em tempo real</span></figcaption>
+                </figure>
+                <figure class="shot" role="listitem">
+                    <div class="sc"><img src="landing/img/app-gestor-sm.webp?v=20261002b" srcset="landing/img/app-gestor-sm.webp?v=20261002b 270w, landing/img/app-gestor.webp?v=20261002b 540w" sizes="(min-width: 960px) 170px, 240px" alt="Gestor Financeiro com carradas, despesas e resumo do mês" width="270" height="584" loading="lazy" decoding="async"></div>
+                    <figcaption>Gestor Financeiro<span>Carradas, despesas e lucro</span></figcaption>
+                </figure>
+                <figure class="shot" role="listitem">
+                    <div class="sc"><img src="landing/img/app-perfil-sm.webp?v=20261002b" srcset="landing/img/app-perfil-sm.webp?v=20261002b 270w, landing/img/app-perfil.webp?v=20261002b 540w" sizes="(min-width: 960px) 170px, 240px" alt="Perfil com foto, papéis e Meus anúncios" width="270" height="584" loading="lazy" decoding="async"></div>
+                    <figcaption>Perfil<span>Foto/logo e Meus anúncios</span></figcaption>
+                </figure>
+                <figure class="shot" role="listitem">
+                    <div class="sc"><img src="landing/img/app-processamento-sm.webp?v=20261002b" srcset="landing/img/app-processamento-sm.webp?v=20261002b 270w, landing/img/app-processamento.webp?v=20261002b 540w" sizes="(min-width: 960px) 170px, 240px" alt="Painel de Britagem com preço por tonelada, fila e prazo" width="270" height="584" loading="lazy" decoding="async"></div>
+                    <figcaption>Painel de Britagem<span>R$/ton, fila e prazo</span></figcaption>
+                </figure>
+            </div>
+        </div>
+    </section>
+
+    <!-- BAIXAR -->
+    <section class="blk dl" id="baixar">
+        <div class="wrap">
+            <div class="sec-h center rv">
+                <span class="kicker">📲 Baixe o app</span>
+                <h2>Instale o Minera Pará no seu celular</h2>
+                <p>Grátis. Leva menos de um minuto.</p>
+            </div>
+            <div class="dl-grid">
+                <article class="dl-card rv" id="dl-android">
+                    <div class="hd">
+                        <div class="os" aria-hidden="true">🤖</div>
+                        <div><h3>Android</h3><small>App oficial (APK)</small></div>
+                        <span class="you">Seu celular</span>
+                    </div>
+                    <a class="btn btn-or btn-lg" id="lp-apk" href="download/minera-para.apk" download="minera-para.apk" type="application/vnd.android.package-archive">⬇️ Baixar app para Android</a>
+                    <p class="dl-meta" id="lp-apk-meta">Versão 1.0.1 · 3,4 MB · Android 5.0 ou mais novo</p>
+                    <ol class="steps">
+                        <li><div><b>Baixe o arquivo</b><span>Toque em “Baixar app para Android”. Se o Chrome perguntar, toque em “Baixar mesmo assim”.</span></div></li>
+                        <li><div><b>Permita fontes desconhecidas</b><span>Ao abrir o arquivo, o Android pede permissão: toque em “Configurações” e ative “Permitir desta fonte” para o Chrome (ou o app de Arquivos).</span></div></li>
+                        <li><div><b>Instale</b><span>Volte e toque em “Instalar”. Se o Play Protect avisar, toque em “Instalar mesmo assim” — o app é o oficial do Minera Pará.</span></div></li>
+                        <li><div><b>Abra e entre</b><span>Toque em “Abrir” e entre com seu e-mail e senha (ou crie sua conta).</span></div></li>
+                    </ol>
+                    <p class="dl-note">Prefere sem instalar arquivo? No Chrome, abra o <a href="entrar.html" data-app-link>app</a> e toque em ⋮ → “Instalar app”. Detalhes na <a href="download/">página de download</a>.</p>
+                </article>
+                <article class="dl-card rv" id="dl-iphone">
+                    <div class="hd">
+                        <div class="os" aria-hidden="true">🍎</div>
+                        <div><h3>iPhone</h3><small>Pela Tela de Início (Safari)</small></div>
+                        <span class="you">Seu celular</span>
+                    </div>
+                    <a class="btn btn-or btn-lg" href="entrar.html" data-app-link>🧭 Abrir o app no Safari</a>
+                    <p class="dl-meta">Funciona no iPhone e no iPad · sem App Store</p>
+                    <ol class="steps">
+                        <li><div><b>Abra no Safari</b><span>Acesse <b>minerapara.com.br</b> pelo Safari (no Chrome do iPhone a opção pode não aparecer).</span></div></li>
+                        <li><div><b>Toque em Compartilhar</b><span>O ícone de quadrado com a seta para cima ⬆️, na barra de baixo (ou no topo, no iPad).</span></div></li>
+                        <li><div><b>Adicionar à Tela de Início</b><span>Role a lista e toque em “Adicionar à Tela de Início”, depois em “Adicionar”.</span></div></li>
+                        <li><div><b>Abra pelo ícone</b><span>O ícone do Minera Pará aparece na tela do iPhone. Toque nele e entre na sua conta.</span></div></li>
+                    </ol>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTATO -->
+    <section class="blk alt" id="contato">
+        <div class="wrap ct">
+            <div class="sec-h rv" style="margin:0">
+                <span class="kicker">Fale conosco</span>
+                <h2>Ficou com dúvida? A gente responde.</h2>
+                <p>O atendimento do Minera Pará fica dentro do app, no seu Perfil: o Robô Minera responde na hora e, se precisar, chama uma pessoa da equipe para continuar a conversa com você.</p>
+            </div>
+            <div class="ct-card rv">
+                <h3>💬 Fale conosco no app</h3>
+                <p>Dúvidas sobre lotes, Pix, Caixa, frete ou chat.</p>
+                <ul class="ct-list">
+                    <li><span>🤖</span><span>Robô Minera: respostas imediatas às perguntas mais comuns.</span></li>
+                    <li><span>🙋</span><span>“Falar com humano”: sua mensagem entra na fila da equipe e a resposta chega no app.</span></li>
+                    <li><span>🔒</span><span>A conversa é só sua — fica guardada na sua conta.</span></li>
+                </ul>
+                <a class="btn btn-or btn-lg" style="width:100%" href="perfil.html#fale-conosco" id="lp-fale">💬 Abrir o Fale conosco</a>
+                <p class="dl-note" style="text-align:center">Precisa entrar na sua conta (ou criar uma, é grátis).</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA FINAL -->
+    <section class="final">
+        <div class="wrap rv">
+            <h2>Faça parte da Família Minera</h2>
+            <p>Negocie minério e serviços com mais segurança, do jeito que o Pará trabalha.</p>
+            <div class="cta-row">
+                <a class="btn btn-or btn-lg" href="#baixar">📲 Baixar o app</a>
+                <a class="btn btn-gh btn-lg" href="entrar.html" data-app-link id="lp-entrar-final">Entrar / Criar conta</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="lp-foot">
+    <div class="wrap">
+        <div class="foot-grid">
+            <div>
+                <div class="foot-brand">
+                    <img src="logo-escavadeira.png?v=20261002b" alt="" width="44" height="44" loading="lazy" decoding="async">
+                    <div><b>Minera Pará</b>Família Minera</div>
+                </div>
+                <p style="margin:0;max-width:380px">Marketplace de minério e serviços do Pará: lotes, frete, britagem, maquinário, chat e gestão das carradas.</p>
+            </div>
+            <div>
+                <h4>App</h4>
+                <ul>
+                    <li><a href="entrar.html" data-app-link>Entrar</a></li>
+                    <li><a href="entrar.html">Criar conta</a></li>
+                    <li><a href="#baixar">Baixar o app</a></li>
+                    <li><a href="download/">Página de download</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Site</h4>
+                <ul>
+                    <li><a href="#o-que-e">O que é</a></li>
+                    <li><a href="#recursos">Recursos</a></li>
+                    <li><a href="#telas">Telas</a></li>
+                    <li><a href="#contato">Fale conosco</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="foot-copy">
+            <span>© <span id="lp-ano">2026</span> Minera Pará · Família Minera</span>
+            <span>minerapara.com.br</span>
+        </div>
+    </div>
+</footer>
+
+<script>
+(function () {
+    var d = document, root = d.documentElement;
+    /* Sessão do app (supabase-js guarda no localStorage) → “Abrir o app” em vez de “Entrar”. */
+    var logado = false;
+    try {
+        var raw = localStorage.getItem('sb-eelbuaxgfzvxosatwcxk-auth-token');
+        if (raw) {
+            var j = JSON.parse(raw); var sess = j && (j.currentSession || j);
+            logado = !!(sess && (sess.refresh_token || sess.access_token));
+        }
+    } catch (e) {}
+    if (logado) {
+        d.querySelectorAll('[data-app-link]').forEach(function (a) {
+            if (/entrar\.html$/.test(a.getAttribute('href'))) {
+                a.setAttribute('href', 'inicio.html');
+                if (/^(lp-entrar-top|lp-entrar-hero|lp-entrar-final)$/.test(a.id) || a.textContent.trim() === 'Entrar') a.textContent = 'Abrir o app';
+            }
+        });
+    }
+
+    /* Tema */
+    var bt = d.getElementById('lp-tema');
+    function syncTema() {
+        var t = root.getAttribute('data-theme');
+        bt.textContent = t === 'light' ? '🌙' : '☀️';
+        var mc = d.querySelector('meta[name="theme-color"]');
+        if (mc) mc.setAttribute('content', t === 'light' ? '#f7f5f0' : '#0b1220');
+    }
+    syncTema();
+    bt.addEventListener('click', function () {
+        var t = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        root.setAttribute('data-theme', t);
+        try { localStorage.setItem('minera_tema', t); } catch (e) {}
+        syncTema();
+    });
+
+    /* Sistema: destaca o cartão de download certo */
+    var ua = navigator.userAgent || '';
+    var ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var android = /Android/i.test(ua);
+    var hl = ios ? 'dl-iphone' : (android ? 'dl-android' : '');
+    if (hl) {
+        var c = d.getElementById(hl); c.classList.add('hl');
+        if (ios) c.parentNode.insertBefore(c, c.parentNode.firstChild);
+    }
+
+    /* Versão do APK (download/app.json) */
+    fetch('download/app.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (a) {
+        if (!a || !a.versionName) return;
+        var mb = a.sizeBytes ? (a.sizeBytes / 1048576).toFixed(1).replace('.', ',') + ' MB · ' : '';
+        d.getElementById('lp-apk-meta').textContent = 'Versão ' + a.versionName + ' · ' + mb + 'Android ' + (a.minAndroid || '5.0') + ' ou mais novo';
+    }).catch(function () {});
+
+    /* Vídeo: autoplay mudo; pausa fora da tela; botão pausar/tocar */
+    var v = d.getElementById('lp-video'), vb = d.getElementById('lp-video-toggle');
+    if (v) {
+        v.muted = true;
+        var reduz = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var manual = false;
+        function play() { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+        function sync() { vb.textContent = v.paused ? '▶' : '❚❚'; vb.setAttribute('aria-label', v.paused ? 'Tocar vídeo' : 'Pausar vídeo'); }
+        v.addEventListener('play', sync); v.addEventListener('pause', sync);
+        vb.addEventListener('click', function () { manual = !v.paused; if (v.paused) play(); else v.pause(); });
+        if (reduz) { v.removeAttribute('autoplay'); v.pause(); manual = true; }
+        if ('IntersectionObserver' in window) {
+            new IntersectionObserver(function (es) {
+                es.forEach(function (e) { if (e.isIntersecting) { if (!manual) play(); } else v.pause(); });
+            }, { threshold: 0.25 }).observe(v);
+        } else if (!reduz) play();
+        sync();
+    }
+
+    /* Revelar ao rolar */
+    var rv = d.querySelectorAll('.rv:not(.in)');
+    if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (es) {
+            es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+        }, { rootMargin: '0px 0px -8% 0px' });
+        rv.forEach(function (el) { io.observe(el); });
+    } else rv.forEach(function (el) { el.classList.add('in'); });
+
+    d.getElementById('lp-ano').textContent = String(new Date().getFullYear());
+
+    /* SW do app: registra para atualizar o cache/limpar versões antigas (mesmo escopo). */
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    }
+})();
+</script>
 </body>
 </html>

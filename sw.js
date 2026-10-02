@@ -5,19 +5,19 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261002a';
+const CACHE = 'minera-shell-20261002b';
 const PRECACHE = [
-  './style.css?v=20261002a',
-  './chat-realtime.js?v=20261002a',
-  './avatar.js?v=20261002a',
-  './avatar-editor.js?v=20261002a',
-  './nav.js?v=20261002a',
-  './config.js?v=20261002a',
-  './pwa.js?v=20261002a',
-  './lightbox.js?v=20261002a',
-  './gestor.css?v=20261002a',
-  './gestor-calc.js?v=20261002a',
-  './gestor.js?v=20261002a',
+  './style.css?v=20261002b',
+  './chat-realtime.js?v=20261002b',
+  './avatar.js?v=20261002b',
+  './avatar-editor.js?v=20261002b',
+  './nav.js?v=20261002b',
+  './config.js?v=20261002b',
+  './pwa.js?v=20261002b',
+  './lightbox.js?v=20261002b',
+  './gestor.css?v=20261002b',
+  './gestor-calc.js?v=20261002b',
+  './gestor.js?v=20261002b',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -48,7 +48,7 @@ function isHtmlRequest(req) {
 
 function offlineFallback(req) {
   return caches.match(req, { ignoreSearch: true })
-    .then((cached) => cached || caches.match('./index.html'))
+    .then((cached) => cached || caches.match('./entrar.html'))
     .then((r) => r || new Response('Sem conexão. Tente de novo.', {
       status: 503,
       headers: { 'Content-Type': 'text/plain; charset=utf-8' }
@@ -83,6 +83,8 @@ self.addEventListener('fetch', (event) => {
 
   // APK/AAB do app Android: deixa o navegador baixar direto (não passa pelo SW nem ocupa cache)
   if (/\.(apk|aab)$/i.test(url.pathname)) return;
+  // Vídeo (site/landing e convites): Range requests direto na rede, sem cache do SW
+  if (/\.(mp4|webm|mov)$/i.test(url.pathname)) return;
 
   // version.json: sempre rede, nunca cache (HTTP nem SW)
   if (/\/version\.json$/i.test(url.pathname)) {

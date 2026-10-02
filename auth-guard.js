@@ -9,7 +9,7 @@ async function requireSession() {
             return null;
         }
         if (!session) {
-            irPara('index.html');
+            irPara('entrar.html');
             return null;
         }
         return session;
@@ -30,7 +30,7 @@ async function limparSessaoERedirecionar() {
         });
     } catch (e) { /* ignore */ }
     try { sessionStorage.removeItem('minera_caixa_unlocked'); } catch (e) { /* ignore */ }
-    irPara('index.html');
+    irPara('entrar.html');
 }
 
 /** Escape HTML obrigatório para caminhos innerHTML (CSP-friendly). */
@@ -61,7 +61,7 @@ window.rateLimitAction = rateLimitAction;
 function exigirContaAtiva(perfil) {
     if (!usuarioBloqueado(perfil)) return true;
     const path = (location.pathname || '');
-    if (/perfil\.html$/i.test(path) || /index\.html$/i.test(path)) return true;
+    if (/perfil\.html$/i.test(path) || /(index|entrar)\.html$/i.test(path)) return true;
     mostrarBannerBloqueio(perfil);
     if (typeof toastMsg === 'function') {
         toastMsg('Conta bloqueada. Regularize no Perfil para continuar.');
@@ -486,7 +486,7 @@ async function destinoPosLogin(user) {
 async function sairApp() {
     limparModoUi();
     await supabaseClient.auth.signOut();
-    irPara('index.html');
+    irPara('entrar.html');
 }
 
 async function registrarLog(acao, detalhes, perfil) {
@@ -608,7 +608,7 @@ function checarTutorialPrimeiroAcesso() {
             if (event === 'SIGNED_OUT') {
                 try { limparModoUi(); } catch (e) { /* ignore */ }
                 const path = (location.pathname || '');
-                if (!/index\.html$/i.test(path) && !/\/$/.test(path)) {
+                if (!/(index|entrar)\.html$/i.test(path) && !/\/$/.test(path)) {
                     // já em logout — não loop
                 }
                 return;

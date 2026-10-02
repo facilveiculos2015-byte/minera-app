@@ -9,6 +9,7 @@ chega ao app na hora — só é preciso gerar um APK novo se mudar nome, ícone,
 | Pacote | `br.com.minerapara.app` |
 | Versão | 1.0.1 (versionCode 2) — 1.0.0 (code 1) abria o github.io |
 | Abre | `https://minerapara.com.br/index.html?utm_source=twa&apk=2` |
+| Site x app | `/` (index.html) agora é o **site**; o app fica em `entrar.html`. O 1.0.1 abre `index.html?utm_source=twa…` e o site redireciona na hora para `entrar.html` (mesma query). APKs novos já usam `entrar.html` direto (`make-twa-manifest.mjs`). |
 | minSdk / targetSdk | 21 (Android 5) / 36 |
 | Permissões | `POST_NOTIFICATIONS`, `ACCESS_FINE/COARSE_LOCATION` (delegação de localização) |
 | Certificado (SHA-256) | `5A:F6:5E:B5:5C:D5:80:0E:7A:68:27:AD:50:CE:26:4B:E8:E9:0D:4B:D7:D8:9A:49:A5:AB:F4:C5:6F:01:71:AE` |

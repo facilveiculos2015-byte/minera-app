@@ -345,7 +345,7 @@ function garantirMaisSheet(secundarios) {
             if (typeof sairApp === 'function') await sairApp();
             else {
                 await supabaseClient.auth.signOut();
-                irPara('index.html');
+                irPara('entrar.html');
             }
         });
     }
@@ -419,12 +419,12 @@ function garantirHeaderModoUiBtn(perfil) {
     /** Sticky SEMPRE no modo usuário — não depende de header.header-row (Início/Chat/Perfil). */
     
 /** Páginas raiz da bottom-nav — não injetam Voltar de página. */
-const PAGINAS_RAIZ = new Set(['inicio', 'lotes', 'chat', 'perfil', 'index']);
+const PAGINAS_RAIZ = new Set(['inicio', 'lotes', 'chat', 'perfil', 'index', 'entrar']);
 
 function paginaAtualId() {
     const path = (location.pathname || '').split('/').pop() || '';
     const base = path.replace(/\.html$/i, '') || 'inicio';
-    if (base === 'index' || base === '') return 'inicio';
+    if (base === 'index' || base === 'entrar' || base === '') return 'inicio';
     if (base === 'lote-detalhe') return 'lote-detalhe';
     return base;
 }
@@ -601,7 +601,7 @@ function garantirBtnSair(paginaAtiva) {
             if (typeof sairApp === 'function') await sairApp();
             else {
                 await supabaseClient.auth.signOut();
-                irPara('index.html');
+                irPara('entrar.html');
             }
         });
     }
@@ -742,7 +742,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261002a';
+    const src = root + 'logo-escavadeira.png?v=20261002b';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1602,7 +1602,7 @@ const MineraApoio = (function () {
     function concluir() { ss(K_MOSTRAR, null); ss(K_VISTO, '1'); }
     function paginaAdiavel() {
         const p = (location.pathname || '').toLowerCase();
-        return /\/(chat|tutorial|index|admin)\.html$/.test(p);
+        return /\/(chat|tutorial|index|entrar|admin)\.html$/.test(p);
     }
     function escA(s) {
         return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
