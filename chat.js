@@ -201,11 +201,8 @@ function renderMedia(m) {
     if (tipo === 'video') return '<div class="bubble-media"><video src="' + esc(url) + '" controls playsinline preload="metadata"></video></div>';
     if (tipo === 'audio') {
         const amime = ChatMidia.mimeFromMediaUrl(url);
-        const isWebm = amime === 'audio/webm';
-        const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-        let h = '<div class="bubble-media bubble-audio">' + ChatAudio.playerHtml(url, { mime: amime });
-        if (isWebm && isIos) h += '<a class="btn-sm bubble-audio-dl" href="' + esc(ChatAudio.lerUrl(url).src) + '" download target="_blank" rel="noopener">Baixar áudio</a>';
-        return h + '</div>';
+        // WebM antigo no iPhone: o player converte na hora (audio-compat.js); "Baixar áudio" só aparece se falhar
+        return '<div class="bubble-media bubble-audio">' + ChatAudio.playerHtml(url, { mime: amime }) + '</div>';
     }
     if (tipo === 'documento' || tipo === 'doc' || tipo === 'pdf' || /\.pdf($|\?)/i.test(url)) {
         const name = (m.texto || 'Documento.pdf').slice(0, 40);
@@ -251,8 +248,9 @@ function bubbleHtml(m) {
     const falhou = m._estado === 'falhou';
     const tipoB = String(m.tipo || '').toLowerCase();
     const soImg = !deleted && !txtVisivel && !quote && (tipoB === 'imagem' || String(m.midia_url || '').startsWith('data:image'));
+    const soVid = !deleted && !txtVisivel && !quote && tipoB === 'video';
     const cls = 'bubble ' + (mine ? 'mine sent' : 'theirs') + (sched ? ' scheduled' : '') + (deleted ? ' deleted' : '') +
-        (soImg ? ' bubble-img' : '') + (!deleted && tipoB === 'audio' ? ' bubble-au' : '') +
+        (soImg ? ' bubble-img' : '') + (soVid ? ' bubble-vid' : '') + (!deleted && tipoB === 'audio' ? ' bubble-au' : '') +
         (m.id == null ? ' pending' : '') + (falhou ? ' bubble-failed' : '');
     const attrs = ' data-key="' + chaveMsg(m) + '" data-dia="' + dayKey(iso) + '"' +
         (m.id != null ? ' data-msg-id="' + m.id + '"' : ' data-cid="' + esc(m.client_id) + '"') +
@@ -676,6 +674,10 @@ async function processarItem(item) {
         if (item._file && !item.midia_url) {
             try {
                 let f = item._file;
+                if (item.tipo === 'audio' && window.AudioCompat) {
+                    // WebM/Opus (Android/Chrome) → MP3: toca no iPhone também. Falhou → original.
+                    f = await AudioCompat.paraUniversal(f);
+                }
                 if (item.tipo === 'imagem') {
                     const c = await ChatMidia.comprimirImagem(f, 1600, 0.8);
                     f = c.file;

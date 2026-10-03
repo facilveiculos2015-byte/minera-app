@@ -6559,7 +6559,7 @@ html[data-theme="light"] .cx-undo { background: #1f2937; }
 /* lista: segurar abre ações, sem menu nativo/seleção */
 #chat-contatos-list .wa-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 #chat-row-sheet .chat-msg-sheet-item.oculto { display: none !important; }
-/* 20261002o: toast Desfazer numa linha só; vazio da lista com margem lateral */
+/* 20261003a: toast Desfazer numa linha só; vazio da lista com margem lateral */
 .cx-undo { width: max-content; }
 .cx-undo #cx-undo-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .cx-undo button { flex-shrink: 0; }
@@ -6731,3 +6731,16 @@ html[data-theme="light"] .wa-list-head .wa-list-back { --gk-circ: color-mix(in s
 .lote-card .lc-acts .lc-btn-ver { background: transparent; color: var(--text-color); border: 1px solid var(--border); }
 .lote-card .lc-acts .lc-btn-ver:hover { border-color: #F5A623; }
 html[data-theme="light"] .lote-card .lc-acts .lc-btn-ver { color: #0f172a; border-color: #cbd5e1; background: #ffffff; }
+
+/* vídeo: mesma moldura fina da foto (3px, cantos 14/12), próprio e do outro, claro/escuro.
+ * A hora fica abaixo do vídeo (não cobre os controles nativos). */
+.chat-thread-active .bubble.bubble-vid { padding: 3px !important; border-radius: 14px !important; max-width: min(270px, 74vw) !important; }
+.chat-thread-active .bubble.bubble-vid .bubble-meta { padding: 3px 8px 4px; }
+.chat-thread-active .bubble.bubble-vid .bubble-media { margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; border-radius: 12px; overflow: hidden; position: relative; }
+.chat-thread-active .bubble.bubble-vid .bubble-media video { display: block; width: 100%; max-height: 340px; border-radius: 12px; margin: 0; border: 0; background: #000; }
+.chat-thread-active .bubble.bubble-vid .bubble-status { margin: 2px 6px 1px; }
+
+/* áudio convertendo para tocar (WebM antigo no iPhone) */
+.au-carregando .au-play { animation: au-pulso 1s ease-in-out infinite; }
+@keyframes au-pulso { 50% { opacity: .45; } }
+.bubble-audio .au-dl { display: inline-block; margin-top: 4px; font-size: 12px; }

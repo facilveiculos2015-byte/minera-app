@@ -74,15 +74,20 @@
         var C = window.AudioContext || window.webkitAudioContext; if (!C) return null;
         var r = await fetch(src, { credentials: 'omit' }); if (!r.ok) return null;
         var buf = await r.arrayBuffer();
-        if (!ctxDecod) ctxDecod = new C();
-        var audio = await new Promise(function (res, rej) { var p = ctxDecod.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
-        var dados = audio.getChannelData(0), n = NBARRAS, passo = Math.max(1, Math.floor(dados.length / n)), niveis = [];
+        var dados, duracaoS;
+        if (window.AudioCompat) { var pcm = await AudioCompat.decodificarPcm(buf); dados = pcm.mono; duracaoS = pcm.mono.length / pcm.taxa; }
+        else {
+            if (!ctxDecod) ctxDecod = new C();
+            var audio = await new Promise(function (res, rej) { var p = ctxDecod.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+            dados = audio.getChannelData(0); duracaoS = audio.duration;
+        }
+        var n = NBARRAS, passo = Math.max(1, Math.floor(dados.length / n)), niveis = [];
         for (var i = 0; i < n; i++) {
             var soma = 0, ini = i * passo, fim = Math.min(dados.length, ini + passo);
             for (var j = ini; j < fim; j += 16) soma += dados[j] * dados[j];
             niveis.push(Math.sqrt(soma / Math.max(1, (fim - ini) / 16)));
         }
-        return { picos: reamostrar(niveis, n), dur: audio.duration };
+        return { picos: reamostrar(niveis, n), dur: duracaoS };
     }
 
     /* ---------- player ---------- */
@@ -126,20 +131,64 @@
         var a = el(p, 'audio'); if (a && !a.paused) a.pause();
         p.classList.remove('tocando'); pintar(p);
     }
+    /* Áudio que este navegador não toca (ex.: WebM/Opus antigo do Android no iPhone):
+     * converte para WAV local (AudioCompat) e toca. O <audio> é "destravado" no gesto
+     * com 0,1 s de silêncio, senão o iOS bloqueia o play() depois da conversão. */
+    function mimeDo(p) { var s = el(p, 'audio source'); return (s && s.getAttribute('type')) || (window.ChatMidia ? ChatMidia.mimeFromMediaUrl(p.getAttribute('data-src')) : ''); }
+    function linkBaixar(p) {
+        var host = p.parentNode || p;
+        if (host.querySelector('.au-dl')) return;
+        var a = document.createElement('a');
+        a.className = 'btn-sm au-dl'; a.href = p.getAttribute('data-src') || '#'; a.target = '_blank'; a.rel = 'noopener'; a.setAttribute('download', '');
+        a.textContent = 'Baixar áudio';
+        host.appendChild(a);
+    }
+    function tocarCompat(p, a) {
+        if (!window.AudioCompat || p._compat) return false;
+        p._compat = 'carregando';
+        p.classList.add('au-carregando');
+        try { a.innerHTML = ''; if (AudioCompat.silencio) { a.src = AudioCompat.silencio; var s0 = a.play(); if (s0 && s0.catch) s0.catch(function () { /* ignore */ }); } } catch (e) { /* ignore */ }
+        AudioCompat.urlTocavel(p.getAttribute('data-src')).then(function (u) {
+            p._compat = 'ok';
+            p.classList.remove('au-carregando', 'au-erro');
+            try { a.pause(); } catch (e) { /* ignore */ }
+            a.src = u; a.preload = 'auto';
+            if (atual === p) { a.playbackRate = Number(p.getAttribute('data-vel') || 1); var pr = a.play(); if (pr && pr.catch) pr.catch(function () { p.classList.remove('tocando'); }); }
+        }).catch(function (e) {
+            console.warn('áudio compat', e);
+            p._compat = 'falhou';
+            p.classList.remove('au-carregando', 'tocando'); p.classList.add('au-erro');
+            linkBaixar(p);
+        });
+        return true;
+    }
     function tocar(p) {
         if (atual && atual !== p) parar(atual);
         atual = p;
         var a = el(p, 'audio'); if (!a) return;
+        if (p._compat === 'carregando') return;
+        if (!p._compat && window.AudioCompat && AudioCompat.naoToca(mimeDo(p), a)) { bindAudio(p, a); tocarCompat(p, a); return; }
+        bindAudio(p, a);
+        a.playbackRate = Number(p.getAttribute('data-vel') || 1);
+        var pr = a.play(); if (pr && pr.catch) pr.catch(function (e) {
+            p.classList.remove('tocando');
+            if (e && e.name === 'NotSupportedError') tocarCompat(p, a);
+        });
+    }
+    function bindAudio(p, a) {
         if (!a._bound) {
             a._bound = true;
             a.addEventListener('ended', function () { p.classList.remove('tocando'); a.currentTime = 0; pintar(p); });
             a.addEventListener('pause', function () { p.classList.remove('tocando'); pintar(p); });
             a.addEventListener('play', function () { p.classList.add('tocando'); if (!raf) raf = requestAnimationFrame(loop); });
             a.addEventListener('loadedmetadata', function () { pintar(p); });
-            a.addEventListener('error', function () { p.classList.add('au-erro'); p.classList.remove('tocando'); });
+            a.addEventListener('error', function () {
+                p.classList.remove('tocando');
+                if (p._compat === 'carregando') return;
+                if (!p._compat && tocarCompat(p, a)) return;
+                p.classList.add('au-erro');
+            });
         }
-        a.playbackRate = Number(p.getAttribute('data-vel') || 1);
-        var pr = a.play(); if (pr && pr.catch) pr.catch(function () { p.classList.remove('tocando'); });
     }
     function buscar(p, frac) {
         var a = el(p, 'audio'), d = duracao(p); if (!a || !d) return;
