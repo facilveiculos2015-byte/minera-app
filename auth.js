@@ -303,6 +303,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Sem papeis: preserva tipo/admin já gravados no banco
             await upsertUsuarioPerfil(data.user, data.user.user_metadata && data.user.user_metadata.nome);
+            // Indicação pendente do cadastro sem sessão (só para a mesma conta recém-criada)
+            try {
+                const pend = localStorage.getItem('minera_ref_pendente');
+                if (pend && pend === String(email || '').toLowerCase() && typeof processarIndicacaoNoCadastro === 'function') {
+                    await processarIndicacaoNoCadastro(data.user, data.user.user_metadata && data.user.user_metadata.nome);
+                    localStorage.removeItem('minera_ref_pendente');
+                }
+            } catch (ePend) { /* ignore */ }
             let dest = 'inicio.html';
             if (typeof destinoPosLogin === 'function') {
                 dest = await destinoPosLogin(data.user);
@@ -325,6 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('cad-email').value.trim();
         const password = document.getElementById('cad-senha').value;
         const papeis = lerPapeisCadastro();
+        // Código de indicação digitado (opcional) → minera_ref (validação real no servidor: processar_indicacao)
+        const refEl = document.getElementById('cad-ref');
+        if (refEl) {
+            const refTxt = refEl.value.trim().toUpperCase().replace(/\s+/g, '');
+            try {
+                if (/^[A-Z0-9_-]{3,20}$/.test(refTxt)) localStorage.setItem('minera_ref', refTxt);
+                else if (!refTxt) localStorage.removeItem('minera_ref');
+            } catch (eRef) { /* ignore */ }
+        }
         try {
             if (typeof verificarNomeApelidoDisponivel === 'function') {
                 const chk = await verificarNomeApelidoDisponivel(nome, apelido, null);
@@ -354,6 +371,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof processarIndicacaoNoCadastro === 'function') {
                     await processarIndicacaoNoCadastro(data.user, nome);
                 }
+                // Sem sessão (confirmação de e-mail): credita no 1º login desta conta
+                try {
+                    if (!data.session && localStorage.getItem('minera_ref')) localStorage.setItem('minera_ref_pendente', email.toLowerCase());
+                    else localStorage.removeItem('minera_ref_pendente');
+                } catch (ePend) { /* ignore */ }
                 // Garante código de indicação do novo usuário
                 let perfilNovo = { auth_id: data.user.id, nome: nome, apelido: apelido };
                 if (typeof garantirCodigoIndicacao === 'function') {
@@ -379,6 +401,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (typeof capturarRefUrl === 'function') capturarRefUrl();
+    try {
+        const refIn = document.getElementById('cad-ref');
+        const refSalvo = (typeof lerRefSalvo === 'function') ? lerRefSalvo() : '';
+        if (refIn && refSalvo && !refIn.value) refIn.value = refSalvo;
+    } catch (eRefIn) { /* ignore */ }
     // Convite /c/CODIGO ou ?ref= → welcome + aba cadastro (exceto recuperação)
     const convite = (typeof temConviteIndicacao === 'function')
         ? temConviteIndicacao()

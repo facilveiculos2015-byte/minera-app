@@ -358,8 +358,10 @@ let _shareFlagsLoaded = false;
 
 function linkIndicacao(codigo) {
     const code = String(codigo || '').trim().toUpperCase();
-    // Link curto e brandável: /c/CODIGO → 404.html (OG) → cadastro + welcome
-    return INDICACAO_BASE + '/c/' + encodeURIComponent(code || '');
+    // Link limpo (sem código na URL — parece seguro). O código vai no texto do convite e
+    // o convidado digita no campo "Código de indicação" do cadastro. /c/CODIGO antigos seguem funcionando (404.html).
+    void code;
+    return INDICACAO_BASE;
 }
 
 function shareNomeFromPerfil(perfil) {
@@ -382,12 +384,14 @@ function shareOgDescription(nome) {
  */
 function textoCompartilharIndicacao(codigo, opts) {
     opts = opts || {};
-    const code = String(codigo || '').trim().toUpperCase() || '……';
+    const code = String(codigo || '').trim().toUpperCase();
     const link = linkIndicacao(code);
     const nome = String(opts.nome != null ? opts.nome : '').trim();
-    /* Texto mínimo: o vídeo já fala. Só quem convida + link. */
-    if (nome) return nome + ' te convidou pra Família Minera.\n' + link;
-    return link;
+    /* Texto mínimo: o vídeo já fala. Quem convida + link limpo + código (se houver). */
+    const temCodigo = /^[A-Z0-9_-]{3,}$/.test(code);
+    const linhaCodigo = temCodigo ? '\nNa hora do cadastro, use meu código de indicação: ' + code : '';
+    if (nome) return nome + ' te convidou pra Família Minera.\n' + link + linhaCodigo;
+    return link + linhaCodigo;
 }
 
 async function carregarShareFlags() {
