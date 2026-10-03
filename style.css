@@ -6559,7 +6559,7 @@ html[data-theme="light"] .cx-undo { background: #1f2937; }
 /* lista: segurar abre ações, sem menu nativo/seleção */
 #chat-contatos-list .wa-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 #chat-row-sheet .chat-msg-sheet-item.oculto { display: none !important; }
-/* 20261002i: toast Desfazer numa linha só; vazio da lista com margem lateral */
+/* 20261002j: toast Desfazer numa linha só; vazio da lista com margem lateral */
 .cx-undo { width: max-content; }
 .cx-undo #cx-undo-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .cx-undo button { flex-shrink: 0; }
@@ -6698,3 +6698,10 @@ body.bp-aberto { overflow: hidden; }
 .bp-item-acoes .btn-danger { background: transparent; color: #ef4444; border: 1px solid rgba(239,68,68,.5); }
 .bp-ajustes .bp-range.oculto, .bp-ajustes .bp-fundos.oculto { display: none !important; }
 .olx-banner:not(.bp-prev) .bp-slide .bp-tit { padding-bottom: 24px; }
+
+/* ===== Lista de conversas: Voltar igual ao da conversa (gk-back), ⋮ à direita ===== */
+.wa-list-head .wa-list-back {
+  --gk-circ: color-mix(in srgb, var(--card-bg) 88%, transparent); --gk-borda: var(--border); --gk-ico: var(--accent-color);
+}
+html[data-theme="light"] .wa-list-head .wa-list-back { --gk-circ: color-mix(in srgb, #ffffff 90%, transparent); }
+.wa-list-head .wa-head-right { align-items: center; }
