@@ -22,7 +22,48 @@ async function carregarKpis() {
     document.getElementById('kpi-usuarios').textContent = await countTable('usuarios');
     document.getElementById('kpi-lotes').textContent = await countTable('lotes');
     document.getElementById('kpi-fretes').textContent = await countTable('fretes');
-    document.getElementById('kpi-msgs').textContent = await countTable('chat_mensagens');
+    document.getElementById('kpi-msgs').textContent = await contarMensagensAtivas();
+}
+
+/** Mensagens que ainda existem (sem apagadas/removidas/agendadas; conversa apagada pelos 2 lados não conta).
+ *  RPC admin_contar_mensagens (sql/53); sem o SQL → aproximação: só sem soft-delete e não removidas. */
+async function contarMensagensAtivas() {
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_contar_mensagens');
+        if (!error && data != null) return Number(data) || 0;
+        if (error) console.warn('admin_contar_mensagens (aplique sql/53):', error.message);
+    } catch (e) { console.warn('admin_contar_mensagens', e); }
+    try {
+        const { count, error } = await supabaseClient
+            .from('chat_mensagens')
+            .select('id', { count: 'exact', head: true })
+            .is('deleted_at', null)
+            .or('moderacao.is.null,moderacao.neq.removida');
+        if (error) throw error;
+        return count != null ? count : 0;
+    } catch (e) {
+        console.warn('chat_mensagens count', e);
+        return '—';
+    }
+}
+
+/** Cartões da Visão geral: toque → aba/seção de gestão correspondente. */
+function bindKpiCards(show) {
+    document.querySelectorAll('#admin-kpis .kpi-go').forEach((card) => {
+        if (card._kpiBound) return;
+        card._kpiBound = true;
+        const go = () => {
+            const href = card.getAttribute('data-kpi-href');
+            if (href) { location.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + href; return; }
+            const tab = card.getAttribute('data-kpi-tab') || 'visao';
+            show(tab);
+            const alvo = document.getElementById(card.getAttribute('data-kpi-alvo') || '');
+            const sec = alvo && (alvo.closest('section.card') || alvo);
+            if (sec) requestAnimationFrame(() => { try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { sec.scrollIntoView(); } });
+        };
+        card.addEventListener('click', go);
+        card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    });
 }
 
 async function carregarUsuarios() {
@@ -1205,6 +1246,7 @@ function bindAdminTabs() {
     tabs.querySelectorAll('.admin-tab').forEach(btn => {
         btn.addEventListener('click', () => show(btn.getAttribute('data-tab') || 'visao'));
     });
+    bindKpiCards(show);
     const hash = (location.hash || '').replace('#', '');
     const map = {
         'sec-admin-emprestimos': 'credito',
