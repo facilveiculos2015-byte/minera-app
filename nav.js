@@ -742,7 +742,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261003c';
+    const src = root + 'logo-escavadeira.png?v=20261003d';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -876,6 +876,22 @@ const MineraNotif = (function () {
     }
 
     let dmBadgeCount = 0;
+    /** Conversa da mensagem: DM = id de quem enviou · grupo (SQL 55) = "g:<grupo>" */
+    function chaveConv(m) { return m && m.grupo_id ? 'g:' + m.grupo_id : (m ? m.de_auth_id : null); }
+    function hrefConv(chave) {
+        const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
+        return root + 'chat.html' + (/^g:/.test(String(chave || '')) ? '?grupo=' + encodeURIComponent(String(chave).slice(2)) : '?para=' + encodeURIComponent(chave));
+    }
+    let gruposOk = null; // false = SQL 55 ainda não aplicado
+    async function meusGruposIds() {
+        if (gruposOk === false || !authId) return [];
+        try {
+            const { data, error } = await supabaseClient.from('chat_grupo_membros').select('grupo_id,ultima_lida_id').eq('auth_id', authId).is('saiu_em', null).limit(100);
+            if (error) { if (/chat_grupo_membros|relation|schema cache|42P01|PGRST205/i.test((error.message || '') + ' ' + (error.code || ''))) gruposOk = false; return []; }
+            gruposOk = true;
+            return data || [];
+        } catch (e) { return []; }
+    }
 
     function updateBadge(n) {
         dmBadgeCount = Number(n) || 0;
@@ -1075,14 +1091,15 @@ const MineraNotif = (function () {
         const peers = [];
         const nomes = {};
         unread.forEach(m => {
-            if (!nomes[m.de_auth_id]) { nomes[m.de_auth_id] = nomeSeguro(m.de_nome); peers.push(m.de_auth_id); }
+            const k = chaveConv(m);
+            if (!nomes[k]) { nomes[k] = nomeSeguro(m.de_nome); peers.push(k); }
         });
         const n = unread.length;
         let de = 'de ' + nomes[peers[0]];
         if (peers.length === 2) de += ' e ' + nomes[peers[1]];
         else if (peers.length > 2) de += ', ' + nomes[peers[1]] + ' e mais ' + (peers.length - 2);
         const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-        const href = root + 'chat.html' + (peers.length === 1 ? ('?para=' + encodeURIComponent(peers[0])) : '');
+        const href = peers.length === 1 ? hrefConv(peers[0]) : root + 'chat.html';
         fecharLembrete();
         const el = document.createElement('div');
         el.id = 'notif-lembrete';
@@ -1114,15 +1131,17 @@ const MineraNotif = (function () {
             knownIds.add(m.id);
             setSeenGlobal(m.id);
             // Conversa aberta e visível no chat: chat.js já mostra/marca como lida → só um "tick" discreto
-            if (conversaAbertaCom(m.de_auth_id)) { tocarTick = true; return; }
+            if (String(m.tipo || '') === 'sistema') return;
+            const k = chaveConv(m);
+            if (conversaAbertaCom(k)) { tocarTick = true; return; }
             tocarPim = true;
             let nome = m.de_nome || 'Alguém';
             if (/@/.test(String(nome))) nome = 'Alguém';
             const preview = (m.texto || (m.tipo && m.tipo !== 'text' ? '[' + m.tipo + ']' : 'Nova mensagem')).slice(0, 80);
-            if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome);
-            showBrowserNotif('Minera Pará — ' + nome, preview, {
-                tag: 'dm-' + m.de_auth_id,
-                url: (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'chat.html?para=' + encodeURIComponent(m.de_auth_id)
+            if (typeof toastMsg === 'function') toastMsg('Nova mensagem de ' + nome + (m.grupo_id ? ' no grupo' : ''));
+            showBrowserNotif('Minera Pará — ' + nome + (m.grupo_id ? ' (grupo)' : ''), preview, {
+                tag: m.grupo_id ? 'g-' + m.grupo_id : 'dm-' + m.de_auth_id,
+                url: hrefConv(k)
             });
         });
         // Um som por evento (MineraSom tem throttle de 2 s)
@@ -1165,6 +1184,10 @@ const MineraNotif = (function () {
                 const v = Number(r.ultima_lida_id || 0);
                 if (r.com_auth_id && v > Number(map[r.com_auth_id] || 0)) { map[r.com_auth_id] = v; mudou = true; }
             });
+            (await meusGruposIds()).forEach(g => {
+                const v = Number(g.ultima_lida_id || 0), kg = 'g:' + g.grupo_id;
+                if (v > Number(map[kg] || 0)) { map[kg] = v; mudou = true; }
+            });
             if (mudou) localStorage.setItem(k, JSON.stringify(map));
         } catch (e) { /* ignore */ }
     }
@@ -1181,7 +1204,7 @@ const MineraNotif = (function () {
         MineraRT.on('msg', (ev) => {
             const m = ev && ev.row;
             if (!m) return;
-            const paraMim = m.para_auth_id === authId && m.de_auth_id !== authId;
+            const paraMim = (m.para_auth_id === authId || !!m.grupo_id) && m.de_auth_id !== authId;
             if (ev.type === 'INSERT' && paraMim) {
                 const ok = bootstrapped && !m.deleted_at && (m.status || '') !== 'agendada' &&
                     !knownIds.has(m.id) && Number(m.id) > lsSeenGlobal() &&
@@ -1203,7 +1226,7 @@ const MineraNotif = (function () {
         if (!authId || typeof supabaseClient === 'undefined') return;
         try {
             const leituras = lsLeituras();
-            const { data, error } = await supabaseClient
+            let { data, error } = await supabaseClient
                 .from('chat_mensagens')
                 .select('id,de_auth_id,de_nome,para_auth_id,texto,tipo,criado_em,status,deleted_at,apagada_para')
                 .eq('para_auth_id', authId)
@@ -1211,16 +1234,28 @@ const MineraNotif = (function () {
                 .order('id', { ascending: false })
                 .limit(100);
             if (error) { primeiroPollFeito = true; lembretePendente = false; return; }
+            // Grupos (SQL 55): mensagens dos MEUS grupos enviadas por outros
+            const meusG = await meusGruposIds();
+            if (meusG.length) {
+                const rg = await supabaseClient.from('chat_mensagens')
+                    .select('id,de_auth_id,de_nome,grupo_id,texto,tipo,criado_em,status,deleted_at,apagada_para')
+                    .in('grupo_id', meusG.map(g => g.grupo_id)).neq('de_auth_id', authId).neq('tipo', 'sistema')
+                    .is('deleted_at', null).order('id', { ascending: false }).limit(100);
+                if (!rg.error && rg.data && rg.data.length) {
+                    data = (data || []).concat(rg.data).sort((a, b) => Number(b.id) - Number(a.id));
+                }
+            }
 
             const unread = [];
             const byPeer = {};
             (data || []).forEach(m => {
                 if ((m.status || '') === 'agendada') return;
                 if (Array.isArray(m.apagada_para) && m.apagada_para.indexOf(authId) >= 0) return;
-                const lastRead = Number(leituras[m.de_auth_id] || 0);
+                const k = chaveConv(m);
+                const lastRead = Number(leituras[k] || 0);
                 if (Number(m.id) > lastRead) {
                     unread.push(m);
-                    if (!byPeer[m.de_auth_id]) byPeer[m.de_auth_id] = m;
+                    if (!byPeer[k]) byPeer[k] = m;
                 }
             });
 
@@ -1237,7 +1272,7 @@ const MineraNotif = (function () {
                 (!bootstrapped || !knownIds.has(m.id)) &&
                 (m.status || '') !== 'agendada' &&
                 !(Array.isArray(m.apagada_para) && m.apagada_para.indexOf(authId) >= 0) &&
-                Number(m.id) > Number(lsLeituras()[m.de_auth_id] || 0)
+                Number(m.id) > Number(lsLeituras()[chaveConv(m)] || 0)
             );
             // Troca de página no meio da sessão: avisa as que chegaram durante a navegação
             const avisar = bootstrapped ? fresh : (notificarNoBootstrap && lsSeenGlobal() > 0 ? fresh : []);
@@ -1256,8 +1291,7 @@ const MineraNotif = (function () {
                     list.innerHTML = '<p class="sub">Nenhuma mensagem nova</p>';
                 } else {
                     list.innerHTML = peers.map(m => {
-                        const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') +
-                            'chat.html?para=' + encodeURIComponent(m.de_auth_id);
+                        const href = hrefConv(chaveConv(m));
                         const preview = (m.texto || '[' + (m.tipo || 'msg') + ']').slice(0, 60);
                         const escN = (s) => String(s == null ? '' : s)
                             .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

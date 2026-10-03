@@ -72,7 +72,7 @@ DECLARE
   v_url text;
   v_sec text;
 BEGIN
-  IF NEW.deleted_at IS NOT NULL OR coalesce(NEW.status, 'enviada') = 'agendada' THEN RETURN NEW; END IF;
+  IF NEW.deleted_at IS NOT NULL OR coalesce(NEW.status, 'enviada') = 'agendada' OR coalesce(NEW.tipo, '') = 'sistema' THEN RETURN NEW; END IF;
   IF TG_OP = 'UPDATE' AND coalesce(OLD.status, 'enviada') <> 'agendada' THEN RETURN NEW; END IF;
   BEGIN
     SELECT decrypted_secret INTO v_url FROM vault.decrypted_secrets WHERE name = 'push_fn_url' LIMIT 1;

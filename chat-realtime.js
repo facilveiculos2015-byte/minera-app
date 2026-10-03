@@ -27,6 +27,8 @@
     var retryN = 0;
     var conectando = false;
     var dm = null; // { peer, topic, ch, st, onEstado }
+    // Grupos (SQL 55): 2º canal com grupo_id=in.(meus grupos); o RLS filtra (só membro recebe)
+    var chanG = null, gStatus = 'CLOSED', gruposKey = null, gRetryT = null;
 
     function sb() { return (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.channel) ? supabaseClient : null; }
 
@@ -83,6 +85,7 @@
                 if (st === 'SUBSCRIBED') {
                     retryN = 0;
                     if (antes !== 'SUBSCRIBED') emit('resync');
+                    conectarGrupos(false);
                 } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') {
                     agendarRetry();
                 }
@@ -95,8 +98,44 @@
         }
     }
 
+    async function meusGrupos() {
+        var c = sb(); if (!c || !uid) return null;
+        try {
+            var r = await c.from('chat_grupo_membros').select('grupo_id').eq('auth_id', uid).is('saiu_em', null).limit(100);
+            if (r.error) return null; // SQL 55 ainda não aplicado
+            return (r.data || []).map(function (x) { return String(x.grupo_id); }).sort();
+        } catch (e) { return null; }
+    }
+    /** (Re)assina as mensagens dos meus grupos. force = a lista de grupos mudou (criou/entrou/saiu). */
+    async function conectarGrupos(force) {
+        var c = sb(); if (!c || !uid || document.visibilityState === 'hidden') return;
+        var ids = await meusGrupos();
+        if (ids === null) return;
+        var key = ids.join(',');
+        if (!force && key === gruposKey && chanG && gStatus === 'SUBSCRIBED') return;
+        if (chanG) { try { await c.removeChannel(chanG); } catch (e) { /* ignore */ } chanG = null; gStatus = 'CLOSED'; }
+        gruposKey = key;
+        if (!ids.length) return;
+        var filtro = 'grupo_id=in.(' + ids.join(',') + ')';
+        var h = function (tipo) { return function (p) { if (p && p.new) emit('msg', { type: tipo, row: p.new }); }; };
+        var ch = c.channel('minera-g-' + uid + '-' + Date.now())
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_mensagens', filter: filtro }, h('INSERT'))
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_mensagens', filter: filtro }, h('UPDATE'));
+        chanG = ch;
+        ch.subscribe(function (st) {
+            if (chanG !== ch) return;
+            var antes = gStatus;
+            gStatus = st;
+            if (st === 'SUBSCRIBED' && antes !== 'SUBSCRIBED' && force) emit('resync');
+            if ((st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') && !gRetryT) {
+                gRetryT = setTimeout(function () { gRetryT = null; conectarGrupos(true); }, 5000);
+            }
+        });
+    }
+
     function reconectarSePreciso() {
         if (!uid) return;
+        if (gruposKey && gStatus !== 'SUBSCRIBED') conectarGrupos(true);
         if (status !== 'SUBSCRIBED') { if (retryT) { clearTimeout(retryT); retryT = null; } conectar(); }
         if (dm && dm.st !== 'SUBSCRIBED') abrirDm();
     }
@@ -181,6 +220,8 @@
         sendEstado: sendEstado,
         dmLive: function () { return !!(dm && dm.st === 'SUBSCRIBED'); },
         dmTopic: dmTopic,
+        atualizarGrupos: function () { return conectarGrupos(true); },
+        gruposLive: function () { return gStatus === 'SUBSCRIBED'; },
         reconectar: reconectarSePreciso
     };
 })();

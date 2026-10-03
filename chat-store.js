@@ -26,7 +26,7 @@
     }
 
     function sb() { return supabaseClient; }
-    function cols() { return v44 ? COLS_44 : COLS_BASE; }
+    function cols() { return (v44 ? COLS_44 : COLS_BASE) + (v55 === true ? ',grupo_id' : ''); }
     function setUid(u) { uid = u; }
     function temV44() { return v44 === true; }
 
@@ -105,8 +105,48 @@
     function nomeContato(apelidoContato, apelido, nome) {
         return semEmail(apelidoContato) || semEmail(apelido) || semEmail(nome) || 'Contato';
     }
-    /** Lista em 1 chamada (SQL 44) — ou legado corrigido em paralelo. Ordem: recência. */
+    /* ---------------- GRUPOS (SQL 55) — conversa "g:<uuid>" ---------------- */
+    var v55 = null; // null = não sei; false = SQL 55 ainda não aplicado
+    function ehGrupo(peer) { return /^g:/.test(String(peer || '')); }
+    function gid(peer) { return String(peer || '').slice(2); }
+    function temGrupos() { return v55 === true; }
+    async function inboxGrupos() {
+        if (v55 === false || forcarLegado) return [];
+        try {
+            var r = await sb().rpc('chat_grupos_inbox');
+            if (r.error) { if (ehFuncaoAusente(r.error)) v55 = false; return []; }
+            v55 = true;
+            return (r.data || []).map(function (x) {
+                var key = 'g:' + x.grupo_id;
+                var lidaLocal = leituraLocal(key);
+                var naoLidas = Number(x.nao_lidas || 0);
+                if (x.last_id && lidaLocal >= Number(x.last_id)) naoLidas = 0;
+                return {
+                    auth_id: key, grupo_id: x.grupo_id, ehGrupo: true,
+                    nome: String(x.nome || 'Grupo'), apelido: null, nomeReal: null, papeis: [], tipo: '',
+                    membros: Number(x.membros || 0),
+                    last: x.last_id ? {
+                        id: x.last_id, de_auth_id: x.last_de_auth_id, de_nome: semEmail(x.last_de_nome), texto: x.last_texto, tipo: x.last_tipo,
+                        criado_em: x.last_criado_em, deleted_at: x.last_deleted ? x.last_criado_em : null
+                    } : null,
+                    unread: naoLidas, peerLida: 0, peerEntregue: 0
+                };
+            });
+        } catch (e) { return []; }
+    }
     async function inbox() {
+        var res = await Promise.all([inboxDm(), inboxGrupos()]);
+        var lista = res[0].concat(res[1]);
+        ordenar(lista);
+        return lista;
+    }
+    async function grupoMembros(peer) {
+        var r = await sb().rpc('chat_grupo_membros_listar', { p_grupo: gid(peer) });
+        if (r.error) throw r.error;
+        return (r.data || []).map(function (u) { var o = Object.assign({}, u); o.nome = semEmail(o.nome); o.apelido = semEmail(o.apelido); return o; });
+    }
+    /** Lista em 1 chamada (SQL 44) — ou legado corrigido em paralelo. Ordem: recência. */
+    async function inboxDm() {
         if (v44 !== false && !forcarLegado) {
             var t0 = performance.now();
             var r = await sb().rpc('chat_inbox_v1', { p_limit: 200 });
@@ -215,6 +255,12 @@
     /** 40 mais recentes (antesId = null) ou as 40 anteriores a antesId. Retorna ASC + temMais. */
     async function pagina(peer, antesId) {
         var lim = PAGINA;
+        if (ehGrupo(peer)) {
+            var rg = await sb().rpc('chat_grupo_pagina', { p_grupo: gid(peer), p_antes_id: antesId || null, p_limit: lim });
+            if (rg.error) throw rg.error;
+            var dg = rg.data || [];
+            return { msgs: filtrarVisiveis(dg).reverse(), temMais: dg.length >= lim };
+        }
         if (v44 === true && !forcarLegado) {
             var r = await sb().rpc('chat_dm_pagina', { p_outro: peer, p_antes_id: antesId || null, p_limit: lim });
             if (!r.error) {
@@ -236,6 +282,15 @@
 
     /** Estado de leitura do OUTRO sobre as minhas mensagens (ticks). */
     async function leituraDoOutro(peer) {
+        if (ehGrupo(peer)) {
+            // ✓✓ azul no grupo = todos os outros membros leram (menor leitura entre eles)
+            try {
+                var ms = await grupoMembros(peer);
+                var outros = ms.filter(function (u) { return u.auth_id !== uid; });
+                var min = outros.length ? Math.min.apply(null, outros.map(function (u) { return Number(u.ultima_lida_id || 0); })) : 0;
+                return { lida: min, entregue: 0, membros: ms };
+            } catch (e) { return { lida: 0, entregue: 0, membros: null }; }
+        }
         try {
             var r = await sb().from('chat_leituras').select(v44 ? 'ultima_lida_id,ultima_entregue_id' : 'ultima_lida_id')
                 .eq('auth_id', peer).eq('com_auth_id', uid).maybeSingle();
@@ -254,6 +309,11 @@
         if (Number(lidoEnviado[peer] || 0) >= ateId) return;
         lidoEnviado[peer] = ateId;
         try {
+            if (ehGrupo(peer)) {
+                var rg = await sb().rpc('chat_grupo_marcar_lido', { p_grupo: gid(peer), p_ate_id: ateId });
+                if (rg.error) lidoEnviado[peer] = 0;
+                return;
+            }
             if (v44 === true) {
                 var r = await sb().rpc('chat_marcar_lido', { p_outro: peer, p_ate_id: ateId });
                 if (!r.error) return;
@@ -295,10 +355,11 @@
             texto: item.texto || '',
             tipo: item.tipo || 'text',
             midia_url: item.midia_url || null,
-            para_auth_id: item.para,
+            para_auth_id: ehGrupo(item.para) ? null : item.para,
             status: item.status || 'enviada',
             agendado_para: item.agendado_para || null
         };
+        if (ehGrupo(item.para)) row.grupo_id = gid(item.para);
         if (item.resposta_a_id) row.resposta_a_id = Number(item.resposta_a_id);
         if (v44 === true) row.client_id = item.client_id;
         try {
@@ -340,6 +401,7 @@
         cacheInboxLer: cacheInboxLer, cacheInboxGravar: cacheInboxGravar,
         cacheThreadLer: cacheThreadLer, cacheThreadGravar: cacheThreadGravar,
         filtrarVisiveis: filtrarVisiveis, cols: cols, PAGINA: PAGINA,
+        ehGrupo: ehGrupo, gid: gid, temGrupos: temGrupos, grupoMembros: grupoMembros,
         ultimoInboxMs: 0
     };
 })();

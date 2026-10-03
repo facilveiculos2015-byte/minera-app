@@ -177,6 +177,12 @@ function snippetMsg(m) {
     if (m.tipo && m.tipo !== 'text' && m.tipo !== 'agendada') return '[' + m.tipo + ']';
     return raw || '(sem texto)';
 }
+function ehGrupoPeer(p) { return /^g:/.test(String(p || '')); }
+function peerDaRow(row) {
+    if (!row) return null;
+    if (row.grupo_id) return 'g:' + row.grupo_id;
+    return row.de_auth_id === meuAuthId ? row.para_auth_id : row.de_auth_id;
+}
 function ehMinha(m) { return !!(m && m.de_auth_id && meuAuthId && String(m.de_auth_id) === String(meuAuthId)); }
 function chaveMsg(m) { return m.id != null ? 'm' + m.id : 'c' + m.client_id; }
 
@@ -222,12 +228,18 @@ function tickHtml(m) {
     if (m.id == null) return '<span class="tk tk-pend" aria-label="Enviando">⏱</span>';
     if ((m.status || '') === 'agendada') return '<span class="tk tk-ag" aria-label="Agendada">🗓</span>';
     if (m.deleted_at) return '';
+    if (String(m.tipo || '') === 'sistema') return '';
     if (T.peerLida && Number(m.id) <= T.peerLida) return '<span class="tk tk-lida" aria-label="Lida">✓✓</span>';
     if (T.peerEntregue && Number(m.id) <= T.peerEntregue) return '<span class="tk tk-entregue" aria-label="Entregue">✓✓</span>';
     return '<span class="tk tk-env" aria-label="Enviada">✓</span>';
 }
 
 function bubbleHtml(m) {
+    if (String(m.tipo || '') === 'sistema') {
+        const isoS = m.criado_em || m._criadoLocal;
+        return '<div class="bubble bubble-sys" data-key="' + chaveMsg(m) + '" data-dia="' + dayKey(isoS) + '"' +
+            (m.id != null ? ' data-msg-id="' + m.id + '"' : '') + '><span>' + esc(m.texto || '') + '</span></div>';
+    }
     const mine = ehMinha(m);
     const deleted = !!m.deleted_at;
     const sched = (m.status || '') === 'agendada';
@@ -400,14 +412,26 @@ async function abrirThread(contato, opts) {
     T.msgs = new Map(); T.minId = null; T.maxId = 0; T.temMais = false; T.carregandoAntigas = false;
     T.peerLida = Number(contato.peerLida || 0); T.peerEntregue = Number(contato.peerEntregue || 0);
     T.novasAbaixo = 0; T.pertoDoFim = true; T.online = false;
+    const ehG = ehGrupoPeer(contato.auth_id);
+    T.grupoLinha = ehG ? (contato.membros ? contato.membros + ' participantes' : 'Grupo') : '';
+    T.grupoMembros = null;
     setReplyTo(null);
     fecharChatHeadMenu();
     mostrarEstadoOutro(null);
-    aplicarBloqueioUI(Bloq.get(contato.auth_id));
-    const pBloq = carregarBloqueio(contato.auth_id);
+    aplicarBloqueioUI(ehG ? null : Bloq.get(contato.auth_id));
+    const pBloq = ehG ? Promise.resolve(null) : carregarBloqueio(contato.auth_id);
+    document.body.classList.toggle('chat-grupo-aberto', ehG);
     showThreadUI(true);
     $('chat-com-nome').textContent = displayNome(contato);
-    if (window.MineraAvatar) MineraAvatar.marcar($('chat-com-av'), contato.auth_id, displayNome(contato));
+    const avTopo = $('chat-com-av');
+    if (ehG && avTopo) {
+        avTopo.removeAttribute('data-av-id'); avTopo.removeAttribute('data-av-nome'); avTopo.classList.remove('mav-on', 'mav-empresa');
+        avTopo.classList.add('wa-av-grupo');
+        setTimeout(() => { if (T.peer === contato.auth_id) { avTopo.textContent = '👥'; avTopo._avChave = 'grupo'; } }, 0);
+    } else if (avTopo) {
+        avTopo.classList.remove('wa-av-grupo');
+        if (window.MineraAvatar) MineraAvatar.marcar(avTopo, contato.auth_id, displayNome(contato));
+    }
     // Voltar do Android/navegador fecha a conversa (volta p/ lista sem sair do chat)
     try {
         if (history.state && history.state.chatPeer) { if (trocou) history.replaceState({ chatPeer: contato.auth_id }, '', location.href); }
@@ -430,13 +454,15 @@ async function abrirThread(contato, opts) {
     } else {
         boxMsgs().innerHTML = '<div class="chat-topo"><span class="chat-topo-load">Carregando…</span></div>';
     }
-    if (window.MineraRT) MineraRT.joinDm(T.peer, mostrarEstadoOutro, (on) => { if (gen !== T.gen) return; T.online = !!on; mostrarEstadoOutro(null); }); // digitando/gravando/online
+    if (window.MineraRT && !ehG) MineraRT.joinDm(T.peer, mostrarEstadoOutro, (on) => { if (gen !== T.gen) return; T.online = !!on; mostrarEstadoOutro(null); }); // digitando/gravando/online
+    else if (window.MineraRT) MineraRT.leaveDm();
 
     // 2) rede
     try {
         const [pg, leit] = await Promise.all([ChatStore.pagina(T.peer, null), ChatStore.leituraDoOutro(T.peer)]);
         if (gen !== T.gen) return;
         T.peerLida = Math.max(T.peerLida, leit.lida); T.peerEntregue = Math.max(T.peerEntregue, leit.entregue, leit.lida);
+        if (ehG && leit.membros) aplicarMembrosGrupo(leit.membros);
         let mesmo = false;
         if (T.msgs.size && pg.msgs.length) {
             const ini = Number(pg.msgs[0].id);
@@ -470,7 +496,7 @@ async function abrirThread(contato, opts) {
         if (gen === T.gen && eB) { aplicarBloqueioUI(eB); aplicarCorte(eB); }
     } catch (e) { /* ignore */ }
     // conversa reexibida (se estava "apagada para mim"). Amigo agora é escolha explícita (menu ⋮ → Adicionar amigo).
-    try { await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contato.auth_id }); } catch (e) { /* SQL 28 opcional */ }
+    if (!ehG) { try { await supabaseClient.rpc('chat_desocultar_conversa', { p_outro: contato.auth_id }); } catch (e) { /* SQL 28 opcional */ } }
     if (!contatosCache.some(c => c.auth_id === contato.auth_id)) agendarInbox(300);
 }
 
@@ -508,7 +534,7 @@ async function carregarAntigas() {
 /** Mensagem nova/alterada (tempo real, poll ou resposta do insert). */
 function receberRow(row) {
     if (!row || row.id == null) return;
-    const peer = row.de_auth_id === meuAuthId ? row.para_auth_id : row.de_auth_id;
+    const peer = peerDaRow(row);
     // confirma bolha otimista (mesmo client_id) — pode chegar pelo tempo real antes da resposta do insert
     if (row.client_id && pendentes.has(row.client_id)) confirmarPendente(pendentes.get(row.client_id), row);
     patchInboxComMsg(row, peer);
@@ -564,6 +590,7 @@ async function sincronizarConversa() {
         const menor = pg.msgs.length ? Number(pg.msgs[0].id) : Infinity;
         Array.from(T.msgs.keys()).forEach(id => { if (id >= menor && !ids.has(id)) { T.msgs.delete(id); removerBolha('m' + id); } }); // sumiram (apagada p/ mim / moderada)
         pg.msgs.forEach(m => receberRow(m));
+        if (leit.membros && ehGrupoPeer(T.peer)) aplicarMembrosGrupo(leit.membros);
         if (leit.lida > T.peerLida || leit.entregue > T.peerEntregue) {
             T.peerLida = Math.max(T.peerLida, leit.lida); T.peerEntregue = Math.max(T.peerEntregue, leit.entregue, leit.lida);
             atualizarTicks();
@@ -599,7 +626,7 @@ function mostrarEstadoOutro(p) {
     const el = $('chat-com-status');
     clearTimeout(estadoOutroT);
     const txt = p && p.estado === 'digitando' ? 'digitando…' : (p && p.estado === 'gravando' ? 'gravando áudio…' : '');
-    const linha = txt || (T.online ? 'online' : '');
+    const linha = txt || (ehGrupoPeer(T.peer) ? (T.grupoLinha || '') : (T.online ? 'online' : ''));
     if (el) { el.textContent = linha; el.hidden = !linha; el.classList.toggle('ativo', !!txt); }
     const dot = $('chat-com-online'); if (dot) dot.classList.toggle('oculto', !T.online);
     const row = T.peer && document.querySelector('#chat-contatos-list .wa-row[data-auth="' + CSS.escape(T.peer) + '"] .wa-row-prev');
@@ -705,7 +732,7 @@ async function processarItem(item) {
             item._estado = 'ok';
             confirmarPendente(item, r.row);
             receberRow(r.row);
-            if (item.tentativas === 1) { try { supabaseClient.rpc('chat_desocultar_conversa', { p_outro: item.para }).then(() => {}, () => {}); } catch (e) { /* ignore */ } }
+            if (item.tentativas === 1 && !ehGrupoPeer(item.para)) { try { supabaseClient.rpc('chat_desocultar_conversa', { p_outro: item.para }).then(() => {}, () => {}); } catch (e) { /* ignore */ } }
         } else if (r.rede) {
             item._estado = 'pendente';
             ChatStore.outboxPut(item);
@@ -833,12 +860,17 @@ function previewLinha(c) {
         else if (c.peerEntregue && l.id <= c.peerEntregue) tick = '<span class="tk tk-entregue">✓✓</span>';
         else tick = '<span class="tk tk-env">✓</span>';
     }
-    return { txt: (minha ? 'Você: ' : '') + txt, tick };
+    let quem = minha ? 'Você: ' : '';
+    if (!minha && c.ehGrupo && l.de_nome && String(l.tipo || '') !== 'sistema') quem = nomePublicoTexto(l.de_nome, 'Alguém') + ': ';
+    if (String(l.tipo || '') === 'sistema') { quem = ''; tick = ''; }
+    return { txt: quem + txt, tick };
 }
 function linhaHtml(c) {
     const p = previewLinha(c);
     const badge = c.unread ? '<span class="wa-unread">' + (c.unread > 99 ? '99+' : c.unread) + '</span>' : '';
-    return '<div class="wa-av mav" data-av-id="' + esc(c.auth_id) + '" data-av-nome="' + esc(c.nome) + '">' + esc(iniciais(c.nome)) + '</div>' +
+    const av = c.ehGrupo ? '<div class="wa-av wa-av-grupo" aria-hidden="true">👥</div>'
+        : '<div class="wa-av mav" data-av-id="' + esc(c.auth_id) + '" data-av-nome="' + esc(c.nome) + '">' + esc(iniciais(c.nome)) + '</div>';
+    return av +
         '<div class="wa-row-mid"><div class="wa-row-name">' + esc(c.nome) + '</div>' +
         '<div class="wa-row-prev">' + p.tick + '<span class="wa-row-prev-txt">' + esc(p.txt.slice(0, 80)) + '</span><span class="wa-row-typing">digitando…</span></div></div>' +
         '<div class="wa-row-right"><span class="wa-row-time' + (c.unread ? ' on' : '') + '">' + esc(timeRight(c.last && c.last.criado_em)) + '</span>' + badge + '</div>';
@@ -888,7 +920,7 @@ function renderLista() {
 function marcarLinhaAtiva() {
     document.querySelectorAll('#chat-contatos-list .wa-row').forEach(el => el.classList.toggle('on', !!(contatoAtivo && el.getAttribute('data-auth') === contatoAtivo.auth_id)));
 }
-let inboxT = null, inboxEmCurso = false, inboxDeNovo = false;
+let inboxT = null, inboxEmCurso = false, inboxDeNovo = false, gruposAssinados = null;
 function agendarInbox(ms) { clearTimeout(inboxT); inboxT = setTimeout(atualizarInbox, ms == null ? 400 : ms); }
 async function atualizarInbox() {
     if (!meuAuthId) return;
@@ -908,6 +940,9 @@ async function atualizarInbox() {
         contatosCache = lista;
         ChatStore.cacheInboxGravar(lista);
         renderLista();
+        // entrou/saiu de grupo (ex.: alguém me adicionou) → reassina o tempo real dos grupos
+        const gk = lista.filter(c => c.ehGrupo).map(c => c.auth_id).sort().join(',');
+        if (gk !== gruposAssinados) { const antes = gruposAssinados; gruposAssinados = gk; if (antes !== null && window.MineraRT && MineraRT.atualizarGrupos) MineraRT.atualizarGrupos(); }
         if (!window.__chatPerf.inboxRedeMs) window.__chatPerf.inboxRedeMs = Math.round(performance.now() - t0);
         window.__chatPerf.inboxModo = ChatStore.temV44() ? 'rpc' : 'legado';
         const ativo = T.peer && lista.find(c => c.auth_id === T.peer);
@@ -936,9 +971,9 @@ function patchInboxComMsg(row, peer) {
     const novo = !c.last || row.id == null || c.last.id == null || Number(row.id) >= Number(c.last.id);
     if (!novo) return;
     const eraNova = row.id != null && (!c.last || c.last.id == null || Number(row.id) > Number(c.last.id));
-    c.last = { id: row.id, de_auth_id: row.de_auth_id, texto: row.deleted_at ? '' : row.texto, tipo: row.tipo, criado_em: row.criado_em || row._criadoLocal, deleted_at: row.deleted_at };
+    c.last = { id: row.id, de_auth_id: row.de_auth_id, de_nome: row.de_nome, texto: row.deleted_at ? '' : row.texto, tipo: row.tipo, criado_em: row.criado_em || row._criadoLocal, deleted_at: row.deleted_at };
     const abertaVisivel = T.peer === peer && visivel() && document.body.classList.contains('chat-thread-open');
-    if (eraNova && row.de_auth_id !== meuAuthId && !abertaVisivel && (row.status || '') !== 'agendada') c.unread = (c.unread || 0) + 1;
+    if (eraNova && row.de_auth_id !== meuAuthId && !abertaVisivel && (row.status || '') !== 'agendada' && String(row.tipo || '') !== 'sistema') c.unread = (c.unread || 0) + 1;
     contatosCache = [c].concat(contatosCache.filter(x => x !== c));
     renderLista();
     ChatStore.cacheInboxGravar(contatosCache);
@@ -1024,7 +1059,7 @@ async function startRecording(fromHold) {
     if (bloqueioAtivo()) { toast('Conversa bloqueada.'); return; }
     if (!window.isSecureContext) { toastAudio('Microfone exige HTTPS.'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Documento.'); return; }
-    // 20261003c: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
+    // 20261003d: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
     // finalizava (stop() é assíncrono) e as duas escreviam no MESMO array global de pedaços:
     // a 1ª saía curtinha (0:01) e a 2ª sem o cabeçalho WebM (não tocava em lugar nenhum).
     if (gravando || iniciandoGravacao || (mediaRecorder && mediaRecorder.state !== 'inactive')) return;
@@ -1256,7 +1291,7 @@ function toggleChatHeadMenu() {
 }
 function fecharMsgSheet() { const s = $('chat-msg-sheet'); if (s) s.classList.add('oculto'); sheetMsg = null; }
 function abrirMsgSheet(m) {
-    if (!m || !m.id) return;
+    if (!m || !m.id || String(m.tipo || '') === 'sistema') return;
     sheetMsg = m;
     const prev = $('chat-msg-sheet-preview'), btnTodos = $('sheet-apagar-todos');
     if (prev) prev.textContent = snippetMsg(m);
@@ -1398,6 +1433,11 @@ async function adicionarAmigoAtual() {
 }
 function prepararMenuConversa() {
     const peer = T.peer; if (!peer) return;
+    const ehG = ehGrupoPeer(peer);
+    ['btn-op-amigo', 'btn-op-bloquear', 'btn-apagar-hist-mim', 'btn-apagar-hist-todos'].forEach(id => { const b = $(id); if (b) b.classList.toggle('oculto-grupo', ehG); });
+    ['btn-grp-membros', 'btn-grp-renomear', 'btn-grp-sair'].forEach(id => { const b = $(id); if (b) b.classList.toggle('oculto', !ehG); });
+    const bAdd = $('btn-op-add-pessoa'); if (bAdd) bAdd.classList.toggle('oculto', !ehG && !ChatStore.temGrupos());
+    if (ehG) return;
     const bA = $('btn-op-amigo'), bB = $('btn-op-bloquear'), tB = $('btn-op-bloquear-txt');
     const e = Bloq.get(peer);
     if (bB) bB.classList.toggle('oculto', sem49());
@@ -1504,6 +1544,7 @@ let rowSheetPeer = null;
 function fecharRowSheet() { const s = $('chat-row-sheet'); if (s) s.classList.add('oculto'); rowSheetPeer = null; }
 async function abrirRowSheet(peer) {
     const c = contatosCache.find(x => x.auth_id === peer); if (!c) return;
+    if (c.ehGrupo) { abrirGrupoSheet(c); return; }
     rowSheetPeer = peer;
     const nm = $('chat-row-sheet-nome'); if (nm) nm.textContent = displayNome(c);
     const bB = $('row-bloquear');
@@ -1538,6 +1579,7 @@ function bindLongPressLista(lista) {
 }
 
 function fecharConversa(viaPopstate) {
+    document.body.classList.remove('chat-grupo-aberto');
     pararDigitando();
     if (window.MineraRT) MineraRT.leaveDm();
     salvarCacheConversa();
@@ -1578,9 +1620,13 @@ function atualizarBackUnread() {
 
 /* ============================ painel Amigos (botão do topo da conversa) ============================ */
 let amigosBuscaT = null, amigosDir = [];
+/** Amigos aberto de dentro de uma conversa = "adicionar pessoa": DM → cria grupo (2 + nova pessoa); grupo → adiciona. */
+function modoAddConversa() { return !!(T.peer && ChatStore.temGrupos()); }
 function abrirAmigos() {
     const s = $('chat-amigos-sheet'); if (!s) return;
     fecharChatHeadMenu();
+    const tit = $('amigos-titulo');
+    if (tit) tit.textContent = modoAddConversa() ? (ehGrupoPeer(T.peer) ? 'Adicionar ao grupo' : 'Adicionar pessoa à conversa') : 'Amigos';
     s.classList.remove('oculto');
     const b = $('amigos-busca'); if (b) b.value = '';
     renderAmigos('');
@@ -1588,21 +1634,29 @@ function abrirAmigos() {
 function fecharAmigos() { const s = $('chat-amigos-sheet'); if (s) s.classList.add('oculto'); }
 function amigoLinha(u, ja) {
     const nome = displayNome(u);
+    const add = modoAddConversa();
+    const membro = add && ehGrupoPeer(T.peer) && Array.isArray(T.grupoMembros) && T.grupoMembros.some(x => x.auth_id === u.auth_id);
+    const naConversa = add && !ehGrupoPeer(T.peer) && u.auth_id === T.peer;
+    let botoes;
+    if (!add) botoes = '<button type="button" class="btn-sm" data-amigo="' + esc(u.auth_id) + '">' + (ja ? 'Conversar' : 'Adicionar') + '</button>';
+    else if (membro || naConversa) botoes = '<span class="sub gk-amigo-ja">' + (membro ? 'no grupo' : 'nesta conversa') + '</span>';
+    else botoes = '<button type="button" class="btn-sm btn-ghost-sm" data-amigo="' + esc(u.auth_id) + '">Conversar</button>' +
+        '<button type="button" class="btn-sm" data-add-conv="' + esc(u.auth_id) + '">＋ Adicionar</button>';
     return '<div class="gk-amigo" data-auth="' + esc(u.auth_id) + '"><span class="wa-av mav" data-av-id="' + esc(u.auth_id) + '" data-av-nome="' + esc(nome) + '">' + esc(iniciais(nome)) + '</span>' +
         '<span class="gk-amigo-txt"><strong>' + esc(nome) + '</strong><span class="sub">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</span></span>' +
-        '<button type="button" class="btn-sm" data-amigo="' + esc(u.auth_id) + '">' + (ja ? 'Conversar' : 'Adicionar') + '</button></div>';
+        '<span class="gk-amigo-bts">' + botoes + '</span></div>';
 }
 async function renderAmigos(termo) {
     const box = $('amigos-lista'); if (!box) return;
     const t = String(termo || '').trim().toLowerCase();
-    const meus = contatosCache.filter(c => !t || (c.nome || '').toLowerCase().includes(t) || (c.apelido || '').toLowerCase().includes(t) || (c.nomeReal || '').toLowerCase().includes(t));
+    const meus = contatosCache.filter(c => !c.ehGrupo).filter(c => !t || (c.nome || '').toLowerCase().includes(t) || (c.apelido || '').toLowerCase().includes(t) || (c.nomeReal || '').toLowerCase().includes(t));
     let html = meus.length ? '<div class="chat-group-title">Seus contatos</div>' + meus.map(c => amigoLinha(c, true)).join('') : '';
     box.innerHTML = html + (t ? '<p class="sub">Buscando…</p>' : (meus.length ? '' : '<p class="sub">Nenhum contato ainda. Busque por nome ou apelido.</p>'));
     if (!t) return;
     const pedido = t;
     amigosDir = await rpcDiretorio(t);
     if ((($('amigos-busca') || {}).value || '').trim().toLowerCase() !== pedido) return;
-    const ja = new Set(contatosCache.map(c => c.auth_id));
+    const ja = new Set(contatosCache.filter(c => !c.ehGrupo).map(c => c.auth_id));
     const novos = amigosDir.filter(u => u.auth_id !== meuAuthId && !ja.has(u.auth_id));
     box.innerHTML = html + (novos.length ? '<div class="chat-group-title">Outras pessoas no Minera Pará</div>' + novos.map(u => amigoLinha(u, false)).join('')
         : (meus.length ? '' : '<p class="sub">Ninguém encontrado com esse nome.</p>'));
@@ -1612,6 +1666,13 @@ function bindAmigos() {
     const s = $('chat-amigos-sheet');
     if (s) s.addEventListener('click', async (e) => {
         if (e.target && e.target.getAttribute && e.target.getAttribute('data-close-amigos')) { fecharAmigos(); return; }
+        const bAdd = e.target.closest && e.target.closest('[data-add-conv]');
+        if (bAdd) {
+            const idA = bAdd.getAttribute('data-add-conv');
+            const uA = contatosCache.find(x => x.auth_id === idA) || amigosDir.find(x => x.auth_id === idA);
+            if (uA) { fecharAmigos(); await adicionarPessoaNaConversa(uA); }
+            return;
+        }
         const b = e.target.closest && e.target.closest('[data-amigo]');
         if (!b) return;
         const id = b.getAttribute('data-amigo');
@@ -1626,9 +1687,120 @@ function bindAmigos() {
     const add = $('btn-amigos-add'); if (add) add.addEventListener('click', () => { fecharAmigos(); abrirModalAdd(); });
 }
 
+/* ============================ grupos (SQL 55) ============================ */
+function aplicarMembrosGrupo(ms) {
+    if (!Array.isArray(ms) || !ehGrupoPeer(T.peer)) return;
+    T.grupoMembros = ms;
+    const nomes = ms.map(u => u.auth_id === meuAuthId ? 'Você' : displayNome(u));
+    const eu = nomes.indexOf('Você'); if (eu > 0) { nomes.splice(eu, 1); nomes.push('Você'); }
+    T.grupoLinha = nomes.join(', ');
+    if (contatoAtivo) contatoAtivo.membros = ms.length;
+    mostrarEstadoOutro(null);
+    const sh = $('chat-grupo-sheet');
+    if (sh && !sh.classList.contains('oculto')) renderGrupoSheet();
+}
+function nomeGrupoPadrao(nomes) {
+    let n = nomes.filter(Boolean).join(', ');
+    const i = n.lastIndexOf(', '); if (i > 0) n = n.slice(0, i) + ' e ' + n.slice(i + 2);
+    return n.length > 60 ? n.slice(0, 57) + '…' : n;
+}
+async function abrirGrupoPorId(gid, nomeHint) {
+    const key = 'g:' + gid;
+    let c = contatosCache.find(x => x.auth_id === key);
+    if (!c) { await atualizarInbox(); c = contatosCache.find(x => x.auth_id === key); }
+    if (!c) c = { auth_id: key, grupo_id: gid, ehGrupo: true, nome: nomeHint || 'Grupo', papeis: [], tipo: '', last: null, unread: 0, peerLida: 0, peerEntregue: 0 };
+    abrirThread(c);
+}
+async function adicionarPessoaNaConversa(u) {
+    if (!u || !u.auth_id || !T.peer) return;
+    const novo = displayNome(u);
+    if (ehGrupoPeer(T.peer)) {
+        const gNome = displayNome(contatoAtivo);
+        if (!(await cxConfirm('Adicionar ' + novo + '?', novo + ' vai entrar no grupo "' + gNome + '" e ver as mensagens a partir de agora.', 'Adicionar'))) return;
+        const r = await supabaseClient.rpc('chat_grupo_adicionar', { p_grupo: ChatStore.gid(T.peer), p_membros: [u.auth_id] });
+        if (r.error) { toast('Erro: ' + r.error.message); return; }
+        toast(Number(r.data || 0) ? novo + ' adicionado ao grupo' : novo + ' já está no grupo');
+        sincronizarConversa(); agendarInbox(300);
+        return;
+    }
+    const outro = contatoAtivo ? displayNome(contatoAtivo) : 'contato';
+    if (!(await cxConfirm('Criar grupo?', 'Você, ' + outro + ' e ' + novo + ' vão conversar juntos num grupo novo. A conversa particular com ' + outro + ' continua separada.', 'Criar grupo'))) return;
+    const nome = nomeGrupoPadrao([outro, novo, meuNomePublico()]);
+    const r = await supabaseClient.rpc('chat_grupo_criar', { p_nome: nome, p_membros: [T.peer, u.auth_id] });
+    if (r.error || !r.data) { toast('Não foi possível criar o grupo: ' + ((r.error && r.error.message) || '')); return; }
+    if (window.MineraRT && MineraRT.atualizarGrupos) MineraRT.atualizarGrupos();
+    toast('Grupo criado');
+    await abrirGrupoPorId(r.data, nome);
+}
+function fecharGrupoSheet() { const s = $('chat-grupo-sheet'); if (s) s.classList.add('oculto'); }
+function renderGrupoSheet() {
+    const c = contatoAtivo && ehGrupoPeer(contatoAtivo.auth_id) ? contatoAtivo : null;
+    const t = $('grp-sheet-nome'), sub = $('grp-sheet-sub'), box = $('grp-sheet-lista');
+    if (t) t.textContent = c ? displayNome(c) : 'Grupo';
+    const ms = T.grupoMembros;
+    if (sub) sub.textContent = Array.isArray(ms) ? ms.length + ' participantes' : 'Carregando…';
+    if (!box) return;
+    if (!Array.isArray(ms)) { box.innerHTML = '<p class="sub">Carregando…</p>'; return; }
+    box.innerHTML = ms.map(u => {
+        const nome = u.auth_id === meuAuthId ? 'Você' : displayNome(u);
+        return '<div class="gk-amigo"><span class="wa-av mav" data-av-id="' + esc(u.auth_id) + '" data-av-nome="' + esc(nome) + '">' + esc(iniciais(nome)) + '</span>' +
+            '<span class="gk-amigo-txt"><strong>' + esc(nome) + '</strong><span class="sub">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</span></span></div>';
+    }).join('');
+}
+async function abrirGrupoSheet(c) {
+    fecharChatHeadMenu(); fecharRowSheet();
+    if (c && (!contatoAtivo || contatoAtivo.auth_id !== c.auth_id)) await abrirThread(c);
+    const s = $('chat-grupo-sheet'); if (!s) return;
+    renderGrupoSheet();
+    s.classList.remove('oculto');
+    try { aplicarMembrosGrupo(await ChatStore.grupoMembros(T.peer)); } catch (e) { /* offline */ }
+}
+async function renomearGrupo() {
+    if (!ehGrupoPeer(T.peer)) return;
+    fecharChatHeadMenu();
+    const atual = displayNome(contatoAtivo);
+    const novo = (window.prompt('Nome do grupo', atual) || '').trim();
+    if (!novo || novo === atual) return;
+    const r = await supabaseClient.rpc('chat_grupo_renomear', { p_grupo: ChatStore.gid(T.peer), p_nome: novo.slice(0, 60) });
+    if (r.error) { toast('Erro: ' + r.error.message); return; }
+    contatoAtivo.nome = novo.slice(0, 60);
+    $('chat-com-nome').textContent = contatoAtivo.nome;
+    const c = contatosCache.find(x => x.auth_id === T.peer); if (c) c.nome = contatoAtivo.nome;
+    renderLista(); renderGrupoSheet(); sincronizarConversa();
+}
+async function sairDoGrupo() {
+    if (!ehGrupoPeer(T.peer)) return;
+    fecharChatHeadMenu(); fecharGrupoSheet();
+    const peer = T.peer, nome = displayNome(contatoAtivo);
+    if (!(await cxConfirm('Sair do grupo?', 'Você sai de "' + nome + '" e não recebe mais as mensagens. Alguém do grupo pode adicionar você de novo.', 'Sair'))) return;
+    const r = await supabaseClient.rpc('chat_grupo_sair', { p_grupo: ChatStore.gid(peer) });
+    if (r.error) { toast('Erro: ' + r.error.message); return; }
+    ChatStore.cacheThreadGravar(peer, []);
+    contatosCache = contatosCache.filter(c => c.auth_id !== peer); renderLista();
+    if (T.peer === peer) fecharConversa();
+    if (window.MineraRT && MineraRT.atualizarGrupos) MineraRT.atualizarGrupos();
+    toast('Você saiu do grupo');
+    agendarInbox(300);
+}
+function bindGrupos() {
+    const s = $('chat-grupo-sheet');
+    if (s) s.addEventListener('click', (e) => { if (e.target && e.target.closest && e.target.closest('[data-close-grupo]')) fecharGrupoSheet(); });
+    const on = (id, fn) => { const b = $(id); if (b) b.addEventListener('click', fn); };
+    on('btn-grp-membros', () => abrirGrupoSheet(null));
+    on('btn-grp-renomear', renomearGrupo);
+    on('btn-grp-sair', sairDoGrupo);
+    on('btn-op-add-pessoa', () => { fecharChatHeadMenu(); abrirAmigos(); });
+    on('grp-sheet-add', () => { fecharGrupoSheet(); abrirAmigos(); });
+    on('grp-sheet-renomear', () => { fecharGrupoSheet(); renomearGrupo(); });
+    on('grp-sheet-sair', sairDoGrupo);
+    const pill = $('btn-chat-menu');
+    if (pill) pill.addEventListener('click', (e) => { if (ehGrupoPeer(T.peer)) { e.stopImmediatePropagation(); abrirGrupoSheet(null); } }, true);
+}
+
 /* ============================ eventos da tela ============================ */
 function bindTela() {
     bindAmigos();
+    bindGrupos();
     const form = $('form-chat');
     if (form) form.addEventListener('submit', (e) => { e.preventDefault(); enviarMensagem(); });
     const input = $('chat-texto');
@@ -1860,7 +2032,9 @@ async function init() {
         const input = $('chat-texto');
         if (input && !input.value) input.placeholder = 'Mensagem sobre o lote ' + loteCtx + '...';
     }
-    const para = lerParaQuery();
+    const grupoQ = lerQuery('grupo');
+    const para = grupoQ ? '' : lerParaQuery();
+    if (grupoQ && /^[0-9a-f-]{36}$/i.test(grupoQ)) abrirGrupoPorId(grupoQ);
     if (para && para !== meuAuthId) {
         let c = contatosCache.find(x => x.auth_id === para);
         if (!c) {

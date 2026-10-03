@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261003c">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261003c">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261003d">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261003d">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261003c">
+    <link rel="stylesheet" href="style.css?v=20261003d">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -41,12 +41,12 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261003c" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261003d" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
-                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261003c">
-                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261003c">
+                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261003d">
+                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261003d">
                         <button type="button" class="gk-circ gk-back chat-back" id="btn-chat-back" aria-label="Voltar para as conversas"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
                         <button type="button" class="gk-pill" id="btn-chat-menu" aria-label="Opções da conversa" aria-haspopup="menu">
                             <span class="gk-av-wrap"><span class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</span><span class="gk-dot oculto" id="chat-com-online" aria-hidden="true"></span></span>
@@ -56,6 +56,10 @@
                         <button type="button" class="gk-circ gk-opcoes" id="btn-chat-opcoes" aria-label="Opções da conversa" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="currentColor"><circle cx="12" cy="5.5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="18.5" r="1.9"/></g></svg></button>
                     </div>
                     <div id="chat-head-menu" class="chat-head-menu cx-pop oculto" role="menu" aria-label="Opções da conversa">
+                        <button type="button" role="menuitem" class="cx-item oculto" id="btn-grp-membros"><svg class="cx-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 13.6c2.6.2 4.5 2 4.5 4.9"/></g></svg><span>Participantes do grupo</span></button>
+                        <button type="button" role="menuitem" class="cx-item oculto" id="btn-op-add-pessoa"><svg class="cx-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.6"/><path d="M3.5 20c0-3.6 2.9-6 6.5-6 1.4 0 2.6.3 3.6.9"/><path d="M18 14v6M15 17h6"/></g></svg><span>Adicionar pessoa</span></button>
+                        <button type="button" role="menuitem" class="cx-item oculto" id="btn-grp-renomear"><svg class="cx-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-4-4L4 16z"/></g></svg><span>Renomear grupo</span></button>
+                        <button type="button" role="menuitem" class="cx-item cx-danger oculto" id="btn-grp-sair"><svg class="cx-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/></g></svg><span>Sair do grupo</span></button>
                         <button type="button" role="menuitem" class="cx-item" id="btn-op-amigo"><svg class="cx-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.6"/><path d="M3.5 20c0-3.6 2.9-6 6.5-6 1.4 0 2.6.3 3.6.9"/><path d="M18 14v6M15 17h6"/></g></svg><span>Adicionar amigo</span></button>
                         <button type="button" role="menuitem" class="cx-item" id="btn-apagar-hist-mim"><svg class="cx-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V4.8h5V7M6.5 7l.8 12.2a1.8 1.8 0 0 0 1.8 1.6h5.8a1.8 1.8 0 0 0 1.8-1.6L17.5 7"/><path d="M10 11v6M14 11v6"/></g></svg><span>Apagar conversa</span></button>
                         <button type="button" role="menuitem" class="cx-item cx-danger" id="btn-op-bloquear"><svg class="cx-ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.2"/><path d="M6.3 6.3l11.4 11.4"/></g></svg><span id="btn-op-bloquear-txt">Bloquear usuário</span></button>
@@ -149,6 +153,19 @@
         </div>
     </div>
 
+    <div id="chat-grupo-sheet" class="chat-msg-sheet oculto gk-amigos-sheet" role="dialog" aria-modal="true" aria-labelledby="grp-sheet-nome">
+        <div class="chat-msg-sheet-backdrop" data-close-grupo="1"></div>
+        <div class="chat-msg-sheet-panel">
+            <div class="chat-msg-sheet-handle" aria-hidden="true"></div>
+            <div class="gk-amigos-top"><p id="grp-sheet-nome" class="gk-amigos-title">Grupo</p><span id="grp-sheet-sub" class="sub"></span></div>
+            <div id="grp-sheet-lista" class="gk-amigos-lista"></div>
+            <button type="button" class="chat-msg-sheet-item" id="grp-sheet-add">＋ Adicionar pessoa</button>
+            <button type="button" class="chat-msg-sheet-item" id="grp-sheet-renomear">✏️ Renomear grupo</button>
+            <button type="button" class="chat-msg-sheet-item danger" id="grp-sheet-sair">Sair do grupo</button>
+            <button type="button" class="btn-ghost" data-close-grupo="1">Fechar</button>
+        </div>
+    </div>
+
     <div id="chat-amigos-sheet" class="chat-msg-sheet oculto gk-amigos-sheet" role="dialog" aria-modal="true" aria-labelledby="amigos-titulo">
         <div class="chat-msg-sheet-backdrop" data-close-amigos="1"></div>
         <div class="chat-msg-sheet-panel">
@@ -192,20 +209,20 @@
     </div>
     <div id="cx-undo" class="cx-undo oculto" role="status" aria-live="polite"><span id="cx-undo-txt"></span><button type="button" id="cx-undo-btn">Desfazer</button></div>
 
-    <script src="config.js?v=20261003c"></script>
-    <script src="auth-guard.js?v=20261003c"></script>
-    <script src="suporte.js?v=20261003c"></script>
-    <script src="chat-realtime.js?v=20261003c"></script>
-    <script src="avatar.js?v=20261003c"></script>
-    <script src="nav.js?v=20261003c"></script>
-    <script src="anti-golpe.js?v=20261003c"></script>
-    <script src="chat-store.js?v=20261003c"></script>
-    <script src="chat-midia.js?v=20261003c"></script>
-    <script src="audio-compat.js?v=20261003c"></script>
-    <script src="chat-audio.js?v=20261003c"></script>
-    <script src="chat.js?v=20261003c"></script>
-    <script src="lightbox.js?v=20261003c"></script>
-    <script src="pwa.js?v=20261003c"></script>
+    <script src="config.js?v=20261003d"></script>
+    <script src="auth-guard.js?v=20261003d"></script>
+    <script src="suporte.js?v=20261003d"></script>
+    <script src="chat-realtime.js?v=20261003d"></script>
+    <script src="avatar.js?v=20261003d"></script>
+    <script src="nav.js?v=20261003d"></script>
+    <script src="anti-golpe.js?v=20261003d"></script>
+    <script src="chat-store.js?v=20261003d"></script>
+    <script src="chat-midia.js?v=20261003d"></script>
+    <script src="audio-compat.js?v=20261003d"></script>
+    <script src="chat-audio.js?v=20261003d"></script>
+    <script src="chat.js?v=20261003d"></script>
+    <script src="lightbox.js?v=20261003d"></script>
+    <script src="pwa.js?v=20261003d"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); }
