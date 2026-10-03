@@ -265,6 +265,7 @@ function bindVaquinhaPix() {
     montarNav('perfil', perfilAtual);
     preencherForm(perfilAtual);
     atualizarPerfilHero(perfilAtual);
+    try { bindSeguranca(session); } catch (eSeg) { console.warn('seguranca', eSeg); }
     // Keep slim topbar Sair visible (nav.js hides legado #btn-sair with bottom-nav)
     const sairTop = document.getElementById('btn-sair');
     if (sairTop) sairTop.classList.remove('oculto');
@@ -783,3 +784,119 @@ document.addEventListener('click', async (e) => {
     })();
     if (/[#]meus-banners/.test(location.hash)) setTimeout(() => { try { card.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ } }, 900);
 })();
+
+
+/* ===== Senhas e segurança (Configurações) ===== */
+function segMsg(id, txt, ok) { const el = document.getElementById(id); if (!el) return; el.textContent = txt || ''; el.className = 'msg' + (txt ? (ok ? ' ok' : ' erro') : ''); }
+function segAlternar(btnId, formId) {
+    const b = document.getElementById(btnId), f = document.getElementById(formId);
+    if (!b || !f) return;
+    b.addEventListener('click', () => {
+        const abrir = f.classList.contains('oculto');
+        f.classList.toggle('oculto', !abrir);
+        b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+        b.classList.toggle('aberto', abrir);
+        if (abrir) { const i = f.querySelector('input'); if (i) setTimeout(() => i.focus(), 60); }
+    });
+}
+function segLimpar(form) { form.querySelectorAll('input[type="password"], input[type="text"]').forEach((i) => { i.value = ''; if (i.closest('.senha-wrap')) { i.type = 'password'; const o = i.parentNode.querySelector('.senha-olho'); if (o) { o.textContent = '👁️'; o.setAttribute('aria-pressed', 'false'); o.setAttribute('aria-label', 'Mostrar senha'); } } }); }
+async function segSha256Hex(str) {
+    const dig = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(str)));
+    return Array.from(new Uint8Array(dig)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function segSaltHex() { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a).map((b) => b.toString(16).padStart(2, '0')).join(''); }
+function segTraduzirErroSenha(e) {
+    const t = String((e && (e.code || '')) + ' ' + ((e && e.message) || e || ''));
+    if (/same_password|different from the old/i.test(t)) return 'A nova senha precisa ser diferente da atual.';
+    if (/weak_password|at least|should be/i.test(t)) return 'Senha fraca: use pelo menos 6 caracteres (misture letras e números).';
+    if (/reauthentication|nonce/i.test(t)) return 'Por segurança, saia e entre de novo no app e tente outra vez.';
+    if (/rate|too many|seconds/i.test(t)) return 'Muitas tentativas. Espere um pouco e tente de novo.';
+    return 'Não foi possível trocar a senha: ' + ((e && e.message) || t);
+}
+function bindSeguranca(session) {
+    const email = (session && session.user && session.user.email) || (perfilAtual && perfilAtual.email) || '';
+    const uid = session && session.user ? session.user.id : null;
+    const em = document.getElementById('seg-conta-email'); if (em) em.textContent = email || '—';
+    segAlternar('btn-seg-senha', 'form-seg-senha');
+    segAlternar('btn-seg-banco', 'form-seg-banco');
+
+    // 1) senha do app (Supabase Auth): confirma a atual, grava a nova, derruba os outros aparelhos
+    const fS = document.getElementById('form-seg-senha');
+    if (fS) fS.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const atual = document.getElementById('seg-senha-atual').value;
+        const n1 = document.getElementById('seg-senha-nova').value;
+        const n2 = document.getElementById('seg-senha-nova2').value;
+        const sairOutros = document.getElementById('seg-sair-outros').checked;
+        if (!atual) { segMsg('seg-senha-msg', 'Digite sua senha atual.', false); return; }
+        if (n1.length < 6) { segMsg('seg-senha-msg', 'A nova senha precisa ter pelo menos 6 caracteres.', false); return; }
+        if (n1 !== n2) { segMsg('seg-senha-msg', 'As duas novas senhas não são iguais.', false); return; }
+        if (n1 === atual) { segMsg('seg-senha-msg', 'A nova senha precisa ser diferente da atual.', false); return; }
+        if (!email) { segMsg('seg-senha-msg', 'Não achei o e-mail da conta. Saia e entre de novo.', false); return; }
+        const btn = document.getElementById('btn-seg-senha-salvar'); btn.disabled = true;
+        segMsg('seg-senha-msg', 'Conferindo a senha atual…', true);
+        try {
+            const re = await supabaseClient.auth.signInWithPassword({ email, password: atual });
+            if (re.error) { segMsg('seg-senha-msg', /invalid/i.test(re.error.message || '') ? 'Senha atual incorreta.' : segTraduzirErroSenha(re.error), false); return; }
+            segMsg('seg-senha-msg', 'Salvando a nova senha…', true);
+            const up = await supabaseClient.auth.updateUser({ password: n1 });
+            if (up.error) { segMsg('seg-senha-msg', segTraduzirErroSenha(up.error), false); return; }
+            let extra = '';
+            if (sairOutros) {
+                const so = await supabaseClient.auth.signOut({ scope: 'others' });
+                extra = so && so.error ? ' (não consegui desconectar os outros aparelhos agora)' : ' Os outros aparelhos desta conta foram desconectados.';
+            }
+            segLimpar(fS);
+            segMsg('seg-senha-msg', '✅ Senha do app alterada.' + extra, true);
+            if (typeof toastMsg === 'function') toastMsg('Senha alterada');
+        } catch (e) {
+            segMsg('seg-senha-msg', segTraduzirErroSenha(e), false);
+        } finally { btn.disabled = false; }
+    });
+
+    // 2) senha do Banco (Minera Bank / caixa_saldos.pin_hash) — exige a atual
+    const fB = document.getElementById('form-seg-banco');
+    if (fB) fB.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const atual = document.getElementById('seg-banco-atual').value;
+        const n1 = document.getElementById('seg-banco-nova').value;
+        const n2 = document.getElementById('seg-banco-nova2').value;
+        if (!atual) { segMsg('seg-banco-msg', 'Digite a senha atual do Banco.', false); return; }
+        if (n1.length < 6) { segMsg('seg-banco-msg', 'A nova senha do Banco precisa ter pelo menos 6 caracteres.', false); return; }
+        if (n1 !== n2) { segMsg('seg-banco-msg', 'As duas novas senhas não são iguais.', false); return; }
+        if (n1 === atual) { segMsg('seg-banco-msg', 'A nova senha precisa ser diferente da atual.', false); return; }
+        const btn = document.getElementById('btn-seg-banco-salvar'); btn.disabled = true;
+        try {
+            const r = await supabaseClient.from('caixa_saldos').select('pin_hash,pin_salt').eq('auth_id', uid).maybeSingle();
+            if (r.error) throw r.error;
+            if (!r.data || !r.data.pin_hash || !r.data.pin_salt) { segMsg('seg-banco-msg', 'Você ainda não criou a senha do Banco. Abra o Banco para criar.', false); return; }
+            if ((await segSha256Hex(r.data.pin_salt + '|' + atual)) !== r.data.pin_hash) { segMsg('seg-banco-msg', 'Senha atual do Banco incorreta (não é a senha de login).', false); return; }
+            const salt = segSaltHex();
+            const hash = await segSha256Hex(salt + '|' + n1);
+            const u = await supabaseClient.from('caixa_saldos').update({ pin_hash: hash, pin_salt: salt, atualizado_em: new Date().toISOString() }).eq('auth_id', uid).select('auth_id');
+            if (u.error) throw u.error;
+            if (!u.data || !u.data.length) throw new Error('nada foi gravado');
+            segLimpar(fB);
+            segMsg('seg-banco-msg', '✅ Senha do Banco alterada.', true);
+            if (typeof toastMsg === 'function') toastMsg('Senha do Banco alterada');
+        } catch (e) {
+            segMsg('seg-banco-msg', 'Não foi possível alterar: ' + ((e && e.message) || e), false);
+        } finally { btn.disabled = false; }
+    });
+
+    // 3) derrubar as outras sessões desta conta
+    const bO = document.getElementById('btn-seg-outros');
+    if (bO) bO.addEventListener('click', async () => {
+        const ok = (typeof cxConfirm === 'function')
+            ? await cxConfirm('Desconectar os outros aparelhos?', 'Todo celular ou computador que estiver nesta conta (menos este) vai precisar entrar de novo com a senha. Se alguém mais usa sua conta, troque também a senha.', 'Desconectar')
+            : window.confirm('Desconectar os outros aparelhos desta conta?');
+        if (!ok) return;
+        bO.disabled = true;
+        try {
+            const so = await supabaseClient.auth.signOut({ scope: 'others' });
+            if (so && so.error) throw so.error;
+            segMsg('seg-outros-msg', '✅ Pronto. Os outros aparelhos saem da conta (no máximo em alguns minutos).', true);
+        } catch (e) { segMsg('seg-outros-msg', 'Não foi possível: ' + ((e && e.message) || e), false); }
+        finally { bO.disabled = false; }
+    });
+}

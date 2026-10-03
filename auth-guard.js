@@ -23,7 +23,7 @@ async function requireSession() {
 /** Limpa storage de sessão e manda para login (fortress). */
 async function limparSessaoERedirecionar() {
     try { limparModoUi(); } catch (e) { /* ignore */ }
-    try { await supabaseClient.auth.signOut(); } catch (e) { /* ignore */ }
+    try { await supabaseClient.auth.signOut({ scope: 'local' }); } catch (e) { /* ignore */ }
     try {
         Object.keys(localStorage).forEach(k => {
             if (/^sb-|supabase|minera_caixa_unlocked/i.test(k)) localStorage.removeItem(k);
@@ -483,9 +483,23 @@ async function destinoPosLogin(user) {
     return 'inicio.html';
 }
 
+/** Ao sair: este aparelho para de receber push da conta (senão o próximo usuário do celular recebe avisos da conta anterior). */
+async function desligarPushDoAparelho() {
+    try {
+        if (!('serviceWorker' in navigator)) return;
+        const reg = await Promise.race([navigator.serviceWorker.getRegistration(), new Promise((r) => setTimeout(r, 2500))]);
+        const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+        if (!sub) return;
+        try { await Promise.race([supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* ignore */ }
+        try { await sub.unsubscribe(); } catch (e) { /* ignore */ }
+        try { Object.keys(localStorage).forEach((k) => { if (/^minera_push_reg_/.test(k)) localStorage.removeItem(k); }); } catch (e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
+}
+
 async function sairApp() {
     limparModoUi();
-    await supabaseClient.auth.signOut();
+    await desligarPushDoAparelho();
+    await supabaseClient.auth.signOut({ scope: 'local' }); // só este aparelho (os outros seguem logados)
     irPara('entrar.html');
 }
 
@@ -600,6 +614,66 @@ function checarTutorialPrimeiroAcesso() {
 }
 
 
+/* ---- Sessão ainda vale no servidor? (senha trocada / "desconectar outros aparelhos" revoga as outras sessões) ---- */
+(function vigiarSessaoRevogada() {
+    if (typeof supabaseClient === 'undefined') return;
+    let ultimo = 0;
+    async function conferir() {
+        if (Date.now() - ultimo < 60000) return;
+        ultimo = Date.now();
+        try {
+            const { data } = await supabaseClient.auth.getSession();
+            if (!data || !data.session) return;
+            const r = await supabaseClient.auth.getUser();
+            const e = r && r.error;
+            if (!e) return;
+            const st = Number(e.status || 0);
+            const txt = String((e.code || '') + ' ' + (e.message || ''));
+            if ((st === 401 || st === 403 || st === 404) && /session|not.?found|jwt|invalid|expired|revoked/i.test(txt)) {
+                await limparSessaoERedirecionar();
+            }
+        } catch (err) { /* offline: confere depois */ }
+    }
+    setTimeout(conferir, 4000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') conferir(); });
+})();
+
+/* ---- 👁️ Mostrar/ocultar senha em todo campo de senha (login, cadastro, perfil, Banco) ---- */
+(function olhoSenha() {
+    function equipar(inp) {
+        if (!inp || inp._olho || inp.type !== 'password' || inp.closest('.senha-wrap')) return;
+        inp._olho = true;
+        const wrap = document.createElement('span');
+        wrap.className = 'senha-wrap';
+        inp.parentNode.insertBefore(wrap, inp);
+        wrap.appendChild(inp);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'senha-olho';
+        b.setAttribute('aria-label', 'Mostrar senha');
+        b.setAttribute('aria-pressed', 'false');
+        b.textContent = '👁️';
+        b.addEventListener('mousedown', (e) => e.preventDefault()); // não tira o foco do campo
+        b.addEventListener('click', () => {
+            const mostrar = inp.type === 'password';
+            inp.type = mostrar ? 'text' : 'password';
+            b.textContent = mostrar ? '🙈' : '👁️';
+            b.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+            b.setAttribute('aria-pressed', mostrar ? 'true' : 'false');
+        });
+        wrap.appendChild(b);
+    }
+    function varrer(root) { (root || document).querySelectorAll('input[type="password"]').forEach(equipar); }
+    function iniciar() {
+        varrer(document);
+        try {
+            new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { if (n.matches && n.matches('input[type="password"]')) equipar(n); else if (n.querySelectorAll) varrer(n); } })
+                .observe(document.body, { childList: true, subtree: true });
+        } catch (e) { /* ignore */ }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
+})();
+
 /* ---- Fortress: auth errors → clear + redirect; block disabled ---- */
 (function bootAuthFortress() {
     if (typeof supabaseClient === 'undefined') return;
@@ -608,8 +682,9 @@ function checarTutorialPrimeiroAcesso() {
             if (event === 'SIGNED_OUT') {
                 try { limparModoUi(); } catch (e) { /* ignore */ }
                 const path = (location.pathname || '');
-                if (!/(index|entrar)\.html$/i.test(path) && !/\/$/.test(path)) {
-                    // já em logout — não loop
+                // Sessão encerrada (sair, senha trocada em outro aparelho, conta desconectada): não fica na tela com dados da conta
+                if (!/(index|entrar|404)\.html$/i.test(path) && !/\/$/.test(path)) {
+                    setTimeout(() => irPara('entrar.html'), 50);
                 }
                 return;
             }

@@ -6543,7 +6543,7 @@ html[data-theme="light"] .cx-undo { background: #1f2937; }
 /* lista: segurar abre ações, sem menu nativo/seleção */
 #chat-contatos-list .wa-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 #chat-row-sheet .chat-msg-sheet-item.oculto { display: none !important; }
-/* 20261003h: toast Desfazer numa linha só; vazio da lista com margem lateral */
+/* 20261003i: toast Desfazer numa linha só; vazio da lista com margem lateral */
 .cx-undo { width: max-content; }
 .cx-undo #cx-undo-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .cx-undo button { flex-shrink: 0; }
@@ -6799,3 +6799,37 @@ input, textarea, select, [contenteditable], [contenteditable] *, .selecionavel, 
 .gk-amigo .gk-amigo-ja { font-size: 0.78rem; white-space: nowrap; }
 #chat-grupo-sheet .gk-amigos-top { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 #chat-grupo-sheet .gk-amigos-lista { max-height: 40vh; overflow-y: auto; }
+
+/* ---- 👁️ mostrar/ocultar senha (auth-guard.js: olhoSenha) ---- */
+.senha-wrap { position: relative; display: block; width: 100%; }
+.senha-wrap > input { width: 100%; padding-right: 56px !important; }
+.senha-wrap > .senha-olho {
+  position: absolute; top: 50%; right: 4px; transform: translateY(-50%);
+  width: 48px; height: 44px; min-width: 48px; min-height: 44px; padding: 0; margin: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: 10px; box-shadow: none;
+  font-size: 1.25rem; line-height: 1; color: inherit; cursor: pointer;
+}
+.senha-wrap > .senha-olho:focus-visible { outline: 2px solid var(--accent-color, #F5A623); outline-offset: -2px; }
+.senha-wrap > .senha-olho:active { background: rgba(148, 163, 184, .18); }
+
+/* ---- Perfil → Configurações → Senhas e segurança ---- */
+#card-seguranca .seg-aviso { line-height: 1.45; }
+#card-seguranca .seg-aviso strong { word-break: break-all; }
+#card-seguranca .seg-abrir {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; margin-top: 10px;
+  padding: 12px 14px; border-radius: 12px; text-align: left; font-size: 1rem; font-weight: 700;
+  background: rgba(148, 163, 184, .12); color: var(--text-color); border: 1px solid var(--border, #334155);
+}
+#card-seguranca .seg-abrir .seg-chev { margin-left: auto; transition: transform .15s; font-size: 1.2rem; }
+#card-seguranca .seg-abrir.aberto .seg-chev { transform: rotate(90deg); }
+#card-seguranca .seg-abrir.seg-perigo { color: #f87171; }
+html[data-theme="light"] #card-seguranca .seg-abrir.seg-perigo { color: #b91c1c; }
+#card-seguranca .seg-form { margin: 10px 0 4px; padding: 12px; border-radius: 12px; border: 1px solid var(--border, #334155); }
+#card-seguranca .seg-form label { font-weight: 600; }
+#card-seguranca .seg-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 500; }
+#card-seguranca .seg-check input { width: 22px; height: 22px; flex: 0 0 22px; }
+#card-seguranca .seg-salvar { min-height: 50px; width: 100%; font-size: 1rem; }
+#card-seguranca .seg-link { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+.senha-wrap > .senha-olho:hover { background: rgba(148, 163, 184, .14); }
+#card-seguranca .seg-abrir:hover { background: rgba(148, 163, 184, .2); }

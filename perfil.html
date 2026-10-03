@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Perfil</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261003h">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261003h">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261003i">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261003i">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261003h">
+    <link rel="stylesheet" href="style.css?v=20261003i">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -66,7 +66,7 @@
         <section class="card perfil-config" id="card-config">
             <button type="button" class="perfil-config-toggle" id="btn-config-toggle" aria-expanded="false" aria-controls="perfil-config-panel">
                 <span class="pct-lbl"><span aria-hidden="true">⚙️</span> Configurações</span>
-                <span class="pct-sub">Editar perfil · Tema · Avisos · Som</span>
+                <span class="pct-sub">Editar perfil · Senhas · Tema · Avisos · Som</span>
                 <span class="pct-chev" aria-hidden="true">▾</span>
             </button>
             <div class="perfil-config-panel" id="perfil-config-panel" role="region" aria-labelledby="btn-config-toggle" hidden>
@@ -94,6 +94,39 @@
                     <button type="submit">Salvar perfil</button>
                 </form>
                 <p id="perfil-msg" class="msg"></p>
+            </section>
+
+            <!-- Segurança: senha do app, senha do Banco, outros aparelhos -->
+            <section class="perfil-config-sec" id="card-seguranca">
+                <h2>Senhas e segurança</h2>
+                <p class="sub seg-aviso">Conta: <strong id="seg-conta-email" class="selecionavel">…</strong><br>Cada pessoa precisa do <b>próprio e-mail</b>. Quem souber sua senha entra como você, com sua foto e suas mensagens.</p>
+                <button type="button" class="seg-abrir" id="btn-seg-senha" aria-expanded="false" aria-controls="form-seg-senha"><span aria-hidden="true">🔑</span> Alterar senha do app <span class="seg-chev" aria-hidden="true">›</span></button>
+                <form id="form-seg-senha" class="seg-form oculto" autocomplete="on" novalidate>
+                    <label for="seg-senha-atual">Senha atual</label>
+                    <input type="password" id="seg-senha-atual" autocomplete="current-password" placeholder="Sua senha de hoje">
+                    <label for="seg-senha-nova">Nova senha</label>
+                    <input type="password" id="seg-senha-nova" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres">
+                    <label for="seg-senha-nova2">Repita a nova senha</label>
+                    <input type="password" id="seg-senha-nova2" autocomplete="new-password" minlength="6" placeholder="Igual à de cima">
+                    <label class="check-row seg-check"><input type="checkbox" id="seg-sair-outros" checked> Desconectar os outros aparelhos desta conta</label>
+                    <button type="submit" class="btn-ok seg-salvar" id="btn-seg-senha-salvar">Salvar nova senha</button>
+                    <p id="seg-senha-msg" class="msg" role="status"></p>
+                </form>
+                <button type="button" class="seg-abrir" id="btn-seg-banco" aria-expanded="false" aria-controls="form-seg-banco"><span aria-hidden="true">🏦</span> Alterar senha do Banco <span class="seg-chev" aria-hidden="true">›</span></button>
+                <form id="form-seg-banco" class="seg-form oculto" novalidate>
+                    <p class="sub">É a senha que abre o Minera Bank (diferente da senha de login).</p>
+                    <label for="seg-banco-atual">Senha atual do Banco</label>
+                    <input type="password" id="seg-banco-atual" autocomplete="off" placeholder="Senha que você usa no Banco">
+                    <label for="seg-banco-nova">Nova senha do Banco</label>
+                    <input type="password" id="seg-banco-nova" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres">
+                    <label for="seg-banco-nova2">Repita a nova senha do Banco</label>
+                    <input type="password" id="seg-banco-nova2" autocomplete="new-password" minlength="6" placeholder="Igual à de cima">
+                    <button type="submit" class="btn-ok seg-salvar" id="btn-seg-banco-salvar">Salvar senha do Banco</button>
+                    <p id="seg-banco-msg" class="msg" role="status"></p>
+                    <a class="seg-link" href="financeiro.html#card-caixa">Esqueci a senha do Banco ›</a>
+                </form>
+                <button type="button" class="seg-abrir seg-perigo" id="btn-seg-outros"><span aria-hidden="true">📵</span> Desconectar os outros aparelhos</button>
+                <p id="seg-outros-msg" class="msg" role="status"></p>
             </section>
 
             <!-- 4. Preferências -->
@@ -190,17 +223,17 @@
         </section>
 
     </div>
-    <script src="config.js?v=20261003h"></script>
-    <script src="auth-guard.js?v=20261003h"></script>
-    <script src="suporte.js?v=20261003h"></script>
-    <script src="chat-realtime.js?v=20261003h"></script>
-    <script src="avatar.js?v=20261003h"></script>
-    <script src="nav.js?v=20261003h"></script>
-    <script src="pix-brcode.js?v=20261003h"></script>
-    <script src="anuncios-acoes.js?v=20261003h"></script>
-    <script src="avatar-editor.js?v=20261003h"></script>
-    <script src="banners.js?v=20261003h"></script>
-    <script src="perfil.js?v=20261003h"></script>
-    <script src="pwa.js?v=20261003h"></script>
+    <script src="config.js?v=20261003i"></script>
+    <script src="auth-guard.js?v=20261003i"></script>
+    <script src="suporte.js?v=20261003i"></script>
+    <script src="chat-realtime.js?v=20261003i"></script>
+    <script src="avatar.js?v=20261003i"></script>
+    <script src="nav.js?v=20261003i"></script>
+    <script src="pix-brcode.js?v=20261003i"></script>
+    <script src="anuncios-acoes.js?v=20261003i"></script>
+    <script src="avatar-editor.js?v=20261003i"></script>
+    <script src="banners.js?v=20261003i"></script>
+    <script src="perfil.js?v=20261003i"></script>
+    <script src="pwa.js?v=20261003i"></script>
 </body>
 </html>

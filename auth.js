@@ -276,7 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 limparHashAuth();
-                msg('Senha atualizada! Entrando...', true);
+                // Nova senha = os outros aparelhos que estavam nesta conta saem (quem não sabe a senha nova não continua dentro)
+                try { await supabaseClient.auth.signOut({ scope: 'others' }); } catch (eOut) { /* ignore */ }
+                msg('Senha atualizada! Os outros aparelhos desta conta foram desconectados. Entrando...', true);
                 setTimeout(() => irPara('inicio.html'), 600);
             } catch (err) {
                 msg('Falha: ' + (err.message || err), false);
@@ -358,6 +360,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     emailRedirectTo: window.location.origin + (typeof APP_ROOT !== 'undefined' ? APP_ROOT : '/') + 'index.html'
                 }
             });
+            const jaExiste = (error && /already registered|already exists|user_already_exists/i.test(String(error.code || '') + ' ' + String(error.message || ''))) ||
+                (!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0);
+            if (jaExiste) {
+                // Supabase devolve um usuário "falso" (sem identities) quando o e-mail já tem conta — não é conta nova
+                document.getElementById('login-email').value = email;
+                document.getElementById('login-senha').value = '';
+                mostrarAba('entrar');
+                msg('Este e-mail já tem uma conta no Minera Pará. Se a conta é sua, entre com a senha dela ou toque em "Esqueci a senha". Se não é sua, use o SEU próprio e-mail — cada pessoa precisa da própria conta.', false);
+                return;
+            }
             if (error) {
                 msg('Erro no cadastro: ' + error.message, false);
                 return;
