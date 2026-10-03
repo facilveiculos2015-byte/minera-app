@@ -6559,7 +6559,7 @@ html[data-theme="light"] .cx-undo { background: #1f2937; }
 /* lista: segurar abre ações, sem menu nativo/seleção */
 #chat-contatos-list .wa-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 #chat-row-sheet .chat-msg-sheet-item.oculto { display: none !important; }
-/* 20261002m: toast Desfazer numa linha só; vazio da lista com margem lateral */
+/* 20261002n: toast Desfazer numa linha só; vazio da lista com margem lateral */
 .cx-undo { width: max-content; }
 .cx-undo #cx-undo-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .cx-undo button { flex-shrink: 0; }
@@ -6710,3 +6710,24 @@ html[data-theme="light"] .wa-list-head .wa-list-back { --gk-circ: color-mix(in s
 #admin-kpis .kpi-go { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: border-color .15s ease, transform .1s ease; }
 #admin-kpis .kpi-go:hover, #admin-kpis .kpi-go:focus-visible { border-color: #F5A623; outline: none; }
 #admin-kpis .kpi-go:active { transform: scale(0.97); }
+
+/* ===== Card de anúncio (Início + Lotes): "Ver anúncio" (secundário) + "Negociar" (primário) =====
+ * Lado a lado em largura total; se o card for estreito demais, empilha (auto-fit). */
+.lote-card .card-actions.lc-acts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px;
+  width: 100%; margin-top: 10px; flex-wrap: initial;
+}
+.lote-card .lc-acts .lc-btn {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  min-height: 42px; width: 100%; min-width: 0; padding: 0 12px; margin: 0;
+  border-radius: 999px; font-size: 0.9rem; font-weight: 700; line-height: 1.1;
+  white-space: nowrap; text-decoration: none !important; text-align: center;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.lote-card .lc-acts .lc-btn:active { transform: scale(0.97); }
+.lote-card .lc-acts .lc-btn-nego { background: #F5A623; color: #0b1220; border: 1px solid #F5A623; }
+.lote-card .lc-acts .lc-btn-nego:hover { background: #e0951a; border-color: #e0951a; }
+.lote-card .lc-acts .lc-btn-ver { background: transparent; color: var(--text-color); border: 1px solid var(--border); }
+.lote-card .lc-acts .lc-btn-ver:hover { border-color: #F5A623; }
+html[data-theme="light"] .lote-card .lc-acts .lc-btn-ver { color: #0f172a; border-color: #cbd5e1; background: #ffffff; }

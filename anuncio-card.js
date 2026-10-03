@@ -115,9 +115,9 @@
             var nego = root + 'chat.html?' +
                 (l.criado_por_id ? ('com=' + encodeURIComponent(l.criado_por_id) + '&') : '') +
                 'lote=' + encodeURIComponent(codigo);
-            actions = '<div class="card-actions">' +
-                '<a class="btn-sm" href="' + det + '">Ver anúncio</a>' +
-                '<a class="btn-sm btn-ok" href="' + nego + '">Negociar</a>' +
+            actions = '<div class="card-actions lc-acts">' +
+                '<a class="lc-btn lc-btn-ver" href="' + det + '">Ver anúncio</a>' +
+                '<a class="lc-btn lc-btn-nego" href="' + nego + '">Negociar</a>' +
                 '</div>';
         }
         var anunciante = !meus && l.criado_por ? '<p class="lote-meta lote-anunciante">' +
