@@ -54,7 +54,12 @@ function bindKpiCards(show) {
         card._kpiBound = true;
         const go = () => {
             const href = card.getAttribute('data-kpi-href');
-            if (href) { location.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + href; return; }
+            if (href) {
+                // Fretes não tem aba admin: abre a tela do app no modo usuário (barra "Voltar ao Admin" aparece)
+                if (typeof gravarModoUi === 'function') gravarModoUi('usuario');
+                location.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + href;
+                return;
+            }
             const tab = card.getAttribute('data-kpi-tab') || 'visao';
             show(tab);
             const alvo = document.getElementById(card.getAttribute('data-kpi-alvo') || '');
