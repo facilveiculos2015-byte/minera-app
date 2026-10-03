@@ -538,6 +538,7 @@ function receberRow(row) {
     // confirma bolha otimista (mesmo client_id) — pode chegar pelo tempo real antes da resposta do insert
     if (row.client_id && pendentes.has(row.client_id)) confirmarPendente(pendentes.get(row.client_id), row);
     patchInboxComMsg(row, peer);
+    if (row.grupo_id && String(row.tipo || '') === 'sistema') agendarInbox(300); // renomeou / entrou / saiu → nome e participantes
     if (!T.peer || peer !== T.peer) return;
     const visiveis = ChatStore.filtrarVisiveis([row]);
     const box = boxMsgs();
@@ -946,6 +947,10 @@ async function atualizarInbox() {
         if (!window.__chatPerf.inboxRedeMs) window.__chatPerf.inboxRedeMs = Math.round(performance.now() - t0);
         window.__chatPerf.inboxModo = ChatStore.temV44() ? 'rpc' : 'legado';
         const ativo = T.peer && lista.find(c => c.auth_id === T.peer);
+        if (ativo && ativo.ehGrupo && contatoAtivo && contatoAtivo.auth_id === T.peer) {
+            if (ativo.nome !== contatoAtivo.nome) { contatoAtivo.nome = ativo.nome; const hn = $('chat-com-nome'); if (hn) hn.textContent = ativo.nome; }
+            if (ativo.membros && Array.isArray(T.grupoMembros) && ativo.membros !== T.grupoMembros.length) ChatStore.grupoMembros(T.peer).then(aplicarMembrosGrupo, () => {});
+        }
         if (ativo && (ativo.peerLida > T.peerLida || ativo.peerEntregue > T.peerEntregue)) {
             T.peerLida = Math.max(T.peerLida, ativo.peerLida || 0); T.peerEntregue = Math.max(T.peerEntregue, ativo.peerEntregue || 0);
             atualizarTicks();
@@ -1059,7 +1064,7 @@ async function startRecording(fromHold) {
     if (bloqueioAtivo()) { toast('Conversa bloqueada.'); return; }
     if (!window.isSecureContext) { toastAudio('Microfone exige HTTPS.'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Documento.'); return; }
-    // 20261003d: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
+    // 20261003e: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
     // finalizava (stop() é assíncrono) e as duas escreviam no MESMO array global de pedaços:
     // a 1ª saía curtinha (0:01) e a 2ª sem o cabeçalho WebM (não tocava em lugar nenhum).
     if (gravando || iniciandoGravacao || (mediaRecorder && mediaRecorder.state !== 'inactive')) return;
