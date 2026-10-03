@@ -133,6 +133,16 @@
         });
     }
 
+    // Fui adicionado/removido de um grupo (por outra pessoa ou outro aparelho)? O canal de grupos só escuta os grupos
+    // que já conheço, então confere a lista a cada 15 s (consulta mínima, só com a tela visível) e reassina + ressincroniza.
+    setInterval(async function () {
+        if (!uid || gruposKey === null || document.visibilityState === 'hidden' || !sb()) return;
+        var ids = await meusGrupos();
+        if (ids === null || ids.join(',') === gruposKey) return;
+        await conectarGrupos(true);
+        emit('resync');
+    }, 15000);
+
     function reconectarSePreciso() {
         if (!uid) return;
         if (gruposKey && gStatus !== 'SUBSCRIBED') conectarGrupos(true);

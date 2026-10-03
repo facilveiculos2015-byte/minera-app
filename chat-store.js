@@ -110,6 +110,16 @@
     function ehGrupo(peer) { return /^g:/.test(String(peer || '')); }
     function gid(peer) { return String(peer || '').slice(2); }
     function temGrupos() { return v55 === true; }
+    // Quem sai e é adicionado de novo só vê o grupo a partir da nova entrada (o RLS de DM ainda deixa ler as próprias msgs antigas)
+    var entrouEmG = {};
+    async function entrouEm(peer) {
+        if (entrouEmG[peer]) return entrouEmG[peer];
+        try {
+            var r = await sb().from('chat_grupo_membros').select('entrou_em').eq('grupo_id', gid(peer)).eq('auth_id', uid).is('saiu_em', null).maybeSingle();
+            if (!r.error && r.data && r.data.entrou_em) entrouEmG[peer] = Date.parse(r.data.entrou_em);
+        } catch (e) { /* ignore */ }
+        return entrouEmG[peer] || 0;
+    }
     async function inboxGrupos() {
         if (v55 === false || forcarLegado) return [];
         try {
@@ -118,6 +128,7 @@
             v55 = true;
             return (r.data || []).map(function (x) {
                 var key = 'g:' + x.grupo_id;
+                if (x.entrou_em) entrouEmG[key] = Date.parse(x.entrou_em);
                 var lidaLocal = leituraLocal(key);
                 var naoLidas = Number(x.nao_lidas || 0);
                 if (x.last_id && lidaLocal >= Number(x.last_id)) naoLidas = 0;
@@ -259,7 +270,9 @@
             var rg = await sb().rpc('chat_grupo_pagina', { p_grupo: gid(peer), p_antes_id: antesId || null, p_limit: lim });
             if (rg.error) throw rg.error;
             var dg = rg.data || [];
-            return { msgs: filtrarVisiveis(dg).reverse(), temMais: dg.length >= lim };
+            var desde = await entrouEm(peer);
+            var vis = filtrarVisiveis(dg).filter(function (m) { return !desde || !m.criado_em || Date.parse(m.criado_em) >= desde; });
+            return { msgs: vis.reverse(), temMais: dg.length >= lim && vis.length === filtrarVisiveis(dg).length };
         }
         if (v44 === true && !forcarLegado) {
             var r = await sb().rpc('chat_dm_pagina', { p_outro: peer, p_antes_id: antesId || null, p_limit: lim });
