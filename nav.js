@@ -742,7 +742,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261003e';
+    const src = root + 'logo-escavadeira.png?v=20261003f';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1506,7 +1506,13 @@ const MineraNotifPerm = (function () {
         atualizarToggle();
         if (!deveMostrarCard()) fecharCard();
     }
-    return { estado, pedir, adiar, deveMostrarCard, montarCard, montarToggle, atualizarToggle, sincronizar };
+    /** Faixa fixa do Chat: não disputa com o Pix/lembrete (são modais de entrada) — só vale a decisão/adiamento. */
+    function podePedirInline() {
+        if (sincronizar() !== 'default') return false;
+        if (ls(K_DEC) === 'granted' || ls(K_DEC) === 'denied') return false;
+        return !adiado();
+    }
+    return { estado, pedir, adiar, deveMostrarCard, podePedirInline, montarCard, montarToggle, atualizarToggle, sincronizar };
 })();
 window.MineraNotifPerm = MineraNotifPerm;
 
@@ -1600,7 +1606,7 @@ const MineraPush = (function () {
                 '<span>Para receber mensagens com o app fechado: toque em Compartilhar <b>⎋</b> → <b>Adicionar à Tela de Início</b> e abra o Minera pelo ícone (iOS 16.4 ou mais novo).</span></div>' +
                 '<div class="npc-acoes"><button type="button" class="npc-nao">Entendi</button></div>';
         } else {
-            if (!suportado() || !window.MineraNotifPerm || !MineraNotifPerm.deveMostrarCard()) return;
+            if (!suportado() || !window.MineraNotifPerm || !MineraNotifPerm.podePedirInline()) return;
             html = '<div class="npc-txt"><strong>🔔 Ativar notificações</strong>' +
                 '<span>Receba as mensagens mesmo com o app fechado ou a tela travada.</span></div>' +
                 '<div class="npc-acoes"><button type="button" class="npc-nao">Agora não</button>' +
