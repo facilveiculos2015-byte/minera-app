@@ -869,7 +869,7 @@ function bindSeguranca(session) {
         try {
             const r = await supabaseClient.from('caixa_saldos').select('pin_hash,pin_salt').eq('auth_id', uid).maybeSingle();
             if (r.error) throw r.error;
-            if (!r.data || !r.data.pin_hash || !r.data.pin_salt) { segMsg('seg-banco-msg', 'Você ainda não criou a senha do Banco. Abra o Banco para criar.', false); return; }
+            if (!r.data || !r.data.pin_hash || !r.data.pin_salt) { segMsg('seg-banco-msg', 'Você ainda não tem senha do Banco. Ela é criada na primeira vez que você abre o Banco.', false); return; }
             if ((await segSha256Hex(r.data.pin_salt + '|' + atual)) !== r.data.pin_hash) { segMsg('seg-banco-msg', 'Senha atual do Banco incorreta (não é a senha de login).', false); return; }
             const salt = segSaltHex();
             const hash = await segSha256Hex(salt + '|' + n1);
