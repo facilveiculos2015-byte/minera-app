@@ -198,7 +198,10 @@ function renderMedia(m) {
     if (tipo === 'imagem' || url.startsWith('data:image')) {
         return '<div class="bubble-media"><img src="' + esc(url) + '" alt="imagem" loading="lazy" decoding="async"></div>';
     }
-    if (tipo === 'video') return '<div class="bubble-media"><video src="' + esc(url) + '" controls playsinline preload="metadata"></video></div>';
+    if (tipo === 'video') {
+        const vsrc = /^blob:|#/.test(url) ? url : url + '#t=0.1'; // iOS: 1º quadro como miniatura (não fica preto)
+        return '<div class="bubble-media"><video src="' + esc(vsrc) + '" controls playsinline webkit-playsinline preload="metadata"></video></div>';
+    }
     if (tipo === 'audio') {
         const amime = ChatMidia.mimeFromMediaUrl(url);
         // WebM antigo no iPhone: o player converte na hora (audio-compat.js); "Baixar áudio" só aparece se falhar
@@ -676,7 +679,8 @@ async function processarItem(item) {
                 let f = item._file;
                 if (item.tipo === 'audio' && window.AudioCompat) {
                     // WebM/Opus (Android/Chrome) → MP3: toca no iPhone também. Falhou → original.
-                    f = await AudioCompat.paraUniversal(f);
+                    const dm = /[#&]d=([\d.]+)/.exec(item.midia_frag || '');
+                    f = await AudioCompat.paraUniversal(f, dm ? Number(dm[1]) : 0);
                 }
                 if (item.tipo === 'imagem') {
                     const c = await ChatMidia.comprimirImagem(f, 1600, 0.8);
@@ -960,6 +964,7 @@ function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(po
 // Tocar = grava "travado": barra com 🗑 descartar e ➤ enviar.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
+let iniciandoGravacao = false;
 let audioCancelado = false, audioHoldMode = false, audioPointerId = null, audioAutoSend = false, audioRecStartedAt = 0;
 let audioVis = null, audioPicos = null, audioStream = null;
 function formatAudioTimer(sec) { const s = Math.max(0, Math.floor(sec)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
@@ -1019,33 +1024,45 @@ async function startRecording(fromHold) {
     if (bloqueioAtivo()) { toast('Conversa bloqueada.'); return; }
     if (!window.isSecureContext) { toastAudio('Microfone exige HTTPS.'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Documento.'); return; }
-    if (gravando) return;
+    // 20261003b: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
+    // finalizava (stop() é assíncrono) e as duas escreviam no MESMO array global de pedaços:
+    // a 1ª saía curtinha (0:01) e a 2ª sem o cabeçalho WebM (não tocava em lugar nenhum).
+    if (gravando || iniciandoGravacao || (mediaRecorder && mediaRecorder.state !== 'inactive')) return;
+    iniciandoGravacao = true;
     audioCancelado = false; audioPicos = null; audioRecDur = 0;
     audioHoldMode = !!fromHold;
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); // no gesto do usuário
         audioStream = stream;
-        audioChunks = [];
+        const chunks = [];          // pedaços DESTA gravação (nunca compartilhados)
+        audioChunks = chunks;
         const mime = ChatMidia.pickRecorderMime();
-        mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) audioChunks.push(ev.data); };
-        mediaRecorder.onstop = () => {
+        const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        mediaRecorder = rec;
+        rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+        rec.onstop = () => {
             stream.getTracks().forEach(t => t.stop());
-            audioStream = null;
-            stopAudioTimer(); showRecBar(false); gravando = false;
-            if (audioVis) { audioPicos = audioVis.parar(); audioVis = null; }
-            if (window.MineraRT) MineraRT.sendEstado('parou');
-            if (audioCancelado) { audioChunks = []; audioRecStartedAt = 0; resetAudioBtn(); setAnexoInfo(''); return; }
-            const blob = new Blob(audioChunks, { type: ChatMidia.baseMime(mediaRecorder.mimeType) || ChatMidia.baseMime(mime) || 'audio/webm' });
-            const elapsed = audioRecStartedAt ? (Date.now() - audioRecStartedAt) : 0;
+            const atual = mediaRecorder === rec;
+            if (atual) {
+                audioStream = null;
+                stopAudioTimer(); showRecBar(false); gravando = false;
+                if (audioVis) { audioPicos = audioVis.parar(); audioVis = null; }
+                if (window.MineraRT) MineraRT.sendEstado('parou');
+            }
+            const startedAt = rec._startedAt || 0;
+            if (rec._cancelado) { if (atual) { audioRecStartedAt = 0; resetAudioBtn(); setAnexoInfo(''); } return; }
+            const blob = new Blob(chunks, { type: ChatMidia.baseMime(rec.mimeType) || ChatMidia.baseMime(mime) || 'audio/webm' });
+            const elapsed = startedAt ? (Date.now() - startedAt) : 0;
             audioRecDur = elapsed / 1000;
-            audioRecStartedAt = 0;
-            if (!blob.size || blob.size < 500 || elapsed < 600) { audioChunks = []; audioAutoSend = false; resetAudioBtn(); toastAudio('Segure para gravar o áudio'); return; }
+            if (atual) audioRecStartedAt = 0;
+            if (!blob.size || blob.size < 500 || elapsed < 600) { audioAutoSend = false; if (atual) resetAudioBtn(); toastAudio('Segure para gravar o áudio'); return; }
             onRecordingReady(blob);
         };
-        try { mediaRecorder.start(250); } catch (eStart) { mediaRecorder.start(); }
+        try { rec.start(250); } catch (eStart) { rec.start(); }
+        rec._startedAt = Date.now();
+        iniciandoGravacao = false;
         gravando = true;
-        audioRecStartedAt = Date.now();
+        audioRecStartedAt = rec._startedAt;
         showRecBar(true);
         audioVis = ChatAudio.visualizar(stream, $('chat-rec-canvas'));
         startAudioTimer();
@@ -1056,6 +1073,7 @@ async function startRecording(fromHold) {
         try { if (navigator.vibrate) navigator.vibrate(18); } catch (e) { /* ignore */ }
     } catch (err) {
         console.warn(err);
+        iniciandoGravacao = false;
         gravando = false; resetAudioBtn(); showRecBar(false);
         const name = (err && err.name) || '';
         let msg = 'Não foi possível acessar o microfone.';
@@ -1068,6 +1086,7 @@ async function startRecording(fromHold) {
 function stopRecording(cancel, enviar) {
     if (cancel) { audioCancelado = true; audioAutoSend = false; } else audioAutoSend = true;
     gravando = false; stopAudioTimer();
+    if (mediaRecorder) mediaRecorder._cancelado = !!cancel;
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         try { if (typeof mediaRecorder.requestData === 'function') { try { mediaRecorder.requestData(); } catch (e) { /* ignore */ } } mediaRecorder.stop(); } catch (e) { /* ignore */ }
     } else { showRecBar(false); if (audioVis) { audioVis.parar(); audioVis = null; } if (cancel) resetAudioBtn(); }
@@ -1718,6 +1737,7 @@ function bindTela() {
         box.addEventListener('error', (e) => {
             const el = e.target;
             if (!el || el.tagName !== 'AUDIO' && el.tagName !== 'SOURCE') return;
+            if (window.AudioCompat) return; // chat-audio.js tenta converter e só então avisa
             const wrap = el.closest && el.closest('.bubble-audio');
             if (!wrap || wrap.querySelector('.audio-err')) return;
             const d = document.createElement('div'); d.className = 'audio-err hint'; d.textContent = 'Não foi possível tocar este áudio.';

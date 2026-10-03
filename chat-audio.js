@@ -141,7 +141,8 @@
         var a = document.createElement('a');
         a.className = 'btn-sm au-dl'; a.href = p.getAttribute('data-src') || '#'; a.target = '_blank'; a.rel = 'noopener'; a.setAttribute('download', '');
         a.textContent = 'Baixar áudio';
-        host.appendChild(a);
+        var d = document.createElement('div'); d.className = 'audio-err hint'; d.textContent = 'Não foi possível tocar este áudio.';
+        host.appendChild(d); host.appendChild(a);
     }
     function tocarCompat(p, a) {
         if (!window.AudioCompat || p._compat) return false;

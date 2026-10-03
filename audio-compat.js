@@ -91,7 +91,24 @@
         for (var i = 1; i < len; i++) { val = val * 256 + b[p + i]; if (b[p + i] !== 0xff) unos = false; }
         return { v: val, n: len, desconhecido: !comMarcador && unos };
     }
+    function idx(b, pat, ate) {
+        ate = Math.min(b.length - pat.length, ate == null ? b.length : ate);
+        for (var i = 0; i <= ate; i++) { var k = 0; while (k < pat.length && b[i + k] === pat[k]) k++; if (k === pat.length) return i; }
+        return -1;
+    }
+    /** Arquivos estragados pelo bug de gravação (≤ 20261003b): começam no meio do cabeçalho
+     *  ou num Cluster sem cabeçalho. Recoloca o byte perdido / pula até o 1º elemento válido. */
+    function ressincronizar(b) {
+        if (b[0] === 0x1A && b[1] === 0x45 && b[2] === 0xDF && b[3] === 0xA3) return b;
+        function pre(x) { var o = new Uint8Array(b.length + 1); o[0] = x; o.set(b, 1); return o; }
+        if (b[0] === 0x45 && b[1] === 0xDF && b[2] === 0xA3) return pre(0x1A);
+        if (b[0] === 0x43 && b[1] === 0xB6 && b[2] === 0x75) return pre(0x1F);
+        var i = idx(b, [0x1A, 0x45, 0xDF, 0xA3], 4096); if (i >= 0) return b.subarray(i);
+        i = idx(b, [0x1F, 0x43, 0xB6, 0x75]); if (i >= 0) return b.subarray(i);
+        return b;
+    }
     function lerWebm(b) {
+        b = ressincronizar(b);
         var frames = [], canais = 1, preSkip = 0, p = 0, fim = b.length;
         while (p < fim) {
             var id = vint(b, p, true); if (!id) break;
@@ -103,11 +120,36 @@
                 canais = b[ini + 9] || 1; preSkip = b[ini + 10] | (b[ini + 11] << 8);
             } else if (id.v === 0xA3 || id.v === 0xA1) { // SimpleBlock / Block
                 var tr = vint(b, ini, false);
-                if (tr) { var q = ini + tr.n + 2, flags = b[q]; q += 1; if (((flags >> 1) & 3) === 0 && q < f2) frames.push(b.slice(q, f2)); }
+                if (tr) { var q = ini + tr.n + 2, flags = b[q]; q += 1; if (f2 - q > 4000 || f2 - ini !== tm.v) break; /* tamanho absurdo = arquivo misturado */ if (((flags >> 1) & 3) === 0 && q < f2) frames.push(b.slice(q, f2)); }
             }
             p = f2;
         }
+        // Arquivo misturado (bug de gravação ≤ 20261003b: pedaços de 2 gravações no mesmo arquivo):
+        // a leitura estruturada para cedo. Varre por assinatura de SimpleBlock (A3 tam 81 tt tt 80).
+        var usados = 0; for (var u = 0; u < frames.length; u++) usados += frames[u].length;
+        if (usados < b.length * 0.5) {
+            var fs2 = varrerBlocos(b);
+            var u2 = 0; for (var v = 0; v < fs2.length; v++) u2 += fs2[v].length;
+            if (u2 > usados) frames = fs2;
+        }
         return { frames: frames, canais: canais, preSkip: preSkip };
+    }
+    function varrerBlocos(b) {
+        var out = [], i = 0, n = b.length;
+        while (i < n - 8) {
+            if (b[i] === 0xA3) {
+                var t = vint(b, i + 1, false);
+                if (t && !t.desconhecido && t.v >= 5 && t.v <= 4000) {
+                    var q = i + 1 + t.n, fimB = q + t.v;
+                    if (b[q] === 0x81 && fimB <= n && (b[q + 3] & 0x86) === 0x80) { out.push(b.slice(q + 4, fimB)); i = fimB; continue; }
+                }
+            }
+            i++;
+        }
+        // mantém só frames com a mesma configuração Opus (byte TOC) da maioria — descarta falsos positivos
+        var cont = {}, top = -1, topN = 0;
+        out.forEach(function (f) { var k = f[0] & 0xF8; cont[k] = (cont[k] || 0) + 1; if (cont[k] > topN) { topN = cont[k]; top = k; } });
+        return out.filter(function (f) { return (f[0] & 0xF8) === top; });
     }
     async function decodeOpusWebm(ab) {
         var w = lerWebm(new Uint8Array(ab));
@@ -123,7 +165,27 @@
         } finally { try { dec.free(); } catch (e) { /* ignore */ } }
     }
     /** ArrayBuffer → { mono: Float32Array, taxa } (nativo; senão Opus/WebM via WASM) */
+    function pareceWebm(u8) {
+        if (u8.length < 4) return false;
+        if (u8[0] === 0x1A && u8[1] === 0x45 && u8[2] === 0xDF && u8[3] === 0xA3) return true;
+        if ((u8[0] === 0x45 && u8[1] === 0xDF && u8[2] === 0xA3) || (u8[0] === 0x43 && u8[1] === 0xB6 && u8[2] === 0x75)) return true;
+        return idx(u8, [0x1F, 0x43, 0xB6, 0x75], 4096) >= 0 && idx(u8, [0x49, 0x44, 0x33], 0) !== 0; // tem Cluster e não é MP3/ID3
+    }
+    /** MP3 / MP4(M4A) / WAV pelo conteúdo (servidor pode mandar como octet-stream) */
+    function tipoPorBytes(u8) {
+        if (u8.length < 12) return '';
+        if (u8[0] === 0x49 && u8[1] === 0x44 && u8[2] === 0x33) return 'audio/mpeg';
+        if (u8[0] === 0xFF && (u8[1] & 0xE0) === 0xE0) return 'audio/mpeg';
+        if (u8[4] === 0x66 && u8[5] === 0x74 && u8[6] === 0x79 && u8[7] === 0x70) return 'audio/mp4';
+        if (u8[0] === 0x52 && u8[1] === 0x49 && u8[2] === 0x46 && u8[3] === 0x46 && u8[8] === 0x57) return 'audio/wav';
+        if (pareceWebm(u8)) return 'audio/webm';
+        if (u8[0] === 0x4F && u8[1] === 0x67 && u8[2] === 0x67 && u8[3] === 0x53) return 'audio/ogg';
+        return '';
+    }
     async function decodificarPcm(ab) {
+        if (pareceWebm(new Uint8Array(ab, 0, Math.min(ab.byteLength, 8192)))) {
+            try { return await decodeOpusWebm(ab); } catch (eOpus) { console.warn('opus-wasm', eOpus); }
+        }
         try {
             var a = await decodeNativo(ab);
             var chs = []; for (var c = 0; c < a.numberOfChannels; c++) chs.push(a.getChannelData(c));
@@ -136,20 +198,30 @@
     /** Precisa converter antes do upload? (formatos que o iPhone não toca) */
     function precisaConverter(mime) { mime = baseMime(mime); return mime === 'audio/webm' || mime === 'audio/ogg' || mime === 'video/webm'; }
 
-    async function paraUniversal(file) {
+    async function duracaoDe(blob) {
+        try { var a = await decodeNativo(await blob.arrayBuffer()); return a.duration; } catch (e) { return -1; }
+    }
+    /** file: gravação; durEsperada (s): duração medida na gravação (opcional) */
+    async function paraUniversal(file, durEsperada) {
         try {
             if (!file || !precisaConverter(file.type)) return file;
             var ab = await file.arrayBuffer();
             var pcm = await decodificarPcm(ab);
+            var segs = pcm.mono.length / pcm.taxa;
+            var pico = 0; for (var k = 0; k < pcm.mono.length; k += 7) { var v = Math.abs(pcm.mono[k]); if (v > pico) pico = v; }
+            // decodificação incompleta (gravação estragada) → não converte: manda o original
+            if (segs < 0.3 || (durEsperada > 1.5 && segs < durEsperada * 0.6)) { console.warn('áudio: PCM curto', segs, durEsperada); return file; }
             var mono16 = paraInt16(reamostrar(pcm.mono, pcm.taxa, TAXA));
-            if (!mono16.length) return file;
             var stem = String(file.name || 'audio').replace(/\.[^.]+$/, '');
             try {
                 await carregarScript('lame.min.js');
                 var b = mp3(mono16, TAXA);
-                if (b.size > 0) return new File([b], stem + '.mp3', { type: 'audio/mpeg' });
+                var dMp3 = await duracaoDe(b);
+                if (b.size > 0 && (dMp3 < 0 || dMp3 >= segs * 0.8)) return new File([b], stem + '.mp3', { type: 'audio/mpeg' });
+                console.warn('áudio: MP3 inválido', b.size, dMp3, segs);
             } catch (eMp3) { console.warn('mp3', eMp3); }
-            return new File([wav(mono16, TAXA)], stem + '.wav', { type: 'audio/wav' });
+            if (pico > 0) return new File([wav(mono16, TAXA)], stem + '.wav', { type: 'audio/wav' });
+            return file;
         } catch (e) {
             console.warn('áudio: conversão falhou, enviando original', e);
             return file;
@@ -162,7 +234,13 @@
         if (cacheUrl[src]) return cacheUrl[src];
         cacheUrl[src] = (async function () {
             var r = await fetch(src, { credentials: 'omit' }); if (!r.ok) throw new Error('HTTP ' + r.status);
-            var pcm = await decodificarPcm(await r.arrayBuffer());
+            var ab = await r.arrayBuffer();
+            var tipo = tipoPorBytes(new Uint8Array(ab, 0, Math.min(ab.byteLength, 8192)));
+            if (tipo === 'audio/mpeg' || tipo === 'audio/mp4' || tipo === 'audio/wav') {
+                var el = document.createElement('audio');
+                if (el.canPlayType && el.canPlayType(tipo)) return URL.createObjectURL(new Blob([ab], { type: tipo }));
+            }
+            var pcm = await decodificarPcm(ab);
             var taxa = pcm.taxa > 24000 ? 24000 : pcm.taxa;
             return URL.createObjectURL(wav(paraInt16(reamostrar(pcm.mono, pcm.taxa, taxa)), taxa));
         })();
@@ -173,6 +251,8 @@
     function naoToca(mime, audioEl) {
         mime = baseMime(mime); if (!mime) return false;
         try { if (localStorage.getItem('minera_audio_compat_forcar') === '1' && precisaConverter(mime)) return true; } catch (e) { /* ignore */ }
+        // iPhone/iPad: WebM/Ogg sempre pela conversão (canPlayType pode dizer "maybe" e mesmo assim falhar)
+        if (precisaConverter(mime) && /iPhone|iPad|iPod/i.test(navigator.userAgent || '')) return true;
         try { var a = audioEl || document.createElement('audio'); return !a.canPlayType || a.canPlayType(mime) === ''; } catch (e) { return false; }
     }
     /* 0,1 s de silêncio — "destrava" o <audio> no gesto do usuário (iOS) enquanto converte */
@@ -180,6 +260,6 @@
 
     window.AudioCompat = {
         paraUniversal: paraUniversal, urlTocavel: urlTocavel, decodificarPcm: decodificarPcm,
-        naoToca: naoToca, precisaConverter: precisaConverter, silencio: SILENCIO, _lerWebm: lerWebm, _decodeOpusWebm: decodeOpusWebm
+        naoToca: naoToca, precisaConverter: precisaConverter, silencio: SILENCIO, _lerWebm: lerWebm, _decodeOpusWebm: decodeOpusWebm, _tipoPorBytes: tipoPorBytes
     };
 })();
