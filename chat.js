@@ -383,7 +383,7 @@ function showThreadUI(show) {
     document.body.classList.toggle('chat-thread-open', !!show);
 }
 function calcNaoLidas(lista, lidaAntes, naoLidasLista) {
-    const recebidas = lista.filter(m => !ehMinha(m) && Number(m.id) > lidaAntes && !m.deleted_at);
+    const recebidas = lista.filter(m => !ehMinha(m) && Number(m.id) > lidaAntes && !m.deleted_at && String(m.tipo || '') !== 'sistema');
     if (!recebidas.length || !(naoLidasLista > 0 || lidaAntes > 0)) return {};
     return { primeiroNaoLido: recebidas[0].id, qtdNaoLidas: recebidas.length };
 }
@@ -1064,7 +1064,7 @@ async function startRecording(fromHold) {
     if (bloqueioAtivo()) { toast('Conversa bloqueada.'); return; }
     if (!window.isSecureContext) { toastAudio('Microfone exige HTTPS.'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Documento.'); return; }
-    // 20261003g: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
+    // 20261003h: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
     // finalizava (stop() é assíncrono) e as duas escreviam no MESMO array global de pedaços:
     // a 1ª saía curtinha (0:01) e a 2ª sem o cabeçalho WebM (não tocava em lugar nenhum).
     if (gravando || iniciandoGravacao || (mediaRecorder && mediaRecorder.state !== 'inactive')) return;
