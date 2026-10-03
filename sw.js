@@ -5,19 +5,19 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261003b';
+const CACHE = 'minera-shell-20261003c';
 const PRECACHE = [
-  './style.css?v=20261003b',
-  './chat-realtime.js?v=20261003b',
-  './avatar.js?v=20261003b',
-  './avatar-editor.js?v=20261003b',
-  './nav.js?v=20261003b',
-  './config.js?v=20261003b',
-  './pwa.js?v=20261003b',
-  './lightbox.js?v=20261003b',
-  './gestor.css?v=20261003b',
-  './gestor-calc.js?v=20261003b',
-  './gestor.js?v=20261003b',
+  './style.css?v=20261003c',
+  './chat-realtime.js?v=20261003c',
+  './avatar.js?v=20261003c',
+  './avatar-editor.js?v=20261003c',
+  './nav.js?v=20261003c',
+  './config.js?v=20261003c',
+  './pwa.js?v=20261003c',
+  './lightbox.js?v=20261003c',
+  './gestor.css?v=20261003c',
+  './gestor-calc.js?v=20261003c',
+  './gestor.js?v=20261003c',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -180,18 +180,27 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-/* Web Push (app FECHADO) — ainda não ativo: exige chaves VAPID, salvar a PushSubscription
- * de cada usuário no Supabase e um envio no servidor (Edge Function / trigger em
- * chat_mensagens). Quando existir, o payload JSON { title, body, url, tag } chega aqui. */
+/* Web Push (app FECHADO / tela travada): enviado pela Edge Function send-push
+ * (gatilho do SQL 54 em chat_mensagens). Payload JSON { title, body, url, tag }.
+ * silent:false = som padrão de notificação do aparelho ("pim"). */
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : '' }; }
   if (!d || (!d.title && !d.body)) return;
-  event.waitUntil(self.registration.showNotification(d.title || 'Minera Pará', {
-    body: d.body || '',
-    icon: './icon-192.png',
-    badge: './icon-192.png',
-    tag: d.tag || 'minera',
-    data: { url: d.url || './chat.html' }
-  }));
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // App aberto e na tela: o próprio app já avisa (toast + "pim") → não duplica
+      if (list.some((c) => c.visibilityState === 'visible' && c.focused !== false)) return;
+      return self.registration.showNotification(d.title || 'Minera Pará', {
+        body: d.body || '',
+        icon: './icon-192.png',
+        badge: './icon-192.png',
+        tag: d.tag || 'minera',
+        renotify: true,
+        silent: false,
+        vibrate: [80, 40, 80],
+        data: { url: d.url || './chat.html' }
+      });
+    })
+  );
 });

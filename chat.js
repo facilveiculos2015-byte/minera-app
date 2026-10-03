@@ -1024,7 +1024,7 @@ async function startRecording(fromHold) {
     if (bloqueioAtivo()) { toast('Conversa bloqueada.'); return; }
     if (!window.isSecureContext) { toastAudio('Microfone exige HTTPS.'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { toastAudio('Gravação não suportada neste navegador. Use ＋ → Documento.'); return; }
-    // 20261003b: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
+    // 20261003c: uma gravação por vez. Antes, uma 2ª gravação podia começar enquanto a 1ª ainda
     // finalizava (stop() é assíncrono) e as duas escreviam no MESMO array global de pedaços:
     // a 1ª saía curtinha (0:01) e a 2ª sem o cabeçalho WebM (não tocava em lugar nenhum).
     if (gravando || iniciandoGravacao || (mediaRecorder && mediaRecorder.state !== 'inactive')) return;
@@ -1261,7 +1261,22 @@ function abrirMsgSheet(m) {
     const prev = $('chat-msg-sheet-preview'), btnTodos = $('sheet-apagar-todos');
     if (prev) prev.textContent = snippetMsg(m);
     if (btnTodos) btnTodos.classList.toggle('oculto', !ehMinha(m));
+    const bCop = $('sheet-copiar'); if (bCop) bCop.classList.toggle('oculto', !textoCopiavel(m));
     const s = $('chat-msg-sheet'); if (s) s.classList.remove('oculto');
+}
+/** Texto da mensagem para "Copiar" (só texto; mídia/documento não). */
+function textoCopiavel(m) {
+    if (!m || m.deleted_at || String(m.tipo || 'text') === 'documento') return '';
+    return String(m.texto || '').trim() ? String(m.texto) : '';
+}
+async function copiarTexto(txt) {
+    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(txt); return true; } } catch (e) { /* fallback */ }
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px';
+        document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, txt.length);
+        const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (e) { return false; }
 }
 function msgFromBubbleEl(el) {
     const b = el && el.closest ? el.closest('.bubble[data-msg-id]') : null;
@@ -1749,6 +1764,7 @@ function bindTela() {
     const sheet = $('chat-msg-sheet');
     if (sheet) sheet.addEventListener('click', (e) => { if (e.target && e.target.getAttribute && e.target.getAttribute('data-close-sheet')) fecharMsgSheet(); });
     const bResp = $('sheet-responder'); if (bResp) bResp.addEventListener('click', () => { const m = sheetMsg; fecharMsgSheet(); if (m) setReplyTo(m); });
+    const bCop = $('sheet-copiar'); if (bCop) bCop.addEventListener('click', async () => { const t = textoCopiavel(sheetMsg); fecharMsgSheet(); if (t) toast((await copiarTexto(t)) ? 'Mensagem copiada' : 'Não foi possível copiar'); });
     const bMim = $('sheet-apagar-mim'); if (bMim) bMim.addEventListener('click', () => apagarMsgParaMim(sheetMsg));
     const bTodos = $('sheet-apagar-todos'); if (bTodos) bTodos.addEventListener('click', () => apagarMsgParaTodos(sheetMsg));
     const bCR = $('btn-cancel-reply'); if (bCR) bCR.addEventListener('click', () => setReplyTo(null, true));
@@ -1858,6 +1874,8 @@ async function init() {
     reenviarFila();
     ChatStore.promoverAgendadasVencidas();
     if (window.MineraNotif && MineraNotif.start) MineraNotif.start(meuAuthId);
+    // Web Push: faixa "Ativar notificações" (só se ainda não decidiu) / dica do iPhone
+    if (window.MineraPush) { const lst = $('chat-contatos-list'); if (lst && lst.parentNode) MineraPush.montarFaixaChat(lst.parentNode, lst); }
     loopReserva();
 }
 init();

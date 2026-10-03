@@ -1608,15 +1608,6 @@ html[data-theme="light"] .btn-caixa-bank {
     position: relative;
     z-index: 40;
 }
-@media (max-width: 700px) {
-    /* Extra room under sticky admin-as-user bar on small phones */
-    body.modo-ui-usuario {
-        padding-top: calc(60px + env(safe-area-inset-top, 0px));
-    }
-    body.modo-ui-usuario.pagina-perfil .perfil-topbar {
-        top: calc(60px + env(safe-area-inset-top, 0px));
-    }
-}
 body.pagina-chat .olx-fab {
     display: none !important;
 }
@@ -3068,13 +3059,6 @@ body.modo-ui-admin {
     border-bottom: 2px solid #F5A623;
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 18px rgba(0,0,0,0.35);
-}
-/* Safe-area: sticky bar grows with notch — body padding must match or Sair is covered */
-body.modo-ui-usuario {
-    padding-top: calc(56px + env(safe-area-inset-top, 0px));
-}
-body.modo-ui-usuario.pagina-perfil .perfil-topbar {
-    top: calc(56px + env(safe-area-inset-top, 0px));
 }
 body.modo-ui-usuario.pagina-admin .header-row {
     position: relative;
@@ -6559,7 +6543,7 @@ html[data-theme="light"] .cx-undo { background: #1f2937; }
 /* lista: segurar abre ações, sem menu nativo/seleção */
 #chat-contatos-list .wa-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 #chat-row-sheet .chat-msg-sheet-item.oculto { display: none !important; }
-/* 20261003b: toast Desfazer numa linha só; vazio da lista com margem lateral */
+/* 20261003c: toast Desfazer numa linha só; vazio da lista com margem lateral */
 .cx-undo { width: max-content; }
 .cx-undo #cx-undo-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .cx-undo button { flex-shrink: 0; }
@@ -6744,3 +6728,59 @@ html[data-theme="light"] .lote-card .lc-acts .lc-btn-ver { color: #0f172a; borde
 .au-carregando .au-play { animation: au-pulso 1s ease-in-out infinite; }
 @keyframes au-pulso { 50% { opacity: .45; } }
 .bubble-audio .au-dl { display: inline-block; margin-top: 4px; font-size: 12px; }
+
+/* Web Push: faixa "Ativar notificações" na lista do Chat */
+.chat-contacts-pane .push-cta { margin: 6px 12px 8px; }
+.push-cta .npc-txt span b { font-weight: 700; }
+
+/* Admin em "Modo usuário": pílula pequena flutuando ACIMA da barra de baixo
+   (antes era uma faixa fixa no topo que cobria cabeçalhos/botões). Não empurra o topo;
+   só reserva espaço embaixo para o último item da página não ficar escondido. */
+.modo-ui-sticky {
+    top: auto;
+    left: 50%;
+    right: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    z-index: 880;
+    width: max-content;
+    max-width: calc(100vw - 150px);
+    min-height: 0;
+    gap: 6px;
+    padding: 4px 4px 4px 12px;
+    border: 1px solid #F5A623;
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+body.has-bottom-nav .modo-ui-sticky { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+.modo-ui-sticky .mus-lbl { font-size: 0.75rem; white-space: nowrap; color: #cbd5e1; }
+.modo-ui-sticky .btn-modo-ui {
+    min-height: 32px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+html[data-theme="light"] .modo-ui-sticky { border: 1px solid #F5A623; }
+html[data-theme="light"] .modo-ui-sticky .mus-lbl { color: #475569; }
+@media (max-width: 380px) { .modo-ui-sticky .mus-lbl { display: none; } .modo-ui-sticky { padding: 4px; } }
+body.modo-ui-usuario.has-bottom-nav { padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
+body.modo-ui-usuario.pagina-chat .chat-contatos-list { padding-bottom: 56px; }
+
+/* Toque longo (Android/iOS): não seleciona texto nem abre o menu do sistema em botões,
+   listas, cards, conversas, bolhas, barras e cabeçalhos. Copiar mensagem = menu da mensagem.
+   Campos de digitação continuam selecionáveis. */
+button, [role="button"], .btn, .btn-sm, .btn-ghost, nav, header, .header-row, .bottom-nav, .bn-item,
+.card, [class*="-card"], .wa-row, .wa-list-head, .wa-title, .wa-chips, .chat-contatos-list,
+.chat-thread-head, .chat-head, .bubble, .chat-msgs, .chat-msg-sheet, .cx-pop, .modo-ui-sticky,
+ul, ol, li, .lista, [class*="-list"], [class*="-lista"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+input, textarea, select, [contenteditable], [contenteditable] *, .selecionavel, .selecionavel *, .pix-chave, code, pre {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+}

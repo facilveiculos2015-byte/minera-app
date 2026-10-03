@@ -494,8 +494,8 @@ function garantirStickyVoltar() {
             parent.insertBefore(sticky, parent.firstChild);
         }
         sticky.innerHTML =
-            '<span>Modo usuário (admin) — você continua logado como admin</span>' +
-            '<button type="button" id="btn-modo-ui-sticky" class="btn-modo-ui btn-modo-voltar">Voltar ao Admin</button>';
+            '<span class="mus-lbl" aria-hidden="true">👤 Modo usuário</span>' +
+            '<button type="button" id="btn-modo-ui-sticky" class="btn-modo-ui btn-modo-voltar" aria-label="Modo usuário (admin): voltar ao painel Admin">Voltar ao Admin</button>';
         bindVoltarAdmin(document.getElementById('btn-modo-ui-sticky'));
         return sticky;
     }
@@ -742,7 +742,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261003b';
+    const src = root + 'logo-escavadeira.png?v=20261003c';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1096,7 +1096,7 @@ const MineraNotif = (function () {
         const sticky = document.getElementById('modo-ui-sticky');
         if (sticky && sticky.offsetParent !== null) {
             const r = sticky.getBoundingClientRect();
-            if (r.bottom > 0) el.style.top = Math.round(r.bottom + 8) + 'px';
+            if (r.bottom > 0 && r.top < 120) el.style.top = Math.round(r.bottom + 8) + 'px'; // só se a faixa estiver no topo
         }
         document.body.appendChild(el);
         try { sessionStorage.setItem('minera_notif_lembrete_visto_sessao', '1'); } catch (e) { /* ignore */ }
@@ -1325,6 +1325,7 @@ const MineraNotif = (function () {
             }
         } catch (e) { lembretePendente = true; }
         sincronizarLeituras(true).then(poll, poll);
+        setTimeout(() => { if (window.MineraPush) MineraPush.assinar(false); }, 2500); // permissão já dada → inscreve em silêncio
         // Polling = fallback: 8 s sem tempo real, 60 s com; pausado com a aba oculta
         reprogramarTimer();
         ligarRealtime();
@@ -1397,6 +1398,7 @@ const MineraNotifPerm = (function () {
         else adiar(); // fechou o prompt sem decidir
         atualizarUis();
         if (r === 'granted' && typeof toastMsg === 'function') toastMsg('Avisos de mensagem ativados');
+        if (r === 'granted' && window.MineraPush) MineraPush.assinar(true);
         return r;
     }
     function fecharCard() {
@@ -1473,6 +1475,122 @@ const MineraNotifPerm = (function () {
     return { estado, pedir, adiar, deveMostrarCard, montarCard, montarToggle, atualizarToggle, sincronizar };
 })();
 window.MineraNotifPerm = MineraNotifPerm;
+
+/**
+ * Web Push (mensagem chega com o app FECHADO / tela travada).
+ * Inscreve o aparelho (pushManager + chave VAPID pública) e salva no Supabase
+ * (RPC push_registrar do SQL 54). O envio é feito pela Edge Function send-push.
+ * Permissão: só pelo toque em "Ativar" (card do Início, Perfil ou faixa do Chat).
+ * Com permissão já concedida, inscreve em silêncio (1x por dia revalida).
+ */
+const MineraPush = (function () {
+    const VAPID_PUBLIC = 'BA3WbzFwrxGnhfbagt-1xzbkXZulf9VpYfDWLhQTWxowrxeIuN7x5cTR6u-LjFjxCqgEmu_6-6hIxK8YvN2-wQU';
+    const K_REG = 'minera_push_reg_';
+    const K_IOS_DICA = 'minera_push_ios_dica';
+    function suportado() {
+        return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    }
+    function ehIOS() {
+        const ua = navigator.userAgent || '';
+        return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    }
+    function standalone() {
+        try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; }
+    }
+    function b64ParaBytes(b64) {
+        const pad = '='.repeat((4 - b64.length % 4) % 4);
+        const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+    }
+    function bytesIguais(a, b) {
+        if (!a || !b) return false;
+        const x = new Uint8Array(a), y = new Uint8Array(b);
+        if (x.length !== y.length) return false;
+        for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+        return true;
+    }
+    async function uidAtual() {
+        try {
+            const r = await supabaseClient.auth.getSession();
+            return r && r.data && r.data.session && r.data.session.user ? r.data.session.user.id : null;
+        } catch (e) { return null; }
+    }
+    let emCurso = null;
+    /** force = acabou de conceder (ignora o "já registrado hoje"). */
+    function assinar(force) {
+        if (emCurso) return emCurso;
+        emCurso = (async () => {
+            try {
+                if (!suportado() || Notification.permission !== 'granted' || typeof supabaseClient === 'undefined') return false;
+                const uid = await uidAtual();
+                if (!uid) return false;
+                const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('sw timeout')), 8000))]);
+                const chave = b64ParaBytes(VAPID_PUBLIC);
+                let sub = await reg.pushManager.getSubscription();
+                if (sub && sub.options && sub.options.applicationServerKey && !bytesIguais(sub.options.applicationServerKey, chave)) {
+                    try { await sub.unsubscribe(); } catch (e) { /* ignore */ }
+                    sub = null;
+                }
+                if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave });
+                const j = sub.toJSON();
+                const marca = uid + '|' + j.endpoint + '|' + new Date().toISOString().slice(0, 10);
+                let antes = '';
+                try { antes = localStorage.getItem(K_REG + uid) || ''; } catch (e) { /* ignore */ }
+                if (!force && antes === marca) return true;
+                const { error } = await supabaseClient.rpc('push_registrar', {
+                    p_endpoint: j.endpoint, p_p256dh: j.keys && j.keys.p256dh, p_auth: j.keys && j.keys.auth,
+                    p_ua: (navigator.userAgent || '').slice(0, 300)
+                });
+                if (error) { console.warn('push_registrar', error.message || error); return false; } // SQL 54 ainda não aplicado
+                try { localStorage.setItem(K_REG + uid, marca); } catch (e) { /* ignore */ }
+                return true;
+            } catch (e) {
+                console.warn('MineraPush', e && e.message ? e.message : e);
+                return false;
+            } finally { setTimeout(() => { emCurso = null; }, 0); }
+        })();
+        return emCurso;
+    }
+    /** Faixa no Chat (1ª vez que abre a lista): "Ativar notificações" — só se ainda não decidiu. */
+    function montarFaixaChat(parent, before) {
+        if (!parent || document.getElementById('push-cta')) return;
+        const iosSemApp = ehIOS() && !standalone();
+        let html = '';
+        if (iosSemApp) {
+            let visto = false;
+            try { visto = localStorage.getItem(K_IOS_DICA) === '1'; } catch (e) { /* ignore */ }
+            if (visto) return;
+            html = '<div class="npc-txt"><strong>🔔 Notificações no iPhone</strong>' +
+                '<span>Para receber mensagens com o app fechado: toque em Compartilhar <b>⎋</b> → <b>Adicionar à Tela de Início</b> e abra o Minera pelo ícone (iOS 16.4 ou mais novo).</span></div>' +
+                '<div class="npc-acoes"><button type="button" class="npc-nao">Entendi</button></div>';
+        } else {
+            if (!suportado() || !window.MineraNotifPerm || !MineraNotifPerm.deveMostrarCard()) return;
+            html = '<div class="npc-txt"><strong>🔔 Ativar notificações</strong>' +
+                '<span>Receba as mensagens mesmo com o app fechado ou a tela travada.</span></div>' +
+                '<div class="npc-acoes"><button type="button" class="npc-nao">Agora não</button>' +
+                '<button type="button" class="npc-sim">Ativar</button></div>';
+        }
+        const el = document.createElement('div');
+        el.id = 'push-cta';
+        el.className = 'notif-perm-card push-cta';
+        el.setAttribute('role', 'region');
+        el.setAttribute('aria-label', 'Ativar notificações');
+        el.innerHTML = html;
+        parent.insertBefore(el, before || null);
+        const fechar = () => el.remove();
+        el.querySelector('.npc-nao').addEventListener('click', () => {
+            if (iosSemApp) { try { localStorage.setItem(K_IOS_DICA, '1'); } catch (e) { /* ignore */ } }
+            else MineraNotifPerm.adiar();
+            fechar();
+        });
+        const sim = el.querySelector('.npc-sim');
+        if (sim) sim.addEventListener('click', async () => { await MineraNotifPerm.pedir(); fechar(); });
+    }
+    return { assinar, montarFaixaChat, suportado, ehIOS, standalone, VAPID_PUBLIC };
+})();
+window.MineraPush = MineraPush;
 
 /**
  * Som de nova mensagem ("pim"): 2 notas senoidais geradas com Web Audio (sem arquivo).
@@ -1715,4 +1833,24 @@ window.MineraApoio = MineraApoio;
         }
         lastTouchEnd = now;
     }, { passive: false });
+})();
+
+/* Toque longo no celular: sem menu do sistema (copiar/selecionar/abrir imagem) em botões,
+   listas, cards, conversas e bolhas — o app tem os próprios menus (ex.: mensagem → Copiar).
+   Só para toque (mouse/clique direito no computador continua normal). Campos de texto livres. */
+(function bloquearMenuToqueLongo() {
+    if (window.__mineraCtxBloq) return;
+    window.__mineraCtxBloq = true;
+    let ultimoToque = 0;
+    const ALVOS = 'button, [role="button"], a, img, video, nav, header, .card, [class*="-card"], .wa-row, .bubble, ' +
+        '.chat-contatos-list, .chat-msgs, .bottom-nav, li, [class*="-list"], [class*="-lista"], .modo-ui-sticky';
+    const LIVRES = 'input, textarea, select, [contenteditable], .selecionavel, .pix-chave, code, pre';
+    document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch' || e.pointerType === 'pen') ultimoToque = Date.now(); }, { capture: true, passive: true });
+    document.addEventListener('touchstart', () => { ultimoToque = Date.now(); }, { capture: true, passive: true });
+    document.addEventListener('contextmenu', (e) => {
+        if (Date.now() - ultimoToque > 2500) return; // mouse
+        const t = e.target;
+        if (!t || !t.closest || t.closest(LIVRES)) return;
+        if (t.closest(ALVOS)) e.preventDefault();
+    }, true);
 })();

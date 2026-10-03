@@ -8,7 +8,7 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20261003b';
+  var ASSET_V = '20261003c';
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 
   function forceAssetRefreshOnce() {
@@ -674,7 +674,8 @@
 
   function bootGrowth() {
     showWelcomeStrip();
-    maybeAskNotificationOnce();
+    // Permissão de notificação: NÃO pede sozinho ao carregar (Chrome/iOS ignoram ou silenciam);
+    // pede só no toque em "Ativar" (Chat, Início, Perfil) → MineraNotifPerm / MineraPush (nav.js).
     bindDownloadButtons();
     setTimeout(maybeOfferApkUpdate, 1500);
   }
