@@ -57,7 +57,7 @@
         const tit = b.titulo ? '<span class="bp-tit">' + esc(b.titulo) + '</span>' : '';
         const inner = img + tag + tit;
         const href = hrefDe(b);
-        if (href && !opts.preview) return '<a class="olx-banner-slide olx-banner-slide--full bp-slide" href="' + esc(href) + '" target="_blank" rel="noopener sponsored">' + inner + '</a>';
+        if (href && !opts.preview) return '<a class="olx-banner-slide olx-banner-slide--full bp-slide" href="' + esc((typeof mineraSafeUrl === 'function' ? mineraSafeUrl : String)(href)) + '" target="_blank" rel="noopener sponsored">' + inner + '</a>';
         return '<div class="olx-banner-slide olx-banner-slide--full bp-slide">' + inner + '</div>';
     }
     function slideAnuncieHtml() {

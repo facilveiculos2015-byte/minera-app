@@ -186,6 +186,7 @@ function peerDaRow(row) {
 function ehMinha(m) { return !!(m && m.de_auth_id && meuAuthId && String(m.de_auth_id) === String(meuAuthId)); }
 function chaveMsg(m) { return m.id != null ? 'm' + m.id : 'c' + m.client_id; }
 
+function urlSegura(u) { return typeof mineraSafeUrl === 'function' ? mineraSafeUrl(u) : (/^(https?:|blob:|data:image\/)/i.test(String(u || '')) ? String(u) : '#'); }
 function renderMedia(m) {
     const tipo = String(m.tipo || 'text').toLowerCase();
     const local = m._localUrl || '';
@@ -196,8 +197,8 @@ function renderMedia(m) {
         if (tipo === 'video') return '<div class="bubble-media bubble-media-loading"><video src="' + esc(local) + '" muted playsinline></video>' + ov + '</div>';
         if (tipo === 'audio') return '<div class="bubble-media bubble-audio bubble-media-loading">' + ChatAudio.playerHtml(local + (m.midia_frag || '')) + '</div>';
     }
-    const url = m.midia_url;
-    if (!url) {
+    const url = m.midia_url ? urlSegura(m.midia_url) : m.midia_url;
+    if (!url || url === '#') {
         if (pend && tipo === 'documento') return '<div class="bubble-media bubble-doc"><div class="bubble-doc-ico">📄</div><div class="bubble-doc-body"><strong>' + esc((m.texto || 'Documento').slice(0, 40)) + '</strong><span class="sub">enviando…</span></div></div>';
         return '';
     }
@@ -216,9 +217,9 @@ function renderMedia(m) {
     if (tipo === 'documento' || tipo === 'doc' || tipo === 'pdf' || /\.pdf($|\?)/i.test(url)) {
         const name = (m.texto || 'Documento.pdf').slice(0, 40);
         return '<div class="bubble-media bubble-doc"><div class="bubble-doc-ico">📄</div><div class="bubble-doc-body"><strong>' + esc(name) +
-            '</strong><span class="sub">Documento · toque para abrir</span></div><a class="btn-sm" href="' + esc(url) + '" target="_blank" rel="noopener">Abrir</a></div>';
+            '</strong><span class="sub">Documento · toque para abrir</span></div><a class="btn-sm" href="' + esc(urlSegura(url)) + '" target="_blank" rel="noopener">Abrir</a></div>';
     }
-    return '<div class="bubble-media"><a href="' + esc(url) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
+    return '<div class="bubble-media"><a href="' + esc(urlSegura(url)) + '" target="_blank" rel="noopener">Abrir mídia</a></div>';
 }
 
 /** Tick (só nas minhas): ⏱ pendente · ✓ enviada · ✓✓ entregue · ✓✓ azul lida · ⚠ falhou */

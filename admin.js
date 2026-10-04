@@ -564,7 +564,7 @@ async function carregarPixPagamentos() {
             data.map(p => {
                 const when = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : '';
                 const link = p.comprovante_url
-                    ? '<a href="' + esc(p.comprovante_url) + '" target="_blank" rel="noopener">Ver</a>'
+                    ? '<a href="' + esc((typeof mineraSafeUrl === 'function' ? mineraSafeUrl : String)(p.comprovante_url)) + '" target="_blank" rel="noopener noreferrer">Ver</a>'
                     : '—';
                 return `<tr data-id="${p.id}">
                     <td>${esc(when)}</td>
@@ -790,7 +790,7 @@ async function carregarDepositosAdmin() {
                         '<button type="button" class="btn-sm btn-danger" data-act="dep-no">Rejeitar</button>';
                 }
                 const link = d.comprovante_url
-                    ? '<a href="' + esc(d.comprovante_url) + '" target="_blank" rel="noopener">ver</a>'
+                    ? '<a href="' + esc((typeof mineraSafeUrl === 'function' ? mineraSafeUrl : String)(d.comprovante_url)) + '" target="_blank" rel="noopener noreferrer">ver</a>'
                     : '—';
                 return `<tr data-id="${d.id}">
                     <td>${esc(when)}</td>
@@ -981,7 +981,7 @@ function checklistDocsHtml(e) {
         const ok = !!url;
         return '<li class="' + (ok ? 'doc-ok' : 'doc-falta') + '">' +
             (ok ? '✓' : '✗') + ' ' + lab +
-            (ok ? ' <a href="' + esc(url) + '" target="_blank" rel="noopener">ver</a>' : '') +
+            (ok ? ' <a href="' + esc((typeof mineraSafeUrl === 'function' ? mineraSafeUrl : String)(url)) + '" target="_blank" rel="noopener noreferrer">ver</a>' : '') +
             '</li>';
     }).join('') + '</ul>';
 }

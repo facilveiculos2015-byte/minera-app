@@ -58,14 +58,14 @@ async function carregarBannersPromos() {
         const full = !!(p._full || (p.imagem_url && !(p.titulo || '').trim() && !(p.texto || '').trim()));
         if (full && p.imagem_url) {
             const img = `<img src="${esc(p.imagem_url)}" alt="Minera Pará" class="olx-banner-fullimg" loading="lazy">`;
-            if (p.link) return `<a class="olx-banner-slide olx-banner-slide--full" href="${esc(p.link)}">${img}</a>`;
+            if (p.link) return `<a class="olx-banner-slide olx-banner-slide--full" href="${esc((typeof mineraSafeUrl === 'function' ? mineraSafeUrl : String)(p.link))}">${img}</a>`;
             return `<div class="olx-banner-slide olx-banner-slide--full">${img}</div>`;
         }
         const title = esc(p.titulo || (p.tipo === 'oferta' ? 'Oferta' : 'Destaque'));
         const texto = esc(p.texto || '');
         const img = p.imagem_url ? `<img src="${esc(p.imagem_url)}" alt="" class="olx-banner-img" loading="lazy">` : '';
         const inner = `${img}<strong>${title}</strong>${texto ? '<span>' + texto + '</span>' : ''}`;
-        if (p.link) return `<a class="olx-banner-slide" href="${esc(p.link)}">${inner}</a>`;
+        if (p.link) return `<a class="olx-banner-slide" href="${esc((typeof mineraSafeUrl === 'function' ? mineraSafeUrl : String)(p.link))}">${inner}</a>`;
         return `<div class="olx-banner-slide">${inner}</div>`;
     }
 

@@ -65,7 +65,7 @@
         box.innerHTML = lista.map(b => {
             const [cls, txt] = rotulo(b);
             const contato = [b.dono_email, b.dono_telefone].filter(Boolean).map(esc).join(' · ');
-            const destino = b.link ? '<a href="' + esc(b.link) + '" target="_blank" rel="noopener">' + esc(b.link.slice(0, 48)) + '</a>' : (b.whatsapp ? 'WhatsApp ' + esc(b.whatsapp) : '—');
+            const destino = b.link ? '<a href="' + esc((typeof mineraSafeUrl === 'function' ? mineraSafeUrl : String)(b.link)) + '" target="_blank" rel="noopener noreferrer">' + esc(b.link.slice(0, 48)) + '</a>' : (b.whatsapp ? 'WhatsApp ' + esc(b.whatsapp) : '—');
             return '<article class="abp-item" data-id="' + esc(b.id) + '">' +
                 '<div class="olx-banner bp-prev bp-prev-sm"><div class="olx-banner-track">' + (MB ? MB.slideHtml(b, { preview: true }) : '<img src="' + esc(b.imagem_url) + '" alt="">') + '</div></div>' +
                 '<div class="abp-info">' +
