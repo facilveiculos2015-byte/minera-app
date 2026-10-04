@@ -1208,61 +1208,127 @@ async function rpcDiretorio(busca) {
         return list.filter(u => String(u.nome || '').toLowerCase().includes(t) || String(u.apelido || '').toLowerCase().includes(t));
     } catch (e) { console.warn('chat_diretorio/buscar_nome', e); return []; }
 }
+/* Nova conversa (tela cheia): busca, chips por tipo de trabalho, "Criar grupo" e lista de pessoas. Voltar/Android fecha. */
+const NC_CHIP_ROTULO = { minerador: 'Minerador', comprador: 'Comprador', transportador: 'Transportador', carregamento: 'Carregador', dono_britador: 'Britador' };
+let ncRole = '', ncGrupoModo = false, ncSel = new Set();
+function ncAberto() { const m = $('modal-add-contato'); return !!(m && !m.classList.contains('oculto')); }
 function abrirModalAdd() {
-    const m = $('modal-add-contato'); if (m) m.classList.remove('oculto');
-    const titulo = $('modal-add-titulo'); if (titulo) titulo.textContent = 'Adicionar por nome';
-    const msg = $('add-contato-msg'); if (msg) { msg.textContent = ''; msg.className = 'msg'; }
+    const m = $('modal-add-contato'); if (!m) return;
+    ncRole = ''; ncGrupoModo = false; ncSel = new Set();
+    m.classList.remove('oculto');
+    document.body.classList.add('nc-aberta');
+    const b = $('add-busca'); if (b) b.value = '';
+    const msg = $('add-contato-msg'); if (msg) { msg.textContent = ''; msg.className = 'msg nc-msg'; }
+    ncAtualizarTopo();
     renderRoleFilters();
     carregarDiretorioAdd('');
+    const sc = $('nc-scroll'); if (sc) sc.scrollTop = 0;
+    try { if (!(history.state && history.state.chatNova)) history.pushState({ chatNova: 1 }, '', location.href); } catch (e) { /* ignore */ }
 }
-function fecharModalAdd() { const m = $('modal-add-contato'); if (m) m.classList.add('oculto'); }
+/** porHistorico = já veio do Voltar do Android/navegador. semHistorico = vai abrir conversa (troca a entrada do histórico). */
+function fecharModalAdd(porHistorico, semHistorico) {
+    const m = $('modal-add-contato'); if (!m || m.classList.contains('oculto')) return;
+    m.classList.add('oculto');
+    document.body.classList.remove('nc-aberta');
+    if (porHistorico === true) return;
+    try {
+        if (history.state && history.state.chatNova) {
+            if (semHistorico === true) history.replaceState({}, '', location.href);
+            else history.back();
+        }
+    } catch (e) { /* ignore */ }
+}
+function ncAtualizarTopo() {
+    const t = $('modal-add-titulo'), sub = $('nc-sub'), foot = $('nc-foot'), bt = $('nc-criar-grupo');
+    if (t) t.textContent = ncGrupoModo ? 'Novo grupo' : 'Nova conversa';
+    if (sub) sub.textContent = ncGrupoModo ? (ncSel.size ? ncSel.size + (ncSel.size === 1 ? ' pessoa escolhida' : ' pessoas escolhidas') : 'Escolha as pessoas') : '';
+    if (foot) foot.classList.toggle('oculto', !ncGrupoModo);
+    if (bt) { bt.disabled = !ncSel.size; bt.textContent = ncSel.size ? 'Criar grupo (' + ncSel.size + ')' : 'Criar grupo'; }
+    const ac = $('nc-acoes');
+    if (ac) ac.innerHTML = (!ncGrupoModo && ChatStore.temGrupos())
+        ? '<button type="button" class="nc-row nc-acao" id="nc-btn-grupo"><span class="nc-av nc-av-acao" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M18 8v6M15 11h6"/></g></svg></span><span class="nc-txt"><strong>Criar grupo</strong><span class="nc-sub2">Converse com várias pessoas juntas</span></span></button>'
+        : '';
+}
 function renderRoleFilters() {
     const el = $('add-role-filters'); if (!el) return;
-    el.innerHTML = '<button type="button" class="chip on" data-role="">Todos</button>' +
-        ROLE_GROUPS.filter(g => g.id !== 'outros').map(g => '<button type="button" class="chip" data-role="' + g.id + '">' + esc(g.title.split('/')[0]) + '</button>').join('');
-    el.querySelectorAll('.chip').forEach(btn => btn.addEventListener('click', () => {
-        el.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    el.innerHTML = '<button type="button" class="nc-chip on" data-role="">Todos</button>' +
+        ROLE_GROUPS.filter(g => g.id !== 'outros').map(g => '<button type="button" class="nc-chip" data-role="' + g.id + '">' + esc(NC_CHIP_ROTULO[g.id] || g.title.split('/')[0]) + '</button>').join('');
+    el.querySelectorAll('.nc-chip').forEach(btn => btn.addEventListener('click', () => {
+        el.querySelectorAll('.nc-chip').forEach(c => c.classList.remove('on'));
         btn.classList.add('on');
-        renderDiretorioList(diretorioCache, btn.getAttribute('data-role') || '');
+        ncRole = btn.getAttribute('data-role') || '';
+        try { btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
+        renderDiretorioList(diretorioCache, ncRole);
     }));
 }
 async function carregarDiretorioAdd(busca) {
     const box = $('add-diretorio'); if (!box) return;
-    box.innerHTML = '<p class="sub">Carregando...</p>';
-    diretorioCache = await rpcDiretorio(busca);
-    const roleBtn = document.querySelector('#add-role-filters .chip.on');
-    renderDiretorioList(diretorioCache, roleBtn ? (roleBtn.getAttribute('data-role') || '') : '');
+    box.innerHTML = '<p class="nc-vazio">Carregando…</p>';
+    const pedido = String(busca || '');
+    const lista = await rpcDiretorio(busca);
+    if (((($('add-busca') || {}).value || '').trim()) !== pedido.trim()) return; // chegou resposta velha
+    diretorioCache = lista;
+    renderDiretorioList(diretorioCache, ncRole);
+}
+function ncLinha(u, ja) {
+    const nome = displayNome(u);
+    const outroNome = u.apelido && u.nome && u.apelido !== u.nome ? u.nome : '';
+    const sel = ncSel.has(u.auth_id);
+    return '<button type="button" class="nc-row' + (sel ? ' sel' : '') + '" data-auth="' + esc(u.auth_id) + '"' + (ncGrupoModo ? ' aria-pressed="' + sel + '"' : '') + '>' +
+        '<span class="nc-av-wrap"><span class="wa-av mav nc-av" data-av-id="' + esc(u.auth_id) + '" data-av-nome="' + esc(nome) + '">' + esc(iniciais(nome)) + '</span>' + (ncGrupoModo ? '<span class="nc-check" aria-hidden="true">✓</span>' : '') + '</span>' +
+        '<span class="nc-txt"><strong>' + esc(nome) + '</strong>' + (outroNome ? '<span class="nc-sub2">' + esc(outroNome) + '</span>' : '') +
+        '<span class="nc-papel">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</span></span></button>';
 }
 function renderDiretorioList(lista, roleFilter) {
     const box = $('add-diretorio'); if (!box) return;
-    const ja = new Set(contatosCache.map(c => c.auth_id));
-    let items = (lista || []).filter(u => u.auth_id !== meuAuthId);
+    const ja = new Set(contatosCache.filter(c => !c.ehGrupo).map(c => c.auth_id));
+    let items = (lista || []).filter(u => u && u.auth_id && u.auth_id !== meuAuthId);
     if (roleFilter) {
         const g = ROLE_GROUPS.find(x => x.id === roleFilter);
         if (g && g.match) items = items.filter(u => { const ps = (u.papeis || []).map(p => String(p).toLowerCase()); return g.match.some(m => ps.includes(m) || String(u.tipo || '').toLowerCase() === m); });
     }
-    if (!items.length) { box.innerHTML = '<p class="sub">Nenhum usuário encontrado. Busque por nome ou apelido.</p>'; return; }
-    const grouped = {}; ROLE_GROUPS.forEach(g => { grouped[g.id] = []; });
-    items.forEach(u => { (grouped[rotuloGrupoPapel(u.papeis, u.tipo)] || grouped.outros).push(u); });
-    let html = '';
-    ROLE_GROUPS.forEach(g => {
-        const list = grouped[g.id] || []; if (!list.length) return;
-        html += '<div class="chat-group"><div class="chat-group-title">' + esc(g.title) + '</div>';
-        list.forEach(u => {
-            const nome = displayNome(u);
-            html += '<div class="chat-dir-item"><span class="wa-av mav" data-av-id="' + esc(u.auth_id) + '" data-av-nome="' + esc(nome) + '">' + esc(iniciais(nome)) + '</span><div class="chat-dir-txt"><strong>' + esc(nome) + '</strong>' +
-                (u.apelido && u.nome && u.apelido !== u.nome ? '<div class="hint">' + esc(u.nome) + '</div>' : '') +
-                '<div class="contact-role">' + esc(labelPapelCurto(u.papeis, u.tipo)) + '</div></div>' +
-                (ja.has(u.auth_id) ? '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Abrir</button>'
-                    : '<button type="button" class="btn-sm btn-add-dir" data-auth="' + esc(u.auth_id) + '">Adicionar</button>') + '</div>';
-        });
-        html += '</div>';
-    });
-    box.innerHTML = html;
-    box.querySelectorAll('.btn-add-dir').forEach(btn => btn.addEventListener('click', async () => {
-        const u = diretorioCache.find(x => x.auth_id === btn.getAttribute('data-auth'));
+    if (!items.length) { box.innerHTML = '<p class="nc-vazio">Ninguém encontrado. Tente outro nome ou outro filtro.</p>'; return; }
+    const cmp = (x, y) => displayNome(x).localeCompare(displayNome(y), 'pt-BR', { sensitivity: 'base' });
+    const meus = items.filter(u => ja.has(u.auth_id)).sort(cmp), outros = items.filter(u => !ja.has(u.auth_id)).sort(cmp);
+    box.innerHTML = (meus.length ? '<div class="nc-sec">Seus contatos</div>' + meus.map(u => ncLinha(u, true)).join('') : '') +
+        (outros.length ? '<div class="nc-sec">Pessoas no Minera Pará</div>' + outros.map(u => ncLinha(u, false)).join('') : '');
+}
+async function ncCriarGrupo() {
+    const ids = Array.from(ncSel); if (!ids.length) return;
+    const nomes = ids.map(id => { const u = diretorioCache.find(x => x.auth_id === id) || contatosCache.find(x => x.auth_id === id); return u ? displayNome(u) : ''; });
+    const nome = nomeGrupoPadrao(nomes.concat([meuNomePublico()]));
+    if (!(await cxConfirm('Criar grupo?', 'Você e ' + nomeGrupoPadrao(nomes) + ' vão conversar juntos num grupo novo.', 'Criar grupo'))) return;
+    const bt = $('nc-criar-grupo'); if (bt) bt.disabled = true;
+    const r = await supabaseClient.rpc('chat_grupo_criar', { p_nome: nome, p_membros: ids });
+    if (r.error || !r.data) {
+        const msg = $('add-contato-msg'); if (msg) { msg.textContent = 'Não foi possível criar o grupo: ' + ((r.error && r.error.message) || ''); msg.className = 'msg erro nc-msg'; }
+        if (bt) bt.disabled = false; return;
+    }
+    if (window.MineraRT && MineraRT.atualizarGrupos) MineraRT.atualizarGrupos();
+    toast('Grupo criado');
+    fecharModalAdd(false, true);
+    await abrirGrupoPorId(r.data, nome);
+}
+function bindNovaConversa() {
+    const m = $('modal-add-contato'); if (!m) return;
+    m.addEventListener('click', async (e) => {
+        const t = e.target;
+        if (t.closest && t.closest('#nc-btn-grupo')) { ncGrupoModo = true; ncSel = new Set(); ncAtualizarTopo(); renderDiretorioList(diretorioCache, ncRole); return; }
+        if (t.closest && t.closest('#nc-criar-grupo')) { ncCriarGrupo(); return; }
+        const row = t.closest && t.closest('.nc-row[data-auth]');
+        if (!row) return;
+        const id = row.getAttribute('data-auth');
+        if (ncGrupoModo) {
+            if (ncSel.has(id)) ncSel.delete(id); else ncSel.add(id);
+            row.classList.toggle('sel', ncSel.has(id)); row.setAttribute('aria-pressed', String(ncSel.has(id)));
+            ncAtualizarTopo(); return;
+        }
+        const u = diretorioCache.find(x => x.auth_id === id);
         if (u) await adicionarContato(u);
-    }));
+    });
+    window.addEventListener('popstate', () => {
+        if (ncAberto() && !(history.state && history.state.chatNova)) fecharModalAdd(true);
+    });
 }
 async function adicionarContato(user) {
     const msg = $('add-contato-msg');
@@ -1275,7 +1341,7 @@ async function adicionarContato(user) {
         renderLista();
         agendarInbox(500);
     }
-    fecharModalAdd();
+    fecharModalAdd(false, true);
     const c = contatosCache.find(x => x.auth_id === user.auth_id);
     abrirThread(c || { auth_id: user.auth_id, nome: displayNome(user), papeis: user.papeis || [], tipo: user.tipo || '', apelido: displayNome(user) });
 }
@@ -1849,8 +1915,11 @@ function bindTela() {
     const ag = $('btn-attach-agendar'); if (ag) ag.addEventListener('click', () => { fecharAnexar(); toggleAgendar(true); });
 
     const add = $('btn-add-contato'); if (add) add.addEventListener('click', abrirModalAdd);
-    const fAdd = $('btn-fechar-add'); if (fAdd) fAdd.addEventListener('click', fecharModalAdd);
-    const mAdd = $('modal-add-contato'); if (mAdd) mAdd.addEventListener('click', (e) => { if (e.target && e.target.getAttribute('data-close-add') === '1') fecharModalAdd(); });
+    const fAdd = $('btn-fechar-add'); if (fAdd) fAdd.addEventListener('click', () => {
+        if (ncGrupoModo) { ncGrupoModo = false; ncSel = new Set(); ncAtualizarTopo(); renderDiretorioList(diretorioCache, ncRole); return; } // seta sai do "Novo grupo" primeiro
+        fecharModalAdd();
+    });
+    bindNovaConversa();
     let buscaT = null;
     const busca = $('chat-busca-contatos'); if (busca) busca.addEventListener('input', () => { clearTimeout(buscaT); buscaT = setTimeout(renderLista, 120); });
     let addBuscaT = null;

@@ -6,14 +6,14 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261004c">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261004c">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261004d">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261004d">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261004c">
+    <link rel="stylesheet" href="style.css?v=20261004d">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -43,12 +43,12 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261004c" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261004d" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
-                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261004c">
-                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261004c">
+                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261004d">
+                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261004d">
                         <button type="button" class="gk-circ gk-back chat-back" id="btn-chat-back" aria-label="Voltar para as conversas"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
                         <button type="button" class="gk-pill" id="btn-chat-menu" aria-label="Opções da conversa" aria-haspopup="menu">
                             <span class="gk-av-wrap"><span class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</span><span class="gk-dot oculto" id="chat-com-online" aria-hidden="true"></span></span>
@@ -128,18 +128,23 @@
         </section>
     </div>
 
-    <div id="modal-add-contato" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-add-titulo">
-        <div class="modal-backdrop" data-close-add="1"></div>
-        <div class="modal-panel chat-add-panel">
-            <h3 id="modal-add-titulo">Adicionar por nome</h3>
-            <label for="add-busca">Buscar por nome ou apelido</label>
-            <input type="search" id="add-busca" placeholder="Digite o nome..." autocomplete="off">
-            <div class="chat-add-roles" id="add-role-filters"></div>
-            <div id="add-diretorio" class="chat-diretorio-list"></div>
-            <p class="hint">Por segurança, e-mails de outros usuários nunca aparecem no chat.</p>
-            <p id="add-contato-msg" class="msg"></p>
-            <button type="button" class="btn-ghost" id="btn-fechar-add">Fechar</button>
+    <!-- Nova conversa: tela cheia (como "Nova conversa" do WhatsApp) -->
+    <div id="modal-add-contato" class="nc-page oculto" role="dialog" aria-modal="true" aria-labelledby="modal-add-titulo">
+        <div class="nc-head">
+            <button type="button" class="nc-back" id="btn-fechar-add" aria-label="Voltar"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <div class="nc-head-txt"><h2 id="modal-add-titulo">Nova conversa</h2><span class="nc-head-sub" id="nc-sub"></span></div>
         </div>
+        <div class="nc-top">
+            <input type="search" id="add-busca" class="nc-busca" placeholder="Buscar pelo nome" aria-label="Buscar pelo nome" autocomplete="off" enterkeyhint="search">
+            <div class="nc-chips" id="add-role-filters" role="group" aria-label="Filtrar por tipo de trabalho"></div>
+        </div>
+        <div class="nc-scroll" id="nc-scroll">
+            <div id="nc-acoes"></div>
+            <div id="add-diretorio" class="nc-lista"></div>
+            <p class="nc-hint">Por segurança, e-mails de outros usuários nunca aparecem no chat.</p>
+        </div>
+        <p id="add-contato-msg" class="msg nc-msg"></p>
+        <div class="nc-foot oculto" id="nc-foot"><button type="button" class="nc-criar" id="nc-criar-grupo" disabled>Criar grupo</button></div>
     </div>
 
     <div id="chat-msg-sheet" class="chat-msg-sheet oculto" role="dialog" aria-modal="true" aria-label="Ações da mensagem">
@@ -211,21 +216,21 @@
     </div>
     <div id="cx-undo" class="cx-undo oculto" role="status" aria-live="polite"><span id="cx-undo-txt"></span><button type="button" id="cx-undo-btn">Desfazer</button></div>
 
-    <script src="config.js?v=20261004c"></script>
-    <script src="seguranca.js?v=20261004c"></script>
-    <script src="auth-guard.js?v=20261004c"></script>
-    <script src="suporte.js?v=20261004c"></script>
-    <script src="chat-realtime.js?v=20261004c"></script>
-    <script src="avatar.js?v=20261004c"></script>
-    <script src="nav.js?v=20261004c"></script>
-    <script src="anti-golpe.js?v=20261004c"></script>
-    <script src="chat-store.js?v=20261004c"></script>
-    <script src="chat-midia.js?v=20261004c"></script>
-    <script src="audio-compat.js?v=20261004c"></script>
-    <script src="chat-audio.js?v=20261004c"></script>
-    <script src="chat.js?v=20261004c"></script>
-    <script src="lightbox.js?v=20261004c"></script>
-    <script src="pwa.js?v=20261004c"></script>
+    <script src="config.js?v=20261004d"></script>
+    <script src="seguranca.js?v=20261004d"></script>
+    <script src="auth-guard.js?v=20261004d"></script>
+    <script src="suporte.js?v=20261004d"></script>
+    <script src="chat-realtime.js?v=20261004d"></script>
+    <script src="avatar.js?v=20261004d"></script>
+    <script src="nav.js?v=20261004d"></script>
+    <script src="anti-golpe.js?v=20261004d"></script>
+    <script src="chat-store.js?v=20261004d"></script>
+    <script src="chat-midia.js?v=20261004d"></script>
+    <script src="audio-compat.js?v=20261004d"></script>
+    <script src="chat-audio.js?v=20261004d"></script>
+    <script src="chat.js?v=20261004d"></script>
+    <script src="lightbox.js?v=20261004d"></script>
+    <script src="pwa.js?v=20261004d"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); }
