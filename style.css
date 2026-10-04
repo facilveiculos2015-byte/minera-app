@@ -6753,6 +6753,8 @@ html[data-theme="light"] .lote-card .lc-acts .lc-btn-ver { color: #0f172a; borde
     box-shadow: 0 6px 18px rgba(0,0,0,0.35);
 }
 body.has-bottom-nav .modo-ui-sticky { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+/* acima da bolha do Chat (centro da barra) */
+body.has-bottom-nav .modo-ui-sticky { bottom: calc(98px + env(safe-area-inset-bottom, 0px)); }
 .modo-ui-sticky .mus-lbl { font-size: 0.75rem; white-space: nowrap; color: #cbd5e1; }
 .modo-ui-sticky .btn-modo-ui {
     min-height: 32px;
@@ -6833,3 +6835,38 @@ html[data-theme="light"] #card-seguranca .seg-abrir.seg-perigo { color: #b91c1c;
 #card-seguranca .seg-link { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
 .senha-wrap > .senha-olho:hover { background: rgba(148, 163, 184, .14); }
 #card-seguranca .seg-abrir:hover { background: rgba(148, 163, 184, .2); }
+
+
+/* Admin: contatos de fora no chat (Liberado / Trancado) */
+.chat-contatos-flag { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.flag-contatos-pill { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 14px; border-radius: 999px; font-weight: 800; font-size: 1rem; }
+.flag-contatos-pill.on { background: rgba(22, 163, 74, .15); color: #16a34a; border: 1px solid rgba(22, 163, 74, .5); }
+.flag-contatos-pill.off { background: rgba(220, 38, 38, .12); color: #dc2626; border: 1px solid rgba(220, 38, 38, .5); }
+#btn-flag-contatos { min-height: 48px; padding: 10px 16px; font-weight: 800; }
+
+/* Chat em destaque: bolha verde elevada no centro da barra inferior */
+.bottom-nav { overflow: visible; }
+#bottom-nav .bn-item.bn-chat-hero { position: relative; color: #22c55e; font-weight: 800; overflow: visible; }
+html[data-theme="light"] #bottom-nav .bn-item.bn-chat-hero { color: #15803d; }
+#bottom-nav .bn-chat-hero .bn-chat-orb {
+  width: 58px; height: 58px; margin-top: -28px; border-radius: 50%; position: relative;
+  background: radial-gradient(circle at 30% 25%, #4ade80 0%, #22c55e 38%, #15803d 100%);
+  color: #fff; border: 4px solid #0b1220;
+  box-shadow: 0 6px 16px rgba(22, 163, 74, .45), inset 0 -3px 6px rgba(0, 0, 0, .18);
+  transition: transform .15s ease;
+}
+html[data-theme="light"] #bottom-nav .bn-chat-hero .bn-chat-orb { border-color: #fff; box-shadow: 0 6px 16px rgba(22, 163, 74, .38), inset 0 -3px 6px rgba(0, 0, 0, .14); }
+#bottom-nav .bn-chat-hero .bn-chat-orb svg { width: 32px; height: 32px; stroke: none; fill: none; }
+#bottom-nav .bn-chat-hero .bn-chat-orb svg .hb-balao { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linejoin: round; }
+#bottom-nav .bn-chat-hero .bn-chat-orb svg .hb-fone { fill: #fff; stroke: none; }
+#bottom-nav .bn-chat-hero:active .bn-chat-orb { transform: scale(.94); }
+#bottom-nav .bn-chat-hero.on .bn-chat-orb { box-shadow: 0 0 0 3px rgba(74, 222, 128, .45), 0 6px 16px rgba(22, 163, 74, .45); }
+#bottom-nav .bn-chat-hero .bn-badge { top: -4px; left: auto; right: -6px; min-width: 22px; height: 22px; line-height: 22px; font-size: .72rem; box-shadow: 0 0 0 2px #0b1220; }
+html[data-theme="light"] #bottom-nav .bn-chat-hero .bn-badge { box-shadow: 0 0 0 2px #fff; }
+/* mensagens novas: brilho pulsando em volta da bolha */
+#bottom-nav .bn-chat-hero.tem-novas .bn-chat-orb::before {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, .55); animation: bnChatPulse 1.8s ease-out infinite;
+}
+@keyframes bnChatPulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .55); } 70% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+@media (prefers-reduced-motion: reduce) { #bottom-nav .bn-chat-hero.tem-novas .bn-chat-orb::before { animation: none; box-shadow: 0 0 0 4px rgba(34, 197, 94, .35); } }

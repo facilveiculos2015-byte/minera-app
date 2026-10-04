@@ -180,8 +180,37 @@
         return { ok: true, motivo: null, campos: out };
     }
 
+    /* Flag do admin: contatos de fora no CHAT (app_flags.chat_contatos_liberados).
+       true = liberado (padrão no lançamento), false = trancado (bloqueia + mascara). */
+    var FLAG_KEY = 'chat_contatos_liberados';
+    var MSG_TRANCADO = 'Agora o envio de telefone, WhatsApp, e-mail e links está trancado no chat. Negocie por aqui mesmo — é mais seguro e fica tudo registrado.';
+    var _lib = true, _libTs = 0;
+    try { var _c = localStorage.getItem('minera_chat_contatos_lib'); if (_c === '0') _lib = false; } catch (e) { /* ignore */ }
+    function contatosLiberados() { return _lib; }
+    /** Lê a flag (cache 20 s; force = sempre). Erro/sem linha → mantém último valor (padrão liberado). */
+    function carregarFlagContatos(force) {
+        if (!force && Date.now() - _libTs < 20000) return Promise.resolve(_lib);
+        // supabaseClient é `const` global (config.js) — não fica em window
+        var sb = (typeof supabaseClient !== 'undefined') ? supabaseClient : global.supabaseClient;
+        if (!sb) return Promise.resolve(_lib);
+        var q = sb.from('app_flags').select('value_bool').eq('key', FLAG_KEY).maybeSingle()
+            .then(function (r) {
+                if (r && !r.error) {
+                    _lib = !(r.data && r.data.value_bool === false);
+                    _libTs = Date.now();
+                    try { localStorage.setItem('minera_chat_contatos_lib', _lib ? '1' : '0'); } catch (e) { /* ignore */ }
+                }
+                return _lib;
+            }, function () { return _lib; });
+        return Promise.race([q, new Promise(function (res) { setTimeout(function () { res(_lib); }, 1500); })]);
+    }
+
     global.AntiGolpe = {
         MSG_BLOQUEIO: MSG_BLOQUEIO,
+        MSG_TRANCADO: MSG_TRANCADO,
+        FLAG_CONTATOS: FLAG_KEY,
+        contatosLiberados: contatosLiberados,
+        carregarFlagContatos: carregarFlagContatos,
         contemBloqueio: contemBloqueio,
         mascarar: mascarar,
         validarTexto: validarTexto,

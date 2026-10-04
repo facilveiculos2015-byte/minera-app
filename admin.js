@@ -1912,6 +1912,60 @@ async function carregarBankFlagAdmin() {
     }
 }
 
+/* Contatos de fora no chat: app_flags.chat_contatos_liberados (sem linha = liberado) */
+let _contatosLiberados = true;
+function pintarFlagContatos() {
+    const pill = document.getElementById('flag-contatos-estado');
+    const btn = document.getElementById('btn-flag-contatos');
+    if (pill) {
+        pill.textContent = _contatosLiberados ? '🔓 Liberado' : '🔒 Trancado';
+        pill.className = 'flag-contatos-pill ' + (_contatosLiberados ? 'on' : 'off');
+    }
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = _contatosLiberados ? '🔒 Trancar contatos' : '🔓 Liberar contatos';
+        btn.className = 'btn-sm ' + (_contatosLiberados ? 'btn-danger' : 'btn-ok');
+    }
+}
+async function carregarFlagContatosAdmin() {
+    const msg = document.getElementById('flag-contatos-msg');
+    try {
+        const { data, error } = await supabaseClient.from('app_flags').select('value_bool').eq('key', 'chat_contatos_liberados').maybeSingle();
+        if (error) throw error;
+        _contatosLiberados = !(data && data.value_bool === false);
+        pintarFlagContatos();
+    } catch (e) {
+        if (msg) { msg.textContent = 'Não foi possível ler a configuração: ' + (e.message || e); msg.className = 'msg erro'; }
+    }
+}
+function bindFlagContatosAdmin() {
+    const btn = document.getElementById('btn-flag-contatos');
+    if (!btn || btn._bound) return;
+    btn._bound = true;
+    btn.addEventListener('click', async () => {
+        const novo = !_contatosLiberados;
+        const pergunta = novo
+            ? 'LIBERAR contatos de fora no chat?\n\nOs usuários poderão enviar telefone, WhatsApp, e-mail e links nas mensagens.'
+            : 'TRANCAR contatos de fora no chat?\n\nO app vai bloquear o envio de telefone, WhatsApp, e-mail e links e esconder esses dados nas mensagens.';
+        if (!confirm(pergunta)) return;
+        const msg = document.getElementById('flag-contatos-msg');
+        btn.disabled = true;
+        try {
+            const { error } = await supabaseClient.from('app_flags').upsert([{
+                key: 'chat_contatos_liberados', value_bool: novo, value_text: null,
+                updated_by: (perfilAtual && perfilAtual.auth_id) || null, updated_at: new Date().toISOString()
+            }], { onConflict: 'key' });
+            if (error) throw error;
+            _contatosLiberados = novo;
+            try { localStorage.setItem('minera_chat_contatos_lib', novo ? '1' : '0'); } catch (e) { /* ignore */ }
+            if (msg) { msg.textContent = novo ? 'Contatos de fora LIBERADOS no chat.' : 'Contatos de fora TRANCADOS no chat.'; msg.className = 'msg ok'; }
+        } catch (e) {
+            if (msg) { msg.textContent = 'Erro ao salvar: ' + (e.message || e); msg.className = 'msg erro'; }
+        }
+        pintarFlagContatos();
+    });
+}
+
 function bindBankFlagAdmin() {
     const btn = document.getElementById('btn-salvar-bank-flag');
     if (!btn || btn._bound) return;
@@ -2153,6 +2207,7 @@ function bindGrokDrawer() {
     bindAlertasBtns();
     bindPromoForm();
     bindBankFlagAdmin();
+    bindFlagContatosAdmin();
     bindComissaoFlagAdmin();
     bindShareFlagsAdmin();
     bindGrokDrawer();
@@ -2171,6 +2226,7 @@ function bindGrokDrawer() {
         carregarAlertasAdmin(),
         carregarPromosAdmin(),
         carregarBankFlagAdmin(),
+        carregarFlagContatosAdmin(),
         carregarComissaoFlagAdmin(),
         carregarShareFlagsAdmin(),
         carregarLotesOcultoAdmin()
