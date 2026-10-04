@@ -808,7 +808,7 @@ function segSaltHex() { const a = new Uint8Array(16); crypto.getRandomValues(a);
 function segTraduzirErroSenha(e) {
     const t = String((e && (e.code || '')) + ' ' + ((e && e.message) || e || ''));
     if (/same_password|different from the old/i.test(t)) return 'A nova senha precisa ser diferente da atual.';
-    if (/weak_password|at least|should be/i.test(t)) return 'Senha fraca: use pelo menos 6 caracteres (misture letras e números).';
+    if (/weak_password|at least|should be/i.test(t)) return 'Senha fraca: ' + (typeof MINERA_SENHA_MSG === 'string' ? MINERA_SENHA_MSG.charAt(0).toLowerCase() + MINERA_SENHA_MSG.slice(1) : 'use pelo menos 8 caracteres, com letras e números') + '.';
     if (/reauthentication|nonce/i.test(t)) return 'Por segurança, saia e entre de novo no app e tente outra vez.';
     if (/rate|too many|seconds/i.test(t)) return 'Muitas tentativas. Espere um pouco e tente de novo.';
     return 'Não foi possível trocar a senha: ' + ((e && e.message) || t);
@@ -829,7 +829,7 @@ function bindSeguranca(session) {
         const n2 = document.getElementById('seg-senha-nova2').value;
         const sairOutros = document.getElementById('seg-sair-outros').checked;
         if (!atual) { segMsg('seg-senha-msg', 'Digite sua senha atual.', false); return; }
-        if (n1.length < 6) { segMsg('seg-senha-msg', 'A nova senha precisa ter pelo menos 6 caracteres.', false); return; }
+        if (!mineraSenhaOk(n1)) { segMsg('seg-senha-msg', MINERA_SENHA_MSG + '.', false); return; }
         if (n1 !== n2) { segMsg('seg-senha-msg', 'As duas novas senhas não são iguais.', false); return; }
         if (n1 === atual) { segMsg('seg-senha-msg', 'A nova senha precisa ser diferente da atual.', false); return; }
         if (!email) { segMsg('seg-senha-msg', 'Não achei o e-mail da conta. Saia e entre de novo.', false); return; }

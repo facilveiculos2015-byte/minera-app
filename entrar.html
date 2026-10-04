@@ -6,8 +6,8 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Entrar</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261004b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261004b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261004c">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261004c">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
@@ -21,23 +21,23 @@
     <meta property="og:title" content="Minera Pará">
     <meta property="og:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
     <meta property="og:url" content="https://minerapara.com.br/">
-    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261004b">
-    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261004b">
+    <meta property="og:image" content="https://minerapara.com.br/og-familia.png?v=20261004c">
+    <meta property="og:image:secure_url" content="https://minerapara.com.br/og-familia.png?v=20261004c">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1080">
     <meta property="og:image:height" content="1080">
     <meta property="og:image:alt" content="Minera Pará">
-    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261004b">
-    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261004b">
+    <meta property="og:video" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261004c">
+    <meta property="og:video:secure_url" content="https://minerapara.com.br/media/convite-familia-minera.mp4?v=20261004c">
     <meta property="og:video:type" content="video/mp4">
     <meta property="og:video:width" content="464">
     <meta property="og:video:height" content="688">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Minera Pará">
     <meta name="twitter:description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
-    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261004b">
+    <meta name="twitter:image" content="https://minerapara.com.br/og-familia.png?v=20261004c">
 
-    <link rel="stylesheet" href="style.css?v=20261004b">
+    <link rel="stylesheet" href="style.css?v=20261004c">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -45,7 +45,7 @@
     <div class="container">
         <header class="auth-header">
             <div class="logo-mark" aria-hidden="true">
-                <img class="brand-logo-lg" src="logo-escavadeira.png?v=20261004b" alt="Minera Pará" width="112" height="112" decoding="async">
+                <img class="brand-logo-lg" src="logo-escavadeira.png?v=20261004c" alt="Minera Pará" width="112" height="112" decoding="async">
             </div>
             <h1>Minera Pará</h1>
             <p>Crie sua conta ou entre para gerenciar lotes</p>
@@ -100,8 +100,8 @@
                 <input type="text" id="cad-apelido" maxlength="40" placeholder="Como quer aparecer no chat" autocomplete="nickname">
                 <label for="cad-email">E-mail</label>
                 <input type="email" id="cad-email" required placeholder="voce@email.com" autocomplete="email">
-                <label for="cad-senha">Senha (mín. 6)</label>
-                <input type="password" id="cad-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <label for="cad-senha">Senha (mín. 8, com letras e números)</label>
+                <input type="password" id="cad-senha" required placeholder="••••••••" autocomplete="new-password" minlength="8">
                 <label for="cad-ref">Código de indicação (opcional)</label>
                 <input type="text" id="cad-ref" maxlength="20" placeholder="Ex.: MINABC12" autocomplete="off" autocapitalize="characters" spellcheck="false">
                 <fieldset class="papeis-fieldset">
@@ -120,20 +120,20 @@
                 <h2 style="margin:0; font-size:1.15rem;">Definir nova senha</h2>
                 <p class="sub" style="margin:0;">Digite e confirme a nova senha da sua conta.</p>
                 <label for="nova-senha">Nova senha</label>
-                <input type="password" id="nova-senha" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <input type="password" id="nova-senha" required placeholder="••••••••" autocomplete="new-password" minlength="8">
                 <label for="nova-senha-confirma">Confirmar senha</label>
-                <input type="password" id="nova-senha-confirma" required placeholder="••••••••" autocomplete="new-password" minlength="6">
+                <input type="password" id="nova-senha-confirma" required placeholder="••••••••" autocomplete="new-password" minlength="8">
                 <button type="submit">Salvar nova senha</button>
             </form>
 
             <p id="auth-msg" class="msg"></p>
         </section>
     </div>
-    <script src="config.js?v=20261004b"></script>
-    <script src="seguranca.js?v=20261004b"></script>
-    <script src="auth-guard.js?v=20261004b"></script>
-    <script src="suporte.js?v=20261004b"></script>
-    <script src="auth.js?v=20261004b"></script>
-    <script src="pwa.js?v=20261004b"></script>
+    <script src="config.js?v=20261004c"></script>
+    <script src="seguranca.js?v=20261004c"></script>
+    <script src="auth-guard.js?v=20261004c"></script>
+    <script src="suporte.js?v=20261004c"></script>
+    <script src="auth.js?v=20261004c"></script>
+    <script src="pwa.js?v=20261004c"></script>
 </body>
 </html>

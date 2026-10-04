@@ -254,14 +254,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    try { ['cad-senha', 'nova-senha'].forEach(id => mineraSenhaRegra(document.getElementById(id))); } catch (eRegra) { /* ignore */ }
     const formNova = document.getElementById('form-nova-senha');
     if (formNova) {
         formNova.addEventListener('submit', async (e) => {
             e.preventDefault();
             const s1 = (document.getElementById('nova-senha') || {}).value || '';
             const s2 = (document.getElementById('nova-senha-confirma') || {}).value || '';
-            if (s1.length < 6) {
-                msg('A senha deve ter no mínimo 6 caracteres.', false);
+            if (!mineraSenhaOk(s1)) {
+                msg(MINERA_SENHA_MSG + '.', false);
                 return;
             }
             if (s1 !== s2) {
@@ -272,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const { error } = await supabaseClient.auth.updateUser({ password: s1 });
                 if (error) {
-                    msg('Erro ao atualizar senha: ' + error.message, false);
+                    msg(/weak_password|at least|should contain|characters/i.test(String(error.code || '') + ' ' + String(error.message || '')) ? MINERA_SENHA_MSG + '.' : ('Erro ao atualizar senha: ' + error.message), false);
                     return;
                 }
                 limparHashAuth();
@@ -334,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const apelido = apelidoEl ? apelidoEl.value.trim() : '';
         const email = document.getElementById('cad-email').value.trim();
         const password = document.getElementById('cad-senha').value;
+        if (!mineraSenhaOk(password)) { msg(MINERA_SENHA_MSG + '.', false); return; }
         const papeis = lerPapeisCadastro();
         // Código de indicação digitado (opcional) → minera_ref (validação real no servidor: processar_indicacao)
         const refEl = document.getElementById('cad-ref');
@@ -371,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (error) {
-                msg('Erro no cadastro: ' + error.message, false);
+                msg(/weak_password|at least|should contain|characters/i.test(String(error.code || '') + ' ' + String(error.message || '')) ? MINERA_SENHA_MSG + '.' : ('Erro no cadastro: ' + error.message), false);
                 return;
             }
             if (data.user) {

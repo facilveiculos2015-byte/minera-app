@@ -33,6 +33,18 @@ async function limparSessaoERedirecionar() {
     irPara('entrar.html');
 }
 
+/** Regra da senha da conta (cadastro, trocar senha, nova senha). Login NÃO valida (senhas antigas continuam entrando).
+ *  Igual ao Supabase Auth: mínimo 8 + "Letters and digits". */
+var MINERA_SENHA_MSG = 'A senha precisa ter pelo menos 8 caracteres, com letras e números';
+function mineraSenhaOk(s) { s = String(s == null ? '' : s); return s.length >= 8 && /[A-Za-z]/.test(s) && /[0-9]/.test(s); }
+function mineraSenhaRegra(input) {
+    if (!input || input._mineraSenha) return;
+    input._mineraSenha = true;
+    var f = function () { input.setCustomValidity(input.value && !mineraSenhaOk(input.value) ? MINERA_SENHA_MSG : ''); };
+    input.addEventListener('input', f); input.addEventListener('invalid', f); f();
+}
+window.MINERA_SENHA_MSG = MINERA_SENHA_MSG; window.mineraSenhaOk = mineraSenhaOk; window.mineraSenhaRegra = mineraSenhaRegra;
+
 /** Escape HTML obrigatório para caminhos innerHTML (CSP-friendly). */
 function escapeHtml(s) {
     return String(s == null ? '' : s)
