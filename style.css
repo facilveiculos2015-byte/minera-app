@@ -4094,7 +4094,7 @@ body.pagina-inicio .container.wide { max-width: 640px; padding: 0; }
   background-repeat: no-repeat; background-position: 14px center;
 }
 .olx-quick {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+  display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px;
   padding: 8px 16px 12px;
 }
 .olx-qcard {
@@ -6844,29 +6844,34 @@ html[data-theme="light"] #card-seguranca .seg-abrir.seg-perigo { color: #b91c1c;
 .flag-contatos-pill.off { background: rgba(220, 38, 38, .12); color: #dc2626; border: 1px solid rgba(220, 38, 38, .5); }
 #btn-flag-contatos { min-height: 48px; padding: 10px 16px; font-weight: 800; }
 
-/* Chat em destaque: bolha verde elevada no centro da barra inferior */
+/* Chat em destaque: botão dourado elevado (squircle) no centro da barra inferior */
 .bottom-nav { overflow: visible; }
-#bottom-nav .bn-item.bn-chat-hero { position: relative; color: #22c55e; font-weight: 800; overflow: visible; }
-html[data-theme="light"] #bottom-nav .bn-item.bn-chat-hero { color: #15803d; }
+#bottom-nav .bn-item.bn-chat-hero { position: relative; color: #F5A623; font-weight: 800; overflow: visible; }
+html[data-theme="light"] #bottom-nav .bn-item.bn-chat-hero { color: #b45309; }
 #bottom-nav .bn-chat-hero .bn-chat-orb {
-  width: 58px; height: 58px; margin-top: -28px; border-radius: 50%; position: relative;
-  background: radial-gradient(circle at 30% 25%, #4ade80 0%, #22c55e 38%, #15803d 100%);
-  color: #fff; border: 4px solid #0b1220;
-  box-shadow: 0 6px 16px rgba(22, 163, 74, .45), inset 0 -3px 6px rgba(0, 0, 0, .18);
+  width: 56px; height: 56px; margin-top: -26px; border-radius: 18px; position: relative;
+  background: linear-gradient(145deg, #fcd34d 0%, #F5A623 45%, #d97706 100%);
+  color: #0b1220; border: 4px solid #0b1220;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, .45), inset 0 -3px 6px rgba(0, 0, 0, .15);
   transition: transform .15s ease;
 }
-html[data-theme="light"] #bottom-nav .bn-chat-hero .bn-chat-orb { border-color: #fff; box-shadow: 0 6px 16px rgba(22, 163, 74, .38), inset 0 -3px 6px rgba(0, 0, 0, .14); }
+html[data-theme="light"] #bottom-nav .bn-chat-hero .bn-chat-orb { border-color: #fff; box-shadow: 0 6px 16px rgba(217, 119, 6, .35), inset 0 -3px 6px rgba(0, 0, 0, .12); }
 #bottom-nav .bn-chat-hero .bn-chat-orb svg { width: 32px; height: 32px; stroke: none; fill: none; }
-#bottom-nav .bn-chat-hero .bn-chat-orb svg .hb-balao { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linejoin: round; }
-#bottom-nav .bn-chat-hero .bn-chat-orb svg .hb-fone { fill: #fff; stroke: none; }
+#bottom-nav .bn-chat-hero .bn-chat-orb svg .hb-balao { fill: none; stroke: #0b1220; stroke-width: 2.3; stroke-linejoin: round; }
+#bottom-nav .bn-chat-hero .bn-chat-orb svg .hb-fone { fill: #0b1220; stroke: none; }
 #bottom-nav .bn-chat-hero:active .bn-chat-orb { transform: scale(.94); }
-#bottom-nav .bn-chat-hero.on .bn-chat-orb { box-shadow: 0 0 0 3px rgba(74, 222, 128, .45), 0 6px 16px rgba(22, 163, 74, .45); }
-#bottom-nav .bn-chat-hero .bn-badge { top: -4px; left: auto; right: -6px; min-width: 22px; height: 22px; line-height: 22px; font-size: .72rem; box-shadow: 0 0 0 2px #0b1220; }
+#bottom-nav .bn-chat-hero.on .bn-chat-orb { box-shadow: 0 0 0 3px rgba(252, 211, 77, .5), 0 6px 16px rgba(245, 158, 11, .45); }
+#bottom-nav .bn-chat-hero .bn-badge { top: -7px; left: auto; right: -8px; min-width: 22px; height: 22px; line-height: 22px; font-size: .72rem; box-shadow: 0 0 0 2px #0b1220; }
 html[data-theme="light"] #bottom-nav .bn-chat-hero .bn-badge { box-shadow: 0 0 0 2px #fff; }
-/* mensagens novas: brilho pulsando em volta da bolha */
+/* mensagens novas: brilho dourado pulsando em volta do botão */
 #bottom-nav .bn-chat-hero.tem-novas .bn-chat-orb::before {
-  content: ''; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none;
-  box-shadow: 0 0 0 0 rgba(34, 197, 94, .55); animation: bnChatPulse 1.8s ease-out infinite;
+  content: ''; position: absolute; inset: -4px; border-radius: 20px; pointer-events: none;
+  box-shadow: 0 0 0 0 rgba(245, 166, 35, .6); animation: bnChatPulse 1.8s ease-out infinite;
 }
-@keyframes bnChatPulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .55); } 70% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
-@media (prefers-reduced-motion: reduce) { #bottom-nav .bn-chat-hero.tem-novas .bn-chat-orb::before { animation: none; box-shadow: 0 0 0 4px rgba(34, 197, 94, .35); } }
+@keyframes bnChatPulse { 0% { box-shadow: 0 0 0 0 rgba(245, 166, 35, .6); } 70% { box-shadow: 0 0 0 14px rgba(245, 166, 35, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0); } }
+@media (prefers-reduced-motion: reduce) { #bottom-nav .bn-chat-hero.tem-novas .bn-chat-orb::before { animation: none; box-shadow: 0 0 0 4px rgba(245, 166, 35, .4); } }
+
+/* Atalhos do Início com 4 blocos (Mapa ficou só na barra de baixo): um pouco maiores */
+.olx-quick .olx-qcard { font-size: 0.78rem; gap: 9px; }
+.olx-quick .olx-qcard .qi-wrap { width: 50px; height: 50px; border-radius: 16px; }
+.olx-quick .olx-qcard .qi-svg { width: 25px; height: 25px; }
