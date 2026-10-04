@@ -25,7 +25,9 @@
 
   const LS_ESTADOS = 'minera_ibge_estados_v1';
   const LS_MUNICS_PREFIX = 'minera_ibge_munics_';
-  const LS_PREF = 'minera_local_pref_v1';
+  const LS_PREF = 'minera_local_pref_v2';
+  // v1 podia guardar a cidade ligada sozinha pela localização → limpa uma vez
+  try { localStorage.removeItem('minera_local_pref_v1'); } catch (e) { /* ignore */ }
   const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
   const mem = { estados: null, munics: {} };

@@ -970,19 +970,9 @@ async function initLocalidadeUI() {
     // O pedido acontece apenas no toque em "📍 Perto de mim".
     geoPerto = await LocalidadeBR.obterLocalizacaoUsuario({ timeout: 10000, interativo: false, motivo: 'inicio-load' });
 
-    if (geoPerto && geoPerto.cidade && geoPerto.estado) {
-        setLocStatus('Perto de você: ' + geoPerto.cidade + '-' + geoPerto.estado);
-        filtroEstado = geoPerto.estado;
-        filtroCidade = geoPerto.cidade;
-        filtroDdd = geoPerto.ddd || '';
-        filtroLocMode = 'cidade';
-        await LocalidadeBR.preencherSelectEstados(estSel, filtroEstado);
-        await LocalidadeBR.preencherSelectCidades(cidSel, filtroEstado, filtroCidade);
-        LocalidadeBR.preencherSelectDdd(dddSel, filtroEstado, filtroDdd);
-        syncLocModeChips();
-        persistLocPref();
-    } else if (pref && (pref.estado || pref.cidade || pref.ddd || pref.mode)) {
-        setLocStatus('Escolha estado/cidade (localização indisponível)');
+    // Localização já concedida NÃO liga filtro sozinha: o Início abre em "Todo o Brasil".
+    // "Perto de mim" (usarPertoDeMim) continua como escolha do usuário.
+    if (pref && (pref.estado || pref.cidade || pref.ddd || pref.mode)) {
         filtroLocMode = pref.mode || 'todos';
         filtroEstado = pref.estado || '';
         filtroCidade = pref.cidade || '';
@@ -1296,8 +1286,11 @@ window.addEventListener('beforeunload', () => {
     const locBtn = document.getElementById('olx-loc-btn');
     function syncCity() {
         if (!cityEl) return;
-        const c = (typeof filtroCidade === 'string' && filtroCidade) ? filtroCidade
-            : (geoPerto && geoPerto.cidade) ? geoPerto.cidade : 'Parauapebas';
+        // Mostra o filtro realmente ativo (o mesmo usado em carregarFeed)
+        let c = 'Todo o Brasil';
+        if (filtroLocMode === 'cidade' && filtroCidade) c = filtroCidade;
+        else if (filtroLocMode === 'estado' && filtroEstado) c = String(filtroEstado).toUpperCase();
+        else if (filtroLocMode === 'ddd' && filtroDdd) c = 'DDD ' + filtroDdd;
         cityEl.textContent = c;
     }
     if (locBtn && !locBtn._olx) {
