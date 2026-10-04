@@ -305,14 +305,17 @@ async function carregarMovimentos() {
             saque: 'Saque',
             rendimento: 'Rendimento',
             emprestimo: 'Empréstimo',
-            deposito_pendente: 'Depósito (pendente)'
+            deposito_pendente: 'Depósito (pendente)',
+            bonus_indicacao: 'Bônus de indicação',
+            banner: 'Pagamento de banner'
         };
         box.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
             '<th>Quando</th><th>Tipo</th><th>Valor</th><th>Saldo após</th></tr></thead><tbody>' +
             data.map(m => {
                 const when = m.criado_em ? new Date(m.criado_em).toLocaleString('pt-BR') : '—';
-                const sinal = (m.tipo === 'saque') ? '−' : '+';
-                return '<tr><td>' + esc(when) + '</td><td>' + esc(labels[m.tipo] || m.tipo) +
+                const sinal = (m.tipo === 'saque' || m.tipo === 'banner') ? '−' : '+';
+                const bonusCls = m.tipo === 'bonus_indicacao' ? ' class="mov-bonus"' : '';
+                return '<tr' + bonusCls + '><td>' + esc(when) + '</td><td>' + esc(labels[m.tipo] || m.tipo) +
                     '</td><td>' + esc(sinal + ' ' + fmtBRL(m.valor)) +
                     '</td><td>' + esc(m.saldo_apos != null ? fmtBRL(m.saldo_apos) : '—') +
                     '</td></tr>';
@@ -432,6 +435,10 @@ async function gerarPixDeposito() {
         setDepMsg('Informe um valor válido.', false);
         return;
     }
+    if (valor < depositoMinimo) {
+        setDepMsg('Depósito mínimo: ' + fmtBRL(depositoMinimo) + '.', false);
+        return;
+    }
     try {
         pixAtivoCache = await buscarPixAtivo();
         const pix = pixAtivoCache;
@@ -466,6 +473,7 @@ async function enviarDeposito() {
     const valor = parseFloat(document.getElementById('dep-valor').value);
     const url = (document.getElementById('dep-comprovante').value || '').trim();
     if (!(valor > 0)) { setDepMsg('Informe o valor.', false); return; }
+    if (valor < depositoMinimo) { setDepMsg('Depósito mínimo: ' + fmtBRL(depositoMinimo) + '.', false); return; }
     if (!url) { setDepMsg('Informe a URL do comprovante.', false); return; }
     const pix = pixAtivoCache || await buscarPixAtivo();
     try {
@@ -494,7 +502,8 @@ async function enviarDeposito() {
         await carregarPedidos();
         await carregarMovimentos();
     } catch (e) {
-        setDepMsg((e.message || String(e)) + ' (SQL 15?)', false);
+        const em = (e.message || String(e));
+        setDepMsg(/mínimo/i.test(em) ? em : em + ' (SQL 15?)', false);
     }
 }
 
@@ -507,6 +516,7 @@ async function enviarSaque() {
     if (!(valor > 0)) { setSaqueMsg('Informe um valor válido.', false); return; }
     if (!chave) { setSaqueMsg('Informe a chave Pix de destino.', false); return; }
     if (valor > saldoAtual + 1e-9) { setSaqueMsg('Saldo insuficiente.', false); return; }
+    if (!(await checarSaquePermitido())) { setSaqueMsg('', true); return; }
     try {
         const { error } = await supabaseClient.from('caixa_saque_pedidos').insert([{
             auth_id: uid,
@@ -521,8 +531,111 @@ async function enviarSaque() {
         document.getElementById('saque-chave').value = '';
         await carregarPedidos();
     } catch (e) {
-        setSaqueMsg((e.message || String(e)) + ' (SQL 15?)', false);
+        const em = (e.message || String(e));
+        setSaqueMsg(/indica|primeiro dep|Saldo insuf/i.test(em) ? em : em + ' (SQL 15?)', false);
     }
+}
+
+/* ---------- Saque: avisos do bônus de indicação (só ao tocar em Sacar) ---------- */
+let depositoMinimo = 50;
+async function carregarDepositoMinimo() {
+    try {
+        const { data, error } = await supabaseClient.rpc('caixa_deposito_minimo');
+        if (!error && Number(data) > 0) depositoMinimo = Number(data);
+    } catch (e) { /* SQL 57 ausente: mantém 50 */ }
+    const el = document.getElementById('dep-minimo');
+    if (el) el.textContent = 'Depósito mínimo: ' + fmtBRL(depositoMinimo).replace(',00', '');
+    const inp = document.getElementById('dep-valor');
+    if (inp) inp.min = String(depositoMinimo);
+}
+
+function fecharAvisoSaque() {
+    const m = document.getElementById('modal-saque-aviso');
+    if (m) m.classList.add('oculto');
+}
+function abrirAvisoSaque(opts) {
+    const m = document.getElementById('modal-saque-aviso');
+    if (!m) { if (typeof toastMsg === 'function') toastMsg(opts.texto); return; }
+    document.getElementById('saque-aviso-titulo').textContent = opts.titulo || 'Saque';
+    document.getElementById('saque-aviso-ico').textContent = opts.ico || '💰';
+    document.getElementById('saque-aviso-texto').textContent = opts.texto || '';
+    document.getElementById('saque-aviso-sub').textContent = opts.sub || '';
+    const dep = document.getElementById('saque-aviso-depositar');
+    dep.classList.toggle('oculto', !opts.depositar);
+    m.classList.remove('oculto');
+    m.setAttribute('data-aviso', opts.tipo || '');
+    if (!m._bound) {
+        m._bound = true;
+        m.addEventListener('click', (e) => {
+            if (e.target && e.target.closest('[data-close-saque-aviso]')) fecharAvisoSaque();
+        });
+        dep.addEventListener('click', () => {
+            fecharAvisoSaque();
+            nbGo('depositar');
+            const p = document.getElementById('panel-depositar');
+            if (p) p.classList.remove('oculto');
+            setDepMsg('', true);
+            const v = document.getElementById('dep-valor');
+            if (v) { if (!v.value) v.value = String(depositoMinimo); v.focus(); }
+        });
+    }
+}
+
+/** true = pode abrir a tela de saque. Regras reais no servidor (SQL 57). */
+async function checarSaquePermitido() {
+    let st = null;
+    try {
+        const { data, error } = await supabaseClient.rpc('caixa_saque_status');
+        if (error) throw error;
+        st = data;
+    } catch (e) {
+        return true; // SQL 57 ausente: fluxo antigo (servidor continua validando)
+    }
+    if (!st || !st.tem_bonus) return true;
+    const min = Number(st.saque_minimo_bonus) || 100;
+    const depMin = Number(st.deposito_minimo) || depositoMinimo;
+    if (Number(st.saldo) < min) {
+        abrirAvisoSaque({
+            tipo: 'minimo', ico: '🎁', titulo: 'Saque dos ganhos de indicação',
+            texto: 'Os ganhos de indicação podem ser sacados a partir de ' + fmtBRL(min).replace(',00', '') + '.',
+            sub: 'Seu saldo agora: ' + fmtBRL(st.saldo) + '. Continue convidando amigos — você ganha R$ 10 por amigo.'
+        });
+        return false;
+    }
+    if (!st.primeiro_deposito) {
+        abrirAvisoSaque({
+            tipo: 'deposito', ico: '🔓', titulo: 'Liberar o saque', depositar: true,
+            texto: 'Para liberar o saque, faça seu primeiro depósito.',
+            sub: 'Depósito mínimo: ' + fmtBRL(depMin).replace(',00', '') + '. Depois que o depósito for confirmado, o saque fica liberado.'
+        });
+        return false;
+    }
+    return true;
+}
+
+let _saqueGateBusy = false;
+function bindSaqueGate() {
+    if (document._saqueGate) return;
+    document._saqueGate = true;
+    // captura: roda antes do roteador [data-view] da página
+    document.addEventListener('click', async (e) => {
+        const el = e.target && e.target.closest ? e.target.closest('[data-view="sacar"]') : null;
+        if (!el) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        if (!guardBankAction('sacar')) return;
+        if (_saqueGateBusy) return;
+        _saqueGateBusy = true;
+        try {
+            if (await checarSaquePermitido()) {
+                nbGo('sacar');
+                const p = document.getElementById('panel-sacar');
+                if (p) p.classList.remove('oculto');
+                setSaqueMsg('', true);
+            }
+        } finally { _saqueGateBusy = false; }
+    }, true);
 }
 
 function saibaDismissed() {
@@ -877,6 +990,7 @@ function nbGo(view) {
 }
 function bindUI() {
     bindPinUI();
+    bindSaqueGate();
 
     const empBtn = document.getElementById('btn-emprestimo-goto');
     if (empBtn) empBtn.addEventListener('click', () => {
@@ -962,6 +1076,7 @@ function bindUI() {
     const empNome = document.getElementById('emp-nome');
     if (empNome) empNome.value = (perfilAtual && perfilAtual.nome) || '';
     bindUI();
+    carregarDepositoMinimo();
     atualizarTotalPrevisto();
     await Promise.all([carregarCaixa(), carregarMovimentos(), carregarEmprestimos(), carregarPedidos(), renderCreditoStatus()]);
     if (isUnlocked()) { const lock = document.getElementById('card-caixa'); if (lock) lock.classList.remove('caixa-locked'); }

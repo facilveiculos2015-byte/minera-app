@@ -477,6 +477,7 @@ function htmlCardFamilia(perfil) {
         '<h2 class="familia-panel-title">Família Minera</h2>' +
         '<p class="sub">Indique colegas: ao se cadastrarem com seu link, você ganha pontos. ' +
         '<strong>1 ponto = R$ 0,10</strong> de desconto na comissão de 1% (máx. = valor da comissão).</p>' +
+        '<div class="ib-box" data-ib="' + (document.querySelector('.ib-box[data-ib="full"]') ? 'curto' : 'full') + '" hidden></div>' +
         '<div class="familia-stats">' +
         '<div class="familia-stat"><span class="familia-stat-val" id="familia-pontos">' + pts +
         '</span><span class="familia-stat-lbl">pontos</span></div>' +
@@ -759,8 +760,48 @@ async function montarCardFamilia(container, perfil, where) {
         host.outerHTML = htmlCardFamilia(perfil);
     }
     bindCardFamilia();
+    renderBonusIndicacao();
     return perfil;
 }
+
+/* ---------- Bônus de indicação (SQL 57): R$ 10 no Banco por amigo ---------- */
+async function renderBonusIndicacao() {
+    const boxes = Array.from(document.querySelectorAll('.ib-box[data-ib]'));
+    if (!boxes.length || typeof supabaseClient === 'undefined' || !supabaseClient) return null;
+    let r = null;
+    try {
+        const { data, error } = await supabaseClient.rpc('indicacao_bonus_resumo');
+        if (error) throw error;
+        r = data;
+    } catch (e) {
+        boxes.forEach(b => { b.hidden = true; });
+        return null; // SQL 57 ausente
+    }
+    if (!r || r.ativo === false) { boxes.forEach(b => { b.hidden = true; }); return r; }
+    const brl = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const valor = Number(r.valor) || 10;
+    const titulo = 'Ganhe ' + brl(valor).replace(',00', '') + ' por amigo que se cadastrar';
+    const amigos = Array.isArray(r.amigos) ? r.amigos : [];
+    const lista = amigos.length
+        ? '<ul class="ib-lista">' + amigos.map(a => {
+            const lib = a.status === 'liberado';
+            return '<li><span class="ib-nome">' + suporteEsc(a.nome || 'Amigo') + '</span>' +
+                '<span class="ib-chip ' + (lib ? 'liberado' : 'cadastrou') + '">' + (lib ? '✓ Bônus liberado' : 'Cadastrou') + '</span></li>';
+        }).join('') + '</ul>'
+        : '<p class="sub ib-vazio">Nenhum amigo ainda. Compartilhe seu link!</p>';
+    boxes.forEach(b => {
+        const full = b.getAttribute('data-ib') === 'full';
+        b.innerHTML = '<p class="ib-titulo">🎁 ' + suporteEsc(titulo) + '</p>' +
+            (full
+                ? '<div class="ib-total"><span class="sub">Bônus recebido:</span><strong class="ib-total-val">' + suporteEsc(brl(r.total)) + '</strong></div>' +
+                  '<p class="sub">O bônus cai no saldo do seu Banco.</p>' +
+                  '<p class="sub" style="margin-top:8px"><strong>Amigos convidados (' + amigos.length + ')</strong></p>' + lista
+                : '');
+        b.hidden = false;
+    });
+    return r;
+}
+window.renderBonusIndicacao = renderBonusIndicacao;
 
 /**
  * Aplica pontos na comissão: 1 ponto = R$ 0,10, máx = comissão cheia.

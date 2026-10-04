@@ -6875,3 +6875,34 @@ html[data-theme="light"] #bottom-nav .bn-chat-hero .bn-badge { box-shadow: 0 0 0
 .olx-quick .olx-qcard { font-size: 0.78rem; gap: 9px; }
 .olx-quick .olx-qcard .qi-wrap { width: 50px; height: 50px; border-radius: 16px; }
 .olx-quick .olx-qcard .qi-svg { width: 25px; height: 25px; }
+
+/* ===== Bônus de indicação (SQL 57) ===== */
+.dep-minimo { margin: 4px 0 10px; font-weight: 700; font-size: .95rem; color: var(--text-secondary, inherit); }
+.saque-aviso-panel { text-align: center; }
+.saque-aviso-body { padding: 6px 4px 2px; }
+.saque-aviso-ico { font-size: 2.4rem; line-height: 1; margin: 4px 0 10px; }
+.saque-aviso-texto { font-size: 1.15rem; font-weight: 800; line-height: 1.35; margin: 0 0 8px; }
+.saque-aviso-acoes { flex-direction: column; gap: 10px; }
+.saque-aviso-acoes button { width: 100%; min-height: 50px; font-size: 1.05rem; font-weight: 800; }
+tr.mov-bonus td { color: #16a34a; font-weight: 700; }
+.ib-box { margin: 12px 0; padding: 14px; border-radius: 14px; border: 1px solid rgba(22, 163, 74, .45); background: rgba(22, 163, 74, .10); }
+.ib-titulo { margin: 0 0 4px; font-size: 1.12rem; font-weight: 800; line-height: 1.3; color: #4ade80; }
+html[data-theme="light"] .ib-titulo { color: #15803d; }
+.ib-total { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 4px; }
+.ib-total strong { font-size: 1.4rem; }
+.ib-lista { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ib-lista li { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px; border-radius: 10px; background: var(--card-bg); border: 1px solid var(--border); }
+.ib-lista .ib-nome { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-chip { flex: none; padding: 4px 10px; border-radius: 999px; font-size: .85rem; font-weight: 800; }
+.ib-chip.cadastrou { background: rgba(234, 179, 8, .20); color: #facc15; }
+.ib-chip.liberado { background: rgba(22, 163, 74, .22); color: #4ade80; }
+html[data-theme="light"] .ib-chip.cadastrou { color: #a16207; }
+html[data-theme="light"] .ib-chip.liberado { color: #15803d; }
+tr.mov-bonus td { color: #4ade80; }
+html[data-theme="light"] tr.mov-bonus td { color: #15803d; }
+.ib-vazio { margin: 6px 0 0; }
+.bp-pagar-saldo { width: 100%; min-height: 50px; font-weight: 800; margin: 6px 0; }
+.ib-admin-flag { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0; }
+#btn-flag-indicacao { min-height: 48px; padding: 10px 16px; font-weight: 800; }
+.saque-aviso-acoes .btn-ghost { background: transparent; color: var(--text-color, #f1f5f9); border: 2px solid var(--border); }
+html[data-theme="light"] .saque-aviso-acoes .btn-ghost { background: #fff; color: #0f172a; border-color: #94a3b8; }

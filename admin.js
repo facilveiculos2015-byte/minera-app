@@ -817,6 +817,7 @@ async function carregarDepositosAdmin() {
                         }).eq('id', id);
                         if (error) throw error;
                         toastMsg('Depósito confirmado e creditado');
+                        if (typeof carregarIndicacaoBonusAdmin === 'function') carregarIndicacaoBonusAdmin();
                     } else if (act === 'dep-no') {
                         const { error } = await supabaseClient.from('caixa_deposito_pedidos').update({
                             status: 'rejeitado',
@@ -1966,6 +1967,80 @@ function bindFlagContatosAdmin() {
     });
 }
 
+/* Bônus de indicação (SQL 57): app_flags.indicacao_bonus_ativo (sem linha = ativo) + lista */
+let _indicacaoAtiva = true;
+function pintarFlagIndicacao() {
+    const pill = document.getElementById('flag-indicacao-estado');
+    const btn = document.getElementById('btn-flag-indicacao');
+    if (pill) {
+        pill.textContent = _indicacaoAtiva ? '▶ Programa ativo' : '⏸ Pausado';
+        pill.className = 'flag-contatos-pill ' + (_indicacaoAtiva ? 'on' : 'off');
+    }
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = _indicacaoAtiva ? '⏸ Pausar programa' : '▶ Reativar programa';
+        btn.className = 'btn-sm ' + (_indicacaoAtiva ? 'btn-danger' : 'btn-ok');
+    }
+}
+async function carregarIndicacaoBonusAdmin() {
+    const box = document.getElementById('admin-indicacao-bonus');
+    try {
+        const { data: f } = await supabaseClient.from('app_flags').select('value_bool').eq('key', 'indicacao_bonus_ativo').maybeSingle();
+        _indicacaoAtiva = !(f && f.value_bool === false);
+        pintarFlagIndicacao();
+    } catch (e) { /* ignore */ }
+    if (!box) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_indicacao_bonus_lista', { p_limit: 200 });
+        if (error) throw error;
+        const rows = data || [];
+        const lib = rows.filter(r => r.status === 'liberado');
+        const total = lib.reduce((a, r) => a + Number(r.valor || 0), 0);
+        const brl = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const lbl = { cadastrou: 'Cadastrou', liberado: 'Bônus liberado', bloqueado: 'Bloqueado' };
+        const cls = { cadastrou: 'badge-pendente', liberado: 'badge-pago', bloqueado: 'badge-atrasado' };
+        box.innerHTML = '<p><strong>' + lib.length + '</strong> bônus pagos · total <strong>' + esc(brl(total)) + '</strong> · ' +
+            rows.filter(r => r.status === 'cadastrou').length + ' aguardando 1º depósito · ' +
+            rows.filter(r => r.status === 'bloqueado').length + ' bloqueados</p>' +
+            (rows.length ? '<div class="table-wrap"><table class="data-table"><thead><tr><th>Quando</th><th>Indicou</th><th>Amigo</th><th>Status</th><th>Valor</th></tr></thead><tbody>' +
+            rows.map(r => '<tr><td>' + esc(new Date(r.liberado_em || r.criado_em).toLocaleString('pt-BR')) + '</td>' +
+                '<td>' + esc(r.indicador_nome || '') + '<br><small class="sub">' + esc(r.indicador_email || '') + '</small></td>' +
+                '<td>' + esc(r.indicado_nome || '') + '<br><small class="sub">' + esc(r.indicado_email || '') + '</small></td>' +
+                '<td><span class="badge ' + (cls[r.status] || '') + '">' + esc(lbl[r.status] || r.status) + '</span>' +
+                (r.motivo ? '<br><small class="sub">' + esc(r.motivo) + '</small>' : '') + '</td>' +
+                '<td>' + esc(r.status === 'liberado' ? brl(r.valor) : '—') + '</td></tr>').join('') +
+            '</tbody></table></div>' : '<p class="sub">Nenhuma indicação ainda.</p>');
+    } catch (e) {
+        const semSql = /PGRST202|admin_indicacao_bonus_lista|does not exist|not find/i.test(String((e && (e.code || '') + ' ' + (e.message || '')) || e));
+        box.innerHTML = semSql
+            ? '<p class="sub">Bônus de indicação: disponível depois de aplicar o SQL 57 no Supabase.</p>'
+            : '<p class="erro">' + esc(e.message || String(e)) + '</p>';
+    }
+}
+function bindFlagIndicacaoAdmin() {
+    const btn = document.getElementById('btn-flag-indicacao');
+    if (!btn || btn._bound) return;
+    btn._bound = true;
+    btn.addEventListener('click', async () => {
+        const novo = !_indicacaoAtiva;
+        if (!confirm(novo ? 'REATIVAR o bônus de indicação (R$ 10 por amigo)?' : 'PAUSAR o bônus de indicação?\n\nNovos cadastros pelo link não entram no programa e nenhum bônus é creditado enquanto estiver pausado.')) return;
+        const msg = document.getElementById('flag-indicacao-msg');
+        btn.disabled = true;
+        try {
+            const { error } = await supabaseClient.from('app_flags').upsert([{
+                key: 'indicacao_bonus_ativo', value_bool: novo, value_text: 'R$ 10 por amigo (1º depósito do amigo)',
+                updated_by: (perfilAtual && perfilAtual.auth_id) || null, updated_at: new Date().toISOString()
+            }], { onConflict: 'key' });
+            if (error) throw error;
+            _indicacaoAtiva = novo;
+            if (msg) { msg.textContent = novo ? 'Programa de indicação ATIVO.' : 'Programa de indicação PAUSADO.'; msg.className = 'msg ok'; }
+        } catch (e) {
+            if (msg) { msg.textContent = 'Erro ao salvar: ' + (e.message || e); msg.className = 'msg erro'; }
+        }
+        pintarFlagIndicacao();
+    });
+}
+
 function bindBankFlagAdmin() {
     const btn = document.getElementById('btn-salvar-bank-flag');
     if (!btn || btn._bound) return;
@@ -2208,6 +2283,7 @@ function bindGrokDrawer() {
     bindPromoForm();
     bindBankFlagAdmin();
     bindFlagContatosAdmin();
+    bindFlagIndicacaoAdmin();
     bindComissaoFlagAdmin();
     bindShareFlagsAdmin();
     bindGrokDrawer();
@@ -2227,6 +2303,7 @@ function bindGrokDrawer() {
         carregarPromosAdmin(),
         carregarBankFlagAdmin(),
         carregarFlagContatosAdmin(),
+        carregarIndicacaoBonusAdmin(),
         carregarComissaoFlagAdmin(),
         carregarShareFlagsAdmin(),
         carregarLotesOcultoAdmin()
