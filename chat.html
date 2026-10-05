@@ -6,14 +6,14 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261004d">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261004d">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261005a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261005a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261004d">
+    <link rel="stylesheet" href="style.css?v=20261005a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -43,12 +43,12 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261004d" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261005a" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
-                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261004d">
-                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261004d">
+                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261005a">
+                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261005a">
                         <button type="button" class="gk-circ gk-back chat-back" id="btn-chat-back" aria-label="Voltar para as conversas"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
                         <button type="button" class="gk-pill" id="btn-chat-menu" aria-label="Opções da conversa" aria-haspopup="menu">
                             <span class="gk-av-wrap"><span class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</span><span class="gk-dot oculto" id="chat-com-online" aria-hidden="true"></span></span>
@@ -106,6 +106,14 @@
                         <button type="button" class="gk-circ wa-comp-plus" id="btn-chat-plus" aria-label="Anexar">＋</button>
                         <div class="wa-comp-pill gk-comp-pill">
                             <textarea id="chat-texto" rows="1" class="wa-comp-input" placeholder="Mensagem…" maxlength="4000" autocomplete="off" enterkeyhint="enter"></textarea>
+                            <span class="cx-rec-lock-wrap" id="chat-rec-lock-wrap" aria-hidden="true">
+                                <span class="cx-rec-lock" id="chat-rec-lock">
+                                    <span class="cx-rec-lock-pad" id="chat-rec-lock-pad">
+                                        <svg class="cx-rec-lock-svg" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="5" y="10" width="14" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="15.5" r="1.4" fill="currentColor"/></svg>
+                                    </span>
+                                    <span class="cx-rec-lock-arrow" aria-hidden="true">⌃</span>
+                                </span>
+                            </span>
                             <button type="button" class="gk-in-btn mic" id="btn-audio" title="Segure para gravar" aria-label="Gravar áudio (segure)"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></g></svg></button>
                             <button type="submit" class="gk-in-btn send" id="btn-chat-enviar" aria-label="Enviar" title="Enviar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                         </div>
@@ -216,21 +224,21 @@
     </div>
     <div id="cx-undo" class="cx-undo oculto" role="status" aria-live="polite"><span id="cx-undo-txt"></span><button type="button" id="cx-undo-btn">Desfazer</button></div>
 
-    <script src="config.js?v=20261004d"></script>
-    <script src="seguranca.js?v=20261004d"></script>
-    <script src="auth-guard.js?v=20261004d"></script>
-    <script src="suporte.js?v=20261004d"></script>
-    <script src="chat-realtime.js?v=20261004d"></script>
-    <script src="avatar.js?v=20261004d"></script>
-    <script src="nav.js?v=20261004d"></script>
-    <script src="anti-golpe.js?v=20261004d"></script>
-    <script src="chat-store.js?v=20261004d"></script>
-    <script src="chat-midia.js?v=20261004d"></script>
-    <script src="audio-compat.js?v=20261004d"></script>
-    <script src="chat-audio.js?v=20261004d"></script>
-    <script src="chat.js?v=20261004d"></script>
-    <script src="lightbox.js?v=20261004d"></script>
-    <script src="pwa.js?v=20261004d"></script>
+    <script src="config.js?v=20261005a"></script>
+    <script src="seguranca.js?v=20261005a"></script>
+    <script src="auth-guard.js?v=20261005a"></script>
+    <script src="suporte.js?v=20261005a"></script>
+    <script src="chat-realtime.js?v=20261005a"></script>
+    <script src="avatar.js?v=20261005a"></script>
+    <script src="nav.js?v=20261005a"></script>
+    <script src="anti-golpe.js?v=20261005a"></script>
+    <script src="chat-store.js?v=20261005a"></script>
+    <script src="chat-midia.js?v=20261005a"></script>
+    <script src="audio-compat.js?v=20261005a"></script>
+    <script src="chat-audio.js?v=20261005a"></script>
+    <script src="chat.js?v=20261005a"></script>
+    <script src="lightbox.js?v=20261005a"></script>
+    <script src="pwa.js?v=20261005a"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); }

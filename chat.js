@@ -1100,7 +1100,7 @@ async function startRecording(fromHold) {
             const elapsed = startedAt ? (Date.now() - startedAt) : 0;
             audioRecDur = elapsed / 1000;
             if (atual) audioRecStartedAt = 0;
-            if (!blob.size || blob.size < 500 || elapsed < 600) { audioAutoSend = false; if (atual) resetAudioBtn(); toastAudio('Segure para gravar o áudio'); return; }
+            if (!blob.size || blob.size < 500 || elapsed < 500) { audioAutoSend = false; if (atual) resetAudioBtn(); if (!rec._silencioso) toastAudio('Segure para gravar, arraste para cima para travar'); return; }
             onRecordingReady(blob);
         };
         try { rec.start(250); } catch (eStart) { rec.start(); }
@@ -1138,55 +1138,148 @@ function stopRecording(cancel, enviar) {
 }
 function travarGravacao() {
     audioHoldMode = false;
+    audioPendingIntent = null;
     const bar = $('chat-rec-bar'); if (bar) bar.classList.add('travado');
+    showLockHint(false);
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* ignore */ }
+}
+function showLockHint(show, progress) {
+    const wrap = $('chat-rec-lock-wrap');
+    const pad = $('chat-rec-lock-pad');
+    if (!wrap) return;
+    wrap.classList.toggle('on', !!show);
+    wrap.setAttribute('aria-hidden', show ? 'false' : 'true');
+    const p = Math.max(0, Math.min(1, progress == null ? 0 : progress));
+    wrap.style.setProperty('--lock-p', String(p));
+    wrap.classList.toggle('lock-ready', p >= 0.98);
+    if (pad) pad.style.transform = 'translateY(' + (-Math.round(p * 28)) + 'px)';
+}
+/** Intenção enquanto getUserMedia / MediaRecorder ainda está abrindo (permissão no 1º uso). */
+let audioPendingIntent = null; // 'send' | 'cancel' | 'lock' | 'discard_tap' | null
+function aplicarIntentAoIniciar() {
+    const intent = audioPendingIntent; audioPendingIntent = null;
+    if (!gravando) return;
+    if (intent === 'cancel') { stopRecording(true); toast('Gravação cancelada'); return; }
+    if (intent === 'discard_tap') {
+        if (mediaRecorder) mediaRecorder._silencioso = true;
+        stopRecording(true);
+        toast('Segure para gravar, arraste para cima para travar');
+        return;
+    }
+    if (intent === 'lock') { travarGravacao(); return; }
+    if (intent === 'send') { stopRecording(false, true); return; }
+    // ainda segurando: continua em hold
 }
 function bindAudioButton() {
     const btn = $('btn-audio');
     if (!btn || btn._audioBound) return;
     btn._audioBound = true;
-    let pointerDown = false, suppressClick = false, downAt = 0, downX = 0, slidCancel = false;
+    const LOCK_PX = 56, CANCEL_PX = 72, TAP_MS = 280;
+    let pointerDown = false, suppressClick = false, downAt = 0, downX = 0, downY = 0;
+    let slidCancel = false, slidLock = false;
     const slide = () => $('chat-rec-slide');
+    const limparSlide = () => { const sl = slide(); if (sl) sl.style.transform = ''; };
+    const emHold = () => !!(gravando && audioHoldMode);
+    const abrindo = () => !!iniciandoGravacao;
+
+    // iOS: evita callout / seleção / menu de contexto no mic
+    btn.style.touchAction = 'none';
+    btn.style.webkitUserSelect = 'none';
+    btn.style.userSelect = 'none';
+    btn.style.webkitTouchCallout = 'none';
+    btn.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+    btn.addEventListener('selectstart', (e) => { e.preventDefault(); });
+
     btn.addEventListener('pointerdown', (e) => {
         if (e.button != null && e.button !== 0) return;
-        if (gravando) return;
-        pointerDown = true; slidCancel = false; downAt = Date.now(); downX = e.clientX; audioPointerId = e.pointerId;
+        if (gravando || abrindo()) return;
+        pointerDown = true; slidCancel = false; slidLock = false;
+        downAt = Date.now(); downX = e.clientX; downY = e.clientY;
+        audioPointerId = e.pointerId; audioPendingIntent = null;
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-        try { e.preventDefault(); } catch (err) { /* ignore */ } // não tira o foco/teclado
+        try { e.preventDefault(); } catch (err) { /* ignore */ }
+        showLockHint(true, 0);
         startRecording(true).then(() => {
-            if (!pointerDown && gravando && audioHoldMode) travarGravacao(); // soltou antes de o mic abrir = toque
+            // permissão / mic pode demorar: aplica o que o dedo fez nesse meio tempo
+            if (gravando) aplicarIntentAoIniciar();
+            else showLockHint(false);
         });
     });
     btn.addEventListener('pointermove', (e) => {
         if (!pointerDown || (audioPointerId != null && e.pointerId !== audioPointerId)) return;
-        const dx = downX - e.clientX;
-        const sl = slide(); if (sl && gravando && audioHoldMode) sl.style.transform = 'translateX(' + (-Math.max(0, Math.min(90, dx))) + 'px)';
-        if (dx > 90) { // deslizar ← cancela
-            slidCancel = true;
-            if (gravando && audioHoldMode) { stopRecording(true); toast('Gravação cancelada'); }
+        if (slidCancel || slidLock) return;
+        // depois de travar, o dedo pode soltar — move não importa
+        if (gravando && !audioHoldMode) return;
+        const dx = downX - e.clientX; // >0 = esquerda
+        const dy = downY - e.clientY; // >0 = cima
+        const sl = slide();
+        if (emHold() || abrindo()) {
+            if (sl) sl.style.transform = 'translateX(' + (-Math.max(0, Math.min(90, dx))) + 'px)';
+            showLockHint(true, Math.max(0, Math.min(1, dy / LOCK_PX)));
+        }
+        // prioridade: o eixo dominante
+        if (dy >= LOCK_PX && dy >= dx) {
+            slidLock = true; limparSlide();
+            if (emHold()) travarGravacao();
+            else if (abrindo()) audioPendingIntent = 'lock';
+            else showLockHint(false);
+            return;
+        }
+        if (dx >= CANCEL_PX && dx > dy) {
+            slidCancel = true; limparSlide(); showLockHint(false);
+            if (emHold()) { stopRecording(true); toast('Gravação cancelada'); }
+            else if (abrindo()) audioPendingIntent = 'cancel';
             pointerDown = false; suppressClick = true; audioPointerId = null;
-            if (sl) sl.style.transform = '';
+            try { btn.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         }
     });
     btn.addEventListener('pointerup', (e) => {
         if (audioPointerId != null && e.pointerId !== audioPointerId) return;
         const wasDown = pointerDown; pointerDown = false; audioPointerId = null;
-        const sl = slide(); if (sl) sl.style.transform = '';
-        if (!wasDown || slidCancel) { slidCancel = false; return; }
-        suppressClick = true;
-        if (gravando && audioHoldMode) {
-            if (Date.now() - downAt >= 350) stopRecording(false, true); // segurou e soltou = envia
-            else travarGravacao(); // toque rápido = trava (🗑 / ➤)
-        }
+        limparSlide();
         try { e.preventDefault(); } catch (err) { /* ignore */ }
+        if (!wasDown || slidCancel) { slidCancel = false; showLockHint(false); return; }
+        suppressClick = true;
+        // já travou: soltar o dedo não envia nem cancela
+        if (slidLock || (gravando && !audioHoldMode)) { slidLock = false; showLockHint(false); return; }
+        const held = Date.now() - downAt;
+        if (emHold()) {
+            showLockHint(false);
+            if (held < TAP_MS) {
+                if (mediaRecorder) mediaRecorder._silencioso = true;
+                stopRecording(true);
+                toast('Segure para gravar, arraste para cima para travar');
+            } else {
+                stopRecording(false, true); // soltou = envia
+            }
+            return;
+        }
+        if (abrindo()) {
+            // ainda pedindo permissão / abrindo o mic: guarda a intenção
+            audioPendingIntent = held < TAP_MS ? 'discard_tap' : 'send';
+            showLockHint(false);
+            return;
+        }
+        // não chegou a gravar (erro de permissão etc.)
+        showLockHint(false);
+        if (held < TAP_MS) toast('Segure para gravar, arraste para cima para travar');
     });
-    btn.addEventListener('pointercancel', () => {
-        pointerDown = false; audioPointerId = null;
-        if (gravando && audioHoldMode) travarGravacao(); // o sistema roubou o toque: não perde a gravação
+    btn.addEventListener('pointercancel', (e) => {
+        if (audioPointerId != null && e.pointerId !== audioPointerId) return;
+        const wasDown = pointerDown; pointerDown = false; audioPointerId = null;
+        limparSlide();
+        if (!wasDown || slidCancel) { showLockHint(false); return; }
+        // sistema roubou o toque (scroll, chamada, etc.): se ainda em hold, trava em vez de perder
+        if (emHold()) { travarGravacao(); return; }
+        if (abrindo() && !audioPendingIntent) audioPendingIntent = 'lock';
+        showLockHint(false);
     });
+    // toque sem pointer (fallback raro): só a dica — nunca inicia gravação contínua
     btn.addEventListener('click', (e) => {
-        if (suppressClick) { e.preventDefault(); suppressClick = false; return; }
-        if (gravando) return;
-        startRecording(false).then(() => { if (gravando) travarGravacao(); });
+        e.preventDefault();
+        if (suppressClick) { suppressClick = false; return; }
+        if (gravando || abrindo()) return;
+        toast('Segure para gravar, arraste para cima para travar');
     });
     const env = $('btn-rec-enviar'); if (env) env.addEventListener('click', () => { if (gravando) stopRecording(false, true); });
 }

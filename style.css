@@ -6974,3 +6974,47 @@ body.nc-aberta { overflow: hidden; }
 @media (min-width: 801px) {
     .nc-page { left: 50%; right: auto; width: min(560px, 100vw); transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); box-shadow: var(--shadow-elev); }
 }
+
+/* ===== Chat mic: trava estilo WhatsApp (seta ↑ + cadeado acima do 🎤) ===== */
+.cx-rec-lock-wrap {
+  position: absolute; right: 6px; bottom: calc(100% + 6px); width: 48px; height: 92px;
+  display: none; align-items: flex-end; justify-content: center; pointer-events: none; z-index: 40;
+}
+.cx-rec-lock-wrap.on { display: flex; }
+.wa-comp-pill, .gk-comp-pill { position: relative; }
+.cx-rec-lock {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px;
+  width: 44px; height: 88px; border-radius: 22px;
+  background: color-mix(in srgb, var(--card-bg) 92%, #ef4444 8%);
+  border: 1px solid var(--border); box-shadow: var(--shadow-elev);
+  padding: 8px 0 6px; box-sizing: border-box;
+}
+.cx-rec-lock-pad {
+  width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--input-bg); color: var(--muted); transition: transform .05s linear, background .12s ease, color .12s ease;
+}
+.cx-rec-lock-wrap.on[style*="--lock-p: 1"], .cx-rec-lock-wrap.lock-ready .cx-rec-lock-pad {
+  background: #F5A623; color: #0b1220;
+}
+.cx-rec-lock-arrow {
+  font-size: 14px; line-height: 1; color: var(--muted); font-weight: 900;
+  animation: cx-rec-lock-bounce 1s ease-in-out infinite;
+}
+@keyframes cx-rec-lock-bounce {
+  0%, 100% { transform: translateY(0); opacity: .7; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+/* progresso do deslize ↑: preenche o cadeado */
+.cx-rec-lock-wrap.on .cx-rec-lock-pad {
+  background: color-mix(in srgb, var(--input-bg) calc((1 - var(--lock-p, 0)) * 100%), #F5A623 calc(var(--lock-p, 0) * 100%));
+  color: color-mix(in srgb, var(--muted) calc((1 - var(--lock-p, 0)) * 100%), #0b1220 calc(var(--lock-p, 0) * 100%));
+}
+body.chat-gravando #btn-audio.recording {
+  transform: scale(1.08);
+}
+#btn-audio {
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
