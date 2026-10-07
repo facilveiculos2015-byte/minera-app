@@ -5,20 +5,20 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261005a';
+const CACHE = 'minera-shell-20261006a';
 const PRECACHE = [
-  './style.css?v=20261005a',
-  './chat-realtime.js?v=20261005a',
-  './avatar.js?v=20261005a',
-  './avatar-editor.js?v=20261005a',
-  './nav.js?v=20261005a',
-  './config.js?v=20261005a',
-  './seguranca.js?v=20261005a',
-  './pwa.js?v=20261005a',
-  './lightbox.js?v=20261005a',
-  './gestor.css?v=20261005a',
-  './gestor-calc.js?v=20261005a',
-  './gestor.js?v=20261005a',
+  './style.css?v=20261006a',
+  './chat-realtime.js?v=20261006a',
+  './avatar.js?v=20261006a',
+  './avatar-editor.js?v=20261006a',
+  './nav.js?v=20261006a',
+  './config.js?v=20261006a',
+  './seguranca.js?v=20261006a',
+  './pwa.js?v=20261006a',
+  './lightbox.js?v=20261006a',
+  './gestor.css?v=20261006a',
+  './gestor-calc.js?v=20261006a',
+  './gestor.js?v=20261006a',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -170,7 +170,8 @@ self.addEventListener('notificationclick', (event) => {
   } catch (e) { /* usa chat.html */ }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      const same = list.filter((c) => c.url && c.url.indexOf(scope) === 0);
+      // janelas do Chat Minera (/chat/, app instalado à parte) têm o próprio SW: não navega elas para o app completo
+      const same = list.filter((c) => c.url && c.url.indexOf(scope) === 0 && c.url.indexOf(scope + 'chat/') !== 0);
       const cli = same.find((c) => c.focused) || same[0];
       if (cli) {
         const nav = ('navigate' in cli) ? cli.navigate(target).catch(() => cli) : Promise.resolve(cli);

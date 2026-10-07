@@ -7018,3 +7018,26 @@ body.chat-gravando #btn-audio.recording {
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Início: botão flutuante "Chat na tela inicial" (no lugar do ＋ Anunciar) → instalador do Chat Minera (/chat/instalar.html) */
+.olx-fab.chat-ext-fab {
+  width: auto; height: 52px; padding: 0 16px 0 7px; gap: 9px; border-radius: 26px;
+  background: #0b1220; color: #fcd34d; border: 2px solid #F5A623;
+  font-size: .8rem; font-weight: 800; line-height: 1.12; text-align: left; letter-spacing: .01em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45), 0 0 0 3px rgba(245, 166, 35, .18);
+}
+.chat-ext-fab .cef-ico { width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0; display: block; }
+.chat-ext-fab .cef-txt { white-space: nowrap; }
+.chat-ext-fab:active { transform: scale(.97); }
+@media (max-width: 420px) { .olx-fab.chat-ext-fab { width: auto; height: 50px; font-size: .78rem; } }
+
+/* Chat Minera (app só-chat em /chat/): sem barra de baixo, sem Voltar da lista, sem "Baixar app" do app completo */
+body.chat-app #bottom-nav,
+body.chat-app #btn-baixar-app-login { display: none !important; }
+body.chat-app #btn-chat-list-back { visibility: hidden; pointer-events: none; }
+body.chat-app.pagina-chat { padding-bottom: 0; }
+.chat-app-full {
+  display: inline-block; margin: -2px 16px 8px; font-size: .78rem; font-weight: 600;
+  color: var(--muted); text-decoration: underline; text-underline-offset: 2px; opacity: .85;
+}
+body.chat-app.chat-thread-open .chat-app-full { display: none; }

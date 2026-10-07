@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' data: blob: https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://api.allorigins.win https://servicodados.ibge.gov.br https://economia.awesomeapi.com.br https://api.gold-api.com https://query1.finance.yahoo.com https://api.coinbase.com https://metalmetric.com https://mintedmetal.com; worker-src 'self' blob:; frame-src 'self' https://www.google.com https://maps.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <base href="../">
+    <script>window.MINERA_CHAT_APP = true;</script>
+    <title>Chat Minera na tela inicial</title>
+    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261006a">
+    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261006a">
+    <link rel="manifest" href="chat/manifest.webmanifest">
+    <meta name="theme-color" content="#F5A623">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Chat Minera">
+    <link rel="stylesheet" href="style.css?v=20261006a">
+    <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+    <style>
+        body.chat-instalar { min-height: 100dvh; display: flex; justify-content: center; padding: 0; }
+        .ci-wrap { width: 100%; max-width: 440px; padding: 14px 18px calc(28px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; text-align: center; }
+        .ci-voltar { display: inline-flex; align-items: center; gap: 6px; float: left; color: var(--muted); text-decoration: none; font-weight: 700; font-size: .95rem; padding: 8px 4px; }
+        .ci-ico { display: block; clear: both; margin: 34px auto 14px; width: 104px; height: 104px; border-radius: 26px; box-shadow: 0 10px 30px rgba(245, 166, 35, .35); }
+        .ci-wrap h1 { margin: 0 0 8px; font-size: 1.45rem; line-height: 1.2; }
+        .ci-sub { margin: 0 auto 22px; color: var(--muted); font-size: .98rem; line-height: 1.45; max-width: 360px; }
+        .ci-go, .ci-abrir { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 54px; border-radius: 14px; font-weight: 800; font-size: 1.08rem; text-decoration: none; border: 0; cursor: pointer; box-sizing: border-box; }
+        .ci-go { background: linear-gradient(145deg, #fcd34d 0%, #F5A623 45%, #d97706 100%); color: #0b1220; box-shadow: 0 8px 22px rgba(245, 166, 35, .35); }
+        .ci-go[disabled] { opacity: .55; cursor: default; box-shadow: none; }
+        .ci-go[hidden], section[hidden], .ci-hint[hidden] { display: none !important; }
+        .ci-abrir { margin-top: 12px; background: transparent; color: var(--text-color); border: 2px solid var(--border); }
+        .ci-abrir.ci-primario { background: linear-gradient(145deg, #fcd34d 0%, #F5A623 45%, #d97706 100%); color: #0b1220; border: 0; box-shadow: 0 8px 22px rgba(245, 166, 35, .35); }
+        .ci-hint { margin: 12px 0 0; color: var(--muted); font-size: .88rem; line-height: 1.45; }
+        .ci-steps { list-style: none; margin: 0; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 10px; }
+        .ci-steps li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--card-bg); border: 1px solid var(--border); font-size: 1rem; line-height: 1.35; }
+        .ci-n { flex: 0 0 28px; height: 28px; border-radius: 50%; background: #F5A623; color: #0b1220; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+        .ci-ic { flex: 0 0 auto; display: inline-flex; width: 34px; height: 34px; border-radius: 9px; align-items: center; justify-content: center; background: rgba(10, 132, 255, .14); color: #0a84ff; }
+        .ci-ic svg { width: 22px; height: 22px; }
+        .ci-ok { margin: 0 0 4px; padding: 12px 14px; border-radius: 14px; background: rgba(22, 163, 74, .14); border: 1px solid rgba(22, 163, 74, .45); color: #4ade80; font-weight: 800; }
+        html[data-theme="light"] .ci-ok { color: #15803d; }
+    </style>
+</head>
+<body class="chat-app chat-instalar">
+    <main class="ci-wrap">
+        <a class="ci-voltar" href="inicio.html" id="ci-voltar">← Voltar</a>
+        <img class="ci-ico" src="chat/icon-192.png?v=20261006a" alt="Ícone do Chat Minera" width="104" height="104">
+        <h1>Chat na tela inicial</h1>
+        <p class="ci-sub">Coloque o <strong>Chat Minera</strong> na tela inicial do celular e abra as conversas num toque, sem abrir o site. É o mesmo chat do Minera Pará: mesma conta, mesmas conversas.</p>
+
+        <section id="ci-pronto" hidden>
+            <p class="ci-ok" id="ci-pronto-txt">✓ O Chat Minera já está na tela inicial deste aparelho.</p>
+        </section>
+
+        <section id="ci-android" hidden>
+            <button type="button" class="ci-go" id="ci-instalar" disabled>Preparando…</button>
+            <p class="ci-hint" id="ci-android-dica" hidden>Se o botão Instalar não aparecer: no Chrome, toque em <strong>⋮</strong> e depois em <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</p>
+        </section>
+
+        <section id="ci-ios" hidden>
+            <ol class="ci-steps">
+                <li><span class="ci-n">1</span><span class="ci-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg></span><span>Toque em <strong>Compartilhar</strong> na barra do Safari</span></li>
+                <li><span class="ci-n">2</span><span class="ci-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></svg></span><span>Toque em <strong>Adicionar à Tela de Início</strong></span></li>
+                <li><span class="ci-n">3</span><span class="ci-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Toque em <strong>Adicionar</strong></span></li>
+            </ol>
+            <p class="ci-hint">No iPhone, entre na sua conta uma vez dentro do Chat Minera.</p>
+        </section>
+
+        <a class="ci-abrir" id="ci-abrir" href="chat/">Abrir chat</a>
+    </main>
+    <script src="pwa.js?v=20261006a"></script>
+    <script>
+    (function instaladorChat() {
+        var K = 'minera_chat_instalado';
+        function $(id) { return document.getElementById(id); }
+        var prompt = null, decidido = false;
+        var ua = navigator.userAgent || '';
+        var ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+        function mostrar(id, on) { var el = $(id); if (el) el.hidden = !on; }
+        function abrirPrimario(on) { $('ci-abrir').classList.toggle('ci-primario', !!on); }
+        function pronto(txt) {
+            decidido = true;
+            if (txt) $('ci-pronto-txt').textContent = txt;
+            mostrar('ci-pronto', true); mostrar('ci-android', false); mostrar('ci-ios', false);
+            abrirPrimario(true);
+        }
+        function semSuporte() {
+            decidido = true;
+            mostrar('ci-android', true);
+            $('ci-instalar').hidden = true;
+            mostrar('ci-android-dica', true);
+            abrirPrimario(true);
+        }
+        window.__chatInstalador = function () {
+            return { prompt: !!prompt, ios: ios, standalone: standalone, pronto: !$('ci-pronto').hidden, iosPassos: !$('ci-ios').hidden,
+                instalar: !$('ci-android').hidden && !$('ci-instalar').hidden && !$('ci-instalar').disabled,
+                dica: !$('ci-android').hidden && !$('ci-android-dica').hidden, abrirPrimario: $('ci-abrir').classList.contains('ci-primario') };
+        };
+
+        if (standalone) { pronto('✓ Você já está no Chat Minera.'); return; }
+        if (ios) {
+            // "Adicionar à Tela de Início" usa o endereço atual: deixa /chat/ (o atalho abre direto no chat)
+            try { history.replaceState(null, '', 'chat/'); } catch (e) { /* ignore */ }
+            mostrar('ci-ios', true);
+            return;
+        }
+        mostrar('ci-android', true);
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            prompt = e; decidido = true;
+            try { localStorage.removeItem(K); } catch (e2) { /* ignore */ }
+            mostrar('ci-pronto', false); mostrar('ci-android', true); mostrar('ci-android-dica', false);
+            var b = $('ci-instalar'); b.hidden = false; b.disabled = false; b.textContent = 'Instalar';
+            abrirPrimario(false);
+        });
+        window.addEventListener('appinstalled', function () {
+            try { localStorage.setItem(K, '1'); } catch (e) { /* ignore */ }
+            prompt = null;
+            pronto('✓ Pronto! O Chat Minera está na tela inicial.');
+        });
+        $('ci-instalar').addEventListener('click', function () {
+            if (!prompt) return;
+            var p = prompt; prompt = null;
+            p.prompt();
+            p.userChoice.then(function (r) {
+                if (r && r.outcome === 'accepted') pronto('✓ Pronto! O Chat Minera está na tela inicial.');
+                else semSuporte();
+            }).catch(function () { semSuporte(); });
+        });
+        // Já instalado? (Chrome Android: getInstalledRelatedApps; ou a marca gravada no appinstalled)
+        var chk = navigator.getInstalledRelatedApps ? navigator.getInstalledRelatedApps().catch(function () { return []; }) : Promise.resolve([]);
+        chk.then(function (apps) {
+            if (prompt) return;
+            var marca = false;
+            try { marca = localStorage.getItem(K) === '1'; } catch (e) { /* ignore */ }
+            if ((apps && apps.length) || marca) pronto();
+        });
+        setTimeout(function () { if (!prompt && !decidido) semSuporte(); }, 3500);
+    })();
+    </script>
+</body>
+</html>

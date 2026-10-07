@@ -632,6 +632,8 @@ function montarNav(paginaAtiva, perfil) {
         || (document.body && document.body.classList.contains('pagina-admin'));
     // Chrome de monitoramento: modo admin OU qualquer visita a admin.html
     const hideClientChrome = adminUi || isAdminPage;
+    // Chat Minera (app só-chat instalado em /chat/): sem a barra de baixo do app
+    const chatApp = window.MINERA_CHAT_APP === true;
 
     if (!hideClientChrome) garantirHeaderCaixaBtn();
     else {
@@ -649,8 +651,9 @@ function montarNav(paginaAtiva, perfil) {
         body.classList.toggle('pagina-admin', isAdminPage);
         body.classList.toggle('modo-ui-admin', !!adminUi);
         body.classList.toggle('modo-ui-usuario', !!usuarioUi);
-        if (hideClientChrome) body.classList.remove('has-bottom-nav');
+        if (hideClientChrome || chatApp) body.classList.remove('has-bottom-nav');
         else body.classList.add('has-bottom-nav');
+        body.classList.toggle('chat-app', chatApp);
     }
 
     // Secondary #app-nav: no Serviços / Mais / Sair / Mapa chips (Mapa = atalho Início).
@@ -692,6 +695,8 @@ function montarNav(paginaAtiva, perfil) {
         if (svcSheet) svcSheet.classList.add('oculto');
         const fale = document.getElementById('card-fale-conosco');
         if (fale) fale.classList.add('oculto');
+    } else if (chatApp) {
+        if (bar) bar.remove();
     } else {
         if (!bar) {
             bar = document.createElement('nav');
@@ -750,7 +755,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261005a';
+    const src = root + 'logo-escavadeira.png?v=20261006a';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -886,9 +891,11 @@ const MineraNotif = (function () {
     let dmBadgeCount = 0;
     /** Conversa da mensagem: DM = id de quem enviou · grupo (SQL 55) = "g:<grupo>" */
     function chaveConv(m) { return m && m.grupo_id ? 'g:' + m.grupo_id : (m ? m.de_auth_id : null); }
+    /** Página do chat: chat.html no app; chat/ no Chat Minera (app só-chat), para não sair do app instalado. */
+    function chatPag() { return window.MINERA_CHAT_APP === true ? 'chat/' : 'chat.html'; }
     function hrefConv(chave) {
         const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-        return root + 'chat.html' + (/^g:/.test(String(chave || '')) ? '?grupo=' + encodeURIComponent(String(chave).slice(2)) : '?para=' + encodeURIComponent(chave));
+        return root + chatPag() + (/^g:/.test(String(chave || '')) ? '?grupo=' + encodeURIComponent(String(chave).slice(2)) : '?para=' + encodeURIComponent(chave));
     }
     let gruposOk = null; // false = SQL 55 ainda não aplicado
     async function meusGruposIds() {
@@ -904,6 +911,13 @@ const MineraNotif = (function () {
     function updateBadge(n) {
         dmBadgeCount = Number(n) || 0;
         renderCombinedBadge();
+        // Chat Minera instalado: número de não lidas no ícone (Android/desktop que suportam) e no título
+        if (window.MINERA_CHAT_APP === true) {
+            try {
+                if (navigator.setAppBadge) { if (dmBadgeCount > 0) navigator.setAppBadge(dmBadgeCount).catch(() => {}); else navigator.clearAppBadge().catch(() => {}); }
+            } catch (e) { /* ignore */ }
+            try { document.title = (dmBadgeCount > 0 ? '(' + (dmBadgeCount > 99 ? '99+' : dmBadgeCount) + ') ' : '') + 'Chat Minera'; } catch (e) { /* ignore */ }
+        }
     }
 
     /** Badge na aba Chat da barra inferior (mesma contagem de DMs não lidas do sino). */
@@ -1016,7 +1030,7 @@ const MineraNotif = (function () {
             '<a class="notif-dd-foot" id="notif-dd-foot" href="#">Abrir Chat</a>';
         document.body.appendChild(dd);
         const foot = document.getElementById('notif-dd-foot');
-        if (foot) foot.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'chat.html';
+        if (foot) foot.href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + chatPag();
         document.addEventListener('click', (e) => {
             if (!dd.classList.contains('oculto')) {
                 if (!dd.contains(e.target) && e.target.id !== 'btn-notif' && !(e.target.closest && e.target.closest('#btn-notif'))) {
@@ -1036,15 +1050,16 @@ const MineraNotif = (function () {
         try {
             if (!('Notification' in window) || Notification.permission !== 'granted') return;
             const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
+            const ico = root + (window.MINERA_CHAT_APP === true ? 'chat/icon-192.png' : 'icon-192.png');
             const options = {
                 body: body || '',
-                icon: root + 'icon-192.png',
-                badge: root + 'icon-192.png',
+                icon: ico,
+                badge: ico,
                 tag: opts.tag || 'minera',
                 renotify: !!opts.tag,
                 silent: false,
                 vibrate: [80, 40, 80],
-                data: { url: opts.url || (root + 'chat.html') }
+                data: { url: opts.url || (root + chatPag()) }
             };
             const fallback = () => { try { new Notification(title, options); } catch (e) { /* ignore */ } };
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -1108,7 +1123,7 @@ const MineraNotif = (function () {
         if (peers.length === 2) de += ' e ' + nomes[peers[1]];
         else if (peers.length > 2) de += ', ' + nomes[peers[1]] + ' e mais ' + (peers.length - 2);
         const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-        const href = peers.length === 1 ? hrefConv(peers[0]) : root + 'chat.html';
+        const href = peers.length === 1 ? hrefConv(peers[0]) : root + chatPag();
         fecharLembrete();
         const el = document.createElement('div');
         el.id = 'notif-lembrete';
@@ -1769,7 +1784,7 @@ const MineraApoio = (function () {
     function concluir() { ss(K_MOSTRAR, null); ss(K_VISTO, '1'); }
     function paginaAdiavel() {
         const p = (location.pathname || '').toLowerCase();
-        return /\/(chat|tutorial|index|entrar|admin)\.html$/.test(p);
+        return /\/(chat|tutorial|index|entrar|admin)\.html$/.test(p) || window.MINERA_CHAT_APP === true;
     }
     function escA(s) {
         return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

@@ -11,7 +11,12 @@ const APP_ROOT = (function () {
 /** URL pública canônica (links de convite/compartilhamento, og:). */
 const APP_PUBLIC_URL = 'https://minerapara.com.br/';
 function irPara(pagina) {
-    const p = String(pagina || '').replace(/^\.\//, '').replace(/^\//, '');
+    let p = String(pagina || '').replace(/^\.\//, '').replace(/^\//, '');
+    // Chat Minera (app só-chat em /chat/): o login fica dentro do /chat/ e, depois de entrar, volta para o chat
+    if (window.MINERA_CHAT_APP === true) {
+        if (/^entrar\.html/i.test(p)) p = 'chat/' + p;
+        else if (/^(inicio|admin|chat|tutorial)\.html/i.test(p)) p = 'chat/';
+    }
     window.location.replace(APP_ROOT + p);
 }
 

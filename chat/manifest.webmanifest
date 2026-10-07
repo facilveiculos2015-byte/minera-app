@@ -1,0 +1,25 @@
+{
+  "name": "Chat Minera",
+  "short_name": "Chat Minera",
+  "description": "O chat do Minera Pará direto na tela inicial: mesmas conversas e mesma conta.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1220",
+  "theme_color": "#F5A623",
+  "categories": ["social", "business"],
+  "related_applications": [
+    { "platform": "webapp", "url": "https://minerapara.com.br/chat/manifest.webmanifest" }
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

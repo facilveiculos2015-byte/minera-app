@@ -1,23 +1,26 @@
 <!DOCTYPE html>
+<!-- GERADO por scripts/chat-app-sync.mjs a partir de chat.html (Chat Minera, modo só-chat). Não editar à mão. -->
 <html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' data: blob: https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://api.allorigins.win https://servicodados.ibge.gov.br https://economia.awesomeapi.com.br https://api.gold-api.com https://query1.finance.yahoo.com https://api.coinbase.com https://metalmetric.com https://mintedmetal.com; worker-src 'self' blob:; frame-src 'self' https://www.google.com https://maps.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Minera Chat</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261006a">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261006a">
-    <link rel="manifest" href="manifest.webmanifest">
+    <base href="../">
+    <script>window.MINERA_CHAT_APP = true;</script>
+    <title>Chat Minera</title>
+    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261006a">
+    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261006a">
+    <link rel="manifest" href="chat/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+    <meta name="apple-mobile-web-app-title" content="Chat Minera">
     <link rel="stylesheet" href="style.css?v=20261006a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
-<body class="pagina-chat">
+<body class="pagina-chat chat-app">
     <div class="container wide">
         <p id="user-label" class="oculto"></p>
         <nav id="app-nav" class="nav-chips oculto"></nav>
@@ -33,6 +36,7 @@
                     </div>
                 </div>
                 <h1 class="wa-title">Conversas</h1>
+                <a class="chat-app-full" href="inicio.html" target="_blank" rel="noopener">Abrir Minera Pará completo ↗</a>
                 <input type="search" id="chat-busca-contatos" class="wa-search" placeholder="Buscar ou pesquisar…" autocomplete="off">
                 <div class="wa-chips" id="wa-filter-chips" role="group" aria-label="Filtros">
                     <button type="button" class="wa-chip on" data-wa="todas">Todas</button>
