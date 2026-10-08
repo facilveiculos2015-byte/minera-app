@@ -22,6 +22,7 @@
       }
       sessionStorage.setItem(RELOAD_FLAG, '1');
       localStorage.setItem('minera_asset_v', ASSET_V);
+      window.__mineraRecarregando = true; // vai recarregar esta mesma URL (chat/instalar.html no iPhone espera)
       var wipe = Promise.resolve();
       if (typeof caches !== 'undefined' && caches.keys) {
         wipe = caches.keys().then(function (keys) {
@@ -70,6 +71,7 @@
   }
 
   function hardReloadTo(remote) {
+    window.__mineraRecarregando = true;
     var wipe = Promise.resolve();
     if (typeof caches !== 'undefined' && caches.keys) {
       wipe = caches.keys().then(function (keys) {

@@ -107,8 +107,9 @@
 
         if (standalone) { marcarInstalado(); pronto('✓ Você já está no Chat Minera.'); return; }
         if (ios) {
-            // "Adicionar à Tela de Início" usa o endereço atual: deixa /chat/ (o atalho abre direto no chat)
-            try { history.replaceState(null, '', 'chat/'); } catch (e) { /* ignore */ }
+            // "Adicionar à Tela de Início" usa o endereço atual: deixa /chat/ (o atalho abre direto no chat).
+            // Só depois do recarregamento de build (pwa.js), senão ele recarregaria /chat/ em vez do instalador.
+            if (!window.__mineraRecarregando) { try { history.replaceState(null, '', 'chat/'); } catch (e) { /* ignore */ } }
             mostrar('ci-ios', true);
             return;
         }
