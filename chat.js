@@ -601,6 +601,62 @@ async function sincronizarConversa() {
     } catch (e) { /* offline: tenta no próximo ciclo */ } finally { syncando = false; }
 }
 
+/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261008e). */
+let atualizandoManual = false, atualizarOkT = null;
+async function atualizarConversaManual() {
+    const btn = $('btn-chat-atualizar');
+    if (!T.peer || atualizandoManual) return;
+    atualizandoManual = true;
+    clearTimeout(atualizarOkT);
+    const rotulo = btn && btn.querySelector('.gk-refresh-ok');
+    if (btn) { btn.classList.remove('ok', 'erro'); btn.classList.add('girando'); btn.setAttribute('aria-busy', 'true'); }
+    const t0 = Date.now(), gen = T.gen, peer = T.peer;
+    let ok = false;
+    try { if (window.MineraRT && MineraRT.reconectar) MineraRT.reconectar(); } catch (e) { /* ignore */ }
+    try {
+        const [pg, leit] = await Promise.all([ChatStore.pagina(peer, null), ChatStore.leituraDoOutro(peer)]);
+        if (gen !== T.gen) return;
+        T.peerLida = Math.max(T.peerLida, leit.lida); T.peerEntregue = Math.max(T.peerEntregue, leit.entregue, leit.lida);
+        if (leit.membros && ehGrupoPeer(peer)) aplicarMembrosGrupo(leit.membros);
+        const box = boxMsgs();
+        if (isNearBottom(box)) {
+            // no fim da conversa (caso comum): redesenha tudo a partir do servidor
+            T.msgs = new Map(); T.minId = null; T.maxId = 0;
+            registrarMsgs(pg.msgs);
+            T.temMais = pg.temMais;
+            renderConversaCompleta(pg.msgs);
+            rolarFim(false);
+        } else {
+            // lendo mensagens antigas: aplica só a diferença para não perder a posição
+            const ids = new Set(pg.msgs.map(m => Number(m.id)));
+            const menor = pg.msgs.length ? Number(pg.msgs[0].id) : Infinity;
+            Array.from(T.msgs.keys()).forEach(id => { if (id >= menor && !ids.has(id)) { T.msgs.delete(id); removerBolha('m' + id); } });
+            pg.msgs.forEach(m => receberRow(m));
+            atualizarTicks();
+        }
+        T.ultimoSync = Date.now();
+        salvarCacheConversa();
+        marcarLidoSeVisivel();
+        promoverMinhasAgendadas();
+        ok = true;
+    } catch (e) {
+        console.warn('atualizar conversa', e);
+    } finally {
+        reenviarFila(); agendarInbox(200);
+        const espera = Math.max(0, 600 - (Date.now() - t0)); // giro visível mesmo com rede rápida
+        setTimeout(() => {
+            atualizandoManual = false;
+            if (!btn) return;
+            btn.classList.remove('girando'); btn.removeAttribute('aria-busy');
+            if (gen !== T.gen) return;
+            if (rotulo) rotulo.textContent = ok ? 'Atualizado' : 'Sem conexão';
+            btn.classList.add(ok ? 'ok' : 'erro');
+            if (!ok) toast('Sem conexão. Tente de novo quando a internet voltar.');
+            atualizarOkT = setTimeout(() => btn.classList.remove('ok', 'erro'), 1600);
+        }, espera);
+    }
+}
+
 /* Agendadas: quem enviou promove quando vence (comportamento existente) */
 let agendaT = null;
 async function promoverMinhasAgendadas() {
@@ -1007,7 +1063,7 @@ function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(po
 /* ============================ áudio estilo WhatsApp ============================ */
 // Segurar = grava enquanto segura (solta envia; deslize ← ou "Cancelar" descarta).
 // Segurar e arrastar ↑ = trava (barra com Cancelar e ➤ enviar). Nunca trava sozinho.
-// 20261008d: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
+// 20261008e: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
 // (trilha desligada entre uma e outra) e só é solto quando o app sai da tela ou fica 10 min parado.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
@@ -2166,6 +2222,7 @@ function bindTela() {
     const bCR = $('btn-cancel-reply'); if (bCR) bCR.addEventListener('click', () => setReplyTo(null, true));
     const bMenu = $('btn-chat-menu'); if (bMenu) bMenu.addEventListener('click', (e) => { e.stopPropagation(); toggleChatHeadMenu(); });
     const bOp = $('btn-chat-opcoes'); if (bOp) bOp.addEventListener('click', (e) => { e.stopPropagation(); toggleChatHeadMenu(); });
+    const bAtu = $('btn-chat-atualizar'); if (bAtu) bAtu.addEventListener('click', (e) => { e.stopPropagation(); fecharChatHeadMenu(); atualizarConversaManual(); });
     const bAm = $('btn-op-amigo'); if (bAm) bAm.addEventListener('click', adicionarAmigoAtual);
     const bBl = $('btn-op-bloquear'); if (bBl) bBl.addEventListener('click', () => alternarBloqueio(T.peer));
     const bDes = $('btn-bloq-desbloquear'); if (bDes) bDes.addEventListener('click', () => alternarBloqueio(T.peer));
