@@ -1,9 +1,15 @@
 // Minera Pará — Edge Function "send-push" (Web Push com o app FECHADO).
-// Chamada SÓ pelo gatilho do SQL 54 (pg_net) com o cabeçalho x-push-secret.
-// Recebe { id } da mensagem, lê com service_role, acha os destinatários
-// (DM: para_auth_id · grupo: membros ativos do SQL 55), exceto o remetente,
-// e envia o push para todos os aparelhos inscritos (push_subscriptions).
-// Inscrições expiradas (404/410) são apagadas.
+// Chamada SÓ pelo gatilho do banco (pg_net) com o cabeçalho x-push-secret.
+//
+// v2 (SQL 57, 08/10/2026): o gatilho já manda TUDO o que precisa — remetente,
+// tipo/trecho, grupo e as inscrições (endpoint/chaves) dos destinatários —
+// então a função NÃO depende de ler o banco para entregar. Antes (v1, SQL 54)
+// ela recebia só { id } e lia chat_mensagens; essa leitura voltava vazia em
+// produção ("mensagem não encontrada") e nenhum aviso saía.
+// v1 continua aceito (corpo só com { id }): lê com a chave secreta nova
+// (SUPABASE_SECRET_KEYS) ou a legada (SUPABASE_SERVICE_ROLE_KEY), com novas
+// tentativas, e devolve o motivo exato se não achar.
+// Inscrições expiradas (404/410) são apagadas (melhor esforço).
 //
 // Segredos (supabase secrets set ...): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
 // VAPID_SUBJECT (mailto:...), PUSH_HOOK_SECRET.  SUPABASE_URL e
@@ -17,13 +23,76 @@ const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "mailto:minerapara@gmail.com";
 const HOOK_SECRET = Deno.env.get("PUSH_HOOK_SECRET") ?? "";
 
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+try { webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE); } catch (e) { console.error("VAPID inválido", (e as Error)?.message); }
 
-const sb = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-  { auth: { persistSession: false, autoRefreshToken: false } },
-);
+const SB_URL = Deno.env.get("SUPABASE_URL") ?? "";
+function chavesAdmin(): { nome: string; valor: string }[] {
+  const out: { nome: string; valor: string }[] = [];
+  try {
+    const novas = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}") as Record<string, string>;
+    if (novas && typeof novas === "object") {
+      if (novas["default"]) out.push({ nome: "secret:default", valor: String(novas["default"]) });
+      for (const [k, v] of Object.entries(novas)) if (k !== "default" && v) out.push({ nome: "secret:" + k, valor: String(v) });
+    }
+  } catch { /* sem chaves novas */ }
+  const legada = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (legada) out.push({ nome: "service_role", valor: legada });
+  return out;
+}
+const CLIENTES = chavesAdmin().map((k) => ({
+  nome: k.nome,
+  sb: createClient(SB_URL, k.valor, { auth: { persistSession: false, autoRefreshToken: false } }),
+}));
+// cliente para tarefas de apoio (nome do remetente, limpeza de inscrição expirada)
+const sb = CLIENTES[0]?.sb ?? createClient(SB_URL, "sem-chave", { auth: { persistSession: false, autoRefreshToken: false } });
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** v1: lê a mensagem com cada chave, com novas tentativas (0 · 0,6 s · 1,8 s). */
+// deno-lint-ignore no-explicit-any
+async function lerMensagem(id: number): Promise<{ m: Record<string, any> | null; motivo: string }> {
+  const motivos: string[] = [];
+  if (!CLIENTES.length) return { m: null, motivo: "sem chave de serviço no ambiente da função" };
+  for (const atraso of [0, 600, 1800]) {
+    if (atraso) await esperar(atraso);
+    for (const c of CLIENTES) {
+      const { data, error } = await c.sb.from("chat_mensagens").select("*").eq("id", id).maybeSingle();
+      // deno-lint-ignore no-explicit-any
+      if (data) return { m: data as Record<string, any>, motivo: "" };
+      motivos.push(c.nome + ": " + (error ? (error.code ?? "") + " " + (error.message ?? "erro") : "0 linhas"));
+    }
+  }
+  return { m: null, motivo: [...new Set(motivos)].join(" | ").slice(0, 400) };
+}
+
+type Sub = { id: number; endpoint: string; p256dh: string; auth: string };
+
+async function enviarPara(subs: Sub[], payload: string, tag: string) {
+  let enviados = 0, removidos = 0, falhas = 0;
+  const erros: string[] = [];
+  await Promise.all(subs.map(async (s) => {
+    if (!s || !s.endpoint || !s.p256dh || !s.auth) return;
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        payload,
+        { TTL: 86400, urgency: "high", topic: tag.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) },
+      );
+      enviados++;
+    } catch (e) {
+      const code = (e as { statusCode?: number })?.statusCode ?? 0;
+      if (code === 404 || code === 410) {
+        try { await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint); } catch { /* melhor esforço */ }
+        removidos++;
+      } else {
+        falhas++;
+        const host = (() => { try { return new URL(s.endpoint).host; } catch { return "?"; } })();
+        erros.push(host + " " + code + " " + String((e as Error)?.message ?? "").slice(0, 80));
+        console.warn("push falhou", host, code, (e as Error)?.message);
+      }
+    }
+  }));
+  return { enviados, removidos, falhas, erros: erros.slice(0, 3) };
+}
 
 function iguais(a: string, b: string): boolean {
   if (!a || !b || a.length !== b.length) return false;
@@ -57,12 +126,38 @@ Deno.serve(async (req) => {
   if (!HOOK_SECRET || !iguais(req.headers.get("x-push-secret") ?? "", HOOK_SECRET)) {
     return resp({ ok: false, erro: "não autorizado" }, 401);
   }
-  let id: number | null = null;
-  try { id = Number((await req.json())?.id) || null; } catch { /* corpo inválido */ }
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return resp({ ok: false, erro: "VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY ausentes nos segredos da função" }, 200);
+  let corpo: Record<string, unknown> = {};
+  try { corpo = (await req.json()) ?? {}; } catch { /* corpo inválido */ }
+  const id = Number(corpo?.id) || null;
   if (!id) return resp({ ok: false, erro: "id" }, 400);
 
-  const { data: m, error } = await sb.from("chat_mensagens").select("*").eq("id", id).maybeSingle();
-  if (error || !m) return resp({ ok: false, erro: "mensagem não encontrada" }, 200);
+  // ---------- v2: o gatilho (SQL 57) já mandou tudo ----------
+  if (Number(corpo.v) === 2) {
+    const de = String(corpo.de ?? "");
+    const nome = semEmail(corpo.de_nome) || "Alguém";
+    const m2 = { tipo: corpo.tipo, texto: corpo.texto };
+    let title = nome, body = previa(m2);
+    let url = "./chat.html?com=" + encodeURIComponent(de), tag = "dm-" + de;
+    if (corpo.grupo_id) {
+      title = semEmail(corpo.grupo_nome) || "Grupo";
+      body = nome + ": " + body;
+      url = "./chat.html?grupo=" + encodeURIComponent(String(corpo.grupo_id));
+      tag = "g-" + String(corpo.grupo_id);
+    }
+    const subs = (Array.isArray(corpo.subs) ? corpo.subs : []) as unknown as Sub[];
+    if (!subs.length) return resp({ ok: true, v: 2, id, enviados: 0, inscricoes: 0 });
+    const payload = JSON.stringify({ title: "Minera Pará — " + title, body, url, tag });
+    const r = await enviarPara(subs, payload, tag);
+    return resp({ ok: true, v: 2, id, inscricoes: subs.length, ...r });
+  }
+
+  // ---------- v1: só { id } (SQL 54) ----------
+  const { m, motivo } = await lerMensagem(id);
+  if (!m) {
+    console.error("send-push: mensagem não encontrada", id, motivo);
+    return resp({ ok: false, erro: "mensagem não encontrada", id, motivo, chaves: CLIENTES.map((c) => c.nome) }, 200);
+  }
   if (m.deleted_at || (m.status ?? "enviada") === "agendada" || m.moderacao === "removida") {
     return resp({ ok: true, pulou: "estado" });
   }
@@ -98,29 +193,10 @@ Deno.serve(async (req) => {
   destinos = [...new Set(destinos)].filter((d) => d && d !== de && !apagadas.includes(d));
   if (!destinos.length) return resp({ ok: true, enviados: 0 });
 
-  const { data: subs } = await sb.from("push_subscriptions").select("id,endpoint,p256dh,auth")
+  const { data: subs, error: eSubs } = await sb.from("push_subscriptions").select("id,endpoint,p256dh,auth")
     .in("auth_id", destinos);
+  if (eSubs) return resp({ ok: false, erro: "não leu push_subscriptions", motivo: (eSubs.code ?? "") + " " + (eSubs.message ?? "") }, 200);
   const payload = JSON.stringify({ title: "Minera Pará — " + title, body, url, tag });
-
-  let enviados = 0, removidos = 0, falhas = 0;
-  await Promise.all((subs ?? []).map(async (s: { id: number; endpoint: string; p256dh: string; auth: string }) => {
-    try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        payload,
-        { TTL: 86400, urgency: "high", topic: tag.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) },
-      );
-      enviados++;
-    } catch (e) {
-      const code = (e as { statusCode?: number })?.statusCode ?? 0;
-      if (code === 404 || code === 410) {
-        await sb.from("push_subscriptions").delete().eq("id", s.id);
-        removidos++;
-      } else {
-        falhas++;
-        console.warn("push falhou", code, (e as Error)?.message);
-      }
-    }
-  }));
-  return resp({ ok: true, enviados, removidos, falhas });
+  const r = await enviarPara((subs ?? []) as Sub[], payload, tag);
+  return resp({ ok: true, v: 1, id, inscricoes: (subs ?? []).length, ...r });
 });

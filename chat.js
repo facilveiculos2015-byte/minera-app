@@ -1007,7 +1007,7 @@ function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(po
 /* ============================ áudio estilo WhatsApp ============================ */
 // Segurar = grava enquanto segura (solta envia; deslize ← ou "Cancelar" descarta).
 // Segurar e arrastar ↑ = trava (barra com Cancelar e ➤ enviar). Nunca trava sozinho.
-// 20261008c: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
+// 20261008d: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
 // (trilha desligada entre uma e outra) e só é solto quando o app sai da tela ou fica 10 min parado.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
