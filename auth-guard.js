@@ -499,12 +499,15 @@ async function destinoPosLogin(user) {
 async function desligarPushDoAparelho() {
     try {
         if (!('serviceWorker' in navigator)) return;
-        const reg = await Promise.race([navigator.serviceWorker.getRegistration(), new Promise((r) => setTimeout(r, 2500))]);
-        const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
-        if (!sub) return;
-        try { await Promise.race([supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* ignore */ }
-        try { await sub.unsubscribe(); } catch (e) { /* ignore */ }
-        try { Object.keys(localStorage).forEach((k) => { if (/^minera_push_reg_/.test(k)) localStorage.removeItem(k); }); } catch (e) { /* ignore */ }
+        // App completo E Chat Minera (/chat/, outro service worker): a sessão é a mesma, então os dois param de avisar
+        const regs = await Promise.race([navigator.serviceWorker.getRegistrations(), new Promise((r) => setTimeout(() => r([]), 2500))]);
+        for (const reg of (regs || [])) {
+            const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription().catch(() => null) : null;
+            if (!sub) continue;
+            try { await Promise.race([supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* ignore */ }
+            try { await sub.unsubscribe(); } catch (e) { /* ignore */ }
+        }
+        try { Object.keys(localStorage).forEach((k) => { if (/^minera_push_(reg|chat)_/.test(k)) localStorage.removeItem(k); }); } catch (e) { /* ignore */ }
     } catch (e) { /* ignore */ }
 }
 

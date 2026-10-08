@@ -755,7 +755,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261008a';
+    const src = root + 'logo-escavadeira.png?v=20261008c';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1457,6 +1457,7 @@ const MineraNotifPerm = (function () {
         atualizarUis();
         if (r === 'granted' && typeof toastMsg === 'function') toastMsg('Avisos de mensagem ativados');
         if (r === 'granted' && window.MineraPush) MineraPush.assinar(true);
+        if (r !== 'granted' && window.MineraPush && MineraPush.dicaIOS() && typeof toastMsg === 'function') toastMsg(MineraPush.dicaIOS());
         return r;
     }
     function fecharCard() {
@@ -1523,7 +1524,7 @@ const MineraNotifPerm = (function () {
             btn.disabled = true;
         } else {
             lbl.textContent = 'Desativado';
-            btn.textContent = 'Ativar';
+            btn.textContent = window.MINERA_CHAT_APP === true ? 'Ativar avisos' : 'Ativar';
         }
     }
     function atualizarUis() {
@@ -1581,6 +1582,34 @@ const MineraPush = (function () {
             return r && r.data && r.data.session && r.data.session.user ? r.data.session.user.id : null;
         } catch (e) { return null; }
     }
+    /* Chat Minera (/chat/) e app completo no MESMO aparelho: um aviso só por mensagem.
+     * O Chat Minera instalado assume os avisos (toque abre a conversa nele) e o app completo deixa de se inscrever.
+     * minera_push_chat_<uid> = endpoint do Chat Minera neste aparelho (localStorage é o mesmo no Android). */
+    const K_CHAT = 'minera_push_chat_';
+    function chatApp() { return window.MINERA_CHAT_APP === true; }
+    function raiz() { return location.origin + (typeof APP_ROOT === 'string' ? APP_ROOT : '/'); }
+    async function regDe(url, ehChat) {
+        try {
+            const r = await navigator.serviceWorker.getRegistration(url);
+            if (!r) return null;
+            return (/\/chat\/$/.test(r.scope) === ehChat) ? r : null;
+        } catch (e) { return null; }
+    }
+    async function subDe(reg) { try { return reg && reg.pushManager ? await reg.pushManager.getSubscription() : null; } catch (e) { return null; } }
+    async function largar(sub) {
+        if (!sub) return;
+        try { await supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); } catch (e) { /* ignore */ }
+        try { await sub.unsubscribe(); } catch (e) { /* ignore */ }
+    }
+    /** Texto curto quando o aviso com o app fechado não dá no iPhone (vazio se não for o caso). */
+    function dicaIOS() {
+        if (!ehIOS()) return '';
+        const nome = chatApp() ? 'Chat Minera' : 'Minera Pará';
+        if (!standalone()) return 'No iPhone, os avisos com o app fechado só chegam com o ' + nome + ' aberto pelo ícone da Tela de Início (iOS 16.4 ou mais novo).';
+        if (!suportado()) return 'Este iPhone não recebe avisos com o app fechado: precisa do iOS 16.4 ou mais novo.';
+        if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return 'Avisos bloqueados no iPhone: abra Ajustes > Notificações > ' + nome + ' e permita.';
+        return '';
+    }
     let emCurso = null;
     /** force = acabou de conceder (ignora o "já registrado hoje"). */
     function assinar(force) {
@@ -1591,6 +1620,18 @@ const MineraPush = (function () {
                 const uid = await uidAtual();
                 if (!uid) return false;
                 const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('sw timeout')), 8000))]);
+                if (chatApp()) {
+                    // /chat/ aberto no navegador (não instalado) e o app completo já recebe os avisos aqui: não duplica
+                    if (!standalone() && await subDe(await regDe(raiz(), false))) return true;
+                } else {
+                    let epChat = '';
+                    try { epChat = localStorage.getItem(K_CHAT + uid) || ''; } catch (e) { /* ignore */ }
+                    if (epChat) {
+                        const sc = await subDe(await regDe(raiz() + 'chat/', true));
+                        if (sc && sc.endpoint === epChat) { await largar(await subDe(reg)); return true; } // o Chat Minera deste aparelho já avisa
+                        try { localStorage.removeItem(K_CHAT + uid); } catch (e) { /* ignore */ }
+                    }
+                }
                 const chave = b64ParaBytes(VAPID_PUBLIC);
                 let sub = await reg.pushManager.getSubscription();
                 if (sub && sub.options && sub.options.applicationServerKey && !bytesIguais(sub.options.applicationServerKey, chave)) {
@@ -1599,16 +1640,24 @@ const MineraPush = (function () {
                 }
                 if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave });
                 const j = sub.toJSON();
+                const kReg = K_REG + (chatApp() ? 'chat_' : '') + uid;
                 const marca = uid + '|' + j.endpoint + '|' + new Date().toISOString().slice(0, 10);
                 let antes = '';
-                try { antes = localStorage.getItem(K_REG + uid) || ''; } catch (e) { /* ignore */ }
-                if (!force && antes === marca) return true;
+                try { antes = localStorage.getItem(kReg) || ''; } catch (e) { /* ignore */ }
+                if (!force && antes === marca) {
+                    if (chatApp()) await largar(await subDe(await regDe(raiz(), false)));
+                    return true;
+                }
                 const { error } = await supabaseClient.rpc('push_registrar', {
                     p_endpoint: j.endpoint, p_p256dh: j.keys && j.keys.p256dh, p_auth: j.keys && j.keys.auth,
                     p_ua: (navigator.userAgent || '').slice(0, 300)
                 });
                 if (error) { console.warn('push_registrar', error.message || error); return false; } // SQL 54 ainda não aplicado
-                try { localStorage.setItem(K_REG + uid, marca); } catch (e) { /* ignore */ }
+                try { localStorage.setItem(kReg, marca); } catch (e) { /* ignore */ }
+                if (chatApp()) {
+                    try { localStorage.setItem(K_CHAT + uid, j.endpoint); } catch (e) { /* ignore */ }
+                    await largar(await subDe(await regDe(raiz(), false))); // um aviso por aparelho: o Chat Minera assume
+                }
                 return true;
             } catch (e) {
                 console.warn('MineraPush', e && e.message ? e.message : e);
@@ -1620,15 +1669,23 @@ const MineraPush = (function () {
     /** Faixa no Chat (1ª vez que abre a lista): "Ativar notificações" — só se ainda não decidiu. */
     function montarFaixaChat(parent, before) {
         if (!parent || document.getElementById('push-cta')) return;
-        const iosSemApp = ehIOS() && !standalone();
+        const iosSemApp = ehIOS() && (!standalone() || (chatApp() && !suportado()));
         let html = '';
         if (iosSemApp) {
             let visto = false;
             try { visto = localStorage.getItem(K_IOS_DICA) === '1'; } catch (e) { /* ignore */ }
             if (visto) return;
             html = '<div class="npc-txt"><strong>🔔 Notificações no iPhone</strong>' +
-                '<span>Para receber mensagens com o app fechado: toque em Compartilhar <b>⎋</b> → <b>Adicionar à Tela de Início</b> e abra o Minera pelo ícone (iOS 16.4 ou mais novo).</span></div>' +
+                (chatApp()
+                    ? '<span>' + dicaIOS() + (standalone() ? '' : ' Toque em Compartilhar <b>⎋</b> → <b>Adicionar à Tela de Início</b>.') + '</span></div>'
+                    : '<span>Para receber mensagens com o app fechado: toque em Compartilhar <b>⎋</b> → <b>Adicionar à Tela de Início</b> e abra o Minera pelo ícone (iOS 16.4 ou mais novo).</span></div>') +
                 '<div class="npc-acoes"><button type="button" class="npc-nao">Entendi</button></div>';
+        } else if (chatApp()) {
+            if (!suportado() || !window.MineraNotifPerm || !MineraNotifPerm.podePedirInline()) return;
+            html = '<div class="npc-txt"><strong>🔔 Ativar avisos</strong>' +
+                '<span>Receba as mensagens na barra do celular, mesmo com o Chat Minera fechado.</span></div>' +
+                '<div class="npc-acoes"><button type="button" class="npc-nao">Agora não</button>' +
+                '<button type="button" class="npc-sim">Ativar avisos</button></div>';
         } else {
             if (!suportado() || !window.MineraNotifPerm || !MineraNotifPerm.podePedirInline()) return;
             html = '<div class="npc-txt"><strong>🔔 Ativar notificações</strong>' +
@@ -1652,7 +1709,7 @@ const MineraPush = (function () {
         const sim = el.querySelector('.npc-sim');
         if (sim) sim.addEventListener('click', async () => { await MineraNotifPerm.pedir(); fechar(); });
     }
-    return { assinar, montarFaixaChat, suportado, ehIOS, standalone, VAPID_PUBLIC };
+    return { assinar, montarFaixaChat, suportado, ehIOS, standalone, dicaIOS, VAPID_PUBLIC };
 })();
 window.MineraPush = MineraPush;
 

@@ -8,7 +8,7 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20261008a';
+  var ASSET_V = '20261008c';
   // Chat Minera (app só-chat instalável em /chat/): service worker e instalação próprios
   var CHAT_APP = window.MINERA_CHAT_APP === true;
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;

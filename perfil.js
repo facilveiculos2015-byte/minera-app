@@ -763,6 +763,14 @@ document.addEventListener('click', async (e) => {
     // Toggle "Avisos de mensagem" (permissão só no toque)
     if (window.MineraNotifPerm) MineraNotifPerm.montarToggle(document.getElementById('notif-perm-toggle'));
     if (window.MineraSom) MineraSom.montarToggle(document.getElementById('notif-som-toggle'));
+    (async function () {
+        try {
+            if (!window.MineraChatTrava) return;
+            var r = await supabaseClient.auth.getSession();
+            var uid = r && r.data && r.data.session && r.data.session.user && r.data.session.user.id;
+            if (uid) MineraChatTrava.montarToggle(document.getElementById('chat-trava-toggle'), uid);
+        } catch (e) { /* ignore */ }
+    })();
 })();
 
 /* ===== Meus banners (SQL 50) ===== */

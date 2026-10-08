@@ -1005,8 +1005,10 @@ function autoCrescer() {
 function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }
 
 /* ============================ áudio estilo WhatsApp ============================ */
-// Segurar = grava enquanto segura (solta envia; deslize ← cancela).
-// Tocar = grava "travado": barra com 🗑 descartar e ➤ enviar.
+// Segurar = grava enquanto segura (solta envia; deslize ← ou "Cancelar" descarta).
+// Segurar e arrastar ↑ = trava (barra com Cancelar e ➤ enviar). Nunca trava sozinho.
+// 20261008c: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
+// (trilha desligada entre uma e outra) e só é solto quando o app sai da tela ou fica 10 min parado.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
 let iniciandoGravacao = false;
@@ -1063,6 +1065,36 @@ function onRecordingReady(blob) {
     enviarAudioGravado(file, audioPicos, dur);
 }
 let audioRecDur = 0;
+let micStream = null, micSoltarT = null;
+const MIC_GUARDA_MS = 10 * 60 * 1000;
+const AUDIO_OPCOES = { audio: { echoCancellation: true, noiseSuppression: true } };
+function micVivo(st) { try { return !!st && st.getAudioTracks().some(t => t.readyState === 'live'); } catch (e) { return false; } }
+async function pegarMic() {
+    clearTimeout(micSoltarT); micSoltarT = null;
+    if (micVivo(micStream)) { micStream.getAudioTracks().forEach(t => { t.enabled = true; }); return micStream; }
+    micStream = null;
+    const st = await navigator.mediaDevices.getUserMedia(AUDIO_OPCOES); // no gesto do usuário; só na 1ª vez
+    micStream = st;
+    return st;
+}
+// iPhone/iPad (WebKit) volta a perguntar a cada getUserMedia depois que o mic é solto
+const MIC_WEBKIT_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function guardarMic() {
+    if (!micStream) return;
+    try { micStream.getAudioTracks().forEach(t => { t.enabled = false; }); } catch (e) { /* ignore */ }
+    clearTimeout(micSoltarT); micSoltarT = setTimeout(soltarMic, MIC_GUARDA_MS);
+    if (MIC_WEBKIT_IOS || !navigator.permissions || !navigator.permissions.query) return;
+    // permissão já salva no navegador (Android/PC): solta o mic na hora — não vai perguntar de novo
+    navigator.permissions.query({ name: 'microphone' }).then((r) => { if (r && r.state === 'granted' && !gravando && !iniciandoGravacao) soltarMic(); }).catch(() => {});
+}
+function soltarMic() {
+    clearTimeout(micSoltarT); micSoltarT = null;
+    if (gravando || iniciandoGravacao) return;
+    const st = micStream; micStream = null;
+    if (st) { try { st.getTracks().forEach(t => t.stop()); } catch (e) { /* ignore */ } }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') soltarMic(); });
+window.addEventListener('pagehide', () => soltarMic());
 function toastAudio(msg) { msgErro(msg); toast(msg); setAnexoInfo(msg); }
 async function startRecording(fromHold) {
     if (!contatoAtivo || !contatoAtivo.auth_id) { toastAudio('Selecione um contato primeiro.'); return; }
@@ -1077,7 +1109,9 @@ async function startRecording(fromHold) {
     audioCancelado = false; audioPicos = null; audioRecDur = 0;
     audioHoldMode = !!fromHold;
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); // no gesto do usuário
+        const tAbrir = Date.now();
+        const stream = await pegarMic();
+        audioPediuPermissao = (Date.now() - tAbrir) > 700; // provavelmente apareceu o aviso do navegador
         audioStream = stream;
         const chunks = [];          // pedaços DESTA gravação (nunca compartilhados)
         audioChunks = chunks;
@@ -1086,8 +1120,8 @@ async function startRecording(fromHold) {
         mediaRecorder = rec;
         rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
         rec.onstop = () => {
-            stream.getTracks().forEach(t => t.stop());
             const atual = mediaRecorder === rec;
+            if (atual) guardarMic(); // não solta o microfone: a próxima gravação não pede permissão de novo
             if (atual) {
                 audioStream = null;
                 stopAudioTimer(); showRecBar(false); gravando = false;
@@ -1100,7 +1134,7 @@ async function startRecording(fromHold) {
             const elapsed = startedAt ? (Date.now() - startedAt) : 0;
             audioRecDur = elapsed / 1000;
             if (atual) audioRecStartedAt = 0;
-            if (!blob.size || blob.size < 500 || elapsed < 500) { audioAutoSend = false; if (atual) resetAudioBtn(); if (!rec._silencioso) toastAudio('Segure para gravar, arraste para cima para travar'); return; }
+            if (!blob.size || blob.size < 500 || elapsed < 500) { audioAutoSend = false; if (atual) resetAudioBtn(); return; }
             onRecordingReady(blob);
         };
         try { rec.start(250); } catch (eStart) { rec.start(); }
@@ -1156,6 +1190,7 @@ function showLockHint(show, progress) {
 }
 /** Intenção enquanto getUserMedia / MediaRecorder ainda está abrindo (permissão no 1º uso). */
 let audioPendingIntent = null; // 'send' | 'cancel' | 'lock' | 'discard_tap' | null
+let audioPediuPermissao = false;
 function aplicarIntentAoIniciar() {
     const intent = audioPendingIntent; audioPendingIntent = null;
     if (!gravando) return;
@@ -1163,7 +1198,7 @@ function aplicarIntentAoIniciar() {
     if (intent === 'discard_tap') {
         if (mediaRecorder) mediaRecorder._silencioso = true;
         stopRecording(true);
-        toast('Segure para gravar, arraste para cima para travar');
+        if (audioPediuPermissao) toast('🎤 Microfone liberado');
         return;
     }
     if (intent === 'lock') { travarGravacao(); return; }
@@ -1248,7 +1283,8 @@ function bindAudioButton() {
             if (held < TAP_MS) {
                 if (mediaRecorder) mediaRecorder._silencioso = true;
                 stopRecording(true);
-                toast('Segure para gravar, arraste para cima para travar');
+            } else if (soltouNoCancelar(e)) {
+                stopRecording(true); toast('Gravação cancelada');
             } else {
                 stopRecording(false, true); // soltou = envia
             }
@@ -1256,32 +1292,48 @@ function bindAudioButton() {
         }
         if (abrindo()) {
             // ainda pedindo permissão / abrindo o mic: guarda a intenção
-            audioPendingIntent = held < TAP_MS ? 'discard_tap' : 'send';
+            if (audioPendingIntent !== 'cancel') audioPendingIntent = held < TAP_MS ? 'discard_tap' : 'send';
             showLockHint(false);
             return;
         }
-        // não chegou a gravar (erro de permissão etc.)
+        // não chegou a gravar (erro de permissão, ou já cancelado pelo botão Cancelar)
         showLockHint(false);
-        if (held < TAP_MS) toast('Segure para gravar, arraste para cima para travar');
     });
     btn.addEventListener('pointercancel', (e) => {
         if (audioPointerId != null && e.pointerId !== audioPointerId) return;
         const wasDown = pointerDown; pointerDown = false; audioPointerId = null;
         limparSlide();
         if (!wasDown || slidCancel) { showLockHint(false); return; }
-        // sistema roubou o toque (scroll, chamada, etc.): se ainda em hold, trava em vez de perder
-        if (emHold()) { travarGravacao(); return; }
-        if (abrindo() && !audioPendingIntent) audioPendingIntent = 'lock';
+        // sistema roubou o toque (aviso de permissão, chamada etc.): NUNCA trava sozinho —
+        // descarta sem enviar (só trava quem arrasta para cima)
+        if (emHold()) { if (mediaRecorder) mediaRecorder._silencioso = true; stopRecording(true); showLockHint(false); return; }
+        if (abrindo() && !audioPendingIntent) audioPendingIntent = 'discard_tap';
         showLockHint(false);
     });
     // toque sem pointer (fallback raro): só a dica — nunca inicia gravação contínua
     btn.addEventListener('click', (e) => {
         e.preventDefault();
         if (suppressClick) { suppressClick = false; return; }
-        if (gravando || abrindo()) return;
-        toast('Segure para gravar, arraste para cima para travar');
     });
     const env = $('btn-rec-enviar'); if (env) env.addEventListener('click', () => { if (gravando) stopRecording(false, true); });
+    // Cancelar enquanto segura: outro dedo toca em "Cancelar" (o dedo do 🎤 continua capturado)
+    const canc = $('btn-cancel-rec');
+    if (canc && !canc._holdBound) {
+        canc._holdBound = true;
+        canc.addEventListener('pointerdown', (e) => {
+            if (!gravando && !abrindo()) return;
+            try { e.preventDefault(); e.stopPropagation(); } catch (err) { /* ignore */ }
+            canc._cancelouAgora = Date.now();
+            if (abrindo()) { audioPendingIntent = 'cancel'; return; }
+            pointerDown = false; audioPointerId = null; slidLock = false; limparSlide(); showLockHint(false);
+            stopRecording(true); toast('Gravação cancelada');
+        });
+    }
+    function soltouNoCancelar(e) {
+        const c = $('btn-cancel-rec'); if (!c || e.clientX == null) return false;
+        const r = c.getBoundingClientRect();
+        return r.width > 0 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    }
 }
 
 /* ============================ adicionar contato (diretório) ============================ */

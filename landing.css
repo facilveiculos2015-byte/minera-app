@@ -196,3 +196,16 @@ footer.lp-foot{border-top:1px solid var(--line);padding:30px 0 calc(30px + env(s
 .cm-txt h2{font-size:clamp(23px,5.6vw,34px);line-height:1.15;letter-spacing:-.02em;margin:0 0 10px;font-weight:850}
 .cm-txt p{margin:0 0 16px;color:var(--mut);font-size:16.5px;max-width:640px}
 @media (max-width:599px){.cm-card{flex-direction:column;align-items:flex-start;gap:14px;padding:20px}.cm-ico{width:72px;height:72px;border-radius:19px}.cm-txt .btn{width:100%;white-space:normal}}
+
+/* 20261008c: introdução no topo (texto aprovado) + convite para rolar */
+.intro{position:relative;padding:26px 0 22px;background:var(--glow);border-bottom:1px solid var(--line)}
+.intro .wrap{max-width:860px}
+.intro-tit{font-size:clamp(27px,7.4vw,46px);line-height:1.1;letter-spacing:-.02em;font-weight:850;margin:0 0 12px;color:var(--tx)}
+.intro-lead{font-size:clamp(17px,4.5vw,21px);line-height:1.45;color:var(--tx);font-weight:650;margin:0 0 12px}
+.intro-seg{font-size:clamp(15.5px,4.1vw,18px);line-height:1.55;color:var(--soft);margin:0 0 18px;padding:12px 14px;border-radius:14px;background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.28)}
+.intro-rolar{display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;text-align:center;font-weight:800;font-size:clamp(16px,4.4vw,19px);color:var(--or);padding:6px 8px 4px;-webkit-tap-highlight-color:transparent}
+.intro-seta{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:var(--or);color:#0b1220;font-size:26px;font-weight:900;line-height:1;box-shadow:0 6px 18px rgba(245,166,35,.45);animation:intro-pula 1.4s ease-in-out infinite}
+.intro-rolar:hover .intro-seta,.intro-rolar:focus-visible .intro-seta{background:var(--or2)}
+@keyframes intro-pula{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+@media (prefers-reduced-motion:reduce){.intro-seta{animation:none}}
+html[data-theme="light"] .intro-rolar{color:var(--or-d)}

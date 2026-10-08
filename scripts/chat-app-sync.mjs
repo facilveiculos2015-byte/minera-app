@@ -40,6 +40,9 @@ function modoChat(html, src, titulo) {
 // chat.html → chat/index.html
 let chat = fs.readFileSync(path.join(ROOT, 'chat.html'), 'utf8');
 chat = modoChat(chat, 'chat.html', 'Chat Minera');
+// "Pedir senha ao abrir" ligado (chat-trava.js): esconde o conteúdo desde o 1º quadro, até a tela de senha aparecer
+chat = trocar(chat, '<script>window.MINERA_CHAT_APP = true;</script>',
+  '<script>window.MINERA_CHAT_APP = true;</script>\n    <script>(function(){try{var mm=window.matchMedia;if(!((mm&&(mm(\'(display-mode: standalone)\').matches||mm(\'(display-mode: fullscreen)\').matches))||navigator.standalone===true))return;var u=localStorage.getItem(\'minera_chat_last_uid\');if(u&&localStorage.getItem(\'minera_chat_trava_\'+u)===\'1\'&&sessionStorage.getItem(\'minera_chat_unlock_sess_\'+u)!==\'1\'){document.documentElement.classList.add(\'ct-cedo\');setTimeout(function(){document.documentElement.classList.remove(\'ct-cedo\');},10000);}}catch(e){}})();</script>', 'trava cedo');
 chat = trocar(chat, '<h1 class="wa-title">Conversas</h1>',
   '<h1 class="wa-title">Conversas</h1>\n                <a class="chat-app-full" href="inicio.html" target="_blank" rel="noopener">Abrir Minera Pará completo ↗</a>', 'wa-title');
 fs.writeFileSync(path.join(ROOT, 'chat', 'index.html'), chat);
@@ -48,7 +51,7 @@ fs.writeFileSync(path.join(ROOT, 'chat', 'index.html'), chat);
 let entrar = fs.readFileSync(path.join(ROOT, 'entrar.html'), 'utf8');
 entrar = modoChat(entrar, 'entrar.html', 'Chat Minera - Entrar');
 entrar = trocar(entrar, '<p>Crie sua conta ou entre para gerenciar lotes</p>',
-  '<p>Chat Minera: entre com a sua conta do Minera Pará</p>', 'subtitulo');
+  '<p>Chat Minera: entre com a sua conta do Minera Pará</p>\n                <p class="chat-login-dica">No iPhone, entre uma vez aqui dentro do Chat Minera. Depois ele abre direto, sem pedir senha.</p>', 'subtitulo');
 fs.writeFileSync(path.join(ROOT, 'chat', 'entrar.html'), entrar);
 
 console.log('ok: chat/index.html e chat/entrar.html gerados');

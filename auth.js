@@ -320,6 +320,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Entrada no app: card "Pix de apoio" 1x na primeira página (MineraApoio em nav.js)
             try { sessionStorage.setItem('minera_apoio_mostrar', '1'); sessionStorage.setItem('minera_sessao_app', '1'); } catch (e2) { /* ignore */ }
+            // Chat Minera com "pedir senha" ligado: quem acabou de entrar com a senha não digita de novo (chat-trava.js)
+            try { if (window.MINERA_CHAT_APP === true) sessionStorage.setItem('minera_chat_unlock_sess_' + data.user.id, '1'); } catch (e3) { /* ignore */ }
             irPara(dest);
         } catch (err) {
             console.error(err);

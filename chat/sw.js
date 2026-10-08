@@ -3,7 +3,7 @@
  * Mesmas defesas contra cache HTTP do app: HTML e version.json sempre da rede (no-store),
  * JS/CSS/imagens revalidados (no-cache). Também recebe Web Push e abre a conversa dentro do /chat/.
  */
-const CACHE = 'minera-chat-20261008a';
+const CACHE = 'minera-chat-20261008c';
 const BASE = new URL('../', self.registration.scope).href; // raiz do site (https://minerapara.com.br/)
 
 function isHtmlRequest(req) {
@@ -114,23 +114,44 @@ self.addEventListener('notificationclick', (event) => {
 
 /* Web Push (Chat Minera fechado): mesmo payload do app ({ title, body, url, tag }).
  * Se alguma janela do Minera (chat ou app completo) estiver na tela, ela mesma avisa. */
+// iPhone/iPad/Safari: TODO push precisa virar notificação (senão o iOS cancela a inscrição depois de 3)
+const PUSH_SEMPRE_MOSTRA = /iPhone|iPad|iPod|Macintosh/.test((self.navigator && self.navigator.userAgent) || '') && !/Chrome|CriOS|Android/.test((self.navigator && self.navigator.userAgent) || '');
+/* "Pedir senha ao abrir o Chat Minera" ligado (chat-trava.js grava no IndexedDB): a notificação não mostra quem mandou nem o texto. */
+function ocultarPrevia() {
+  return new Promise((res) => {
+    try {
+      const rq = indexedDB.open('minera-chat', 1);
+      rq.onupgradeneeded = () => { try { rq.result.createObjectStore('prefs'); } catch (e) { /* ignore */ } };
+      rq.onerror = () => res(false);
+      rq.onsuccess = () => {
+        try {
+          const db = rq.result;
+          const g = db.transaction('prefs', 'readonly').objectStore('prefs').get('ocultarPrevia');
+          g.onsuccess = () => { res(g.result === true); db.close(); };
+          g.onerror = () => { res(false); db.close(); };
+        } catch (e) { res(false); }
+      };
+    } catch (e) { res(false); }
+  });
+}
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : '' }; }
-  if (!d || (!d.title && !d.body)) return;
+  if (!d || typeof d !== 'object') d = {};
+  const mostrar = (oculta) => self.registration.showNotification(oculta ? 'Chat Minera' : (d.title || 'Chat Minera'), {
+    body: oculta ? 'Nova mensagem' : (d.body || 'Nova mensagem'),
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: d.tag || 'minera',
+    renotify: true,
+    silent: false,
+    vibrate: [80, 40, 80],
+    data: { url: urlNoChat(d.url) }
+  });
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      if (list.some((c) => c.visibilityState === 'visible' && c.focused !== false)) return;
-      return self.registration.showNotification(d.title || 'Chat Minera', {
-        body: d.body || '',
-        icon: './icon-192.png',
-        badge: './icon-192.png',
-        tag: d.tag || 'minera',
-        renotify: true,
-        silent: false,
-        vibrate: [80, 40, 80],
-        data: { url: urlNoChat(d.url) }
-      });
-    })
+    Promise.all([self.clients.matchAll({ type: 'window', includeUncontrolled: true }), ocultarPrevia()]).then(([list, oculta]) => {
+      if (!PUSH_SEMPRE_MOSTRA && list.some((c) => c.visibilityState === 'visible' && c.focused !== false)) return;
+      return mostrar(oculta);
+    }).catch(() => mostrar(true))
   );
 });

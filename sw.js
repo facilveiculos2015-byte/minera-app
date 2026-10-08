@@ -5,20 +5,20 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261008a';
+const CACHE = 'minera-shell-20261008c';
 const PRECACHE = [
-  './style.css?v=20261008a',
-  './chat-realtime.js?v=20261008a',
-  './avatar.js?v=20261008a',
-  './avatar-editor.js?v=20261008a',
-  './nav.js?v=20261008a',
-  './config.js?v=20261008a',
-  './seguranca.js?v=20261008a',
-  './pwa.js?v=20261008a',
-  './lightbox.js?v=20261008a',
-  './gestor.css?v=20261008a',
-  './gestor-calc.js?v=20261008a',
-  './gestor.js?v=20261008a',
+  './style.css?v=20261008c',
+  './chat-realtime.js?v=20261008c',
+  './avatar.js?v=20261008c',
+  './avatar-editor.js?v=20261008c',
+  './nav.js?v=20261008c',
+  './config.js?v=20261008c',
+  './seguranca.js?v=20261008c',
+  './pwa.js?v=20261008c',
+  './lightbox.js?v=20261008c',
+  './gestor.css?v=20261008c',
+  './gestor-calc.js?v=20261008c',
+  './gestor.js?v=20261008c',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -185,24 +185,27 @@ self.addEventListener('notificationclick', (event) => {
 /* Web Push (app FECHADO / tela travada): enviado pela Edge Function send-push
  * (gatilho do SQL 54 em chat_mensagens). Payload JSON { title, body, url, tag }.
  * silent:false = som padrão de notificação do aparelho ("pim"). */
+// iPhone/iPad/Safari: TODO push precisa virar notificação (senão o iOS cancela a inscrição depois de 3)
+const PUSH_SEMPRE_MOSTRA = /iPhone|iPad|iPod|Macintosh/.test((self.navigator && self.navigator.userAgent) || '') && !/Chrome|CriOS|Android/.test((self.navigator && self.navigator.userAgent) || '');
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : '' }; }
-  if (!d || (!d.title && !d.body)) return;
+  if (!d || typeof d !== 'object') d = {};
+  const mostrar = () => self.registration.showNotification(d.title || 'Minera Pará', {
+    body: d.body || 'Nova mensagem',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: d.tag || 'minera',
+    renotify: true,
+    silent: false,
+    vibrate: [80, 40, 80],
+    data: { url: d.url || './chat.html' }
+  });
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      // App aberto e na tela: o próprio app já avisa (toast + "pim") → não duplica
-      if (list.some((c) => c.visibilityState === 'visible' && c.focused !== false)) return;
-      return self.registration.showNotification(d.title || 'Minera Pará', {
-        body: d.body || '',
-        icon: './icon-192.png',
-        badge: './icon-192.png',
-        tag: d.tag || 'minera',
-        renotify: true,
-        silent: false,
-        vibrate: [80, 40, 80],
-        data: { url: d.url || './chat.html' }
-      });
-    })
+      // App aberto e na tela: o próprio app já avisa (toast + "pim") → não duplica (menos no iPhone, que exige a notificação)
+      if (!PUSH_SEMPRE_MOSTRA && list.some((c) => c.visibilityState === 'visible' && c.focused !== false)) return;
+      return mostrar();
+    }).catch(() => mostrar())
   );
 });
