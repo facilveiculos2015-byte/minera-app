@@ -8,9 +8,11 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20261008f';
+  var ASSET_V = '20261008g';
   // Chat Minera (app só-chat instalável em /chat/): service worker e instalação próprios
   var CHAT_APP = window.MINERA_CHAT_APP === true;
+  // Gestor Minera (app só-gestor instalável em /gestor/): idem, com o service worker do /gestor/
+  var GESTOR_APP = window.MINERA_GESTOR_APP === true;
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 
   function forceAssetRefreshOnce() {
@@ -178,6 +180,7 @@
     var hadController = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
     // Chat Minera: a 1ª vez o SW do /chat/ assume a página no lugar do SW do app — isso não é atualização, não recarrega
     if (CHAT_APP && hadController && !/\/chat\/sw\.js/.test(navigator.serviceWorker.controller.scriptURL || '')) hadController = false;
+    if (GESTOR_APP && hadController && !/\/gestor\/sw\.js/.test(navigator.serviceWorker.controller.scriptURL || '')) hadController = false;
     navigator.serviceWorker.addEventListener('controllerchange', function () {
       // SW novo assumiu: recarrega 1× (não no primeiro install, sem controller antes)
       if (!hadController) { hadController = true; return; }
@@ -190,8 +193,8 @@
     });
     window.addEventListener('load', function () {
       navigator.serviceWorker
-        .register(CHAT_APP ? './chat/sw.js?v=' + ASSET_V : './sw.js?v=' + ASSET_V,
-          CHAT_APP ? { scope: './chat/', updateViaCache: 'none' } : { updateViaCache: 'none' })
+        .register(CHAT_APP ? './chat/sw.js?v=' + ASSET_V : (GESTOR_APP ? './gestor/sw.js?v=' + ASSET_V : './sw.js?v=' + ASSET_V),
+          CHAT_APP ? { scope: './chat/', updateViaCache: 'none' } : (GESTOR_APP ? { scope: './gestor/', updateViaCache: 'none' } : { updateViaCache: 'none' }))
         .then(function (reg) {
           swReg = reg;
           try {
@@ -610,7 +613,7 @@
 
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
-    if (CHAT_APP) return; // /chat/: o instalador do Chat Minera cuida do prompt
+    if (CHAT_APP || GESTOR_APP) return; // /chat/ e /gestor/: o instalador de cada um cuida do prompt
     deferredPrompt = e;
     if (!dismissedRecently()) showInstallBar();
     refreshInstallUi();

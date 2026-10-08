@@ -11,6 +11,11 @@
   "orientation": "any",
   "background_color": "#0b1220",
   "theme_color": "#F5A623",
+  "related_applications": [
+    { "platform": "webapp", "url": "https://minerapara.com.br/chat/manifest.webmanifest" },
+    { "platform": "webapp", "url": "https://minerapara.com.br/gestor/manifest.webmanifest" }
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "./icon-192.png",

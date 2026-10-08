@@ -1,26 +1,29 @@
 <!DOCTYPE html>
+<!-- GERADO por scripts/gestor-app-sync.mjs a partir de gestor.html (Gestor Minera, modo só-gestor). Não editar à mão. -->
 <html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' data: blob: https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://api.allorigins.win https://servicodados.ibge.gov.br https://economia.awesomeapi.com.br https://api.gold-api.com https://query1.finance.yahoo.com https://api.coinbase.com https://metalmetric.com https://mintedmetal.com; worker-src 'self' blob:; frame-src 'self' https://www.google.com https://maps.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Minera Pará - Gestor financeiro</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261008g">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261008g">
-    <link rel="manifest" href="manifest.webmanifest">
+    <base href="../">
+    <script>window.MINERA_GESTOR_APP = true;</script>
+    <title>Gestor Minera</title>
+    <link rel="icon" type="image/png" href="gestor/icon-192.png?v=20261008g">
+    <link rel="apple-touch-icon" href="gestor/apple-touch-icon.png?v=20261008g">
+    <link rel="manifest" href="gestor/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+    <meta name="apple-mobile-web-app-title" content="Gestor Minera">
     <link rel="stylesheet" href="style.css?v=20261008g">
     <link rel="stylesheet" href="gestor.css?v=20261008g">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
-<body class="pagina-gestor">
+<body class="pagina-gestor gestor-app">
     <div class="container">
-        <a class="gf-voltar" id="gf-voltar" href="perfil.html" aria-label="Voltar ao Perfil">← Perfil</a>
+        <a class="gestor-app-full" href="inicio.html" target="_blank" rel="noopener">Abrir Minera Pará completo ↗</a>
         <header class="header-row">
             <div class="brand-title">
                 <h1>Gestor financeiro</h1>

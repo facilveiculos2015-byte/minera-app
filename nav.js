@@ -634,6 +634,8 @@ function montarNav(paginaAtiva, perfil) {
     const hideClientChrome = adminUi || isAdminPage;
     // Chat Minera (app só-chat instalado em /chat/): sem a barra de baixo do app
     const chatApp = window.MINERA_CHAT_APP === true;
+    // Gestor Minera (app só-gestor instalado em /gestor/): também sem a barra de baixo
+    const gestorApp = window.MINERA_GESTOR_APP === true;
 
     if (!hideClientChrome) garantirHeaderCaixaBtn();
     else {
@@ -651,9 +653,10 @@ function montarNav(paginaAtiva, perfil) {
         body.classList.toggle('pagina-admin', isAdminPage);
         body.classList.toggle('modo-ui-admin', !!adminUi);
         body.classList.toggle('modo-ui-usuario', !!usuarioUi);
-        if (hideClientChrome || chatApp) body.classList.remove('has-bottom-nav');
+        if (hideClientChrome || chatApp || gestorApp) body.classList.remove('has-bottom-nav');
         else body.classList.add('has-bottom-nav');
         body.classList.toggle('chat-app', chatApp);
+        body.classList.toggle('gestor-app', gestorApp);
     }
 
     // Secondary #app-nav: no Serviços / Mais / Sair / Mapa chips (Mapa = atalho Início).
@@ -695,7 +698,7 @@ function montarNav(paginaAtiva, perfil) {
         if (svcSheet) svcSheet.classList.add('oculto');
         const fale = document.getElementById('card-fale-conosco');
         if (fale) fale.classList.add('oculto');
-    } else if (chatApp) {
+    } else if (chatApp || gestorApp) {
         if (bar) bar.remove();
     } else {
         if (!bar) {
@@ -755,7 +758,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261008f';
+    const src = root + 'logo-escavadeira.png?v=20261008g';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1617,6 +1620,7 @@ const MineraPush = (function () {
         emCurso = (async () => {
             try {
                 if (!suportado() || Notification.permission !== 'granted' || typeof supabaseClient === 'undefined') return false;
+                if (window.MINERA_GESTOR_APP === true) return false; // /gestor/ não recebe push (os avisos ficam no app/Chat Minera)
                 const uid = await uidAtual();
                 if (!uid) return false;
                 const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('sw timeout')), 8000))]);
@@ -1846,7 +1850,7 @@ const MineraApoio = (function () {
     function concluir() { ss(K_MOSTRAR, null); ss(K_VISTO, '1'); }
     function paginaAdiavel() {
         const p = (location.pathname || '').toLowerCase();
-        return /\/(chat|tutorial|index|entrar|admin)\.html$/.test(p) || window.MINERA_CHAT_APP === true;
+        return /\/(chat|tutorial|index|entrar|admin)\.html$/.test(p) || window.MINERA_CHAT_APP === true || window.MINERA_GESTOR_APP === true;
     }
     function escA(s) {
         return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

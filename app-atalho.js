@@ -1,0 +1,157 @@
+/* Minera Pará — botãozinho "Colocar na tela inicial" do Chat Minera (/chat/) e do Gestor Minera (/gestor/).
+ * Marcação: <a data-app-atalho="chat|gestor" href="chat/instalar.html" hidden>…</a> (começa escondido).
+ * Some quando o app já está na tela inicial e volta quando a pessoa tira o ícone:
+ *  - aberto pelo ícone (display-mode standalone do próprio /chat/ ou /gestor/) → esconde;
+ *  - beforeinstallprompt na página do próprio app = não instalado → mostra;
+ *  - Chrome Android: navigator.getInstalledRelatedApps() (manifest + .well-known/assetlinks.json) decide;
+ *  - sem essa API (iPhone, computador): marca local com validade (instalou / abriu pelo ícone / "Já coloquei").
+ *    No iPhone o Safari não enxerga o app da tela inicial (armazenamento separado): depois da validade o botão volta.
+ * Também guarda em sessionStorage qual app é esta janela instalada (instalador usa: "abra no navegador"). */
+(function () {
+    'use strict';
+    var DIAS = 15; // validade da marca local (iPhone/computador, onde não dá para perguntar ao sistema)
+    var APPS = {
+        chat: { flag: 'MINERA_CHAT_APP', dir: 'chat/', legado: ['minera_chat_instalado', 'minera_chat_app_usado'] },
+        gestor: { flag: 'MINERA_GESTOR_APP', dir: 'gestor/', legado: ['minera_gestor_instalado', 'minera_gestor_app_usado'] }
+    };
+    var K_JANELA = 'minera_janela_app';
+    function kMarca(app) { return 'minera_atalho_' + app; }
+    function ls(k, v) {
+        try {
+            if (v === undefined) return localStorage.getItem(k);
+            if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v);
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+    function ss(k, v) {
+        try {
+            if (v === undefined) return sessionStorage.getItem(k);
+            sessionStorage.setItem(k, v);
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+    function standalone() {
+        try {
+            var mm = window.matchMedia;
+            if (mm && (mm('(display-mode: standalone)').matches || mm('(display-mode: fullscreen)').matches || mm('(display-mode: minimal-ui)').matches)) return true;
+            if (navigator.standalone === true) return true;
+            if (window.MineraPwa && MineraPwa.isTwa && MineraPwa.isTwa()) return true;
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+    function ehIOS() {
+        var ua = navigator.userAgent || '';
+        return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+    function ehAndroid() { return /Android/i.test(navigator.userAgent || ''); }
+    /** Qual app só-X é esta página ('chat' em /chat/, 'gestor' em /gestor/, '' no app completo). */
+    function subApp() {
+        if (window.MINERA_CHAT_APP === true) return 'chat';
+        if (window.MINERA_GESTOR_APP === true) return 'gestor';
+        return '';
+    }
+    function marcar(app) { if (APPS[app]) ls(kMarca(app), String(Date.now())); }
+    function limpar(app) { if (APPS[app]) ls(kMarca(app), null); }
+    function marcaValida(app) {
+        var ts = Number(ls(kMarca(app)) || 0);
+        if (!ts && ls(kMarca(app) + '_mig') !== '1') {
+            // marcas antigas ('1' sem data, ex.: minera_chat_instalado): passam a valer a partir de agora
+            ls(kMarca(app) + '_mig', '1');
+            var velho = APPS[app].legado.some(function (k) { return ls(k) === '1'; });
+            if (velho) { ts = Date.now(); marcar(app); }
+        }
+        return !!ts && (Date.now() - ts) < DIAS * 864e5;
+    }
+
+    // Esta janela é um app instalado? (o instalador diferencia "já está aqui" de "dentro do app completo")
+    // (vale a 1ª página da janela: o app completo que abre o instalador do /chat/ continua sendo 'main')
+    // Nos instaladores (chat/instalar.html, gestor/instalar.html) não vale: eles abrem dentro de qualquer janela.
+    var instalador = window.MINERA_INSTALADOR === true;
+    if (!instalador && standalone() && !ss(K_JANELA)) ss(K_JANELA, subApp() || 'main');
+    if (!instalador && standalone() && subApp()) {
+        marcar(subApp());
+        ls('minera_' + subApp() + '_app_usado', '1');
+    }
+
+    var semPrompt = {}; // beforeinstallprompt nesta página: o app desta página NÃO está instalado
+    window.addEventListener('beforeinstallprompt', function () {
+        var a = subApp();
+        if (!a) return;
+        semPrompt[a] = true;
+        limpar(a);
+        ls('minera_' + a + '_instalado', null); // como o instalador: o Chrome confirmou que não está instalado
+        atualizar();
+    });
+    window.addEventListener('appinstalled', function () {
+        var a = subApp();
+        if (!a) return;
+        delete semPrompt[a];
+        marcar(a);
+        atualizar();
+    });
+
+    var relacionados = null; // cache da consulta por rodada
+    function consultarRelacionados() {
+        if (!navigator.getInstalledRelatedApps) return Promise.resolve(null);
+        if (!relacionados) {
+            relacionados = navigator.getInstalledRelatedApps().catch(function () { return null; });
+            setTimeout(function () { relacionados = null; }, 1500);
+        }
+        return relacionados;
+    }
+    function urlManifest(app) { return '/' + APPS[app].dir + 'manifest.webmanifest'; }
+
+    /** true = já está na tela inicial deste aparelho (até onde dá para saber). */
+    function instalado(app) {
+        if (!APPS[app]) return Promise.resolve(false);
+        if (subApp() === app && standalone() && !instalador) { marcar(app); return Promise.resolve(true); }
+        if (semPrompt[app]) return Promise.resolve(false);
+        return consultarRelacionados().then(function (lista) {
+            if (lista) {
+                var achou = lista.some(function (x) {
+                    return x && x.platform === 'webapp' && String(x.url || x.id || '').indexOf(urlManifest(app)) >= 0;
+                });
+                if (achou) { marcar(app); return true; }
+                // Chrome Android responde pelo sistema (no próprio /chat/ ou /gestor/, e no app completo via assetlinks):
+                // não achou = não está (ou a pessoa tirou o ícone)
+                if (ehAndroid()) { limpar(app); return false; }
+            }
+            return marcaValida(app);
+        });
+    }
+
+    function botoes() { return Array.prototype.slice.call(document.querySelectorAll('[data-app-atalho]')); }
+    var rodando = false, denovo = false;
+    function atualizar() {
+        if (rodando) { denovo = true; return; }
+        var els = botoes();
+        if (!els.length) return;
+        rodando = true;
+        var apps = {};
+        els.forEach(function (el) { apps[el.getAttribute('data-app-atalho')] = true; });
+        var nomes = Object.keys(apps);
+        Promise.all(nomes.map(function (a) { return instalado(a).catch(function () { return false; }); }))
+            .then(function (res) {
+                var est = {};
+                nomes.forEach(function (a, i) { est[a] = res[i]; });
+                els.forEach(function (el) {
+                    var a = el.getAttribute('data-app-atalho');
+                    el.hidden = !!est[a];
+                    el.setAttribute('data-estado', est[a] ? 'instalado' : 'mostrar');
+                });
+            })
+            .then(function () { rodando = false; if (denovo) { denovo = false; atualizar(); } });
+    }
+
+    window.MineraAtalho = {
+        instalado: instalado, atualizar: atualizar, marcar: marcar, limpar: limpar,
+        standalone: standalone, ehIOS: ehIOS, ehAndroid: ehAndroid, subApp: subApp,
+        janela: function () { return ss(K_JANELA) || ''; }
+    };
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', atualizar);
+    else atualizar();
+    // voltou para o app (ex.: tirou o ícone da tela inicial e voltou): confere de novo
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') atualizar(); });
+    window.addEventListener('pageshow', function (e) { if (e && e.persisted) atualizar(); });
+})();

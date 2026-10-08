@@ -1,19 +1,22 @@
 <!DOCTYPE html>
+<!-- GERADO por scripts/gestor-app-sync.mjs a partir de entrar.html (Gestor Minera, modo só-gestor). Não editar à mão. -->
 <html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' data: blob: https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://api.allorigins.win https://servicodados.ibge.gov.br https://economia.awesomeapi.com.br https://api.gold-api.com https://query1.finance.yahoo.com https://api.coinbase.com https://metalmetric.com https://mintedmetal.com; worker-src 'self' blob:; frame-src 'self' https://www.google.com https://maps.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Minera Pará - Entrar</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261008g">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261008g">
-    <link rel="manifest" href="manifest.webmanifest">
+    <base href="../">
+    <script>window.MINERA_GESTOR_APP = true;</script>
+    <title>Gestor Minera - Entrar</title>
+    <link rel="icon" type="image/png" href="gestor/icon-192.png?v=20261008g">
+    <link rel="apple-touch-icon" href="gestor/apple-touch-icon.png?v=20261008g">
+    <link rel="manifest" href="gestor/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="description" content="Te chamaram pra negociar com mais segurança no Minera Pará. Cadastre-se — cada um vê só a própria conta.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Minera Pará">
+    <meta name="apple-mobile-web-app-title" content="Gestor Minera">
 
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Minera Pará">
@@ -41,14 +44,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
-<body>
+<body class="gestor-app">
     <div class="container">
         <header class="auth-header">
             <div class="logo-mark" aria-hidden="true">
                 <img class="brand-logo-lg" src="logo-escavadeira.png?v=20261008g" alt="Minera Pará" width="112" height="112" decoding="async">
             </div>
             <h1>Minera Pará</h1>
-            <p>Crie sua conta ou entre para gerenciar lotes</p>
+            <p>Gestor Minera: entre com a sua conta do Minera Pará</p>
+                <p class="chat-login-dica">No iPhone, entre uma vez aqui dentro do Gestor Minera. Depois ele abre direto.</p>
         </header>
 
             <button type="button" class="auth-baixar-app" id="btn-baixar-app-login" data-minera-install data-minera-install-host>📲 Baixar app</button>

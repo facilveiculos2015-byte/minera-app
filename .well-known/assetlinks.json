@@ -10,5 +10,14 @@
         "5A:F6:5E:B5:5C:D5:80:0E:7A:68:27:AD:50:CE:26:4B:E8:E9:0D:4B:D7:D8:9A:49:A5:AB:F4:C5:6F:01:71:AE"
       ]
     }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.query_webapk"
+    ],
+    "target": {
+      "namespace": "web",
+      "site": "https://minerapara.com.br/manifest.webmanifest"
+    }
   }
 ]

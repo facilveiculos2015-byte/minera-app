@@ -1,7 +1,7 @@
 {
-  "name": "Chat Minera",
-  "short_name": "Chat Minera",
-  "description": "O chat do Minera Pará direto na tela inicial: mesmas conversas e mesma conta.",
+  "name": "Gestor Minera",
+  "short_name": "Gestor Minera",
+  "description": "O Gestor Financeiro do Minera Pará direto na tela inicial: mesma conta e mesmos lançamentos.",
   "lang": "pt-BR",
   "dir": "ltr",
   "id": "./",
@@ -10,10 +10,10 @@
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0b1220",
-  "theme_color": "#F5A623",
-  "categories": ["social", "business"],
+  "theme_color": "#10b981",
+  "categories": ["finance", "business"],
   "related_applications": [
-    { "platform": "webapp", "url": "https://minerapara.com.br/chat/manifest.webmanifest", "id": "https://minerapara.com.br/chat/" }
+    { "platform": "webapp", "url": "https://minerapara.com.br/gestor/manifest.webmanifest", "id": "https://minerapara.com.br/gestor/" }
   ],
   "prefer_related_applications": false,
   "icons": [

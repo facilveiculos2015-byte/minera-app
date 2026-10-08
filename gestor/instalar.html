@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- GERADO por scripts/gestor-app-sync.mjs a partir de chat/instalar.html (Gestor Minera, modo só-gestor). Não editar à mão. -->
 <html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
@@ -6,15 +7,15 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <base href="../">
-    <script>window.MINERA_CHAT_APP = true; window.MINERA_INSTALADOR = true;</script>
-    <title>Chat Minera na tela inicial</title>
-    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261008g">
-    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261008g">
-    <link rel="manifest" href="chat/manifest.webmanifest">
+    <script>window.MINERA_GESTOR_APP = true; window.MINERA_INSTALADOR = true;</script>
+    <title>Gestor Minera na tela inicial</title>
+    <link rel="icon" type="image/png" href="gestor/icon-192.png?v=20261008g">
+    <link rel="apple-touch-icon" href="gestor/apple-touch-icon.png?v=20261008g">
+    <link rel="manifest" href="gestor/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Chat Minera">
+    <meta name="apple-mobile-web-app-title" content="Gestor Minera">
     <link rel="stylesheet" href="style.css?v=20261008g">
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
     <style>
@@ -44,15 +45,15 @@
         .ci-copiado { color: #4ade80; font-weight: 700; }
     </style>
 </head>
-<body class="chat-app chat-instalar">
+<body class="gestor-app chat-instalar">
     <main class="ci-wrap">
-        <a class="ci-voltar" href="inicio.html" id="ci-voltar">← Voltar</a>
-        <img class="ci-ico" src="chat/icon-192.png?v=20261008g" alt="Ícone do Chat Minera" width="104" height="104">
-        <h1>Chat na tela inicial</h1>
-        <p class="ci-sub">Coloque o <strong>Chat Minera</strong> na tela inicial do celular e abra as conversas num toque, sem abrir o site. É o mesmo chat do Minera Pará: mesma conta, mesmas conversas.</p>
+        <a class="ci-voltar" href="gestor.html" id="ci-voltar">← Voltar</a>
+        <img class="ci-ico" src="gestor/icon-192.png?v=20261008g" alt="Ícone do Gestor Minera" width="104" height="104">
+        <h1>Gestor na tela inicial</h1>
+        <p class="ci-sub">Coloque o <strong>Gestor Minera</strong> na tela inicial do celular e abra o seu Gestor Financeiro num toque, sem abrir o site. É o mesmo gestor do Minera Pará: mesma conta, mesmos lançamentos.</p>
 
         <section id="ci-pronto" hidden>
-            <p class="ci-ok" id="ci-pronto-txt">✓ O Chat Minera já está na tela inicial deste aparelho.</p>
+            <p class="ci-ok" id="ci-pronto-txt">✓ O Gestor Minera já está na tela inicial deste aparelho.</p>
         </section>
 
         <section id="ci-android" hidden>
@@ -66,24 +67,24 @@
                 <li><span class="ci-n">2</span><span class="ci-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></svg></span><span>Toque em <strong>Adicionar à Tela de Início</strong></span></li>
                 <li><span class="ci-n">3</span><span class="ci-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Toque em <strong>Adicionar</strong></span></li>
             </ol>
-            <p class="ci-hint">No iPhone, entre na sua conta uma vez dentro do Chat Minera.</p>
+            <p class="ci-hint">No iPhone, entre na sua conta uma vez dentro do Gestor Minera.</p>
             <button type="button" class="ci-go ci-ja" id="ci-ja">Já coloquei na tela inicial ✓</button>
         </section>
         <section id="ci-fora" hidden>
-            <p class="ci-fora-txt">Você está dentro do app <strong>Minera Pará</strong> instalado. Para colocar o <strong>Chat Minera</strong> na tela inicial, abra este endereço no navegador (<strong>Chrome</strong> no Android, <strong>Safari</strong> no iPhone):</p>
+            <p class="ci-fora-txt">Você está dentro do app <strong>Minera Pará</strong> instalado. Para colocar o <strong>Gestor Minera</strong> na tela inicial, abra este endereço no navegador (<strong>Chrome</strong> no Android, <strong>Safari</strong> no iPhone):</p>
             <input type="text" class="ci-link" id="ci-link" readonly aria-label="Endereço do instalador">
             <a class="ci-go" id="ci-chrome" href="#" hidden style="margin-top:12px">Abrir no Chrome</a>
             <button type="button" class="ci-abrir" id="ci-copiar">Copiar endereço</button>
         </section>
 
-        <a class="ci-abrir" id="ci-abrir" href="chat/">Abrir chat</a>
+        <a class="ci-abrir" id="ci-abrir" href="gestor/">Abrir gestor</a>
     </main>
     <script src="pwa.js?v=20261008g"></script>
     <script src="app-atalho.js?v=20261008g"></script>
     <script>
     (function instaladorApp() {
         // Mesmo instalador para o Chat Minera (/chat/) e o Gestor Minera (/gestor/, gerado por scripts/gestor-app-sync.mjs)
-        var APP = { id: 'chat', nome: 'Chat Minera', dir: 'chat/' };
+        var APP = { id: 'gestor', nome: 'Gestor Minera', dir: 'gestor/' };
         var K = 'minera_' + APP.id + '_instalado';
         var At = window.MineraAtalho || { marcar: function () {}, limpar: function () {}, janela: function () { return ''; } };
         // instalado: o card "Novidade" do chat do app não aparece mais para este usuário (último que abriu o chat)

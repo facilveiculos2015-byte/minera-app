@@ -17,6 +17,11 @@ function irPara(pagina) {
         if (/^entrar\.html/i.test(p)) p = 'chat/' + p;
         else if (/^(inicio|admin|chat|tutorial)\.html/i.test(p)) p = 'chat/';
     }
+    // Gestor Minera (app só-gestor em /gestor/): mesmo login do site, dentro do /gestor/, e depois volta para o gestor
+    if (window.MINERA_GESTOR_APP === true) {
+        if (/^entrar\.html/i.test(p)) p = 'gestor/' + p;
+        else if (/^(inicio|admin|gestor|tutorial)\.html/i.test(p)) p = 'gestor/';
+    }
     window.location.replace(APP_ROOT + p);
 }
 

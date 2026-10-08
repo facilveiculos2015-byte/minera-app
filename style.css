@@ -4162,6 +4162,14 @@ body.pagina-inicio .container.wide { max-width: 640px; padding: 0; }
     linear-gradient(160deg, rgba(30,41,59,.5), rgba(15,23,42,.14));
 }
 .olx-qcard.q-maq .qi-wrap { color: #818cf8; background: rgba(99,102,241,.16); border-color: rgba(129,140,248,.4); }
+/* Gestor financeiro — verde / anotação */
+.olx-qcard.q-gestor { color: #a7f3d0; border-color: rgba(16,185,129,.32); }
+.olx-qcard.q-gestor::before {
+  background:
+    radial-gradient(120% 90% at 50% 15%, rgba(16,185,129,.38), transparent 55%),
+    linear-gradient(160deg, rgba(6,78,59,.42), rgba(15,23,42,.14));
+}
+.olx-qcard.q-gestor .qi-wrap { color: #34d399; background: rgba(16,185,129,.16); border-color: rgba(52,211,153,.4); }
 .olx-qcard:active { transform: scale(.97); }
 .olx-banner {
   margin: 0 16px 12px; border-radius: 14px; overflow: hidden;
@@ -5367,6 +5375,7 @@ html[data-theme="light"] .olx-qcard.q-mapa { color: #075985; }
 html[data-theme="light"] .olx-qcard.q-serv { color: #92400e; }
 html[data-theme="light"] .olx-qcard.q-banco { color: #92400e; }
 html[data-theme="light"] .olx-qcard.q-maq { color: #3730a3; }
+html[data-theme="light"] .olx-qcard.q-gestor { color: #065f46; }
 html[data-theme="light"] .lote-midia-thumb { background: #f8fafc; }
 
 
@@ -7090,7 +7099,7 @@ html[data-theme="light"] .cc-card { background: #ffffff; color: #0f172a; }
 .cc-link { display: block; margin: 10px 0 0; text-align: center; font-weight: 700; color: #F5A623; }
 .chat-login-dica { margin: 6px 0 0; font-size: .82rem; opacity: .75; }
 
-/* 20261008f: botão "Cancelar" sempre visível enquanto grava (segurando ou travado) */
+/* 20261008g: botão "Cancelar" sempre visível enquanto grava (segurando ou travado) */
 .cx-rec .cx-rec-lixo { display: inline-flex; width: auto; min-width: 44px; height: 40px; gap: 5px; padding: 0 12px 0 9px; border-radius: 999px;
   border: 1.5px solid rgba(239, 68, 68, .75); background: rgba(239, 68, 68, .08); font-weight: 700; font-size: 14px; line-height: 1; flex: 0 0 auto; }
 .cx-rec .cx-rec-lixo svg { width: 18px; height: 18px; flex: 0 0 18px; }
@@ -7098,7 +7107,7 @@ html[data-theme="light"] .cc-card { background: #ffffff; color: #0f172a; }
 .cx-rec:not(.travado) .cx-rec-canvas { min-width: 24px; }
 @media (max-width: 430px) { .cx-rec:not(.travado) .cx-rec-slide-x { display: none; } body.pagina-chat .chat-thread-active .chat-rec-bar.cx-rec:not(.travado) { gap: 8px; } }
 
-/* ===== 20261008f — botão ↻ Atualizar no topo da conversa (ao lado da pílula do nome) ===== */
+/* ===== 20261008g — botão ↻ Atualizar no topo da conversa (ao lado da pílula do nome) ===== */
 .chat-thread-active .gk-head .gk-pill { margin: 0 0 0 auto; max-width: calc(100% - 170px); }
 .gk-circ.gk-refresh { width: 38px; height: 38px; min-width: 38px; margin: 0 auto 0 -4px; overflow: visible; }
 .gk-refresh svg { transition: transform .2s ease; }
@@ -7114,3 +7123,42 @@ html[data-theme="light"] .cc-card { background: #ffffff; color: #0f172a; }
 .gk-refresh.erro .gk-refresh-ok { opacity: 1; background: #ef4444; }
 @media (prefers-reduced-motion: reduce) { .gk-refresh.girando svg { animation-duration: 2s; } }
 .gk-circ.gk-refresh:hover { background: var(--gk-circ); color: var(--gk-ico); }
+
+/* Início: 5 atalhos (Favoritos, Serviços, Maquinário, Banco, Gestor) cabendo em 320–390 px */
+.olx-quick.olx-quick-5 { gap: 6px; padding: 8px 10px 12px; }
+.olx-quick.olx-quick-5 .olx-qcard { font-size: .72rem; gap: 7px; padding: 8px 1px 10px; letter-spacing: -.01em; white-space: nowrap; }
+@media (max-width: 380px) {
+  .olx-quick.olx-quick-5 { gap: 5px; padding: 8px 8px 12px; }
+  .olx-quick.olx-quick-5 .olx-qcard { font-size: .68rem; letter-spacing: -.02em; }
+  .olx-quick.olx-quick-5 .olx-qcard .qi-wrap { width: 42px; height: 42px; border-radius: 14px; }
+  .olx-quick.olx-quick-5 .olx-qcard .qi-svg { width: 22px; height: 22px; }
+}
+.olx-quick.olx-quick-5 .olx-qcard .qi-wrap { width: 46px; height: 46px; border-radius: 15px; }
+.olx-quick.olx-quick-5 .olx-qcard .qi-svg { width: 23px; height: 23px; }
+@media (max-width: 345px) {
+  .olx-quick.olx-quick-5 { gap: 4px; padding: 8px 6px 12px; }
+  .olx-quick.olx-quick-5 .olx-qcard { font-size: .62rem; }
+  .olx-quick.olx-quick-5 .olx-qcard .qi-wrap { width: 40px; height: 40px; border-radius: 13px; }
+  .olx-quick.olx-quick-5 .olx-qcard .qi-svg { width: 21px; height: 21px; }
+}
+@media (min-width: 600px) { .olx-quick.olx-quick-5 { gap: 12px; padding: 8px 16px 12px; } .olx-quick.olx-quick-5 .olx-qcard { font-size: .78rem; } }
+
+/* Botãozinho "Colocar na tela inicial" (app-atalho.js): Chat Minera e Gestor Minera. Some quando já instalado. */
+.app-atalho-btn {
+  display: inline-flex; align-self: flex-start; width: fit-content; max-width: calc(100% - 32px); align-items: center; gap: 6px; margin: 0 16px 10px; padding: 7px 13px; min-height: 36px; box-sizing: border-box;
+  border-radius: 999px; font-size: .84rem; font-weight: 700; text-decoration: none; line-height: 1.2;
+  color: var(--text-color); background: rgba(245,166,35,.14); border: 1px solid rgba(245,166,35,.45);
+}
+.app-atalho-btn:active { transform: scale(.97); }
+.app-atalho-btn[hidden] { display: none !important; }
+.app-atalho-btn.gf-atalho { margin: 0 0 12px; background: rgba(16,185,129,.14); border-color: rgba(16,185,129,.5); }
+@media (max-width: 899px) { body.chat-thread-open .app-atalho-btn { display: none !important; } }
+
+/* Gestor Minera (app só-gestor em /gestor/): sem barra de baixo, sem "← Perfil", link discreto para o app completo */
+body.gestor-app #bottom-nav,
+body.gestor-app #btn-baixar-app-login { display: none !important; }
+body.gestor-app.pagina-gestor { padding-bottom: 0; }
+.gestor-app-full {
+  display: inline-block; margin: 0 0 10px; font-size: .78rem; font-weight: 600;
+  color: var(--muted); text-decoration: underline; text-underline-offset: 2px; opacity: .85;
+}
