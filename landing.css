@@ -189,3 +189,10 @@ footer.lp-foot{border-top:1px solid var(--line);padding:30px 0 calc(30px + env(s
   .lp-top .btn{padding:0 12px}
   .shots{padding-left:16px;padding-right:16px;margin:0 -16px}
 }
+/* Novidade: Chat Minera (app só-chat em /chat/) */
+.cm-novo{padding-top:8px}
+.cm-card{display:flex;align-items:center;gap:22px;background:var(--card);border:2px solid rgba(245,166,35,.6);border-radius:24px;padding:24px;box-shadow:var(--sh),0 0 0 4px rgba(245,166,35,.14)}
+.cm-ico{flex-shrink:0;width:96px;height:96px;border-radius:24px;box-shadow:0 10px 28px rgba(245,166,35,.35)}
+.cm-txt h2{font-size:clamp(23px,5.6vw,34px);line-height:1.15;letter-spacing:-.02em;margin:0 0 10px;font-weight:850}
+.cm-txt p{margin:0 0 16px;color:var(--mut);font-size:16.5px;max-width:640px}
+@media (max-width:599px){.cm-card{flex-direction:column;align-items:flex-start;gap:14px;padding:20px}.cm-ico{width:72px;height:72px;border-radius:19px}.cm-txt .btn{width:100%;white-space:normal}}
