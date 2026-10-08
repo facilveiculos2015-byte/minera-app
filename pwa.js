@@ -8,7 +8,7 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20261008g';
+  var ASSET_V = '20261008h';
   // Chat Minera (app só-chat instalável em /chat/): service worker e instalação próprios
   var CHAT_APP = window.MINERA_CHAT_APP === true;
   // Gestor Minera (app só-gestor instalável em /gestor/): idem, com o service worker do /gestor/
@@ -696,6 +696,14 @@
   } else {
     setTimeout(bootGrowth, 0);
   }
+
+  // Janela de app instalado: guarda qual app abriu esta janela (1ª página): 'chat' / 'gestor' / 'main'.
+  // app-atalho.js usa para só esconder "Colocar na tela inicial" quando for o PRÓPRIO app aberto pelo ícone.
+  try {
+    if (window.MINERA_INSTALADOR !== true && isStandalone() && !sessionStorage.getItem('minera_janela_app')) {
+      sessionStorage.setItem('minera_janela_app', CHAT_APP ? 'chat' : (GESTOR_APP ? 'gestor' : 'main'));
+    }
+  } catch (e) {}
 
   window.MineraPwa = {
     showInstallBar: showInstallBar,

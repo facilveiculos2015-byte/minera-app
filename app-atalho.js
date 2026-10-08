@@ -11,8 +11,9 @@
     'use strict';
     var DIAS = 15; // validade da marca local (iPhone/computador, onde não dá para perguntar ao sistema)
     var APPS = {
-        chat: { flag: 'MINERA_CHAT_APP', dir: 'chat/', legado: ['minera_chat_instalado', 'minera_chat_app_usado'] },
-        gestor: { flag: 'MINERA_GESTOR_APP', dir: 'gestor/', legado: ['minera_gestor_instalado', 'minera_gestor_app_usado'] }
+        chat: { flag: 'MINERA_CHAT_APP', dir: 'chat/' },
+        gestor: { flag: 'MINERA_GESTOR_APP', dir: 'gestor/' },
+        main: { flag: '', dir: '' } // app principal (só a marca "Já coloquei" do iPhone, guia-tela.js)
     };
     var K_JANELA = 'minera_janela_app';
     function kMarca(app) { return 'minera_atalho_' + app; }
@@ -52,14 +53,15 @@
     }
     function marcar(app) { if (APPS[app]) ls(kMarca(app), String(Date.now())); }
     function limpar(app) { if (APPS[app]) ls(kMarca(app), null); }
+    // 1× por aparelho: zera marcas do build 20261008h (podiam ter vindo de marca antiga ou de janela errada)
+    if (ls('minera_atalho_v2') !== '1') {
+        Object.keys(APPS).forEach(function (a) { ls(kMarca(a), null); ls(kMarca(a) + '_mig', null); });
+        ls('minera_atalho_v2', '1');
+    }
+    /** Marca local: SÓ gravada por instalação de verdade (aberto pelo ícone, Instalar aceito/appinstalled,
+     * "Já coloquei" no iPhone). Fechar aviso, tocar fora ou "Agora não" NUNCA gravam. */
     function marcaValida(app) {
         var ts = Number(ls(kMarca(app)) || 0);
-        if (!ts && ls(kMarca(app) + '_mig') !== '1') {
-            // marcas antigas ('1' sem data, ex.: minera_chat_instalado): passam a valer a partir de agora
-            ls(kMarca(app) + '_mig', '1');
-            var velho = APPS[app].legado.some(function (k) { return ls(k) === '1'; });
-            if (velho) { ts = Date.now(); marcar(app); }
-        }
         return !!ts && (Date.now() - ts) < DIAS * 864e5;
     }
 
@@ -68,7 +70,10 @@
     // Nos instaladores (chat/instalar.html, gestor/instalar.html) não vale: eles abrem dentro de qualquer janela.
     var instalador = window.MINERA_INSTALADOR === true;
     if (!instalador && standalone() && !ss(K_JANELA)) ss(K_JANELA, subApp() || 'main');
-    if (!instalador && standalone() && subApp()) {
+    /** Esta janela é o próprio app instalado (aberta pelo ícone dele), e não o /gestor/ ou /chat/ aberto
+     * dentro de outra janela (app Minera Pará instalado, app Android, navegador). */
+    function ehOProprioApp(app) { return !instalador && !!app && subApp() === app && standalone() && ss(K_JANELA) === app; }
+    if (ehOProprioApp(subApp())) {
         marcar(subApp());
         ls('minera_' + subApp() + '_app_usado', '1');
     }
@@ -104,7 +109,7 @@
     /** true = já está na tela inicial deste aparelho (até onde dá para saber). */
     function instalado(app) {
         if (!APPS[app]) return Promise.resolve(false);
-        if (subApp() === app && standalone() && !instalador) { marcar(app); return Promise.resolve(true); }
+        if (ehOProprioApp(app)) { marcar(app); return Promise.resolve(true); }
         if (semPrompt[app]) return Promise.resolve(false);
         return consultarRelacionados().then(function (lista) {
             if (lista) {

@@ -8,14 +8,14 @@
     <base href="../">
     <script>window.MINERA_CHAT_APP = true; window.MINERA_INSTALADOR = true;</script>
     <title>Chat Minera na tela inicial</title>
-    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261008g">
-    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261008g">
+    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261008h">
+    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261008h">
     <link rel="manifest" href="chat/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Chat Minera">
-    <link rel="stylesheet" href="style.css?v=20261008g">
+    <link rel="stylesheet" href="style.css?v=20261008h">
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
     <style>
         body.chat-instalar { min-height: 100dvh; display: flex; justify-content: center; padding: 0; }
@@ -47,7 +47,7 @@
 <body class="chat-app chat-instalar">
     <main class="ci-wrap">
         <a class="ci-voltar" href="inicio.html" id="ci-voltar">← Voltar</a>
-        <img class="ci-ico" src="chat/icon-192.png?v=20261008g" alt="Ícone do Chat Minera" width="104" height="104">
+        <img class="ci-ico" src="chat/icon-192.png?v=20261008h" alt="Ícone do Chat Minera" width="104" height="104">
         <h1>Chat na tela inicial</h1>
         <p class="ci-sub">Coloque o <strong>Chat Minera</strong> na tela inicial do celular e abra as conversas num toque, sem abrir o site. É o mesmo chat do Minera Pará: mesma conta, mesmas conversas.</p>
 
@@ -78,8 +78,8 @@
 
         <a class="ci-abrir" id="ci-abrir" href="chat/">Abrir chat</a>
     </main>
-    <script src="pwa.js?v=20261008g"></script>
-    <script src="app-atalho.js?v=20261008g"></script>
+    <script src="pwa.js?v=20261008h"></script>
+    <script src="app-atalho.js?v=20261008h"></script>
     <script>
     (function instaladorApp() {
         // Mesmo instalador para o Chat Minera (/chat/) e o Gestor Minera (/gestor/, gerado por scripts/gestor-app-sync.mjs)
@@ -119,6 +119,13 @@
             $('ci-instalar').hidden = true;
             mostrar('ci-android-dica', true);
             abrirPrimario(true);
+        }
+        // Tocou fora / Cancelar no aviso do Chrome: NADA some — o botão Instalar continua (pede o aviso de novo)
+        function recusou() {
+            decidido = true;
+            mostrar('ci-pronto', false); mostrar('ci-android', true); mostrar('ci-android-dica', true);
+            var b = $('ci-instalar'); b.hidden = false; b.disabled = false; b.textContent = 'Instalar';
+            abrirPrimario(false);
         }
         window.__appInstalador = window.__chatInstalador = function () {
             return { app: APP.id, prompt: !!prompt, ios: ios, standalone: standalone, janela: janela, pronto: !$('ci-pronto').hidden, iosPassos: !$('ci-ios').hidden,
@@ -179,22 +186,26 @@
             pronto('✓ Pronto! O ' + APP.nome + ' está na tela inicial.');
         });
         $('ci-instalar').addEventListener('click', function () {
-            if (!prompt) return;
+            // aviso do Chrome já usado (a pessoa tocou fora): recarrega para o Chrome oferecer de novo
+            if (!prompt) { location.reload(); return; }
             var p = prompt; prompt = null;
             p.prompt();
             p.userChoice.then(function (r) {
                 if (r && r.outcome === 'accepted') { marcarInstalado(); pronto('✓ Pronto! O ' + APP.nome + ' está na tela inicial.'); }
-                else semSuporte();
-            }).catch(function () { semSuporte(); });
+                else recusou();
+            }).catch(function () { recusou(); });
         });
         // Já instalado? (Chrome: getInstalledRelatedApps; ou a marca gravada no appinstalled)
         var chk = navigator.getInstalledRelatedApps ? navigator.getInstalledRelatedApps().catch(function () { return []; }) : Promise.resolve([]);
         chk.then(function (apps) {
             if (prompt) return;
+            if (apps && apps.length) { marcarInstalado(); pronto(); return; }
+            // Chrome Android responde pelo sistema: não achou = não está. Só sem essa consulta vale a marca local
+            // (gravada SÓ por instalação de verdade; fechar/tocar fora nunca grava).
+            if (navigator.getInstalledRelatedApps && android) { try { localStorage.removeItem(K); } catch (e) { /* ignore */ } At.limpar(APP.id); return; }
             var marca = false;
             try { marca = localStorage.getItem(K) === '1'; } catch (e) { /* ignore */ }
-            if (apps && apps.length) marcarInstalado();
-            if ((apps && apps.length) || marca) pronto();
+            if (marca) pronto();
         });
         setTimeout(function () { if (!prompt && !decidido) semSuporte(); }, 3500);
     })();
