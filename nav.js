@@ -755,7 +755,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261008e';
+    const src = root + 'logo-escavadeira.png?v=20261008f';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1641,17 +1641,22 @@ const MineraPush = (function () {
                 if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave });
                 const j = sub.toJSON();
                 const kReg = K_REG + (chatApp() ? 'chat_' : '') + uid;
-                const marca = uid + '|' + j.endpoint + '|' + new Date().toISOString().slice(0, 10);
+                const origem = chatApp() ? 'chat' : 'app'; // SQL 58: o servidor manda só para o Chat Minera se ele existir (um aviso só)
+                const marca = uid + '|' + origem + '|' + j.endpoint + '|' + new Date().toISOString().slice(0, 10);
                 let antes = '';
                 try { antes = localStorage.getItem(kReg) || ''; } catch (e) { /* ignore */ }
                 if (!force && antes === marca) {
                     if (chatApp()) await largar(await subDe(await regDe(raiz(), false)));
                     return true;
                 }
-                const { error } = await supabaseClient.rpc('push_registrar', {
+                const args = {
                     p_endpoint: j.endpoint, p_p256dh: j.keys && j.keys.p256dh, p_auth: j.keys && j.keys.auth,
                     p_ua: (navigator.userAgent || '').slice(0, 300)
-                });
+                };
+                let { error } = await supabaseClient.rpc('push_registrar', Object.assign({ p_origem: origem }, args));
+                if (error && (error.code === 'PGRST202' || /p_origem|function/i.test(error.message || ''))) {
+                    ({ error } = await supabaseClient.rpc('push_registrar', args)); // SQL 58 ainda não aplicado
+                }
                 if (error) { console.warn('push_registrar', error.message || error); return false; } // SQL 54 ainda não aplicado
                 try { localStorage.setItem(kReg, marca); } catch (e) { /* ignore */ }
                 if (chatApp()) {

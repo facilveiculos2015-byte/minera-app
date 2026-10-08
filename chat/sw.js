@@ -3,7 +3,7 @@
  * Mesmas defesas contra cache HTTP do app: HTML e version.json sempre da rede (no-store),
  * JS/CSS/imagens revalidados (no-cache). Também recebe Web Push e abre a conversa dentro do /chat/.
  */
-const CACHE = 'minera-chat-20261008e';
+const CACHE = 'minera-chat-20261008f';
 const BASE = new URL('../', self.registration.scope).href; // raiz do site (https://minerapara.com.br/)
 
 function isHtmlRequest(req) {
