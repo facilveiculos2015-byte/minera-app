@@ -2,8 +2,9 @@
  * Onde: Chat Minera (/chat/) e Gestor Minera (/gestor/) abertos no NAVEGADOR, e no Início do app principal (iPhone).
  * iPhone/iPad: não existe API de instalação → só o guia visual (ícone Compartilhar piscando + 3 passos) e "Já coloquei".
  * Android: beforeinstallprompt normal (botão Instalar); sem o aviso do Chrome = já instalado/sem suporte → não mostra.
- * "Agora não" só esconde a FAIXA por 3 dias. O botãozinho "Colocar na tela inicial" (app-atalho.js) NUNCA some por
- * fechar/tocar fora/"Agora não": só some se aberto pelo ícone, instalação confirmada ou "Já coloquei" no iPhone.
+ * "Agora não" só esconde a FAIXA por 3 dias. O botãozinho "Colocar na tela inicial" (app-atalho.js no Chat/Gestor,
+ * #gt-mini no Início) NUNCA some fora do modo app instalado (standalone): "Já coloquei"/instalação só o deixam PEQUENO,
+ * para a pessoa reabrir o guia se apagar o ícone depois. Aberto pelo ícone (standalone) → some.
  * Arquivo isolado: para desligar, é só tirar o <script src="guia-tela.js"> (ou reverter o commit). */
 (function () {
     'use strict';
@@ -82,10 +83,31 @@
         folha.remove(); folha = null;
         document.body.classList.remove('gt-folha-aberta');
     }
-    function instalado() { // instalação de verdade: some tudo
+    function instalado() { // "Já coloquei" / Instalar aceito: some a faixa grande; o botão fica PEQUENO (não some)
         At.marcar(app);
         fecharFolha(); fecharFaixa();
         At.atualizar();
+        botaoMini();
+    }
+    /** Início (app principal no iPhone): botãozinho compacto "Colocar na tela inicial" quando a faixa grande não está
+     * aberta (depois de "Já coloquei" ou "Agora não"). Some só no modo app instalado (standalone). Toque → passos. */
+    function botaoMini() {
+        if (app !== 'main') return; // Chat/Gestor já têm o botão [data-app-atalho] (app-atalho.js)
+        var b = document.getElementById('gt-mini');
+        if (At.standalone() || faixa) { if (b) b.remove(); return; }
+        if (b) return;
+        estilos();
+        b = document.createElement('button');
+        b.type = 'button';
+        b.id = 'gt-mini';
+        b.className = 'app-atalho-btn app-atalho-mini gt-mini';
+        b.setAttribute('data-estado', 'mini');
+        b.setAttribute('aria-label', 'Colocar o Minera Pará na tela inicial: mostrar como fazer');
+        b.textContent = '📲 Colocar na tela inicial';
+        b.addEventListener('click', abrirFolha);
+        var ref = document.querySelector('.olx-quick');
+        if (ref && ref.parentNode) ref.parentNode.insertBefore(b, ref.nextSibling);
+        else (document.querySelector('.container') || document.body).appendChild(b);
     }
 
     function abrirFolha() {
@@ -136,6 +158,7 @@
             '<div class="gt-txt"><strong>Coloque o ' + NOME + ' na tela inicial</strong>Abre num toque, igual a um aplicativo.</div>' +
             '<div class="gt-acoes"><button type="button" class="gt-sim" id="gt-sim"></button><button type="button" class="gt-nao" id="gt-nao">Agora não</button></div>';
         document.body.appendChild(faixa);
+        var mini = document.getElementById('gt-mini'); if (mini) mini.remove();
         botaoPrincipal();
         faixa.querySelector('#gt-sim').addEventListener('click', function () {
             if (prompt) {
@@ -150,7 +173,7 @@
             abrirFolha();
         });
         // "Agora não": esconde só esta faixa por 3 dias (o botãozinho continua)
-        faixa.querySelector('#gt-nao').addEventListener('click', function () { ls(K_ADIA, String(Date.now())); fecharFaixa(); });
+        faixa.querySelector('#gt-nao').addEventListener('click', function () { ls(K_ADIA, String(Date.now())); fecharFaixa(); botaoMini(); });
     }
     function botaoPrincipal() {
         var b = faixa && faixa.querySelector('#gt-sim');
@@ -158,10 +181,14 @@
     }
 
     function talvezMostrar() {
-        if (faixa || At.standalone() || adiado()) return;
+        if (faixa || At.standalone()) return;
+        if (adiado()) { botaoMini(); return; }
         if (android && !prompt) return; // Android: só com o aviso do Chrome (prova que não está instalado)
         if (!ios && !android) return;
-        At.instalado(app).then(function (ja) { if (!ja && !At.standalone() && !adiado()) montarFaixa(); });
+        At.instalado(app).then(function (ja) {
+            if (At.standalone()) return;
+            if (!ja && !adiado()) montarFaixa(); else botaoMini();
+        });
     }
 
     window.addEventListener('beforeinstallprompt', function (e) {

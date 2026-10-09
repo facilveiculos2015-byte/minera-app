@@ -1,7 +1,9 @@
 /* Minera Pará — botãozinho "Colocar na tela inicial" do Chat Minera (/chat/) e do Gestor Minera (/gestor/).
  * Marcação: <a data-app-atalho="chat|gestor" href="chat/instalar.html" hidden>…</a> (começa escondido).
- * Some quando o app já está na tela inicial e volta quando a pessoa tira o ícone:
- *  - aberto pelo ícone (display-mode standalone do próprio /chat/ ou /gestor/) → esconde;
+ * Só SOME quando aberto pelo ícone (display-mode standalone do próprio /chat/ ou /gestor/). Fora disso fica sempre
+ * visível: grande se não está instalado, PEQUENO (classe app-atalho-mini) se parece instalado ("Já coloquei", Instalar
+ * aceito, ícone detectado) — assim, se a pessoa apagar o ícone, o botãozinho continua para abrir o guia de novo.
+ * Como sabe se parece instalado:
  *  - beforeinstallprompt na página do próprio app = não instalado → mostra;
  *  - Chrome Android: navigator.getInstalledRelatedApps() (manifest + .well-known/assetlinks.json) decide;
  *  - sem essa API (iPhone, computador): marca local com validade (instalou / abriu pelo ícone / "Já coloquei").
@@ -53,7 +55,7 @@
     }
     function marcar(app) { if (APPS[app]) ls(kMarca(app), String(Date.now())); }
     function limpar(app) { if (APPS[app]) ls(kMarca(app), null); }
-    // 1× por aparelho: zera marcas do build 20261008i (podiam ter vindo de marca antiga ou de janela errada)
+    // 1× por aparelho: zera marcas do build 20261008l (podiam ter vindo de marca antiga ou de janela errada)
     if (ls('minera_atalho_v2') !== '1') {
         Object.keys(APPS).forEach(function (a) { ls(kMarca(a), null); ls(kMarca(a) + '_mig', null); });
         ls('minera_atalho_v2', '1');
@@ -141,8 +143,14 @@
                 nomes.forEach(function (a, i) { est[a] = res[i]; });
                 els.forEach(function (el) {
                     var a = el.getAttribute('data-app-atalho');
-                    el.hidden = !!est[a];
-                    el.setAttribute('data-estado', est[a] ? 'instalado' : 'mostrar');
+                    // Só some quando esta janela É o app instalado (aberto pelo ícone dele). "Já coloquei", Instalar
+                    // aceito ou ícone detectado só ENCOLHEM o botão (fica pequeno): se a pessoa apagar o ícone depois,
+                    // o botãozinho continua aqui para abrir o guia de novo.
+                    var proprio = ehOProprioApp(a);
+                    var mini = !proprio && !!est[a];
+                    el.hidden = proprio;
+                    el.classList.toggle('app-atalho-mini', mini);
+                    el.setAttribute('data-estado', proprio ? 'instalado' : (mini ? 'mini' : 'mostrar'));
                 });
             })
             .then(function () { rodando = false; if (denovo) { denovo = false; atualizar(); } });
