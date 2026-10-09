@@ -10,14 +10,14 @@
     <script>window.MINERA_CHAT_APP = true;</script>
     <script>(function(){try{var mm=window.matchMedia;if(!((mm&&(mm('(display-mode: standalone)').matches||mm('(display-mode: fullscreen)').matches))||navigator.standalone===true))return;var u=localStorage.getItem('minera_chat_last_uid');if(u&&localStorage.getItem('minera_chat_trava_'+u)==='1'&&sessionStorage.getItem('minera_chat_unlock_sess_'+u)!=='1'){document.documentElement.classList.add('ct-cedo');setTimeout(function(){document.documentElement.classList.remove('ct-cedo');},10000);}}catch(e){}})();</script>
     <title>Chat Minera</title>
-    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261009s">
-    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261009s">
+    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261009u">
+    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261009u">
     <link rel="manifest" href="chat/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Chat Minera">
-    <link rel="stylesheet" href="style.css?v=20261009s">
+    <link rel="stylesheet" href="style.css?v=20261009u">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
@@ -37,7 +37,7 @@
                 </div>
                 <h1 class="wa-title">Conversas</h1>
                 <a class="chat-app-full" href="inicio.html" target="_blank" rel="noopener">Abrir Minera Pará completo ↗</a>
-                <a class="app-atalho-btn chat-ext-top" data-app-atalho="chat" href="chat/instalar.html" hidden aria-label="Chat na tela inicial: colocar o Chat Minera na tela inicial do celular"><img class="cef-ico" src="chat/icon-192.png?v=20261009s" alt="" width="32" height="32" aria-hidden="true"><span class="cef-txt">Chat na tela inicial</span></a>
+                <a class="app-atalho-btn chat-ext-top" data-app-atalho="chat" href="chat/instalar.html" hidden aria-label="Chat na tela inicial: colocar o Chat Minera na tela inicial do celular"><img class="cef-ico" src="chat/icon-192.png?v=20261009u" alt="" width="32" height="32" aria-hidden="true"><span class="cef-txt">Chat na tela inicial</span></a>
                 <input type="search" id="chat-busca-contatos" class="wa-search" placeholder="Buscar ou pesquisar…" autocomplete="off">
                 <div class="wa-chips" id="wa-filter-chips" role="group" aria-label="Filtros">
                     <button type="button" class="wa-chip on" data-wa="todas">Todas</button>
@@ -48,12 +48,12 @@
 
             <div class="chat-thread-pane" id="chat-thread-pane">
                 <div id="chat-thread-empty" class="chat-thread-empty">
-                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261009s" alt="" width="96" height="96" decoding="async">
+                    <img class="brand-logo-lg chat-empty-logo" src="logo-escavadeira.png?v=20261009u" alt="" width="96" height="96" decoding="async">
                     <p class="chat-empty-title">Minera Chat</p>
                     <p>Selecione uma conversa.</p>
                 </div>
-                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261009s">
-                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261009s">
+                <div id="chat-thread-active" class="chat-thread-active oculto" data-build="20261009u">
+                    <div class="wa-thread-head chat-thread-head gk-head" data-build="20261009u">
                         <button type="button" class="gk-circ gk-back chat-back" id="btn-chat-back" aria-label="Voltar para as conversas"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wa-back-unread oculto" id="chat-back-unread" aria-hidden="true"></span></button>
                         <button type="button" class="gk-pill" id="btn-chat-menu" aria-label="Opções da conversa" aria-haspopup="menu">
                             <span class="gk-av-wrap"><span class="wa-av wa-av-thread" id="chat-com-av" aria-hidden="true">?</span><span class="gk-dot oculto" id="chat-com-online" aria-hidden="true"></span></span>
@@ -231,27 +231,27 @@
     </div>
     <div id="cx-undo" class="cx-undo oculto" role="status" aria-live="polite"><span id="cx-undo-txt"></span><button type="button" id="cx-undo-btn">Desfazer</button></div>
 
-    <script src="config.js?v=20261009s"></script>
-    <script src="captcha.js?v=20261009s"></script>
-    <script src="seguranca.js?v=20261009s"></script>
-    <script src="auth-guard.js?v=20261009s"></script>
-    <script src="suporte.js?v=20261009s"></script>
-    <script src="chat-realtime.js?v=20261009s"></script>
-    <script src="avatar.js?v=20261009s"></script>
-    <script src="nav.js?v=20261009s"></script>
-    <script src="anti-golpe.js?v=20261009s"></script>
-    <script src="chat-store.js?v=20261009s"></script>
-    <script src="chat-midia.js?v=20261009s"></script>
-    <script src="audio-compat.js?v=20261009s"></script>
-    <script src="chat-audio.js?v=20261009s"></script>
-    <script src="chat.js?v=20261009s"></script>
-    <script src="chamada.js?v=20261009s"></script>
-    <script src="lightbox.js?v=20261009s"></script>
-    <script src="chat-novidade.js?v=20261009s"></script>
-    <script src="chat-trava.js?v=20261009s"></script>
-    <script src="pwa.js?v=20261009s"></script>
-    <script src="app-atalho.js?v=20261009s"></script>
-    <script src="guia-tela.js?v=20261009s"></script>
+    <script src="config.js?v=20261009u"></script>
+    <script src="captcha.js?v=20261009u"></script>
+    <script src="seguranca.js?v=20261009u"></script>
+    <script src="auth-guard.js?v=20261009u"></script>
+    <script src="suporte.js?v=20261009u"></script>
+    <script src="chat-realtime.js?v=20261009u"></script>
+    <script src="avatar.js?v=20261009u"></script>
+    <script src="nav.js?v=20261009u"></script>
+    <script src="anti-golpe.js?v=20261009u"></script>
+    <script src="chat-store.js?v=20261009u"></script>
+    <script src="chat-midia.js?v=20261009u"></script>
+    <script src="audio-compat.js?v=20261009u"></script>
+    <script src="chat-audio.js?v=20261009u"></script>
+    <script src="chat.js?v=20261009u"></script>
+    <script src="chamada.js?v=20261009u"></script>
+    <script src="lightbox.js?v=20261009u"></script>
+    <script src="chat-novidade.js?v=20261009u"></script>
+    <script src="chat-trava.js?v=20261009u"></script>
+    <script src="pwa.js?v=20261009u"></script>
+    <script src="app-atalho.js?v=20261009u"></script>
+    <script src="guia-tela.js?v=20261009u"></script>
     <script>
     (function waChrome() {
         function toast(t) { if (typeof toastMsg === 'function') toastMsg(t); }

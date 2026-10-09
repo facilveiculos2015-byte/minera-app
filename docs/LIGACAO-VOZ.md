@@ -95,3 +95,13 @@ Testes: `qa2/chamada/chamada.js` (cenário 8 = trava de bolso + tela de bloqueio
 
 ## 20261009r — Trava de bolso REMOVIDA (decisão do dono)
 Sai por completo: trava automática após 3 s, botão "Travar tela", camada preta e alça de destravar. Continua: viva-voz sempre, 3 botões (Silenciar microfone / Desligar / Silenciar som), tema amarelo, sem player na tela de bloqueio, card Pix com "Não mostrar novamente". O Wake Lock (tela não apaga sozinha durante a ligação) foi mantido: é inofensivo (só pede para a tela ficar acesa enquanto a ligação está conectada, é solto ao desligar; onde não existe é ignorado) e evita que o iPhone apague a tela e pause o microfone do app web. Testes: qa2/chamada 77/77, qa2/apoio 7/7.
+
+## 20261009t — Redução de ECO (viva-voz no iPhone)
+**Pesquisa:** no iPhone o cancelamento de eco é o "voice processing" do iOS que o WebKit liga quando o microfone abre com `echoCancellation:true` (único ajuste de áudio que o Safari realmente respeita — bug WebKit 179411/311451). No alto-falante, com volume alto, ele deixa passar resto de eco; bugs abertos: 311451 (qualidade cai com o mic aberto), 326286 (iOS 27: estalos com eco ligado). WebAudio no caminho do som remoto ou do mic pode tirar o áudio do caminho que o iOS usa como referência do cancelamento → nada de WebAudio.
+**Mudanças:**
+- getUserMedia: `echoCancellation: {exact:true}` (cai para `ideal` se o aparelho recusar), `noiseSuppression`, `autoGainControl`, `channelCount:1`, `sampleRate:48000`; se `getSettings().echoCancellation` vier false, tenta `applyConstraints`. Teste confere `echoCancellation === true`.
+- Som do outro lado só num `<audio>` (srcObject), nenhum AudioContext rodando, toque parado (já testado).
+- Opus (fmtp da descrição remota, cópia aplicada; banco intacto): `useinbandfec=1; usedtx=1; stereo=0; sprop-stereo=0; maxaveragebitrate=32000`.
+- **Anti-eco meio-duplex (só iPhone/iPad, `CFG.antiEco='ios'`)**: a cada 50 ms lê o nível da voz do outro lado em `RTCRtpReceiver.getSynchronizationSources()[].audioLevel` (sem WebAudio). Se ≥ 0,035 (~ -29 dBov) e eu não estava falando nos últimos 600 ms (meu nível via `getStats` 'media-source' ≥ 0,08), meu mic é desligado (`track.enabled=false`) e volta 300 ms depois que o outro fica abaixo de 0,02. Quem começa a falar fica com a vez. O botão Mudo é independente.
+- **Trade-off:** é "meio-duplex" como viva-voz de telefone fixo: enquanto o outro fala alto, a minha voz não passa; ao interromper, as primeiras sílabas podem ser cortadas até ~300 ms depois que o outro para. Pacotes só recentes (400 ms) contam, por causa do DTX.
+Testes: qa2/chamada 88/88 (cenário 9 = anti-eco forçado nos 2 lados).

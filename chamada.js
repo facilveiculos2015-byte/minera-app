@@ -37,7 +37,15 @@
         stun: [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }],
         soRelay: false,            // true = só TURN (esconde o IP do outro lado; precisa de TURN configurado)
         fnTurn: 'turn-credenciais',
-        semConexaoMs: 25000
+        semConexaoMs: 25000,
+        // anti-eco "meio-duplex" (viva-voz): 'ios' = só no iPhone/iPad | 'sempre' | false
+        antiEco: 'ios',
+        ecoLigaEm: 0.035,          // nível do outro lado (0..1, RTP audio-level) que abafa nosso mic (~ -29 dBov)
+        ecoSoltaAbaixo: 0.02,      // abaixo disso por ecoSegurarMs → mic volta (~ -34 dBov)
+        ecoSegurarMs: 300,
+        ecoMinhaVoz: 0.08,         // se EU estava falando acima disso, não abafo (quem fala primeiro fica com a vez)
+        ecoMinhaVezMs: 600,        // ...nos últimos 600 ms (cobre a pausa entre palavras + atraso da rede do eco)
+        opusKbps: 32
     }, window.MINERA_CHAMADA_CFG || {});
 
     var eu = null, chanRows = null, chanSt = 'CLOSED', chanRetryT = null, iniciado = false;
@@ -321,12 +329,25 @@
         audioDaChamada(true);    // nenhum AudioContext tocando (eco)
         var s;
         try {
-            s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true }, channelCount: { ideal: 1 } }, video: false });
+            // cancelamento de eco OBRIGATÓRIO (exact); se o aparelho recusar o exact, cai para ideal
+            var base = { noiseSuppression: { ideal: true }, autoGainControl: { ideal: true }, channelCount: { ideal: 1 }, sampleRate: { ideal: 48000 } };
+            try { s = await navigator.mediaDevices.getUserMedia({ audio: Object.assign({ echoCancellation: { exact: true } }, base), video: false }); }
+            catch (e1) {
+                if (e1 && (e1.name === 'NotAllowedError' || e1.name === 'SecurityError')) throw e1;
+                log('mic exact falhou', e1 && e1.name);
+                s = await navigator.mediaDevices.getUserMedia({ audio: Object.assign({ echoCancellation: { ideal: true } }, base), video: false });
+            }
         } catch (e) {
             if (!C || C.fim || !C.stream) audioDaChamada(false);
             throw e;
         }
-        try { var st = s.getAudioTracks()[0].getSettings(); log('mic', JSON.stringify(st)); C && (C.micCfg = st); } catch (e) { /* ignore */ }
+        try {
+            var tr = s.getAudioTracks()[0], st = tr.getSettings();
+            if (st.echoCancellation === false && tr.applyConstraints) {   // alguns navegadores só ligam via applyConstraints
+                try { await tr.applyConstraints({ echoCancellation: true, noiseSuppression: true, autoGainControl: true }); st = tr.getSettings(); } catch (e2) { log('applyConstraints', e2 && e2.name); }
+            }
+            log('mic', JSON.stringify(st)); C && (C.micCfg = st);
+        } catch (e) { /* ignore */ }
         // 'play-and-record' DEPOIS do microfone (Safari re-roteia; antes do getUserMedia às vezes pega o mic errado)
         try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) { /* ignore */ }
         todosStreams.push(s);
@@ -459,6 +480,7 @@
         tela('conectada', fmt((Date.now() - C.conectadaEm) / 1000));
         limparMediaSession();
         manterTelaAcesa(true);
+        antiEcoIniciar();
     }
     function caiu(falhou) {
         if (!C || C.fim || !C.conectadaEm && !falhou) return;
@@ -542,13 +564,40 @@
             C.fila = C.fila.then(function () { return aplicarRemoto('answer', r, rv); }).catch(function (er) { log('aplicar resposta', er); });
         }
     }
+    /* Opus: os parâmetros fmtp da descrição REMOTA dizem ao NOSSO codificador como mandar a voz
+     * (FEC contra perda de pacote, DTX no silêncio, mono, ~32 kbps). Mexe só na cópia aplicada; o banco fica igual. */
+    function opusSdp(sdp) {
+        try {
+            var linhas = String(sdp).split('\r\n'), pts = [];
+            linhas.forEach(function (l) { var m = /^a=rtpmap:(\d+) opus\/48000/i.exec(l); if (m) pts.push(m[1]); });
+            if (!pts.length) return sdp;
+            var quer = { useinbandfec: '1', usedtx: '1', stereo: '0', 'sprop-stereo': '0', maxaveragebitrate: String((CFG.opusKbps || 32) * 1000) };
+            var feitos = {};
+            linhas = linhas.map(function (l) {
+                var m = /^a=fmtp:(\d+) (.*)$/.exec(l);
+                if (!m || pts.indexOf(m[1]) < 0) return l;
+                feitos[m[1]] = 1;
+                var ps = {}, ordem = [];
+                m[2].split(';').forEach(function (kv) { var i = kv.indexOf('='); var k = (i < 0 ? kv : kv.slice(0, i)).trim(); if (!k) return; if (!(k in ps)) ordem.push(k); ps[k] = i < 0 ? '' : kv.slice(i + 1).trim(); });
+                Object.keys(quer).forEach(function (k) { if (!(k in ps)) ordem.push(k); ps[k] = quer[k]; });
+                return 'a=fmtp:' + m[1] + ' ' + ordem.map(function (k) { return ps[k] === '' ? k : k + '=' + ps[k]; }).join(';');
+            });
+            // opus sem linha fmtp: cria logo depois do rtpmap
+            pts.forEach(function (pt) {
+                if (feitos[pt]) return;
+                var i = linhas.findIndex(function (l) { return l.indexOf('a=rtpmap:' + pt + ' ') === 0; });
+                if (i >= 0) linhas.splice(i + 1, 0, 'a=fmtp:' + pt + ' ' + Object.keys(quer).map(function (k) { return k + '=' + quer[k]; }).join(';'));
+            });
+            return linhas.join('\r\n');
+        } catch (e) { return sdp; }
+    }
     async function aplicarRemoto(tipo, sdp, ver) {
         log('aplicar', tipo, ver, 'rem', C && C.remVer, 'sig', C && C.pc && C.pc.signalingState);
         if (!C || !C.pc) { if (C && tipo === 'offer') { await criarPC(); } if (!C || !C.pc) return; }
         var pc = C.pc;
         if (ver > C.remVer || (tipo === 'answer' && pc.signalingState === 'have-local-offer' && ver === C.locVer)) {
             if (tipo === 'answer' && pc.signalingState !== 'have-local-offer') return;
-            await pc.setRemoteDescription({ type: tipo, sdp: sdp });
+            await pc.setRemoteDescription({ type: tipo, sdp: opusSdp(sdp) });
             C.remVer = ver; C.remSdp = sdp; C.candsRem = new Set();
             if (tipo === 'offer') {
                 var ans = await pc.createAnswer();
@@ -655,6 +704,7 @@
         c.ch = null;
         guardaSaida(false);
         manterTelaAcesa(false);
+        antiEcoParar();
         if (texto) { tela('fim', texto); if (!/Ocupado/.test(texto)) tocar('fim'); }
         setTimeout(function () { if (!C || C === c) descartarSom(); }, Math.max(3500, (msTela || 1200) + 600));
         setTimeout(function () { if (C === c) { C = null; esconderTela(); } }, msTela || 1200);
@@ -674,10 +724,71 @@
     }
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && C && !C.fim && C.fase === 'conectada') manterTelaAcesa(true); });
 
+    /* ---------------- anti-eco "meio-duplex" (viva-voz no iPhone) ----------------
+     * O cancelamento de eco do iPhone no alto-falante às vezes deixa passar a voz do outro de volta.
+     * Enquanto o OUTRO lado fala alto, o NOSSO microfone fica desligado (track.enabled=false) e volta
+     * ecoSegurarMs depois que ele para. Nível do outro lado: RTCRtpReceiver.getSynchronizationSources()
+     * (audio-level do RTP) — sem WebAudio, que no iOS pode atrapalhar o cancelamento de eco.
+     * Quem começa a falar primeiro fica com a vez: se eu estava falando (nível do meu mic via getStats
+     * 'media-source'), não abafo; o outro lado é que abafa. */
+    function antiEcoAtivo() { return CFG.antiEco === 'sempre' || CFG.antiEco === true || (CFG.antiEco === 'ios' && IOS); }
+    function aplicarMic() {
+        if (!C || !C.stream) return;
+        var on = !C.mudo && !C.abafado;
+        C.stream.getAudioTracks().forEach(function (t) { if (t.enabled !== on) t.enabled = on; });
+    }
+    function nivelRemoto() {
+        try {
+            var pc = C.pc, rs = pc.getReceivers ? pc.getReceivers() : [], agora = performance.now(), max = 0;
+            rs.forEach(function (r) {
+                if (!r.track || r.track.kind !== 'audio' || !r.getSynchronizationSources) return;
+                r.getSynchronizationSources().forEach(function (x) {
+                    if (typeof x.audioLevel !== 'number') return;
+                    // só pacotes recentes (com DTX não chegam pacotes no silêncio e o último nível ficaria "preso")
+                    var t = x.timestamp || 0, ref = t > 1e12 ? (performance.timeOrigin || (Date.now() - agora)) + agora : agora;
+                    if (!t || ref - t < 400) max = Math.max(max, x.audioLevel);
+                });
+            });
+            return max;
+        } catch (e) { return 0; }
+    }
+    async function nivelMeu() {
+        try {
+            var snd = C.pc.getSenders().find(function (x) { return x.track && x.track.kind === 'audio'; }); if (!snd) return null;
+            var st = await snd.getStats(), lv = null;
+            st.forEach(function (r) { if (r.type === 'media-source' && typeof r.audioLevel === 'number') lv = r.audioLevel; });
+            return lv;
+        } catch (e) { return null; }
+    }
+    function antiEcoIniciar() {
+        if (!C || C.eco || !antiEcoAtivo()) return;
+        var E = C.eco = { abafadas: 0, msAbafado: 0, ultimoAlto: 0, meuAlto: 0, rem: 0, meu: null, ini: 0, ocupado: false };
+        C.timers.eco = setInterval(function () {
+            if (!C || C.eco !== E || C.fase !== 'conectada' || !C.pc) return;
+            var agora = Date.now(), r = nivelRemoto(); E.rem = r;
+            if (!E.ocupado && !C.abafado) {      // meu nível só faz sentido com o mic ligado
+                E.ocupado = true;
+                nivelMeu().then(function (v) { E.ocupado = false; if (v != null) { E.meu = v; if (v >= CFG.ecoMinhaVoz && !C.abafado) E.meuAlto = Date.now(); } });
+            }
+            if (r >= CFG.ecoLigaEm) E.ultimoAlto = agora;
+            if (!C.abafado) {
+                var euFalando = agora - E.meuAlto < CFG.ecoMinhaVezMs;
+                if (r >= CFG.ecoLigaEm && !euFalando && !C.mudo) { C.abafado = true; E.abafadas++; E.ini = agora; aplicarMic(); }
+            } else if (r < CFG.ecoSoltaAbaixo && agora - E.ultimoAlto >= CFG.ecoSegurarMs) {
+                C.abafado = false; E.msAbafado += agora - E.ini; aplicarMic();
+            }
+        }, 50);
+    }
+    function antiEcoParar() {
+        if (!C) return;
+        clearTimer('eco');
+        if (C.abafado) { C.abafado = false; if (C.eco) C.eco.msAbafado += Date.now() - C.eco.ini; aplicarMic(); }
+    }
+
     function alternarMudo() {
         if (!C) return;
         C.mudo = !C.mudo;
-        if (C.stream) C.stream.getAudioTracks().forEach(function (t) { t.enabled = !C.mudo; });
+        aplicarMic();
         var b = $('ch-btn-mudo'); b.setAttribute('aria-pressed', C.mudo ? 'true' : 'false');
         b.querySelector('.ch-c').innerHTML = C.mudo ? IC.micOff : IC.mic;
         b.querySelector('.ch-l').textContent = C.mudo ? 'Ativar microfone' : 'Silenciar microfone';
@@ -822,6 +933,10 @@
                 toque: { tipo: somTipo, tocando: !!(somEl && !somEl.paused && somEl.src) },
                 somMudo: !!(C && C.somMudo), audioMudo: (function () { var v = document.getElementById('chamada-audio'); return v ? v.muted : null; })(),
                 ios: IOS,
+                micCfg: (function () { try { return C && C.stream ? C.stream.getAudioTracks()[0].getSettings() : (C && C.micCfg) || null; } catch (e) { return null; } })(), abafado: !!(C && C.abafado), antiEcoLigado: antiEcoAtivo(),
+                eco: C && C.eco ? { abafadas: C.eco.abafadas, msAbafado: C.eco.msAbafado + (C.abafado ? Date.now() - C.eco.ini : 0), rem: C.eco.rem, meu: C.eco.meu } : null,
+                micLigado: C && C.stream ? C.stream.getAudioTracks().map(function (t) { return t.enabled; }) : [],
+                opusFmtp: C && C.pc && C.pc.remoteDescription ? (C.pc.remoteDescription.sdp.match(/a=fmtp:\d+ [^\r\n]*useinbandfec[^\r\n]*/) || [''])[0] : '',
                 travaNoDom: !!document.getElementById('ch-trava') || !!document.getElementById('ch-btn-travar'), telaAcesa: !!wake,
                 somEl: somEl ? { dur: somEl.duration, loop: somEl.loop, src: !!somEl.getAttribute('src') } : null,
                 audiosNoDom: document.querySelectorAll('audio').length,
