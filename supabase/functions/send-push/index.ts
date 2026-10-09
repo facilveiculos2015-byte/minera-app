@@ -66,11 +66,17 @@ async function lerMensagem(id: number): Promise<{ m: Record<string, any> | null;
 
 type Sub = { id: number; endpoint: string; p256dh: string; auth: string };
 
+// Só serviços de push reais (evita a função fazer POST para qualquer URL).
+const PUSH_HOSTS = /^(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/i;
+function endpointOk(e: string): boolean {
+  try { const u = new URL(e); return u.protocol === "https:" && PUSH_HOSTS.test(u.hostname); } catch { return false; }
+}
+
 async function enviarPara(subs: Sub[], payload: string, tag: string) {
   let enviados = 0, removidos = 0, falhas = 0;
   const erros: string[] = [];
   await Promise.all(subs.map(async (s) => {
-    if (!s || !s.endpoint || !s.p256dh || !s.auth) return;
+    if (!s || !s.endpoint || !s.p256dh || !s.auth || !endpointOk(s.endpoint)) return;
     try {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
@@ -145,7 +151,7 @@ Deno.serve(async (req) => {
       url = "./chat.html?grupo=" + encodeURIComponent(String(corpo.grupo_id));
       tag = "g-" + String(corpo.grupo_id);
     }
-    const subs = (Array.isArray(corpo.subs) ? corpo.subs : []) as unknown as Sub[];
+    const subs = ((Array.isArray(corpo.subs) ? corpo.subs : []) as unknown as Sub[]).slice(0, 1000);
     if (!subs.length) return resp({ ok: true, v: 2, id, enviados: 0, inscricoes: 0 });
     const payload = JSON.stringify({ title: "Minera Pará — " + title, body, url, tag });
     const r = await enviarPara(subs, payload, tag);

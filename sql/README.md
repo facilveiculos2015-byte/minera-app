@@ -132,3 +132,9 @@ Gestor financeiro (gestor.html) — caderno PESSOAL, não é o Minera Bank: `gf_
 ## 51-seguranca.sql
 Correcoes da auditoria 2026-10-02: trigger `trg_usuarios_guard_privilegios` (nao-admin nao vira admin nem altera pontos/bloqueio/email/auth_id/senha_hash/codigo/indicado_por), `processar_indicacao` 1x e max 100 pts, guards de status em pix_pagamentos/emprestimos/comissoes, chat-midia escrita so em `<uid>/...` (remove qualquer policy antiga de escrita do bucket), logs_sistema SELECT admin ou proprio, admin_* sem anon.
 **Aplicar no SQL Editor por ultimo; a SELECT final deve dar: usuarios_guard_ok=t, status_guards=3, indicacao_limitada=t, chat_midia_policies_pasta=3, demais contagens 0, logs_anon_select=f.**
+
+## 59-seguranca-chat-push.sql (varredura 08/10/2026)
+chat_mensagens: tipo 'sistema' so servidor/admin + limite 30 msg/min; push_subscriptions so servicos de push reais, max 10/pessoa, gravacao so via push_registrar; chat_eh_membro nao vaza. Antes: rodar as 2 consultas do cabecalho (tipos e hosts existentes). PENDENTE no Supabase (precisa do SQL Editor).
+
+## 60-caixa-pin-servidor.sql (varredura 08/10/2026)
+Senha do Banco conferida no servidor: RPCs caixa_pin_status/conferir/definir e caixa_pedir_saque (pgcrypto bcrypt; PIN antigo SHA-256 continua valendo e vira bcrypt no 1o acerto); 5 erros = 15 min travado; trocar exige a atual ou login recente (amr <= 10 min); revoga INSERT direto em caixa_saque_pedidos e leitura/gravacao de pin_hash/pin_salt. Publicar o site (build 20261008i+) ANTES. PENDENTE no Supabase (precisa do SQL Editor).

@@ -53,7 +53,7 @@
     }
     function marcar(app) { if (APPS[app]) ls(kMarca(app), String(Date.now())); }
     function limpar(app) { if (APPS[app]) ls(kMarca(app), null); }
-    // 1× por aparelho: zera marcas do build 20261008h (podiam ter vindo de marca antiga ou de janela errada)
+    // 1× por aparelho: zera marcas do build 20261008i (podiam ter vindo de marca antiga ou de janela errada)
     if (ls('minera_atalho_v2') !== '1') {
         Object.keys(APPS).forEach(function (a) { ls(kMarca(a), null); ls(kMarca(a) + '_mig', null); });
         ls('minera_atalho_v2', '1');
@@ -148,9 +148,37 @@
             .then(function () { rodando = false; if (denovo) { denovo = false; atualizar(); } });
     }
 
+    /* Dentro de OUTRO app instalado (ex.: Minera Pará na tela inicial) o instalador do /chat/ ou /gestor/
+     * não consegue colocar o ícone: no iPhone o "Adicionar à Tela de Início" só existe no Safari.
+     * Toque no botão → abre o instalador direto no Safari (iOS 17+: x-safari-https://) ou no Chrome (Android).
+     * Se não saiu do app em ~2,5 s (iOS antigo, sem Chrome), segue para o instalador aqui dentro,
+     * que mostra "Copiar endereço". */
+    function urlNavegador(abs) {
+        if (ehIOS()) return 'x-safari-' + abs;
+        if (ehAndroid()) return 'intent://' + abs.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(abs) + ';end';
+        return '';
+    }
+    document.addEventListener('click', function (e) {
+        var el = e.target && e.target.closest ? e.target.closest('a[data-app-atalho]') : null;
+        if (!el) return;
+        var app = el.getAttribute('data-app-atalho');
+        if (!standalone() || instalador || ehOProprioApp(app)) return;
+        var abs; try { abs = new URL(el.getAttribute('href'), document.baseURI).href; } catch (e2) { return; }
+        var alvo = urlNavegador(abs);
+        if (!alvo) return;
+        e.preventDefault();
+        var saiu = false;
+        function marcarSaida() { saiu = true; }
+        document.addEventListener('visibilitychange', function v() { if (document.visibilityState === 'hidden') { marcarSaida(); document.removeEventListener('visibilitychange', v); } });
+        window.addEventListener('pagehide', marcarSaida, { once: true });
+        setTimeout(function () { if (!saiu) location.href = abs; }, 2500);
+        window.__mineraAtalhoAbriu = alvo;
+        location.href = alvo;
+    }, true);
+
     window.MineraAtalho = {
         instalado: instalado, atualizar: atualizar, marcar: marcar, limpar: limpar,
-        standalone: standalone, ehIOS: ehIOS, ehAndroid: ehAndroid, subApp: subApp,
+        standalone: standalone, ehIOS: ehIOS, ehAndroid: ehAndroid, subApp: subApp, urlNavegador: urlNavegador,
         janela: function () { return ss(K_JANELA) || ''; }
     };
 

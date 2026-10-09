@@ -871,10 +871,36 @@ function bindSeguranca(session) {
         const n2 = document.getElementById('seg-banco-nova2').value;
         if (!atual) { segMsg('seg-banco-msg', 'Digite a senha atual do Banco.', false); return; }
         if (n1.length < 6) { segMsg('seg-banco-msg', 'A nova senha do Banco precisa ter pelo menos 6 caracteres.', false); return; }
+        if (n1.length > 64) { segMsg('seg-banco-msg', 'A nova senha do Banco pode ter no máximo 64 caracteres.', false); return; }
         if (n1 !== n2) { segMsg('seg-banco-msg', 'As duas novas senhas não são iguais.', false); return; }
         if (n1 === atual) { segMsg('seg-banco-msg', 'A nova senha precisa ser diferente da atual.', false); return; }
         const btn = document.getElementById('btn-seg-banco-salvar'); btn.disabled = true;
         try {
+            // SQL 60: confere a senha atual e grava no servidor (bcrypt + limite de tentativas)
+            const rp = await supabaseClient.rpc('caixa_pin_definir', { p_novo: n1, p_atual: atual });
+            const semRpc = rp.error && (String(rp.error.code) === 'PGRST202' || String(rp.error.code) === '42883' || /could not find the function/i.test(String(rp.error.message || '')));
+            if (rp.error && !semRpc) throw rp.error;
+            if (!semRpc) {
+                const d = rp.data || {};
+                if (!d.ok) {
+                    let m = 'Senha atual do Banco incorreta (não é a senha de login).';
+                    if (d.motivo === 'bloqueado') {
+                        let h = ''; try { h = new Date(d.bloqueado_ate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch (e2) { /* ignore */ }
+                        m = 'Muitas tentativas erradas. A senha do Banco ficou travada até ' + h + '. Use «Esqueci a senha da Caixa» no Banco.';
+                    } else if (d.motivo === 'sem_pin') {
+                        m = 'Você ainda não tem senha do Banco. Ela é criada na primeira vez que você abre o Banco.';
+                    } else if (d.motivo === 'errado' && isFinite(Number(d.restantes))) {
+                        m += Number(d.restantes) === 1 ? ' Resta 1 tentativa.' : ' Restam ' + Number(d.restantes) + ' tentativas.';
+                    }
+                    segMsg('seg-banco-msg', m, false);
+                    return;
+                }
+                segLimpar(fB);
+                segMsg('seg-banco-msg', '✅ Senha do Banco alterada.', true);
+                if (typeof toastMsg === 'function') toastMsg('Senha do Banco alterada');
+                return;
+            }
+            // modo antigo (banco sem o SQL 60)
             const r = await supabaseClient.from('caixa_saldos').select('pin_hash,pin_salt').eq('auth_id', uid).maybeSingle();
             if (r.error) throw r.error;
             if (!r.data || !r.data.pin_hash || !r.data.pin_salt) { segMsg('seg-banco-msg', 'Você ainda não tem senha do Banco. Ela é criada na primeira vez que você abre o Banco.', false); return; }

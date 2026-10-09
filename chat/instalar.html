@@ -8,14 +8,14 @@
     <base href="../">
     <script>window.MINERA_CHAT_APP = true; window.MINERA_INSTALADOR = true;</script>
     <title>Chat Minera na tela inicial</title>
-    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261008h">
-    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261008h">
+    <link rel="icon" type="image/png" href="chat/icon-192.png?v=20261008i">
+    <link rel="apple-touch-icon" href="chat/apple-touch-icon.png?v=20261008i">
     <link rel="manifest" href="chat/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Chat Minera">
-    <link rel="stylesheet" href="style.css?v=20261008h">
+    <link rel="stylesheet" href="style.css?v=20261008i">
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
     <style>
         body.chat-instalar { min-height: 100dvh; display: flex; justify-content: center; padding: 0; }
@@ -47,7 +47,7 @@
 <body class="chat-app chat-instalar">
     <main class="ci-wrap">
         <a class="ci-voltar" href="inicio.html" id="ci-voltar">← Voltar</a>
-        <img class="ci-ico" src="chat/icon-192.png?v=20261008h" alt="Ícone do Chat Minera" width="104" height="104">
+        <img class="ci-ico" src="chat/icon-192.png?v=20261008i" alt="Ícone do Chat Minera" width="104" height="104">
         <h1>Chat na tela inicial</h1>
         <p class="ci-sub">Coloque o <strong>Chat Minera</strong> na tela inicial do celular e abra as conversas num toque, sem abrir o site. É o mesmo chat do Minera Pará: mesma conta, mesmas conversas.</p>
 
@@ -73,13 +73,15 @@
             <p class="ci-fora-txt">Você está dentro do app <strong>Minera Pará</strong> instalado. Para colocar o <strong>Chat Minera</strong> na tela inicial, abra este endereço no navegador (<strong>Chrome</strong> no Android, <strong>Safari</strong> no iPhone):</p>
             <input type="text" class="ci-link" id="ci-link" readonly aria-label="Endereço do instalador">
             <a class="ci-go" id="ci-chrome" href="#" hidden style="margin-top:12px">Abrir no Chrome</a>
+            <a class="ci-go" id="ci-safari" href="#" hidden style="margin-top:12px">Abrir no Safari</a>
             <button type="button" class="ci-abrir" id="ci-copiar">Copiar endereço</button>
+            <p class="ci-hint" id="ci-fora-dica" hidden>Se o Safari não abriu sozinho: toque em <strong>Copiar endereço</strong>, abra o <strong>Safari</strong> e cole na barra de endereço.</p>
         </section>
 
         <a class="ci-abrir" id="ci-abrir" href="chat/">Abrir chat</a>
     </main>
-    <script src="pwa.js?v=20261008h"></script>
-    <script src="app-atalho.js?v=20261008h"></script>
+    <script src="pwa.js?v=20261008i"></script>
+    <script src="app-atalho.js?v=20261008i"></script>
     <script>
     (function instaladorApp() {
         // Mesmo instalador para o Chat Minera (/chat/) e o Gestor Minera (/gestor/, gerado por scripts/gestor-app-sync.mjs)
@@ -129,7 +131,8 @@
         }
         window.__appInstalador = window.__chatInstalador = function () {
             return { app: APP.id, prompt: !!prompt, ios: ios, standalone: standalone, janela: janela, pronto: !$('ci-pronto').hidden, iosPassos: !$('ci-ios').hidden,
-                fora: !$('ci-fora').hidden,
+                fora: !$('ci-fora').hidden, safari: !$('ci-safari').hidden ? $('ci-safari').getAttribute('href') : '',
+                chrome: !$('ci-chrome').hidden ? $('ci-chrome').getAttribute('href') : '', abrirVisivel: !$('ci-abrir').hidden,
                 instalar: !$('ci-android').hidden && !$('ci-instalar').hidden && !$('ci-instalar').disabled,
                 dica: !$('ci-android').hidden && !$('ci-android-dica').hidden, abrirPrimario: $('ci-abrir').classList.contains('ci-primario') };
         };
@@ -144,18 +147,40 @@
             decidido = true;
             var url = location.origin + location.pathname.replace(/[^/]*$/, '') + 'instalar.html';
             $('ci-link').value = url;
-            if (android) {
+            // iPhone (iOS 17+): x-safari-https:// abre o endereço no app Safari, fora do app instalado.
+            // Android: intent:// abre no Chrome (se não tiver Chrome, o próprio endereço no navegador padrão).
+            var naveg = ios ? 'x-safari-' + url
+                : (android ? 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(url) + ';end' : '');
+            var saiu = false;
+            function marcarSaida() { saiu = true; }
+            document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') marcarSaida(); });
+            window.addEventListener('pagehide', marcarSaida);
+            function abrirNavegador() {
+                if (!naveg) return;
+                saiu = false;
+                setTimeout(function () { if (!saiu) mostrar('ci-fora-dica', true); }, 2500);
+                location.href = naveg;
+            }
+            if (ios) {
+                // botão principal leva ao Safari (o "Abrir gestor/chat" daqui ficaria preso dentro do app)
+                var sf = $('ci-safari'); sf.href = naveg; sf.hidden = false;
+                sf.addEventListener('click', function (e) { e.preventDefault(); abrirNavegador(); });
+                $('ci-abrir').hidden = true;
+                $('ci-copiar').textContent = 'Copiar endereço e abrir o Safari';
+            } else if (android) {
                 var ch = $('ci-chrome');
-                ch.href = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+                ch.href = naveg;
                 ch.hidden = false;
             }
             $('ci-copiar').addEventListener('click', function () {
-                var b = this;
-                function ok() { b.textContent = '✓ Endereço copiado'; b.classList.add('ci-copiado'); }
+                var b = this, feito = false;
+                function ok() { if (feito) return; feito = true; b.textContent = '✓ Endereço copiado'; b.classList.add('ci-copiado'); }
+                try { $('ci-link').select(); if (document.execCommand('copy')) ok(); } catch (e) { /* ignore */ }
                 try {
-                    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(url).then(ok, function () { $('ci-link').select(); }); return; }
+                    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, function () { /* já tentou execCommand */ });
                 } catch (e) { /* ignore */ }
-                try { $('ci-link').select(); document.execCommand('copy'); ok(); } catch (e) { /* ignore */ }
+                // iPhone: copiou → já abre o Safari (não depende da resposta da área de transferência)
+                if (ios) setTimeout(abrirNavegador, 300);
             });
             mostrar('ci-fora', true);
             return;

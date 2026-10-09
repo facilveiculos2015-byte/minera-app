@@ -194,12 +194,63 @@ function renderSaldo() {
         (saldoAtual > 0 ? ' · ref. ~' + String(taxa.toFixed(1)).replace('.', ',') + '% → ~' + fmtBRL(proj) + '/mês' : '');
 }
 
+/* Senha do Banco (PIN) conferida no SERVIDOR (SQL 60: caixa_pin_status / caixa_pin_conferir /
+   caixa_pin_definir / caixa_pedir_saque). Sem o SQL 60 no banco, cai no modo antigo (hash no app). */
+const SALDO_COLS = 'auth_id,saldo,taxa_mensal,taxa_yield_max';
+let pinServidor = null;   // null = ainda não sei; true = RPC do SQL 60; false = modo antigo
+let pinLegado = null;     // { pin_hash, pin_salt } só no modo antigo
+
+function rpcAusente(err) {
+    if (!err) return false;
+    const c = String(err.code || '');
+    const m = String(err.message || '');
+    return c === 'PGRST202' || c === '42883' || /could not find the function|function .* does not exist/i.test(m);
+}
+
+function fmtHora(iso) {
+    try { return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
+}
+
+/** Mensagem amigável para o retorno {ok:false, motivo, restantes, bloqueado_ate} das RPCs do PIN. */
+function pinMotivoMsg(r) {
+    const mot = r && r.motivo;
+    if (mot === 'bloqueado') {
+        return 'Muitas tentativas erradas. A senha do Banco ficou travada até ' + fmtHora(r.bloqueado_ate) +
+            '. Espere ou use «Esqueci a senha da Caixa».';
+    }
+    if (mot === 'sem_pin') return 'Você ainda não criou a senha do Banco.';
+    if (mot === 'reauth') return 'Confirme a senha de login (ou o código do e-mail) de novo antes de trocar a senha do Banco.';
+    if (mot === 'errado') {
+        const n = Number(r.restantes);
+        if (n === 0) return pinMotivoMsg({ motivo: 'bloqueado', bloqueado_ate: r.bloqueado_ate });
+        return 'Senha do Banco incorreta (não é a senha de login).' +
+            (isFinite(n) ? ' ' + (n === 1 ? 'Resta 1 tentativa.' : 'Restam ' + n + ' tentativas.') : '');
+    }
+    return 'Não foi possível conferir a senha do Banco.';
+}
+
+/** true/false = tem PIN. Descobre também se o servidor já tem o SQL 60. */
+async function carregarPinStatus() {
+    if (pinServidor !== false) {
+        const { data, error } = await supabaseClient.rpc('caixa_pin_status');
+        if (!error) { pinServidor = true; return !!(data && data.tem_pin); }
+        if (!rpcAusente(error)) throw error;
+        pinServidor = false;
+    }
+    const uid = authId();
+    const { data, error } = await supabaseClient.from('caixa_saldos')
+        .select('pin_hash,pin_salt').eq('auth_id', uid).maybeSingle();
+    if (error) throw error;
+    pinLegado = data || null;
+    return !!(pinLegado && pinLegado.pin_hash && pinLegado.pin_salt);
+}
+
 async function garantirSaldoRow() {
     const uid = authId();
     if (!uid) return null;
     const { data, error } = await supabaseClient
         .from('caixa_saldos')
-        .select('*')
+        .select(SALDO_COLS)
         .eq('auth_id', uid)
         .maybeSingle();
     if (error) throw error;
@@ -207,7 +258,7 @@ async function garantirSaldoRow() {
     const { data: created, error: insErr } = await supabaseClient
         .from('caixa_saldos')
         .insert([{ auth_id: uid, saldo: 0, taxa_mensal: TAXA_YIELD_MAX, taxa_yield_max: TAXA_YIELD_MAX }])
-        .select('*')
+        .select(SALDO_COLS)
         .maybeSingle();
     if (insErr) throw insErr;
     return created;
@@ -252,7 +303,7 @@ async function carregarCaixa() {
             : (saldoRow && saldoRow.taxa_mensal != null ? Number(saldoRow.taxa_mensal) : TAXA_YIELD_MAX);
         if (!isFinite(taxaYieldMax) || taxaYieldMax <= 0) taxaYieldMax = TAXA_YIELD_MAX;
         renderSaldo();
-        const hasPin = !!(saldoRow && saldoRow.pin_hash && saldoRow.pin_salt);
+        const hasPin = await carregarPinStatus();
         applyLockUI(hasPin, isUnlocked());
     } catch (e) {
         console.warn(e);
@@ -262,8 +313,20 @@ async function carregarCaixa() {
     }
 }
 
-async function salvarPin(pin) {
+async function salvarPin(pin, atual) {
     if (!pin || pin.length < 6) throw new Error('Senha da Caixa: mínimo 6 caracteres');
+    if (pin.length > 64) throw new Error('Senha da Caixa: máximo 64 caracteres');
+    if (pinServidor === null) await carregarPinStatus();
+    if (pinServidor) {
+        await garantirSaldoRow();
+        const { data, error } = await supabaseClient.rpc('caixa_pin_definir', { p_novo: pin, p_atual: atual || null });
+        if (error) throw error;
+        if (!data || !data.ok) throw new Error(pinMotivoMsg(data));
+        saldoRow = await garantirSaldoRow();
+        setUnlocked(true);
+        applyLockUI(true, true);
+        return;
+    }
     const uid = authId();
     const salt = randomSaltHex(16);
     const hash = await hashPin(pin, salt);
@@ -275,14 +338,22 @@ async function salvarPin(pin) {
     }).eq('auth_id', uid);
     if (error) throw error;
     saldoRow = await garantirSaldoRow();
+    pinLegado = { pin_hash: hash, pin_salt: salt };
     setUnlocked(true);
     applyLockUI(true, true);
 }
 
+/** Confere o PIN. Retorna {ok, motivo, restantes, bloqueado_ate}. */
 async function verificarPin(pin) {
-    if (!saldoRow || !saldoRow.pin_hash || !saldoRow.pin_salt) return false;
-    const h = await hashPin(pin, saldoRow.pin_salt);
-    return h === saldoRow.pin_hash;
+    if (pinServidor === null) await carregarPinStatus();
+    if (pinServidor) {
+        const { data, error } = await supabaseClient.rpc('caixa_pin_conferir', { p_pin: String(pin || '') });
+        if (error) throw error;
+        return data || { ok: false, motivo: 'errado' };
+    }
+    if (!pinLegado || !pinLegado.pin_hash || !pinLegado.pin_salt) return { ok: false, motivo: 'sem_pin' };
+    const h = await hashPin(pin, pinLegado.pin_salt);
+    return { ok: h === pinLegado.pin_hash, motivo: h === pinLegado.pin_hash ? 'ok' : 'errado' };
 }
 
 async function carregarMovimentos() {
@@ -509,15 +580,44 @@ async function enviarDeposito() {
 
 async function enviarSaque() {
     if (!guardBankAction("sacar")) return;
-    if (typeof rateLimitAction === 'function' && !rateLimitAction('saque-send', 4000, 'Aguarde antes de solicitar outro saque.')) return;
     const uid = authId();
     const valor = parseFloat(document.getElementById('saque-valor').value);
     const chave = (document.getElementById('saque-chave').value || '').trim();
+    const pinEl = document.getElementById('saque-pin');
+    const pin = pinEl ? pinEl.value : '';
     if (!(valor > 0)) { setSaqueMsg('Informe um valor válido.', false); return; }
+    if (Math.round(valor * 100) / 100 !== valor) { setSaqueMsg('Use no máximo 2 casas decimais (centavos).', false); return; }
     if (!chave) { setSaqueMsg('Informe a chave Pix de destino.', false); return; }
     if (valor > saldoAtual + 1e-9) { setSaqueMsg('Saldo insuficiente.', false); return; }
+    if (!pin) { setSaqueMsg('Digite a senha do Banco para confirmar o saque.', false); if (pinEl) pinEl.focus(); return; }
+    // limite só para envios de verdade (corrigir um campo e tocar de novo não espera)
+    if (typeof rateLimitAction === 'function' && !rateLimitAction('saque-send', 4000, 'Aguarde antes de solicitar outro saque.')) return;
     if (!(await checarSaquePermitido())) { setSaqueMsg('', true); return; }
+    const btn = document.getElementById('btn-enviar-saque');
+    if (btn) btn.disabled = true;
     try {
+        if (pinServidor === null) await carregarPinStatus();
+        if (pinServidor) {
+            const { data, error } = await supabaseClient.rpc('caixa_pedir_saque', { p_valor: valor, p_chave: chave, p_pin: pin });
+            if (error) throw error;
+            if (!data || !data.ok) {
+                if (pinEl) { pinEl.value = ''; pinEl.focus(); }
+                setSaqueMsg(pinMotivoMsg(data), false);
+                return;
+            }
+            setSaqueMsg('Saque solicitado. Pode ser instantâneo ou demorar até 24 horas.', true);
+            if (typeof toastMsg === 'function') toastMsg('Saque pendente');
+            document.getElementById('saque-valor').value = '';
+            document.getElementById('saque-chave').value = '';
+            if (pinEl) pinEl.value = '';
+            await carregarPedidos();
+            return;
+        }
+        const conf = await verificarPin(pin);
+        if (!conf.ok) {
+            setSaqueMsg(conf.motivo === 'sem_pin' ? pinMotivoMsg(conf) : 'Senha do Banco incorreta (não é a senha de login).', false);
+            return;
+        }
         const { error } = await supabaseClient.from('caixa_saque_pedidos').insert([{
             auth_id: uid,
             valor: valor,
@@ -529,10 +629,16 @@ async function enviarSaque() {
         if (typeof toastMsg === 'function') toastMsg('Saque pendente');
         document.getElementById('saque-valor').value = '';
         document.getElementById('saque-chave').value = '';
+        if (pinEl) pinEl.value = '';
         await carregarPedidos();
     } catch (e) {
-        const em = (e.message || String(e));
-        setSaqueMsg(/indica|primeiro dep|Saldo insuf/i.test(em) ? em : em + ' (SQL 15?)', false);
+        let em = (e.message || String(e));
+        if (/manutencao/i.test(em)) em = 'Minera Bank em manutenção: saque pausado.';
+        else if (/valor valido/i.test(em)) em = 'Informe um valor válido.';
+        else if (/chave Pix/i.test(em)) em = 'Informe a chave Pix de destino.';
+        setSaqueMsg(/indica|primeiro dep|Saldo insuf|manuten|valor v|chave Pix/i.test(em) ? em : em + ' (SQL 15?)', false);
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -673,19 +779,21 @@ function bindPinUI() {
         try {
             // Refresh row so missing PIN never fails forever on unlock UI
             saldoRow = await garantirSaldoRow();
-            const hasPin = !!(saldoRow && saldoRow.pin_hash && saldoRow.pin_salt);
+            const hasPin = await carregarPinStatus();
             if (!hasPin) {
                 applyLockUI(false, false);
                 setMsg('pin-set-msg', 'Nenhuma senha da Caixa definida. Crie uma agora (diferente do login).', true);
                 return;
             }
-            const ok = await verificarPin(pin);
-            if (!ok) {
-                setMsg('pin-unlock-msg',
-                    'Senha da Caixa incorreta (não é a senha de login). Use «Esqueci a senha da Caixa».',
-                    false);
+            const r = await verificarPin(pin);
+            if (!r.ok) {
+                if (r.motivo === 'sem_pin') { applyLockUI(false, false); return; }
+                setMsg('pin-unlock-msg', r.motivo === 'errado' && !pinServidor
+                    ? 'Senha da Caixa incorreta (não é a senha de login). Use «Esqueci a senha da Caixa».'
+                    : pinMotivoMsg(r), false);
                 return;
             }
+            document.getElementById('pin-unlock').value = '';
             setUnlocked(true);
             applyLockUI(true, true);
             setMsg('pin-unlock-msg', '', true);
