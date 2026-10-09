@@ -402,7 +402,7 @@ function garantirHeaderModoUiBtn(perfil) {
     const bpOld = document.getElementById('btn-modo-ui-painel');
 
     const isAdm = typeof ehAdmin === 'function' && ehAdmin(perfil);
-    if (!isAdm) {
+    if (!isAdm || window.MINERA_GESTOR_APP === true || window.MINERA_CHAT_APP === true) { // apps só-gestor/só-chat: sem botão de modo admin
         if (btnOld) btnOld.remove();
         if (stickyOld) stickyOld.remove();
         if (bpOld) bpOld.remove();
@@ -626,8 +626,10 @@ function montarNav(paginaAtiva, perfil) {
         return;
     }
 
-    const adminUi = typeof emModoAdminUi === 'function' && emModoAdminUi(perfil);
-    const usuarioUi = typeof emModoUsuarioUi === 'function' && emModoUsuarioUi(perfil);
+    // apps só-gestor / só-chat: sempre a interface normal (sem chrome de monitoramento), mesmo para admin
+    const subAppSo = window.MINERA_GESTOR_APP === true || window.MINERA_CHAT_APP === true;
+    const adminUi = !subAppSo && typeof emModoAdminUi === 'function' && emModoAdminUi(perfil);
+    const usuarioUi = !subAppSo && typeof emModoUsuarioUi === 'function' && emModoUsuarioUi(perfil);
     const isAdminPage = paginaAtiva === 'admin'
         || (document.body && document.body.classList.contains('pagina-admin'));
     // Chrome de monitoramento: modo admin OU qualquer visita a admin.html
@@ -758,7 +760,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261009f';
+    const src = root + 'logo-escavadeira.png?v=20261009h';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');

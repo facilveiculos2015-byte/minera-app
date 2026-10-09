@@ -55,7 +55,7 @@
     }
     function marcar(app) { if (APPS[app]) ls(kMarca(app), String(Date.now())); }
     function limpar(app) { if (APPS[app]) ls(kMarca(app), null); }
-    // 1× por aparelho: zera marcas do build 20261009f (podiam ter vindo de marca antiga ou de janela errada)
+    // 1× por aparelho: zera marcas do build 20261009h (podiam ter vindo de marca antiga ou de janela errada)
     if (ls('minera_atalho_v2') !== '1') {
         Object.keys(APPS).forEach(function (a) { ls(kMarca(a), null); ls(kMarca(a) + '_mig', null); });
         ls('minera_atalho_v2', '1');

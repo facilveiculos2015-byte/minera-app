@@ -66,6 +66,15 @@ function irPara(pagina) {
         if (/^entrar\.html/i.test(p)) p = 'gestor/' + p;
         else if (/^(inicio|admin|gestor|tutorial)\.html/i.test(p)) p = 'gestor/';
     }
+    // Trava anti-loop: destino = esta mesma página → não recarrega (um redirecionamento que cai na própria
+    // tela, ex.: admin → /gestor/ dentro do Gestor Minera, virava recarga infinita)
+    try {
+        const destino = new URL(APP_ROOT + p, location.href);
+        if (destino.origin === location.origin && destino.pathname.replace(/index\.html$/i, '') === location.pathname.replace(/index\.html$/i, '')) {
+            console.warn('irPara: destino é a própria página (' + p + '); sem recarregar');
+            return;
+        }
+    } catch (e) { /* segue */ }
     window.location.replace(APP_ROOT + p);
 }
 
