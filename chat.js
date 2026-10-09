@@ -235,7 +235,29 @@ function tickHtml(m) {
     return '<span class="tk tk-env" aria-label="Enviada">✓</span>';
 }
 
+/** Registro de ligação de voz (SQL 63, tipo 'chamada'): pílula no meio; tocar = ligar de volta. */
+function chamadaRotulo(m) {
+    let t = String(m.texto || '').replace(/^\s*📞\s*/, '');
+    if (ehMinha(m) && /perdida/.test(t)) t = t.replace('perdida', 'não atendida'); // quem ligou vê "não atendida"
+    return t || 'Chamada de voz';
+}
+function bubbleChamadaHtml(m) {
+    const iso = m.criado_em || m._criadoLocal;
+    const hora = iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const perdida = /perdida|recusada/.test(String(m.texto || ''));
+    const seta = ehMinha(m) ? '↗' : '↙';
+    return '<div class="bubble bubble-chamada' + (perdida ? ' perdida' : '') + '" data-key="' + chaveMsg(m) + '" data-dia="' + dayKey(iso) + '"' +
+        (m.id != null ? ' data-msg-id="' + m.id + '"' : '') + ' data-ligar="1" role="button" title="Ligar de volta">' +
+        '<span class="bc-ic" aria-hidden="true">📞' + seta + '</span><span class="bc-t">' + esc(chamadaRotulo(m)) + '</span><span class="bc-h">' + esc(hora) + '</span></div>';
+}
+function ligarParaContato() {
+    if (!contatoAtivo || !contatoAtivo.auth_id || ehGrupoPeer(contatoAtivo.auth_id)) return;
+    if (document.body.classList.contains('chat-bloqueado')) { toast('Não é possível ligar nesta conversa.'); return; }
+    if (!window.MineraChamada) return; // desligada neste ambiente (trava em chamada.js)
+    window.MineraChamada.ligar({ auth_id: contatoAtivo.auth_id, nome: displayNome(contatoAtivo) });
+}
 function bubbleHtml(m) {
+    if (String(m.tipo || '') === 'chamada' && !m.deleted_at) return bubbleChamadaHtml(m);
     if (String(m.tipo || '') === 'sistema') {
         const isoS = m.criado_em || m._criadoLocal;
         return '<div class="bubble bubble-sys" data-key="' + chaveMsg(m) + '" data-dia="' + dayKey(isoS) + '"' +
@@ -601,7 +623,7 @@ async function sincronizarConversa() {
     } catch (e) { /* offline: tenta no próximo ciclo */ } finally { syncando = false; }
 }
 
-/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261009h). */
+/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261009k). */
 let atualizandoManual = false, atualizarOkT = null;
 async function atualizarConversaManual() {
     const btn = $('btn-chat-atualizar');
@@ -1063,7 +1085,7 @@ function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(po
 /* ============================ áudio estilo WhatsApp ============================ */
 // Segurar = grava enquanto segura (solta envia; deslize ← ou "Cancelar" descarta).
 // Segurar e arrastar ↑ = trava (barra com Cancelar e ➤ enviar). Nunca trava sozinho.
-// 20261009h: o microfone fica aberto SÓ durante a gravação e é solto na hora (enviar, cancelar,
+// 20261009k: o microfone fica aberto SÓ durante a gravação e é solto na hora (enviar, cancelar,
 // erro, sair da conversa/tela) — sem indicador laranja do iPhone depois do envio.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
@@ -1121,7 +1143,7 @@ function onRecordingReady(blob) {
     enviarAudioGravado(file, audioPicos, dur);
 }
 let audioRecDur = 0;
-// Antes (20261009h) o stream ficava aberto entre gravações com a trilha "desligada" (enabled=false)
+// Antes (20261009k) o stream ficava aberto entre gravações com a trilha "desligada" (enabled=false)
 // para não pedir permissão de novo: no iPhone isso mantinha o indicador laranja do mic aceso até
 // sair do chat, e um stream aberto quando o app é suspenso faz o iOS perguntar a permissão de novo.
 // Agora: nenhum stream fica guardado. A permissão continua sendo reaproveitada pelo próprio WebKit
@@ -2181,6 +2203,7 @@ function bindTela() {
         box.addEventListener('click', (e) => {
             const r = e.target.closest && e.target.closest('[data-retry]');
             if (r) { reenviarUm(r.getAttribute('data-retry')); return; }
+            if (e.target.closest && e.target.closest('[data-ligar]')) { ligarParaContato(); return; }
             const img = e.target.closest && e.target.closest('.bubble-media img');
             if (img && !img.closest('.bubble-media-loading') && window.MineraLightbox) {
                 const imgs = Array.from(box.querySelectorAll('.bubble-media img')).filter(x => !x.closest('.bubble-media-loading') && x.getAttribute('src'));
@@ -2237,6 +2260,7 @@ function bindTela() {
     const bCR = $('btn-cancel-reply'); if (bCR) bCR.addEventListener('click', () => setReplyTo(null, true));
     const bMenu = $('btn-chat-menu'); if (bMenu) bMenu.addEventListener('click', (e) => { e.stopPropagation(); toggleChatHeadMenu(); });
     const bOp = $('btn-chat-opcoes'); if (bOp) bOp.addEventListener('click', (e) => { e.stopPropagation(); toggleChatHeadMenu(); });
+    const bLig = $('btn-chat-ligar'); if (bLig) bLig.addEventListener('click', (e) => { e.stopPropagation(); fecharChatHeadMenu(); ligarParaContato(); });
     const bAtu = $('btn-chat-atualizar'); if (bAtu) bAtu.addEventListener('click', (e) => { e.stopPropagation(); fecharChatHeadMenu(); atualizarConversaManual(); });
     const bAm = $('btn-op-amigo'); if (bAm) bAm.addEventListener('click', adicionarAmigoAtual);
     const bBl = $('btn-op-bloquear'); if (bBl) bBl.addEventListener('click', () => alternarBloqueio(T.peer));

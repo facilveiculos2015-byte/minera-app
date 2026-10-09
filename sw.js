@@ -5,20 +5,20 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261009h';
+const CACHE = 'minera-shell-20261009k';
 const PRECACHE = [
-  './style.css?v=20261009h',
-  './chat-realtime.js?v=20261009h',
-  './avatar.js?v=20261009h',
-  './avatar-editor.js?v=20261009h',
-  './nav.js?v=20261009h',
-  './config.js?v=20261009h',
-  './seguranca.js?v=20261009h',
-  './pwa.js?v=20261009h',
-  './lightbox.js?v=20261009h',
-  './gestor.css?v=20261009h',
-  './gestor-calc.js?v=20261009h',
-  './gestor.js?v=20261009h',
+  './style.css?v=20261009k',
+  './chat-realtime.js?v=20261009k',
+  './avatar.js?v=20261009k',
+  './avatar-editor.js?v=20261009k',
+  './nav.js?v=20261009k',
+  './config.js?v=20261009k',
+  './seguranca.js?v=20261009k',
+  './pwa.js?v=20261009k',
+  './lightbox.js?v=20261009k',
+  './gestor.css?v=20261009k',
+  './gestor-calc.js?v=20261009k',
+  './gestor.js?v=20261009k',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -198,7 +198,9 @@ self.addEventListener('push', (event) => {
     tag: d.tag || 'minera',
     renotify: true,
     silent: false,
-    vibrate: [80, 40, 80],
+    // ligação de voz (SQL 63): fica na tela até tocar/arrastar e vibra como chamada
+    requireInteraction: !!d.chamada,
+    vibrate: d.chamada ? [500, 250, 500, 250, 500, 250, 500] : [80, 40, 80],
     data: { url: d.url || './chat.html' }
   });
   event.waitUntil(

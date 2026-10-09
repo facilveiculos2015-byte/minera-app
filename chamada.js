@@ -1,0 +1,682 @@
+/* Minera Pará — LIGAÇÃO DE VOZ 1:1 (WebRTC) no chat. Requer o SQL 63.
+ *
+ * window.MineraChamada
+ *   .ligar({ auth_id, nome })   → liga (precisa ser chamado DENTRO do toque: pede o microfone)
+ *   .ativa()                    → true durante uma ligação
+ *   .iniciar()                  → começa a escutar ligações (feito sozinho quando há sessão)
+ *
+ * Como funciona (estabilidade primeiro):
+ *  - Estado oficial no banco (tabela chamadas, RLS: só os 2 participantes). Mudanças chegam por
+ *    Realtime (postgres_changes) E por consulta a cada 2 s enquanto conecta (se o Realtime cair, a
+ *    ligação continua). Toque de 45 s; o servidor também fecha ligação esquecida.
+ *  - Oferta/resposta (SDP) só DEPOIS de atender, gravadas na linha da ligação (durável) e apagadas no fim.
+ *    Candidatos ICE: canal Realtime PRIVADO chamada:<id> (mais rápido) + a descrição completa regravada
+ *    no banco quando a coleta termina (funciona mesmo sem o canal).
+ *  - Queda de rede: ICE restart automático (quem ligou renegocia; quem recebeu pede), até 25 s; depois encerra.
+ *  - TURN: credencial curta da Edge Function turn-credenciais (se existir); senão só STUN público.
+ *  - Fim da ligação (qualquer caminho): para TODAS as trilhas do microfone (indicador laranja do iPhone some),
+ *    fecha o RTCPeerConnection, o canal e o áudio.
+ */
+(function () {
+    'use strict';
+    if (window.MineraChamada) return;
+    // TRAVA PELO BACKEND (teste e produção): o botão nasce escondido (style="display:none" no HTML)
+    // e só aparece se o banco tiver o SQL 63 E responder chamada_config() → { ativo: true }.
+    // Sem o SQL (ou app_flags 'chamadas_ativas' = false) nada aparece e nada escuta.
+    // window.MINERA_CHAMADA_ATIVA = false desliga localmente (emergência no próprio site).
+    if (window.MINERA_CHAMADA_ATIVA === false) return;
+    var ATIVO = false, cfgT = 0;
+    function botaoLigar(mostrar) {
+        var b = document.getElementById('btn-chat-ligar'); if (!b) return;
+        b.style.display = mostrar ? '' : 'none';
+        document.documentElement.classList.toggle('chamada-ok', !!mostrar);
+    }
+
+    var CFG = Object.assign({
+        toqueMs: 45000,
+        stun: [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }],
+        soRelay: false,            // true = só TURN (esconde o IP do outro lado; precisa de TURN configurado)
+        fnTurn: 'turn-credenciais',
+        semConexaoMs: 25000
+    }, window.MINERA_CHAMADA_CFG || {});
+
+    var eu = null, chanRows = null, chanSt = 'CLOSED', chanRetryT = null, iniciado = false;
+    var C = null;                 // ligação atual
+    var todosStreams = [];        // p/ teste: todo microfone aberto por aqui
+    var ctxSom = null;            // AudioContext SÓ de reprodução (toque); nunca liga no microfone
+
+    function sb() { return (typeof supabaseClient !== 'undefined' && supabaseClient) ? supabaseClient : null; }
+    function $(id) { return document.getElementById(id); }
+    function log() { try { if (window.MINERA_CHAMADA_LOG) console.log.apply(console, ['[chamada]'].concat([].slice.call(arguments))); } catch (e) { /* ignore */ } }
+    function toastC(t) { try { if (typeof toastMsg === 'function') toastMsg(t); } catch (e) { /* ignore */ } }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function iniciais(n) { var p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); }
+    function suportado() { return !!(window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia); }
+    // id desta ABA (aparelho + aba): 2 abas/janelas do mesmo aparelho tocando → só a que atendeu fica com a ligação
+    var ABA = Math.random().toString(36).slice(2, 8);
+    function aparelho() {
+        var v = 'ap';
+        try {
+            var k = 'minera_chamada_aparelho'; v = localStorage.getItem(k);
+            if (!v || !/^[A-Za-z0-9-]{8,40}$/.test(v)) { v = 'ap-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem(k, v); }
+        } catch (e) { v = 'ap-sem-armazenamento'; }
+        return v + '-' + ABA;
+    }
+    function fmt(seg) { seg = Math.max(0, Math.floor(seg)); return Math.floor(seg / 60) + ':' + String(seg % 60).padStart(2, '0'); }
+    function nomeSeguro(n) { n = String(n || '').trim(); return n && n.indexOf('@') < 0 ? n : 'Contato'; }
+
+    /* ---------------- sons (WebAudio, sem arquivo) ---------------- */
+    function somCtx() {
+        try {
+            if (!ctxSom || ctxSom.state === 'closed') { var A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ctxSom = new A(); }
+            if (ctxSom.state === 'suspended') ctxSom.resume().catch(function () {});
+            return ctxSom;
+        } catch (e) { return null; }
+    }
+    // destrava o áudio no 1º toque na tela (o toque de ligação recebida precisa disso em alguns navegadores)
+    function destravar() { var c = somCtx(); if (c) { try { var o = c.createOscillator(), g = c.createGain(); g.gain.value = 0; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.01); } catch (e) { /* ignore */ } } }
+    document.addEventListener('pointerdown', function d1() { destravar(); document.removeEventListener('pointerdown', d1, true); }, true);
+
+    var somT = null, somNos = [];
+    function pararSom() {
+        clearInterval(somT); somT = null;
+        somNos.forEach(function (n) { try { n.stop(); } catch (e) { /* ignore */ } try { n.disconnect(); } catch (e) { /* ignore */ } });
+        somNos = [];
+        try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) { /* ignore */ }
+    }
+    function bip(freqs, iniS, durS, vol) {
+        var c = somCtx(); if (!c) return;
+        var t0 = c.currentTime + iniS;
+        var g = c.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+        g.gain.setValueAtTime(vol, t0 + durS - 0.03); g.gain.linearRampToValueAtTime(0, t0 + durS); g.connect(c.destination);
+        freqs.forEach(function (f) { var o = c.createOscillator(); o.frequency.value = f; o.connect(g); o.start(t0); o.stop(t0 + durS + 0.02); somNos.push(o); });
+        somNos.push(g);
+    }
+    /** 'toque' (recebendo), 'chamando' (425 Hz 1 s / 4 s, padrão BR), 'ocupado', 'fim' */
+    function tocar(tipo) {
+        pararSom();
+        if (tipo === 'toque') {
+            var um = function () { bip([440, 480], 0, 0.4, 0.22); bip([440, 480], 0.6, 0.4, 0.22); try { if (navigator.vibrate) navigator.vibrate([400, 200, 400]); } catch (e) { /* ignore */ } };
+            um(); somT = setInterval(um, 3000);
+        } else if (tipo === 'chamando') {
+            var dois = function () { bip([425], 0, 1.0, 0.12); };
+            dois(); somT = setInterval(dois, 5000);
+        } else if (tipo === 'ocupado') {
+            for (var i = 0; i < 6; i++) bip([425], i * 0.5, 0.25, 0.14);
+        } else if (tipo === 'fim') {
+            bip([480], 0, 0.18, 0.12); bip([380], 0.22, 0.25, 0.12);
+        }
+    }
+
+    /* ---------------- tela ---------------- */
+    var CSS = '' +
+        '.ch-tela{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:space-between;' +
+        'padding:calc(28px + env(safe-area-inset-top)) 20px calc(34px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#0f2a1f 0%,#0b1712 70%);color:#f2f7f4;font-family:inherit;text-align:center}' +
+        '.ch-tela.oculto{display:none}' +
+        '.ch-topo{font-size:13px;opacity:.75;letter-spacing:.2px}' +
+        '.ch-meio{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4vh}' +
+        '.ch-av{width:112px;height:112px;border-radius:50%;background:#1f6f4a;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;box-shadow:0 0 0 0 rgba(46,204,113,.5)}' +
+        '.ch-tela[data-fase=tocando] .ch-av,.ch-tela[data-fase=chamando] .ch-av{animation:chPulso 1.6s infinite}' +
+        '@keyframes chPulso{0%{box-shadow:0 0 0 0 rgba(46,204,113,.55)}70%{box-shadow:0 0 0 26px rgba(46,204,113,0)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}' +
+        '.ch-nome{font-size:26px;font-weight:700;max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+        '.ch-status{font-size:16px;opacity:.85;min-height:22px;font-variant-numeric:tabular-nums}' +
+        '.ch-acoes,.ch-entrada{display:flex;gap:26px;align-items:flex-start;justify-content:center;width:100%}' +
+        '.ch-b{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;color:inherit;font:inherit;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+        '.ch-b .ch-c{width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.14);transition:transform .1s}' +
+        '.ch-b:active .ch-c{transform:scale(.94)}' +
+        '.ch-b[aria-pressed=true] .ch-c{background:#f2f7f4;color:#0b1712}' +
+        '.ch-b.ch-verm .ch-c{background:#e5484d;color:#fff}.ch-b.ch-verde .ch-c{background:#2fbf71;color:#fff}' +
+        '.ch-b svg{width:30px;height:30px}' +
+        '.ch-tela[data-papel=entrada][data-fase=tocando] .ch-acoes{display:none}' +
+        '.ch-tela:not([data-fase=tocando]) .ch-entrada,.ch-tela[data-papel=saida] .ch-entrada{display:none}' +
+        '.ch-tela[data-fase=fim] .ch-acoes{opacity:.35;pointer-events:none}' +
+        '.bubble.bubble-chamada{align-self:center;max-width:86%;margin:6px auto;padding:7px 14px;border-radius:16px;background:rgba(127,127,127,.14);color:inherit;font-size:13.5px;display:flex;gap:8px;align-items:center;cursor:pointer;box-shadow:none}' +
+        '.bubble.bubble-chamada::before,.bubble.bubble-chamada::after{display:none!important}' +
+        '.bubble.bubble-chamada.perdida .bc-ic{color:#e5484d}.bubble.bubble-chamada .bc-h{opacity:.6;font-size:12px}' +
+        '.gk-circ.gk-ligar svg{width:21px;height:21px}body.chat-grupo-aberto #btn-chat-ligar,body.chat-bloqueado #btn-chat-ligar{display:none}';
+    var IC = {
+        mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
+        micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg>',
+        falante: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
+        fone: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg>',
+        desligar: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1a1 1 0 0 1-.56.9c-.98.49-1.87 1.12-2.66 1.85a1 1 0 0 1-1.41-.02L.29 13.08a1 1 0 0 1 0-1.41C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67a1 1 0 0 1 0 1.41l-2.48 2.48a1 1 0 0 1-1.41.02 11.3 11.3 0 0 0-2.66-1.85 1 1 0 0 1-.56-.9v-3.1A15 15 0 0 0 12 9z"/></svg>'
+    };
+    function montarTela() {
+        if ($('chamada-tela')) return $('chamada-tela');
+        if (!$('chamada-css')) { var st = document.createElement('style'); st.id = 'chamada-css'; st.textContent = CSS; document.head.appendChild(st); }
+        var d = document.createElement('div');
+        d.id = 'chamada-tela'; d.className = 'ch-tela oculto'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', 'Ligação de voz');
+        d.innerHTML =
+            '<div class="ch-topo">🔒 Ligação de voz · criptografada</div>' +
+            '<div class="ch-meio"><div class="ch-av" id="ch-av">?</div><div class="ch-nome" id="ch-nome">—</div><div class="ch-status" id="ch-status" aria-live="polite"></div></div>' +
+            '<div style="width:100%">' +
+            '<div class="ch-acoes">' +
+            '<button type="button" class="ch-b" id="ch-btn-mudo" aria-pressed="false"><span class="ch-c">' + IC.mic + '</span><span>Mudo</span></button>' +
+            '<button type="button" class="ch-b ch-verm" id="ch-btn-desligar"><span class="ch-c">' + IC.desligar + '</span><span>Desligar</span></button>' +
+            '<button type="button" class="ch-b" id="ch-btn-falante" aria-pressed="false"><span class="ch-c">' + IC.falante + '</span><span>Alto-falante</span></button>' +
+            '</div>' +
+            '<div class="ch-entrada">' +
+            '<button type="button" class="ch-b ch-verm" id="ch-btn-recusar"><span class="ch-c">' + IC.desligar + '</span><span>Recusar</span></button>' +
+            '<button type="button" class="ch-b ch-verde" id="ch-btn-atender"><span class="ch-c">' + IC.fone + '</span><span>Atender</span></button>' +
+            '</div></div>';
+        document.body.appendChild(d);
+        $('ch-btn-desligar').addEventListener('click', function () { desligar('desligou'); });
+        $('ch-btn-recusar').addEventListener('click', function () { desligar('recusou'); });
+        $('ch-btn-atender').addEventListener('click', atender);
+        $('ch-btn-mudo').addEventListener('click', alternarMudo);
+        $('ch-btn-falante').addEventListener('click', alternarFalante);
+        return d;
+    }
+    function tela(fase, status) {
+        var d = montarTela();
+        if (C) { d.setAttribute('data-papel', C.papel); $('ch-nome').textContent = C.peerNome || 'Contato'; $('ch-av').textContent = iniciais(C.peerNome); }
+        if (fase) d.setAttribute('data-fase', fase);
+        if (status != null) $('ch-status').textContent = status;
+        d.classList.remove('oculto');
+    }
+    function esconderTela() { var d = $('chamada-tela'); if (d) d.classList.add('oculto'); }
+
+    /* ---------------- banco ---------------- */
+    async function rpc(nome, args) {
+        var c = sb(); if (!c) throw new Error('sem cliente');
+        var r = await c.rpc(nome, args || {});
+        if (r.error) throw r.error;
+        return r.data;
+    }
+    function linha(d) { return Array.isArray(d) ? (d[0] || null) : d; }
+    async function lerLinha(id) {
+        var c = sb(); if (!c) return null;
+        var r = await c.from('chamadas').select('*').eq('id', id).maybeSingle();
+        return r && r.data || null;
+    }
+
+    async function buscarIce(id) {
+        var c = sb(); var pad = { iceServers: CFG.stun, provedor: 'stun', ttl: 0 };
+        if (!c || !c.functions) return pad;
+        try {
+            var r = await Promise.race([
+                c.functions.invoke(CFG.fnTurn, { body: { chamada_id: id } }),
+                new Promise(function (res) { setTimeout(function () { res({ error: 'tempo' }); }, 3500); })
+            ]);
+            var d = r && !r.error && r.data;
+            if (d && Array.isArray(d.iceServers) && d.iceServers.length) return { iceServers: d.iceServers, provedor: d.provedor || '?', ttl: Number(d.ttl) || 0, em: Date.now() };
+        } catch (e) { /* sem TURN: só STUN */ }
+        return pad;
+    }
+
+    /* ---------------- ciclo da ligação ---------------- */
+    function novo(row, papel, peerId, peerNome) {
+        C = {
+            id: row.id, row: row, papel: papel, peerId: peerId, peerNome: peerNome, fase: papel === 'saida' ? 'chamando' : 'tocando',
+            pc: null, stream: null, audio: null, ch: null, chSt: 'CLOSED', locVer: 0, remVer: 0, remSdp: '', candsLocais: [], candsRem: new Set(),
+            filaCands: [], fila: Promise.resolve(), timers: {}, ice: null, icePromise: null, mudo: false, falante: false,
+            conectadaEm: 0, semConexaoDesde: 0, reiniciando: false, atendiAqui: papel === 'saida', fim: false, token: null
+        };
+        guardarToken();
+        return C;
+    }
+    async function guardarToken() { try { var s = await sb().auth.getSession(); if (C && s && s.data && s.data.session) C.token = s.data.session.access_token; } catch (e) { /* ignore */ } }
+    function timer(nome, fn, ms, rep) { if (!C) return; clearTimer(nome); C.timers[nome] = (rep ? setInterval : setTimeout)(fn, ms); }
+    function clearTimer(nome) { if (C && C.timers[nome]) { clearTimeout(C.timers[nome]); clearInterval(C.timers[nome]); delete C.timers[nome]; } }
+
+    async function pegarMic() {
+        var s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+        todosStreams.push(s);
+        return s;
+    }
+    function soltarMic(s) { if (!s) return; try { s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) { /* ignore */ } }); } catch (e) { /* ignore */ } }
+
+    async function ligar(peer) {
+        if (!peer || !peer.auth_id) return;
+        if (C) { toastC('Você já está em uma ligação.'); return; }
+        if (!ATIVO && !(await conferirBackend(true))) { toastC('Ligação de voz indisponível no momento.'); return; }
+        if (!suportado()) { toastC('Este navegador não faz ligação. Atualize o app/navegador.'); return; }
+        if (!eu) await iniciar();
+        if (!eu) { toastC('Entre na sua conta para ligar.'); return; }
+        var stream;
+        try { stream = await pegarMic(); }   // dentro do toque (iOS exige)
+        catch (e) { toastC('Sem acesso ao microfone. Permita o microfone para ligar.'); return; }
+        var temp = { id: null }; C = Object.assign(temp, { fase: 'iniciando', papel: 'saida', peerNome: peer.nome || 'Contato', timers: {}, stream: stream });
+        tela('chamando', 'Chamando…');
+        var row;
+        try { row = linha(await rpc('chamada_iniciar', { p_para: peer.auth_id, p_aparelho: aparelho() })); }
+        catch (e) {
+            soltarMic(stream); C = null;
+            var msg = String((e && e.message) || '');
+            tela('fim', /function|schema|does not exist|404/i.test(msg) ? 'Ligação ainda não disponível' : (msg || 'Não foi possível ligar'));
+            setTimeout(function () { if (!C) esconderTela(); }, 2200);
+            return;
+        }
+        if (!row) { soltarMic(stream); C = null; esconderTela(); return; }
+        if (row.para === eu && row.estado === 'tocando') {      // ligação cruzada: a pessoa está me ligando → atende já
+            novo(row, 'entrada', row.de, peer.nome || nomeSeguro(row.de_nome)); C.stream = stream;
+            await atender(); return;
+        }
+        novo(row, 'saida', peer.auth_id, peer.nome || 'Contato'); C.stream = stream;
+        if (row.estado === 'ocupado') { tela('fim', 'Ocupado'); tocar('ocupado'); finalizar(null, 3000); return; }
+        tela('chamando', 'Chamando…'); tocar('chamando');
+        C.icePromise = buscarIce(row.id).then(function (x) { if (C && C.id === row.id) C.ice = x; return x; });
+        timer('toque', function () { desligar('timeout'); }, CFG.toqueMs);
+        timer('poll', poll, 2000, true);
+        timer('ping', ping, 20000, true);
+        guardaSaida(true);
+    }
+
+    function entrada(row) {
+        if (C) { if (C.id !== row.id) rpc('chamada_encerrar', { p_id: row.id, p_motivo: 'ocupado' }).catch(function () {}); return; }
+        novo(row, 'entrada', row.de, nomeSeguro(row.de_nome));
+        tela('tocando', 'Ligação de voz…'); tocar('toque');
+        var restante = CFG.toqueMs + 3000 - Math.max(0, Date.now() - new Date(row.criado_em).getTime());
+        timer('toque', function () { poll(); timer('toqueFim', function () { if (C && C.fase === 'tocando') finalizar('Ligação perdida', 1500); }, 4000); }, Math.min(CFG.toqueMs + 3000, Math.max(5000, restante)));
+        timer('poll', poll, 2500, true);
+        try { if (document.visibilityState === 'hidden' && typeof MineraNotif !== 'undefined' && MineraNotif.showBrowserNotif) { /* o push do servidor já avisa */ } } catch (e) { /* ignore */ }
+    }
+
+    async function atender() {
+        if (!C || C.papel !== 'entrada' || C.fase !== 'tocando') return;
+        pararSom();
+        tela('conectando', 'Conectando…');
+        try { if (!C.stream) C.stream = await pegarMic(); }    // dentro do toque em "Atender"
+        catch (e) { toastC('Sem acesso ao microfone.'); desligar('falhou'); return; }
+        var row;
+        try { row = linha(await rpc('chamada_atender', { p_id: C.id, p_aparelho: aparelho() })); }
+        catch (e) { finalizar('Não foi possível atender', 1800); return; }
+        if (!C) return;
+        if (!row || row.estado !== 'atendida') { atualizar(row || C.row); if (C && !C.fim) finalizar('Ligação encerrada', 1500); return; }
+        C.atendiAqui = true; C.fase = 'conectando';
+        C.icePromise = buscarIce(C.id).then(function (x) { if (C) C.ice = x; return x; });
+        clearTimer('toque'); clearTimer('toqueFim');
+        timer('poll', poll, 2000, true);
+        timer('ping', ping, 20000, true);
+        timer('semConexao', function () { if (C && !C.conectadaEm) { log('nunca conectou'); desligar('falhou', 'Não foi possível conectar'); } }, 30000);
+        guardaSaida(true);
+        await criarPC();
+        abrirCanal();
+        atualizar(row);
+    }
+
+    async function criarPC() {
+        if (!C || C.pc) return;
+        var ice = C.ice || (C.icePromise ? await Promise.race([C.icePromise, new Promise(function (r) { setTimeout(function () { r(null); }, 3000); })]) : null) || { iceServers: CFG.stun, provedor: 'stun' };
+        if (!C || C.pc) return;
+        C.ice = ice;
+        var conf = { iceServers: ice.iceServers, bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require' };
+        if (CFG.soRelay && ice.provedor !== 'stun') conf.iceTransportPolicy = 'relay';
+        var pc = new RTCPeerConnection(conf);
+        C.pc = pc;
+        C.stream.getAudioTracks().forEach(function (t) { t.enabled = !C.mudo; pc.addTrack(t, C.stream); });
+        pc.onicecandidate = function (e) {
+            if (!C || C.pc !== pc) return;
+            if (e.candidate) {
+                var j = e.candidate.toJSON ? e.candidate.toJSON() : { candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex };
+                C.candsLocais.push({ v: C.locVer, c: j });
+                sinal({ ev: 'ice', v: C.locVer, c: j });
+            } else {
+                regravarSdp();   // coleta terminou → descrição completa no banco (funciona sem o canal)
+            }
+        };
+        pc.onicegatheringstatechange = function () { if (C && C.pc === pc && pc.iceGatheringState === 'complete') regravarSdp(); };
+        pc.ontrack = function (e) {
+            if (!C || C.pc !== pc) return;
+            var a = C.audio;
+            if (!a) { a = document.createElement('audio'); a.id = 'chamada-audio'; a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none'; document.body.appendChild(a); C.audio = a; }
+            a.srcObject = (e.streams && e.streams[0]) || new MediaStream([e.track]);
+            var p = a.play(); if (p && p.catch) p.catch(function () { /* autoplay: toque na tela libera */ });
+        };
+        var onEstado = function () {
+            if (!C || C.pc !== pc) return;
+            var st = pc.connectionState || pc.iceConnectionState;
+            log('estado', st, pc.iceConnectionState);
+            if (st === 'connected' || st === 'completed') conectou();
+            else if (st === 'disconnected') caiu(false);
+            else if (st === 'failed') caiu(true);
+        };
+        pc.onconnectionstatechange = onEstado;
+        pc.oniceconnectionstatechange = function () { if (!pc.connectionState) onEstado(); else if (pc.iceConnectionState === 'failed') caiu(true); };
+    }
+
+    function conectou() {
+        if (!C) return;
+        C.semConexaoDesde = 0; C.reiniciando = false; clearTimer('reconecta'); clearTimer('desiste'); clearTimer('semConexao');
+        if (!C.conectadaEm) {
+            C.conectadaEm = Date.now(); pararSom();
+            timer('cron', function () { if (C && C.fase === 'conectada') $('ch-status').textContent = fmt((Date.now() - C.conectadaEm) / 1000); }, 1000, true);
+            timer('poll', poll, 10000, true);
+        }
+        C.fase = 'conectada';
+        tela('conectada', fmt((Date.now() - C.conectadaEm) / 1000));
+    }
+    function caiu(falhou) {
+        if (!C || C.fim || !C.conectadaEm && !falhou) return;
+        if (!C.semConexaoDesde) C.semConexaoDesde = Date.now();
+        if (C.conectadaEm) { C.fase = 'reconectando'; tela('reconectando', 'Reconectando…'); }
+        timer('poll', poll, 2000, true);
+        // 'disconnected' costuma voltar sozinho em 1–3 s; 'failed' renegocia já
+        timer('reconecta', function () { reiniciarIce(); }, falhou ? 0 : 2500);
+        if (!C.timers.desiste) timer('desiste', function () { if (C && C.fase !== 'conectada') desligar('falhou', 'Ligação caiu'); }, CFG.semConexaoMs);
+    }
+    async function reiniciarIce() {
+        if (!C || !C.pc || C.fim) return;
+        if (C.papel !== 'saida') { sinal({ ev: 'reiniciar' }); return; }   // quem ligou é sempre quem oferece (sem colisão)
+        if (C.reiniciando && C.pc.signalingState !== 'stable') return;
+        C.reiniciando = true;
+        try {
+            if (C.ice && C.ice.ttl && C.ice.em && Date.now() - C.ice.em > (C.ice.ttl - 300) * 1000) {
+                var novoIce = await buscarIce(C.id);
+                if (C && novoIce.provedor !== 'stun' && C.pc.setConfiguration) { C.ice = novoIce; try { C.pc.setConfiguration({ iceServers: novoIce.iceServers, bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require' }); } catch (e) { /* ignore */ } }
+            }
+            await fazerOferta(true);
+        } catch (e) { log('restart falhou', e); C && (C.reiniciando = false); }
+        timer('reinicioOk', function () { if (C) C.reiniciando = false; }, 6000);
+    }
+    async function fazerOferta(restart) {
+        if (!C || !C.pc) return;
+        var pc = C.pc;
+        if (pc.signalingState !== 'stable') { try { await pc.setLocalDescription({ type: 'rollback' }); } catch (e) { /* ignore */ } }
+        var of = await pc.createOffer(restart ? { iceRestart: true } : {});
+        C.locVer = (C.locVer || 0) + 1;
+        C.candsLocais = [];
+        await pc.setLocalDescription(of);
+        await enviarSdp();
+        timer('regravar', regravarSdp, 2500);
+    }
+    async function enviarSdp() {
+        if (!C || !C.pc || !C.pc.localDescription) return;
+        var tipo = C.papel === 'saida' ? 'oferta' : 'resposta';
+        var sdp = C.pc.localDescription.sdp, v = C.locVer;
+        for (var i = 0; i < 3; i++) {
+            try { var row = linha(await rpc('chamada_sdp', { p_id: C.id, p_tipo: tipo, p_sdp: sdp, p_ver: v })); log('sdp gravado', tipo, v); if (row && C) C.row = row; return; }
+            catch (e) { log('sdp erro', e); await new Promise(function (r) { setTimeout(r, 700 * (i + 1)); }); if (!C) return; }
+        }
+    }
+    var regravando = false;
+    async function regravarSdp() {
+        if (!C || !C.pc || regravando) return;
+        regravando = true; try { await enviarSdp(); } finally { regravando = false; }
+    }
+
+    /** Aplica a linha do banco (Realtime ou consulta). */
+    function atualizar(row) {
+        if (!C || !row || row.id !== C.id) return;
+        C.row = row;
+        var e = row.estado;
+        log('linha', e, 'oferta_v', row.oferta_ver, 'resp_v', row.resposta_ver, 'fase', C.fase, 'loc', C.locVer, 'rem', C.remVer);
+        if (e === 'recusada' || e === 'perdida' || e === 'ocupado' || e === 'encerrada') {
+            var txt = e === 'recusada' ? (C.papel === 'saida' ? 'Ligação recusada' : 'Ligação recusada')
+                : e === 'ocupado' ? 'Ocupado'
+                : e === 'perdida' ? (C.papel === 'saida' ? 'Sem resposta' : 'Ligação perdida')
+                : 'Ligação encerrada';
+            if (e === 'ocupado') tocar('ocupado');
+            finalizar(txt, 1800); return;
+        }
+        if (e !== 'atendida') return;
+        if (C.papel === 'entrada' && row.para_aparelho !== aparelho()) { finalizar('Atendida em outro aparelho', 1500); return; }
+        if (C.papel === 'saida' && C.fase === 'chamando') {
+            C.fase = 'conectando'; pararSom(); clearTimer('toque');
+            tela('conectando', 'Conectando…');
+            timer('semConexao', function () { if (C && !C.conectadaEm) desligar('falhou', 'Não foi possível conectar'); }, 30000);
+            C.fila = C.fila.then(async function () { await criarPC(); abrirCanal(); await fazerOferta(false); }).catch(function (er) { log('oferta', er); });
+            return;
+        }
+        if (C.papel === 'entrada' && row.oferta && row.oferta_ver >= C.remVer) {
+            var o = row.oferta, ov = row.oferta_ver;
+            C.fila = C.fila.then(function () { return aplicarRemoto('offer', o, ov); }).catch(function (er) { log('aplicar oferta', er); });
+        }
+        if (C.papel === 'saida' && row.resposta && row.resposta_ver === C.locVer && row.resposta_ver >= C.remVer) {
+            var r = row.resposta, rv = row.resposta_ver;
+            C.fila = C.fila.then(function () { return aplicarRemoto('answer', r, rv); }).catch(function (er) { log('aplicar resposta', er); });
+        }
+    }
+    async function aplicarRemoto(tipo, sdp, ver) {
+        log('aplicar', tipo, ver, 'rem', C && C.remVer, 'sig', C && C.pc && C.pc.signalingState);
+        if (!C || !C.pc) { if (C && tipo === 'offer') { await criarPC(); } if (!C || !C.pc) return; }
+        var pc = C.pc;
+        if (ver > C.remVer || (tipo === 'answer' && pc.signalingState === 'have-local-offer' && ver === C.locVer)) {
+            if (tipo === 'answer' && pc.signalingState !== 'have-local-offer') return;
+            await pc.setRemoteDescription({ type: tipo, sdp: sdp });
+            C.remVer = ver; C.remSdp = sdp; C.candsRem = new Set();
+            if (tipo === 'offer') {
+                var ans = await pc.createAnswer();
+                C.locVer = ver; C.candsLocais = [];
+                await pc.setLocalDescription(ans);
+                await enviarSdp();
+                timer('regravar', regravarSdp, 2500);
+            }
+            var fila = C.filaCands.filter(function (x) { return x.v === ver; });
+            C.filaCands = C.filaCands.filter(function (x) { return x.v > ver; });
+            for (var i = 0; i < fila.length; i++) await addCand(fila[i].c, ver);
+            candsDaSdp(sdp);
+        } else if (ver === C.remVer && sdp !== C.remSdp) {
+            C.remSdp = sdp; candsDaSdp(sdp);         // mesma descrição com mais candidatos (regravada no fim da coleta)
+        }
+    }
+    function candsDaSdp(sdp) {
+        var mid = '0', idx = -1;
+        String(sdp).split(/\r?\n/).forEach(function (l) {
+            if (/^m=/.test(l)) idx++;
+            var m = /^a=mid:(.+)$/.exec(l); if (m) mid = m[1].trim();
+            if (/^a=candidate:/.test(l)) addCand({ candidate: l.slice(2).trim(), sdpMid: mid, sdpMLineIndex: Math.max(0, idx) }, C.remVer);
+        });
+    }
+    async function addCand(c, ver) {
+        if (!C || !C.pc || !c || !c.candidate) return;
+        if (ver !== C.remVer || !C.pc.remoteDescription) { if (ver >= C.remVer) C.filaCands.push({ v: ver, c: c }); return; }
+        var chave = String(c.candidate).replace(/^candidate:/, '');
+        if (C.candsRem.has(chave)) return;
+        C.candsRem.add(chave);
+        try { await C.pc.addIceCandidate(c); } catch (e) { log('cand', e && e.message); }
+    }
+
+    /* canal privado (candidatos ao vivo) */
+    function abrirCanal() {
+        var c = sb(); if (!C || C.ch || !c || !c.channel) return;
+        var id = C.id;
+        (async function () {
+            try { var s = await c.auth.getSession(); var tk = s && s.data && s.data.session && s.data.session.access_token; if (tk && c.realtime && c.realtime.setAuth) await c.realtime.setAuth(tk); } catch (e) { /* ignore */ }
+            if (!C || C.id !== id || C.ch) return;
+            var ch = c.channel('chamada:' + id, { config: { private: true, broadcast: { self: false, ack: false } } });
+            C.ch = ch;
+            ch.on('broadcast', { event: 'sinal' }, function (m) { onSinal(m && m.payload); });
+            ch.subscribe(function (st) {
+                if (!C || C.ch !== ch) return;
+                C.chSt = st; log('canal', st);
+                if (st === 'SUBSCRIBED') { sinal({ ev: 'oi' }); reenviarCands(); }
+            });
+        })();
+    }
+    function sinal(p) {
+        if (!C || !C.ch || C.chSt !== 'SUBSCRIBED') return false;
+        try { C.ch.send({ type: 'broadcast', event: 'sinal', payload: Object.assign({ de: eu }, p) }); return true; } catch (e) { return false; }
+    }
+    function reenviarCands() { if (!C) return; var v = C.locVer; var l = C.candsLocais.filter(function (x) { return x.v === v; }).map(function (x) { return x.c; }); if (l.length) sinal({ ev: 'ice-todos', v: v, l: l }); }
+    function onSinal(p) {
+        if (!C || !p || p.de === eu) return;
+        if (p.ev === 'ice' && p.c) addCand(p.c, Number(p.v) || 0);
+        else if (p.ev === 'ice-todos' && Array.isArray(p.l)) p.l.slice(0, 60).forEach(function (c) { addCand(c, Number(p.v) || 0); });
+        else if (p.ev === 'oi') { reenviarCands(); poll(); }
+        else if (p.ev === 'reiniciar') { if (C.papel === 'saida') reiniciarIce(); }
+        else if (p.ev === 'tchau') poll();
+    }
+
+    async function poll() {
+        if (!C || !C.id || C.fim) return;
+        try { var r = await lerLinha(C.id); if (r) atualizar(r); } catch (e) { /* rede: tenta de novo */ }
+    }
+    async function ping() {
+        if (!C || !C.id || C.fim) return;
+        guardarToken();
+        try { var r = linha(await rpc('chamada_ping', { p_id: C.id })); if (r) atualizar(r); } catch (e) { /* ignore */ }
+    }
+
+    /* ---------------- fim ---------------- */
+    function desligar(motivo, texto) {
+        if (!C || C.fim) return;
+        var id = C.id;
+        sinal({ ev: 'tchau' });
+        var txt = texto || (motivo === 'recusou' ? 'Ligação recusada' : motivo === 'timeout' ? 'Sem resposta' : 'Ligação encerrada');
+        if (id) encerrarNoServidor(id, motivo);
+        finalizar(txt, motivo === 'timeout' ? 1800 : 1200);
+    }
+    async function encerrarNoServidor(id, motivo) {
+        for (var i = 0; i < 4; i++) {
+            try { await rpc('chamada_encerrar', { p_id: id, p_motivo: motivo }); return; }
+            catch (e) { await new Promise(function (r) { setTimeout(r, 800 * (i + 1)); }); }
+        }
+    }
+    /** Solta TUDO na hora (microfone primeiro) e esconde a tela depois de mostrar o motivo. */
+    function finalizar(texto, msTela) {
+        if (!C || C.fim) return;
+        var c = C; c.fim = true; c.fase = 'fim';
+        Object.keys(c.timers).forEach(function (k) { clearTimeout(c.timers[k]); clearInterval(c.timers[k]); });
+        c.timers = {};
+        pararSom();
+        soltarMic(c.stream); c.stream = null;
+        try { if (c.pc) { c.pc.getSenders().forEach(function (s) { try { if (s.track) s.track.stop(); } catch (e) { /* ignore */ } }); c.pc.onicecandidate = null; c.pc.ontrack = null; c.pc.onconnectionstatechange = null; c.pc.oniceconnectionstatechange = null; c.pc.close(); } } catch (e) { /* ignore */ }
+        c.pc = null;
+        try { if (c.audio) { c.audio.pause(); c.audio.srcObject = null; c.audio.remove(); } } catch (e) { /* ignore */ }
+        c.audio = null;
+        try { if (c.ch && sb()) sb().removeChannel(c.ch); } catch (e) { /* ignore */ }
+        c.ch = null;
+        guardaSaida(false);
+        if (texto) { tela('fim', texto); if (!/Ocupado/.test(texto)) tocar('fim'); }
+        setTimeout(function () { if (C === c) { C = null; esconderTela(); } }, msTela || 1200);
+        if (!texto) { C = null; setTimeout(function () { if (!C) esconderTela(); }, msTela || 0); }
+    }
+
+    function alternarMudo() {
+        if (!C) return;
+        C.mudo = !C.mudo;
+        if (C.stream) C.stream.getAudioTracks().forEach(function (t) { t.enabled = !C.mudo; });
+        var b = $('ch-btn-mudo'); b.setAttribute('aria-pressed', C.mudo ? 'true' : 'false');
+        b.querySelector('.ch-c').innerHTML = C.mudo ? IC.micOff : IC.mic;
+    }
+    async function alternarFalante() {
+        if (!C) return;
+        C.falante = !C.falante;
+        $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false');
+        // setSinkId (Chrome/Android/desktop): alto-falante × fone/padrão. iPhone: o sistema escolhe a saída
+        // (o botão fica marcado e o volume sobe ao máximo).
+        var a = C.audio;
+        try {
+            if (a && a.setSinkId && navigator.mediaDevices.enumerateDevices) {
+                var devs = (await navigator.mediaDevices.enumerateDevices()).filter(function (d) { return d.kind === 'audiooutput'; });
+                var alvo = C.falante ? devs.find(function (d) { return /speaker|alto|viva/i.test(d.label); }) : devs.find(function (d) { return /earpiece|receiver|fone|communications/i.test(d.label + ' ' + d.deviceId); });
+                await a.setSinkId(alvo ? alvo.deviceId : 'default');
+            }
+            if (a) a.volume = 1;
+        } catch (e) { /* ignore */ }
+    }
+
+    // sair da página no meio da ligação: avisa o servidor (keepalive) e pergunta antes
+    function antesDeSair(e) { if (C && !C.fim) { e.preventDefault(); e.returnValue = ''; return ''; } }
+    function aoSair() {
+        if (!C || C.fim || !C.id || !C.token) return;
+        try {
+            fetch(SUPABASE_URL + '/rest/v1/rpc/chamada_encerrar', {
+                method: 'POST', keepalive: true,
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + C.token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ p_id: C.id, p_motivo: C.papel === 'entrada' && C.fase === 'tocando' ? 'recusou' : 'desligou' })
+            }).catch(function () {});
+        } catch (e) { /* ignore */ }
+        sinal({ ev: 'tchau' });
+        finalizar(null, 0);
+    }
+    function guardaSaida(on) {
+        if (on) { window.addEventListener('beforeunload', antesDeSair); }
+        else { window.removeEventListener('beforeunload', antesDeSair); }
+    }
+    window.addEventListener('pagehide', aoSair);
+
+    /* ---------------- escutar ligações ---------------- */
+    function onRow(p) {
+        var row = p && p.new; if (!row || !row.id) return;
+        if (C && row.id === C.id) { atualizar(row); return; }
+        if (row.para === eu && row.estado === 'tocando' && p.eventType === 'INSERT') entrada(row);
+    }
+    function assinar() {
+        var c = sb(); if (!c || !eu || !c.channel) return;
+        if (chanRows) { try { c.removeChannel(chanRows); } catch (e) { /* ignore */ } chanRows = null; }
+        var ch = c.channel('chamadas-' + eu + '-' + Date.now().toString(36));
+        ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chamadas', filter: 'para=eq.' + eu }, onRow)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chamadas', filter: 'para=eq.' + eu }, onRow)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chamadas', filter: 'de=eq.' + eu }, onRow)
+          .subscribe(function (st) {
+              chanSt = st; log('rows', st);
+              if (st === 'SUBSCRIBED') { verPendente(); }
+              if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') { clearTimeout(chanRetryT); chanRetryT = setTimeout(assinar, 5000); }
+          });
+        chanRows = ch;
+    }
+    var pendT = 0;
+    async function verPendente() {
+        if (!eu || C || Date.now() - pendT < 1500) return;
+        pendT = Date.now();
+        try { var r = linha(await rpc('chamada_pendente', {})); if (r && !C && r.estado === 'tocando' && r.para === eu) entrada(r); } catch (e) { /* SQL 63 ausente */ }
+    }
+    async function abrirPeloAviso() {
+        var id = '';
+        try { id = new URL(location.href).searchParams.get('chamada') || ''; } catch (e) { /* ignore */ }
+        if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+        try { var u = new URL(location.href); u.searchParams.delete('chamada'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* ignore */ }
+        var r = await lerLinha(id).catch(function () { return null; });
+        if (r && r.estado === 'tocando' && r.para === eu && !C) entrada(r);
+        else if (r && !C) toastC(r.estado === 'atendida' ? 'Ligação já atendida.' : 'Ligação perdida.');
+    }
+    // pergunta ao banco se a ligação existe/está ligada (no máx. 1x por minuto)
+    async function conferirBackend(forcar) {
+        if (!forcar && Date.now() - cfgT < 60000) return ATIVO;
+        cfgT = Date.now();
+        var ok = false;
+        try { var d = linha(await rpc('chamada_config', {})); ok = !!(d && d.ativo === true); } catch (e) { ok = false; /* SQL 63 ausente → fica escondido */ }
+        if (!ok && C && !C.fim) ok = true;      // nunca derruba ligação em andamento
+        ATIVO = ok && suportado();
+        botaoLigar(ATIVO);
+        return ATIVO;
+    }
+    async function iniciar() {
+        var c = sb(); if (!c) return;
+        try { var s = await c.auth.getSession(); var u = s && s.data && s.data.session && s.data.session.user; if (!u) return; eu = u.id; } catch (e) { return; }
+        if (!(await conferirBackend(true))) return;
+        if (iniciado) return; iniciado = true;
+        montarTela();
+        assinar();
+        abrirPeloAviso();
+        verPendente();
+    }
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState !== 'visible' || !eu) return;
+        if (!iniciado) { conferirBackend(false).then(function (ok) { if (ok) iniciar(); }); return; }
+        conferirBackend(false);
+        if (C) { poll(); if (C.pc && C.fase === 'reconectando') reiniciarIce(); } else verPendente();
+        if (chanSt !== 'SUBSCRIBED') assinar();
+    });
+    window.addEventListener('online', function () { if (C && C.pc && C.fase !== 'conectada') reiniciarIce(); if (eu && chanSt !== 'SUBSCRIBED') assinar(); });
+
+    window.MineraChamada = {
+        ligar: ligar, iniciar: iniciar, disponivel: function () { return ATIVO; }, ativa: function () { return !!(C && !C.fim); }, suportado: suportado,
+        _reiniciarIce: function () { return reiniciarIce(); },
+        /** bytes de áudio recebidos/enviados (prova de que o áudio passa) */
+        _stats: async function () {
+            if (!C || !C.pc) return null;
+            var r = { recebidos: 0, enviados: 0, par: null };
+            (await C.pc.getStats()).forEach(function (s) {
+                if (s.type === 'inbound-rtp' && (s.kind || s.mediaType) === 'audio') r.recebidos += s.bytesReceived || 0;
+                if (s.type === 'outbound-rtp' && (s.kind || s.mediaType) === 'audio') r.enviados += s.bytesSent || 0;
+                if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') r.par = s.id;
+            });
+            return r;
+        },
+        _debug: function () {
+            return {
+                fase: C ? C.fase : 'livre', id: C ? C.id : null, papel: C ? C.papel : null, estadoDb: C && C.row ? C.row.estado : null,
+                mudo: C ? C.mudo : false, pc: C && C.pc ? (C.pc.connectionState || C.pc.iceConnectionState) : null,
+                canal: C ? C.chSt : null, rows: chanSt, provedor: C && C.ice ? C.ice.provedor : null,
+                tracks: todosStreams.reduce(function (a, s) { return a.concat(s.getTracks().map(function (t) { return t.readyState; })); }, []),
+                micAbertos: todosStreams.length
+            };
+        }
+    };
+    // começa sozinho quando houver sessão (as páginas já criaram o supabaseClient antes)
+    function auto() { iniciar(); try { sb() && sb().auth.onAuthStateChange(function (ev, s) { if (s && s.user && s.user.id !== eu) { eu = s.user.id; iniciado = false; iniciar(); } }); } catch (e) { /* ignore */ } }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', auto); else auto();
+})();

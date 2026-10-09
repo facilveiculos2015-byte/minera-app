@@ -20,6 +20,11 @@
 // Segurança mantida: segredo x-push-secret (Verify JWT desligado de propósito,
 // quem chama é o gatilho), só servidores de push reais, máx. 1000 por chamada.
 //
+// v4 (SQL 63, 09/10/2026): tipo 'chamada' (ligação de voz). Com chamada_id =
+// "Fulano está te ligando" (TTL 45 s, abre chat.html?com=…&chamada=…, mesmo
+// tag por quem liga); sem chamada_id = registro "Chamada de voz perdida", com o
+// MESMO tag → substitui o aviso de toque no aparelho.
+//
 // Segredos (supabase secrets set ...): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
 // VAPID_SUBJECT (mailto:...), PUSH_HOOK_SECRET.  SUPABASE_URL e
 // SUPABASE_SERVICE_ROLE_KEY já existem no ambiente das Edge Functions.
@@ -84,13 +89,13 @@ function endpointOk(e: string): boolean {
 type Resultado = { ok: boolean; removida: boolean; erro: string };
 
 /** Envia para UMA inscrição. 404/410 = inscrição morta → apaga do banco. */
-async function enviarUma(s: Sub, payload: string, tag: string): Promise<Resultado> {
+async function enviarUma(s: Sub, payload: string, tag: string, ttl = 86400): Promise<Resultado> {
   if (!s || !s.endpoint || !s.p256dh || !s.auth || !endpointOk(s.endpoint)) return { ok: false, removida: false, erro: "" };
   try {
     await webpush.sendNotification(
       { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
       payload,
-      { TTL: 86400, urgency: "high", topic: tag.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) },
+      { TTL: ttl, urgency: "high", topic: tag.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) },
     );
     return { ok: true, removida: false, erro: "" };
   } catch (e) {
@@ -109,7 +114,7 @@ async function enviarUma(s: Sub, payload: string, tag: string): Promise<Resultad
  * Sem g/r: manda para todas (v2). Com g/r (SQL 61): por aparelho, em ordem,
  * para na 1ª que der certo; se a principal falhar, usa a reserva.
  */
-async function enviarPara(subs: Sub[], payload: string, tag: string, comReserva = false) {
+async function enviarPara(subs: Sub[], payload: string, tag: string, comReserva = false, ttl = 86400) {
   let enviados = 0, removidos = 0, falhas = 0, reserva = 0;
   const erros: string[] = [];
   const conta = (r: Resultado) => {
@@ -127,7 +132,7 @@ async function enviarPara(subs: Sub[], payload: string, tag: string, comReserva 
   await Promise.all([...grupos.values()].map(async (lista) => {
     lista.sort((a, b) => (Number(a?.r) || 99) - (Number(b?.r) || 99));
     for (let k = 0; k < Math.min(lista.length, 3); k++) {
-      const r = await enviarUma(lista[k], payload, tag);
+      const r = await enviarUma(lista[k], payload, tag, ttl);
       conta(r);
       if (r.ok) { if (k > 0) reserva++; break; }
     }
@@ -180,6 +185,19 @@ Deno.serve(async (req) => {
     const m2 = { tipo: corpo.tipo, texto: corpo.texto };
     let title = nome, body = previa(m2);
     let url = "./chat.html?com=" + encodeURIComponent(de), tag = "dm-" + de;
+    let ttl = 86400, extra: Record<string, unknown> = {};
+    const UUIDRE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (String(corpo.tipo ?? "") === "chamada" && !corpo.grupo_id) {
+      tag = "chamada-" + de;  // toque e "perdida" com o mesmo tag: o registro substitui o aviso de toque
+      if (UUIDRE.test(String(corpo.chamada_id ?? ""))) {
+        const cid = String(corpo.chamada_id);
+        title = "📞 " + nome + " está te ligando";
+        body = "Toque para atender · Ligação de voz";
+        url = "./chat.html?com=" + encodeURIComponent(de) + "&chamada=" + encodeURIComponent(cid);
+        ttl = 45;  // depois de 45 s a ligação já virou "perdida": não entrega aviso velho
+        extra = { chamada: cid };
+      }
+    }
     if (corpo.grupo_id) {
       title = semEmail(corpo.grupo_nome) || "Grupo";
       body = nome + ": " + body;
@@ -188,8 +206,8 @@ Deno.serve(async (req) => {
     }
     const subs = ((Array.isArray(corpo.subs) ? corpo.subs : []) as unknown as Sub[]).slice(0, 1000);
     if (!subs.length) return resp({ ok: true, v: 2, id, enviados: 0, inscricoes: 0 });
-    const payload = JSON.stringify({ title: "Minera Pará — " + title, body, url, tag });
-    const r = await enviarPara(subs, payload, tag, corpo.reserva === true);
+    const payload = JSON.stringify({ title: extra.chamada ? title : "Minera Pará — " + title, body, url, tag, ...extra });
+    const r = await enviarPara(subs, payload, tag, corpo.reserva === true, ttl);
     return resp({ ok: true, v: corpo.reserva === true ? 3 : 2, id, inscricoes: subs.length, ...r });
   }
 

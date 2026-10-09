@@ -3,7 +3,7 @@
  * Mesmas defesas contra cache HTTP do app: HTML e version.json sempre da rede (no-store),
  * JS/CSS/imagens revalidados (no-cache). Também recebe Web Push e abre a conversa dentro do /chat/.
  */
-const CACHE = 'minera-chat-20261009h';
+const CACHE = 'minera-chat-20261009k';
 const BASE = new URL('../', self.registration.scope).href; // raiz do site (https://minerapara.com.br/)
 
 function isHtmlRequest(req) {
@@ -138,14 +138,16 @@ self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : '' }; }
   if (!d || typeof d !== 'object') d = {};
-  const mostrar = (oculta) => self.registration.showNotification(oculta ? 'Chat Minera' : (d.title || 'Chat Minera'), {
-    body: oculta ? 'Nova mensagem' : (d.body || 'Nova mensagem'),
+  const mostrar = (oculta) => self.registration.showNotification(oculta ? (d.chamada ? 'Chat Minera — ligação' : 'Chat Minera') : (d.title || 'Chat Minera'), {
+    body: oculta ? (d.chamada ? 'Ligação de voz — toque para atender' : 'Nova mensagem') : (d.body || 'Nova mensagem'),
     icon: './icon-192.png',
     badge: './icon-192.png',
     tag: d.tag || 'minera',
     renotify: true,
     silent: false,
-    vibrate: [80, 40, 80],
+    // ligação de voz (SQL 63): fica na tela até tocar/arrastar e vibra como chamada
+    requireInteraction: !!d.chamada,
+    vibrate: d.chamada ? [500, 250, 500, 250, 500, 250, 500] : [80, 40, 80],
     data: { url: urlNoChat(d.url) }
   });
   event.waitUntil(
