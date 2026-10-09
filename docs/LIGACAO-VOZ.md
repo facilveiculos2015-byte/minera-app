@@ -55,3 +55,16 @@ Produção: nada mudou.
 - Interruptor: `app_flags` 'chamadas_ativas' = false esconde o botão e o banco recusa ligações novas.
 - Desfazer: `sql/63-chamadas-desfazer.sql` (volta exatamente ao estado do SQL 62; testado 63 → desfazer → 63).
 - Pacote para o painel: /workspace/audit/chamadas (DEPLOY-PROD.md).
+
+## iPhone: eco e alto-falante (09/10/2026, build 20261009l)
+Relato: no iPhone (app na tela inicial) a ligação conecta, mas com muito ECO e o som sai no alto-falante (sem modo ouvido / sensor de proximidade).
+Causa: na página havia AudioContext TOCANDO durante a ligação — o toque/“destrava” do chamada.js (criado no 1º toque na tela e
+nunca fechado) e o “pim” de mensagem do nav.js (MineraSom). No iPhone isso tira a ligação do modo "conversa" (o cancelamento de eco
+do sistema só tem como referência o som WebRTC do <audio>) e o Safari usa a saída padrão de "play-and-record", que é o alto-falante.
+Correção (chamada.js):
+- toques agora são WAV gerado no próprio JS tocado num <audio> (nenhum AudioContext na ligação);
+- todo AudioContext da página (nav.js, audio-compat, chat-audio) é SUSPENSO enquanto o microfone da ligação está aberto e volta depois;
+- navigator.audioSession.type = 'play-and-record' ao pegar o microfone e 'auto' no fim (Safari 16.4+);
+- iPhone com setSinkId (iOS 26+): o <audio> da ligação vai para o RECEPTOR (ouvido → sensor de proximidade); botão Alto-falante alterna;
+  iPhone sem setSinkId (iOS < 26): o Safari não deixa escolher → botão Alto-falante escondido (som no alto-falante, limitação do iOS);
+- getUserMedia com echoCancellation/noiseSuppression/autoGainControl + mono; 1 só <audio> remoto; microfone nunca tocado localmente.

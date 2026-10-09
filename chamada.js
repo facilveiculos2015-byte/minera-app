@@ -43,7 +43,6 @@
     var eu = null, chanRows = null, chanSt = 'CLOSED', chanRetryT = null, iniciado = false;
     var C = null;                 // ligação atual
     var todosStreams = [];        // p/ teste: todo microfone aberto por aqui
-    var ctxSom = null;            // AudioContext SÓ de reprodução (toque); nunca liga no microfone
 
     function sb() { return (typeof supabaseClient !== 'undefined' && supabaseClient) ? supabaseClient : null; }
     function $(id) { return document.getElementById(id); }
@@ -65,46 +64,105 @@
     function fmt(seg) { seg = Math.max(0, Math.floor(seg)); return Math.floor(seg / 60) + ':' + String(seg % 60).padStart(2, '0'); }
     function nomeSeguro(n) { n = String(n || '').trim(); return n && n.indexOf('@') < 0 ? n : 'Contato'; }
 
-    /* ---------------- sons (WebAudio, sem arquivo) ---------------- */
-    function somCtx() {
+    /* ---------------- áudio do aparelho (iPhone: eco / alto-falante) ----------------
+     * No iPhone o cancelamento de eco só funciona bem se o ÚNICO som tocando for o da ligação
+     * (<audio> com srcObject = trilha WebRTC). AudioContext ligado (som de mensagem do nav.js,
+     * decodificador de áudio, onda do gravador, toque antigo daqui) atrapalha o eco e força o
+     * alto-falante. Por isso: toques em <audio> com WAV gerado aqui (sem AudioContext) e,
+     * durante a ligação, TODO AudioContext da página fica suspenso (volta ao fim). */
+    var IOS = /iP(hone|ad|od)/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var ctxTodos = [], ctxPausados = [], emChamadaAudio = false;
+    (function rastrearAudioContext() {
         try {
-            if (!ctxSom || ctxSom.state === 'closed') { var A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ctxSom = new A(); }
-            if (ctxSom.state === 'suspended') ctxSom.resume().catch(function () {});
-            return ctxSom;
-        } catch (e) { return null; }
+            var Orig = window.AudioContext || window.webkitAudioContext;
+            if (!Orig || Orig.__mineraRastreado) return;
+            var R = function (op) {
+                var c = op === undefined ? new Orig() : new Orig(op);
+                ctxTodos.push(c);
+                if (emChamadaAudio) { try { c.suspend(); ctxPausados.push(c); } catch (e) { /* ignore */ } }
+                return c;
+            };
+            R.prototype = Orig.prototype; R.__mineraRastreado = true;
+            try { Object.setPrototypeOf(R, Orig); } catch (e) { /* ignore */ }
+            if (window.AudioContext) window.AudioContext = R;
+            if (window.webkitAudioContext) window.webkitAudioContext = R;
+        } catch (e) { /* ignore */ }
+    })();
+    function audioDaChamada(ligado) {
+        if (ligado === emChamadaAudio) return;
+        emChamadaAudio = ligado;
+        if (ligado) {
+            ctxPausados = [];
+            ctxTodos.forEach(function (c) { try { if (c.state === 'running') { c.suspend(); ctxPausados.push(c); } } catch (e) { /* ignore */ } });
+            try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) { /* ignore */ }
+        } else {
+            try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) { /* ignore */ }
+            var vol = ctxPausados; ctxPausados = [];
+            setTimeout(function () { vol.forEach(function (c) { try { if (c.state === 'suspended') c.resume().catch(function () {}); } catch (e) { /* ignore */ } }); }, 1500);
+        }
     }
-    // destrava o áudio no 1º toque na tela (o toque de ligação recebida precisa disso em alguns navegadores)
-    function destravar() { var c = somCtx(); if (c) { try { var o = c.createOscillator(), g = c.createGain(); g.gain.value = 0; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.01); } catch (e) { /* ignore */ } } }
+
+    /* ---------------- toques: WAV gerado (8 kHz mono) tocado num <audio> ---------------- */
+    var wavCache = {};
+    function wav(partes, vol) {   // partes: [[freqs[], segundos], ...]  (freqs vazio = silêncio)
+        var taxa = 8000, n = 0; partes.forEach(function (p) { n += Math.round(p[1] * taxa); });
+        var buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), o = 0;
+        function str(t) { for (var i = 0; i < t.length; i++) v.setUint8(o++, t.charCodeAt(i)); }
+        str('RIFF'); v.setUint32(o, 36 + n * 2, true); o += 4; str('WAVEfmt '); v.setUint32(o, 16, true); o += 4;
+        v.setUint16(o, 1, true); o += 2; v.setUint16(o, 1, true); o += 2; v.setUint32(o, taxa, true); o += 4;
+        v.setUint32(o, taxa * 2, true); o += 4; v.setUint16(o, 2, true); o += 2; v.setUint16(o, 16, true); o += 2;
+        str('data'); v.setUint32(o, n * 2, true); o += 4;
+        partes.forEach(function (p) {
+            var m = Math.round(p[1] * taxa), f = p[0], rampa = Math.min(160, m / 4);
+            for (var i = 0; i < m; i++) {
+                var x = 0;
+                for (var k = 0; k < f.length; k++) x += Math.sin(2 * Math.PI * f[k] * i / taxa) / f.length;
+                var env = Math.min(1, i / rampa, (m - i) / rampa);
+                v.setInt16(o, Math.max(-1, Math.min(1, x * vol * env)) * 32767, true); o += 2;
+            }
+        });
+        return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    }
+    function wavDe(tipo) {
+        if (wavCache[tipo]) return wavCache[tipo];
+        var T = {
+            toque: [[[440, 480], 0.4], [[], 0.2], [[440, 480], 0.4], [[], 2.0]],
+            chamando: [[[425], 1.0], [[], 4.0]],
+            ocupado: [[[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.2]],
+            fim: [[[480], 0.18], [[], 0.04], [[380], 0.25]],
+            silencio: [[[], 0.05]]
+        };
+        var vol = { toque: 0.5, chamando: 0.3, ocupado: 0.32, fim: 0.3, silencio: 0 }[tipo];
+        return (wavCache[tipo] = wav(T[tipo], vol));
+    }
+    var somEl = null, somTipo = '';
+    function elSom() {
+        if (!somEl) { somEl = document.createElement('audio'); somEl.setAttribute('playsinline', ''); somEl.preload = 'auto'; somEl.id = 'chamada-som'; }
+        return somEl;
+    }
+    // iPhone: destrava o <audio> do toque no 1º toque na tela (sem AudioContext)
+    function destravar() { try { var a = elSom(); a.src = wavDe('silencio'); a.loop = false; var p = a.play(); if (p && p.then) p.then(function () { if (!somTipo) a.pause(); }).catch(function () {}); } catch (e) { /* ignore */ } }
     document.addEventListener('pointerdown', function d1() { destravar(); document.removeEventListener('pointerdown', d1, true); }, true);
 
-    var somT = null, somNos = [];
+    var vibT = null;
     function pararSom() {
-        clearInterval(somT); somT = null;
-        somNos.forEach(function (n) { try { n.stop(); } catch (e) { /* ignore */ } try { n.disconnect(); } catch (e) { /* ignore */ } });
-        somNos = [];
+        somTipo = ''; clearInterval(vibT); vibT = null;
+        try { if (somEl) { somEl.pause(); somEl.loop = false; somEl.removeAttribute('src'); somEl.load(); } } catch (e) { /* ignore */ }
         try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) { /* ignore */ }
-    }
-    function bip(freqs, iniS, durS, vol) {
-        var c = somCtx(); if (!c) return;
-        var t0 = c.currentTime + iniS;
-        var g = c.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
-        g.gain.setValueAtTime(vol, t0 + durS - 0.03); g.gain.linearRampToValueAtTime(0, t0 + durS); g.connect(c.destination);
-        freqs.forEach(function (f) { var o = c.createOscillator(); o.frequency.value = f; o.connect(g); o.start(t0); o.stop(t0 + durS + 0.02); somNos.push(o); });
-        somNos.push(g);
     }
     /** 'toque' (recebendo), 'chamando' (425 Hz 1 s / 4 s, padrão BR), 'ocupado', 'fim' */
     function tocar(tipo) {
         pararSom();
+        try {
+            var a = elSom(); somTipo = tipo;
+            a.loop = (tipo === 'toque' || tipo === 'chamando');
+            a.src = wavDe(tipo); a.currentTime = 0;
+            var p = a.play(); if (p && p.catch) p.catch(function () { /* sem toque na tela ainda: só vibra */ });
+            if (tipo === 'fim' || tipo === 'ocupado') a.onended = function () { if (somTipo === tipo) pararSom(); };
+        } catch (e) { /* ignore */ }
         if (tipo === 'toque') {
-            var um = function () { bip([440, 480], 0, 0.4, 0.22); bip([440, 480], 0.6, 0.4, 0.22); try { if (navigator.vibrate) navigator.vibrate([400, 200, 400]); } catch (e) { /* ignore */ } };
-            um(); somT = setInterval(um, 3000);
-        } else if (tipo === 'chamando') {
-            var dois = function () { bip([425], 0, 1.0, 0.12); };
-            dois(); somT = setInterval(dois, 5000);
-        } else if (tipo === 'ocupado') {
-            for (var i = 0; i < 6; i++) bip([425], i * 0.5, 0.25, 0.14);
-        } else if (tipo === 'fim') {
-            bip([480], 0, 0.18, 0.12); bip([380], 0.22, 0.25, 0.12);
+            var vib = function () { try { if (navigator.vibrate) navigator.vibrate([400, 200, 400]); } catch (e) { /* ignore */ } };
+            vib(); vibT = setInterval(vib, 3000);
         }
     }
 
@@ -220,7 +278,16 @@
     function clearTimer(nome) { if (C && C.timers[nome]) { clearTimeout(C.timers[nome]); clearInterval(C.timers[nome]); delete C.timers[nome]; } }
 
     async function pegarMic() {
-        var s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+        pararSom();
+        audioDaChamada(true);    // iPhone: sessão 'play-and-record' + nenhum AudioContext tocando
+        var s;
+        try {
+            s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true }, channelCount: { ideal: 1 } }, video: false });
+        } catch (e) {
+            if (!C || C.fim || !C.stream) audioDaChamada(false);
+            throw e;
+        }
+        try { var st = s.getAudioTracks()[0].getSettings(); log('mic', JSON.stringify(st)); C && (C.micCfg = st); } catch (e) { /* ignore */ }
         todosStreams.push(s);
         return s;
     }
@@ -241,19 +308,19 @@
         var row;
         try { row = linha(await rpc('chamada_iniciar', { p_para: peer.auth_id, p_aparelho: aparelho() })); }
         catch (e) {
-            soltarMic(stream); C = null;
+            soltarMic(stream); C = null; audioDaChamada(false);
             var msg = String((e && e.message) || '');
             tela('fim', /function|schema|does not exist|404/i.test(msg) ? 'Ligação ainda não disponível' : (msg || 'Não foi possível ligar'));
             setTimeout(function () { if (!C) esconderTela(); }, 2200);
             return;
         }
-        if (!row) { soltarMic(stream); C = null; esconderTela(); return; }
+        if (!row) { soltarMic(stream); C = null; audioDaChamada(false); esconderTela(); return; }
         if (row.para === eu && row.estado === 'tocando') {      // ligação cruzada: a pessoa está me ligando → atende já
             novo(row, 'entrada', row.de, peer.nome || nomeSeguro(row.de_nome)); C.stream = stream;
             await atender(); return;
         }
         novo(row, 'saida', peer.auth_id, peer.nome || 'Contato'); C.stream = stream;
-        if (row.estado === 'ocupado') { tela('fim', 'Ocupado'); tocar('ocupado'); finalizar(null, 3000); return; }
+        if (row.estado === 'ocupado') { finalizar('Ocupado', 3000); tocar('ocupado'); return; }
         tela('chamando', 'Chamando…'); tocar('chamando');
         C.icePromise = buscarIce(row.id).then(function (x) { if (C && C.id === row.id) C.ice = x; return x; });
         timer('toque', function () { desligar('timeout'); }, CFG.toqueMs);
@@ -319,9 +386,15 @@
         pc.ontrack = function (e) {
             if (!C || C.pc !== pc) return;
             var a = C.audio;
-            if (!a) { a = document.createElement('audio'); a.id = 'chamada-audio'; a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none'; document.body.appendChild(a); C.audio = a; }
-            a.srcObject = (e.streams && e.streams[0]) || new MediaStream([e.track]);
+            // UM só elemento para o som do outro lado (nunca o nosso microfone); remove sobras de outra ligação
+            if (!a) {
+                document.querySelectorAll('audio#chamada-audio').forEach(function (v) { try { v.pause(); v.srcObject = null; v.remove(); } catch (er) { /* ignore */ } });
+                a = document.createElement('audio'); a.id = 'chamada-audio'; a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none'; document.body.appendChild(a); C.audio = a;
+            }
+            var novoSrc = (e.streams && e.streams[0]) || new MediaStream([e.track]);
+            if (a.srcObject !== novoSrc) a.srcObject = novoSrc;
             var p = a.play(); if (p && p.catch) p.catch(function () { /* autoplay: toque na tela libera */ });
+            if (IOS && !C.roteado) { C.roteado = true; rotear(); }
         };
         var onEstado = function () {
             if (!C || C.pc !== pc) return;
@@ -406,8 +479,9 @@
                 : e === 'ocupado' ? 'Ocupado'
                 : e === 'perdida' ? (C.papel === 'saida' ? 'Sem resposta' : 'Ligação perdida')
                 : 'Ligação encerrada';
+            finalizar(txt, e === 'ocupado' ? 3000 : 1800);
             if (e === 'ocupado') tocar('ocupado');
-            finalizar(txt, 1800); return;
+            return;
         }
         if (e !== 'atendida') return;
         if (C.papel === 'entrada' && row.para_aparelho !== aparelho()) { finalizar('Atendida em outro aparelho', 1500); return; }
@@ -535,6 +609,7 @@
         c.pc = null;
         try { if (c.audio) { c.audio.pause(); c.audio.srcObject = null; c.audio.remove(); } } catch (e) { /* ignore */ }
         c.audio = null;
+        audioDaChamada(false);
         try { if (c.ch && sb()) sb().removeChannel(c.ch); } catch (e) { /* ignore */ }
         c.ch = null;
         guardaSaida(false);
@@ -550,22 +625,43 @@
         var b = $('ch-btn-mudo'); b.setAttribute('aria-pressed', C.mudo ? 'true' : 'false');
         b.querySelector('.ch-c').innerHTML = C.mudo ? IC.micOff : IC.mic;
     }
+    /* Saída do som. iPhone (iOS 26+): setSinkId no <audio> da ligação escolhe a saída da SESSÃO —
+     * aparelho escolhido "receptor" = som no ouvido (e o sensor de proximidade apaga a tela);
+     * setSinkId('') = padrão do Safari em ligação = alto-falante. iPhone sem setSinkId/saídas
+     * (iOS < 26): o Safari sempre usa o alto-falante e não deixa trocar → botão escondido.
+     * Android/desktop: setSinkId entre alto-falante e padrão (como antes). */
+    function ehFalante(d) { return /speaker|alto-?falante|viva-?voz|altavoz|haut-parleur/i.test(d.label || ''); }
+    async function saidas() {
+        try { return (await navigator.mediaDevices.enumerateDevices()).filter(function (d) { return d.kind === 'audiooutput'; }); } catch (e) { return []; }
+    }
+    async function rotear() {
+        if (!C || !C.audio) return false;
+        var a = C.audio, b = $('ch-btn-falante');
+        if (!a.setSinkId) { if (IOS && b) b.style.display = 'none'; return false; }
+        var ds = await saidas();
+        try {
+            if (IOS) {
+                var ouvido = ds.find(function (d) { return d.deviceId && d.deviceId !== 'default' && !ehFalante(d); });
+                var falante = ds.find(ehFalante);
+                if (!ouvido) { if (b) b.style.display = 'none'; return false; }   // sem como escolher
+                if (b) b.style.display = '';
+                await a.setSinkId(C.falante ? (falante ? falante.deviceId : '') : ouvido.deviceId);
+                log('saida', C.falante ? 'alto-falante' : ouvido.label);
+            } else {
+                var alvo = C.falante ? ds.find(ehFalante) : ds.find(function (d) { return /earpiece|receiver|fone|communications/i.test(d.label + ' ' + d.deviceId); });
+                await a.setSinkId(alvo ? alvo.deviceId : 'default');
+            }
+            a.volume = 1;
+            return true;
+        } catch (e) { log('setSinkId', e && e.message); return false; }
+    }
     async function alternarFalante() {
         if (!C) return;
         C.falante = !C.falante;
         $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false');
-        // setSinkId (Chrome/Android/desktop): alto-falante × fone/padrão. iPhone: o sistema escolhe a saída
-        // (o botão fica marcado e o volume sobe ao máximo).
-        var a = C.audio;
-        try {
-            if (a && a.setSinkId && navigator.mediaDevices.enumerateDevices) {
-                var devs = (await navigator.mediaDevices.enumerateDevices()).filter(function (d) { return d.kind === 'audiooutput'; });
-                var alvo = C.falante ? devs.find(function (d) { return /speaker|alto|viva/i.test(d.label); }) : devs.find(function (d) { return /earpiece|receiver|fone|communications/i.test(d.label + ' ' + d.deviceId); });
-                await a.setSinkId(alvo ? alvo.deviceId : 'default');
-            }
-            if (a) a.volume = 1;
-        } catch (e) { /* ignore */ }
+        if (!(await rotear()) && IOS) { C.falante = !C.falante; $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false'); }
     }
+    try { navigator.mediaDevices && navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener('devicechange', function () { if (IOS && C && C.audio && !C.fim) rotear(); }); } catch (e) { /* ignore */ }
 
     // sair da página no meio da ligação: avisa o servidor (keepalive) e pergunta antes
     function antesDeSair(e) { if (C && !C.fim) { e.preventDefault(); e.returnValue = ''; return ''; } }
@@ -672,7 +768,14 @@
                 mudo: C ? C.mudo : false, pc: C && C.pc ? (C.pc.connectionState || C.pc.iceConnectionState) : null,
                 canal: C ? C.chSt : null, rows: chanSt, provedor: C && C.ice ? C.ice.provedor : null,
                 tracks: todosStreams.reduce(function (a, s) { return a.concat(s.getTracks().map(function (t) { return t.readyState; })); }, []),
-                micAbertos: todosStreams.length
+                micAbertos: todosStreams.length,
+                ctx: ctxTodos.map(function (c) { return c.state; }),
+                sessao: navigator.audioSession ? navigator.audioSession.type : null,
+                audiosRemotos: [].filter.call(document.querySelectorAll('audio,video'), function (v) { return !!v.srcObject; }).length,
+                micTocandoLocal: [].some.call(document.querySelectorAll('audio,video'), function (v) { var ids = todosStreams.reduce(function (a, s) { return a.concat(s.getTracks().map(function (t) { return t.id; })); }, []); return !!(v.srcObject && v.srcObject.getTracks && v.srcObject.getTracks().some(function (t) { return ids.indexOf(t.id) >= 0; })); }),
+                toque: { tipo: somTipo, tocando: !!(somEl && !somEl.paused && somEl.src) },
+                falanteVisivel: !!($('ch-btn-falante') && $('ch-btn-falante').style.display !== 'none'),
+                ios: IOS
             };
         }
     };
