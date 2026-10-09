@@ -601,7 +601,7 @@ async function sincronizarConversa() {
     } catch (e) { /* offline: tenta no próximo ciclo */ } finally { syncando = false; }
 }
 
-/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261009d). */
+/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261009f). */
 let atualizandoManual = false, atualizarOkT = null;
 async function atualizarConversaManual() {
     const btn = $('btn-chat-atualizar');
@@ -1063,8 +1063,8 @@ function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(po
 /* ============================ áudio estilo WhatsApp ============================ */
 // Segurar = grava enquanto segura (solta envia; deslize ← ou "Cancelar" descarta).
 // Segurar e arrastar ↑ = trava (barra com Cancelar e ➤ enviar). Nunca trava sozinho.
-// 20261009d: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
-// (trilha desligada entre uma e outra) e só é solto quando o app sai da tela ou fica 10 min parado.
+// 20261009f: o microfone fica aberto SÓ durante a gravação e é solto na hora (enviar, cancelar,
+// erro, sair da conversa/tela) — sem indicador laranja do iPhone depois do envio.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
 let iniciandoGravacao = false;
@@ -1121,36 +1121,35 @@ function onRecordingReady(blob) {
     enviarAudioGravado(file, audioPicos, dur);
 }
 let audioRecDur = 0;
-let micStream = null, micSoltarT = null;
-const MIC_GUARDA_MS = 10 * 60 * 1000;
+// Antes (20261009f) o stream ficava aberto entre gravações com a trilha "desligada" (enabled=false)
+// para não pedir permissão de novo: no iPhone isso mantinha o indicador laranja do mic aceso até
+// sair do chat, e um stream aberto quando o app é suspenso faz o iOS perguntar a permissão de novo.
+// Agora: nenhum stream fica guardado. A permissão continua sendo reaproveitada pelo próprio WebKit
+// enquanto a tela não recarrega/navega: getUserMedia é chamado DENTRO do toque (pointerdown, sem
+// await antes) e sempre com as mesmas opções — o iOS não pergunta de novo nessa sessão da tela.
+let micStream = null;
+let micGeracao = 0; // muda quando a gravação é abandonada (sair da tela/conversa) enquanto o mic abre
 const AUDIO_OPCOES = { audio: { echoCancellation: true, noiseSuppression: true } };
-function micVivo(st) { try { return !!st && st.getAudioTracks().some(t => t.readyState === 'live'); } catch (e) { return false; } }
-async function pegarMic() {
-    clearTimeout(micSoltarT); micSoltarT = null;
-    if (micVivo(micStream)) { micStream.getAudioTracks().forEach(t => { t.enabled = true; }); return micStream; }
-    micStream = null;
-    const st = await navigator.mediaDevices.getUserMedia(AUDIO_OPCOES); // no gesto do usuário; só na 1ª vez
-    micStream = st;
-    return st;
-}
-// iPhone/iPad (WebKit) volta a perguntar a cada getUserMedia depois que o mic é solto
-const MIC_WEBKIT_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-function guardarMic() {
-    if (!micStream) return;
-    try { micStream.getAudioTracks().forEach(t => { t.enabled = false; }); } catch (e) { /* ignore */ }
-    clearTimeout(micSoltarT); micSoltarT = setTimeout(soltarMic, MIC_GUARDA_MS);
-    if (MIC_WEBKIT_IOS || !navigator.permissions || !navigator.permissions.query) return;
-    // permissão já salva no navegador (Android/PC): solta o mic na hora — não vai perguntar de novo
-    navigator.permissions.query({ name: 'microphone' }).then((r) => { if (r && r.state === 'granted' && !gravando && !iniciandoGravacao) soltarMic(); }).catch(() => {});
-}
+function pegarMic() { return navigator.mediaDevices.getUserMedia(AUDIO_OPCOES); } // no gesto do usuário
+/** Solta o microfone por completo: para TODAS as trilhas, fecha a onda (AudioContext) e esquece o stream. */
 function soltarMic() {
-    clearTimeout(micSoltarT); micSoltarT = null;
-    if (gravando || iniciandoGravacao) return;
-    const st = micStream; micStream = null;
-    if (st) { try { st.getTracks().forEach(t => t.stop()); } catch (e) { /* ignore */ } }
+    const st = micStream; micStream = null; audioStream = null;
+    if (audioVis) { const v = audioVis; audioVis = null; try { const pc = v.parar(); if (!audioPicos) audioPicos = pc; } catch (e) { /* ignore */ } }
+    if (st) { try { st.getTracks().forEach(t => { try { t.stop(); } catch (e) { /* ignore */ } }); } catch (e) { /* ignore */ } }
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') soltarMic(); });
-window.addEventListener('pagehide', () => soltarMic());
+/** App saiu da tela / página fechando / conversa fechada: encerra a gravação e solta o mic. */
+function abandonarGravacao(enviar) {
+    micGeracao++;
+    audioPendingIntent = null;
+    if (gravando || (mediaRecorder && mediaRecorder.state !== 'inactive')) {
+        if (enviar) stopRecording(false, true);
+        else { if (mediaRecorder) mediaRecorder._silencioso = true; stopRecording(true); }
+    }
+    soltarMic();
+}
+// app foi para o fundo (iOS corta o mic de qualquer jeito): envia o que já foi gravado
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') abandonarGravacao(true); });
+window.addEventListener('pagehide', () => abandonarGravacao(false));
 function toastAudio(msg) { msgErro(msg); toast(msg); setAnexoInfo(msg); }
 async function startRecording(fromHold) {
     if (!contatoAtivo || !contatoAtivo.auth_id) { toastAudio('Selecione um contato primeiro.'); return; }
@@ -1166,24 +1165,30 @@ async function startRecording(fromHold) {
     audioHoldMode = !!fromHold;
     try {
         const tAbrir = Date.now();
+        const geracao = micGeracao;
         const stream = await pegarMic();
+        micStream = stream; audioStream = stream;
         audioPediuPermissao = (Date.now() - tAbrir) > 700; // provavelmente apareceu o aviso do navegador
-        audioStream = stream;
+        // saiu da tela / fechou a conversa enquanto o mic abria: solta na hora
+        if (geracao !== micGeracao || document.visibilityState === 'hidden' || !contatoAtivo) {
+            iniciandoGravacao = false; soltarMic(); resetAudioBtn(); showLockHint(false); return;
+        }
         const chunks = [];          // pedaços DESTA gravação (nunca compartilhados)
         audioChunks = chunks;
         const mime = ChatMidia.pickRecorderMime();
         const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-        mediaRecorder = rec;
+        mediaRecorder = rec; rec._stream = stream;
         rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
         rec.onstop = () => {
+            clearTimeout(rec._soltarT);
             const atual = mediaRecorder === rec;
-            if (atual) guardarMic(); // não solta o microfone: a próxima gravação não pede permissão de novo
             if (atual) {
-                audioStream = null;
-                stopAudioTimer(); showRecBar(false); gravando = false;
                 if (audioVis) { audioPicos = audioVis.parar(); audioVis = null; }
+                soltarMic(); // solta o microfone (indicador do iPhone apaga)
+                stopAudioTimer(); showRecBar(false); gravando = false;
                 if (window.MineraRT) MineraRT.sendEstado('parou');
             }
+            try { stream.getTracks().forEach(t => t.stop()); } catch (e) { /* ignore */ } // garante: este stream nunca fica vivo
             const startedAt = rec._startedAt || 0;
             if (rec._cancelado) { if (atual) { audioRecStartedAt = 0; resetAudioBtn(); setAnexoInfo(''); } return; }
             const blob = new Blob(chunks, { type: ChatMidia.baseMime(rec.mimeType) || ChatMidia.baseMime(mime) || 'audio/webm' });
@@ -1209,6 +1214,8 @@ async function startRecording(fromHold) {
     } catch (err) {
         console.warn(err);
         iniciandoGravacao = false;
+        if (mediaRecorder && mediaRecorder.state === 'inactive') mediaRecorder = null;
+        soltarMic(); // erro depois de abrir o mic (ex.: MediaRecorder): não deixa o stream aceso
         gravando = false; resetAudioBtn(); showRecBar(false);
         const name = (err && err.name) || '';
         let msg = 'Não foi possível acessar o microfone.';
@@ -1223,8 +1230,16 @@ function stopRecording(cancel, enviar) {
     gravando = false; stopAudioTimer();
     if (mediaRecorder) mediaRecorder._cancelado = !!cancel;
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        try { if (typeof mediaRecorder.requestData === 'function') { try { mediaRecorder.requestData(); } catch (e) { /* ignore */ } } mediaRecorder.stop(); } catch (e) { /* ignore */ }
-    } else { showRecBar(false); if (audioVis) { audioVis.parar(); audioVis = null; } if (cancel) resetAudioBtn(); }
+        const rec = mediaRecorder;
+        try { if (typeof rec.requestData === 'function') { try { rec.requestData(); } catch (e) { /* ignore */ } } rec.stop(); } catch (e) { /* ignore */ }
+        // onstop solta o mic; se o navegador não disparar onstop, solta mesmo assim
+        clearTimeout(rec._soltarT);
+        rec._soltarT = setTimeout(() => {
+            const st = rec._stream; if (!st) return;
+            if (micStream === st) soltarMic();
+            else { try { st.getTracks().forEach(t => t.stop()); } catch (e) { /* ignore */ } }
+        }, 1500);
+    } else { showRecBar(false); soltarMic(); if (cancel) resetAudioBtn(); }
 }
 function travarGravacao() {
     audioHoldMode = false;
@@ -1861,7 +1876,7 @@ function fecharConversa(viaPopstate) {
     if (window.MineraRT) MineraRT.leaveDm();
     salvarCacheConversa();
     contatoAtivo = null; T.peer = null; T.gen++;
-    if (gravando) stopRecording(true);
+    abandonarGravacao(false); // fecha a conversa: descarta a gravação e solta o microfone
     if (window.ChatAudio) ChatAudio.pararTodos();
     aplicarBloqueioUI(null);
     showThreadUI(false);

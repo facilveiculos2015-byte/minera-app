@@ -306,9 +306,13 @@
         rafV = requestAnimationFrame(desenhar);
         return {
             parar: function () {
-                ativo = false; cancelAnimationFrame(rafV);
+                if (!ativo) return reamostrar(niveis, NBARRAS);
+                ativo = false; cancelAnimationFrame(rafV); rafV = 0;
+                // solta tudo que segura o microfone: nós de áudio + AudioContext fechado
                 try { if (src) src.disconnect(); } catch (e) { /* ignore */ }
-                try { if (ctx && ctx.close) ctx.close(); } catch (e) { /* ignore */ }
+                try { if (an) an.disconnect(); } catch (e) { /* ignore */ }
+                try { if (ctx && ctx.state !== 'closed' && ctx.close) { var pc = ctx.close(); if (pc && pc.catch) pc.catch(function () { /* ignore */ }); } } catch (e) { /* ignore */ }
+                src = null; an = null; ctx = null;
                 if (canvas) { var g = canvas.getContext('2d'); g.clearRect(0, 0, canvas.width, canvas.height); }
                 return reamostrar(niveis, NBARRAS);
             },
