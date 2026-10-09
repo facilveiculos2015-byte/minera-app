@@ -1,8 +1,25 @@
 /** Sessão + perfil (usuarios.auth_id) + papéis múltiplos + bloqueio + tema */
 
+/** Erro passageiro do Auth (sem internet, 5xx, limite 429): NÃO é motivo para apagar a sessão do aparelho. */
+function erroAuthPassageiro(e) {
+    if (!e) return false;
+    const st = Number(e.status || 0);
+    return e.name === 'AuthRetryableFetchError' || st === 0 || st === 429 || st >= 500 || /fetch|network|rede|timeout|rate limit/i.test(String(e.message || ''));
+}
+
 async function requireSession() {
     try {
-        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        let { data: { session }, error } = await supabaseClient.auth.getSession();
+        // falha passageira (ex.: 429/503 no refresh): espera e tenta de novo sem deslogar
+        for (let i = 0; error && erroAuthPassageiro(error) && i < 3; i++) {
+            console.warn('requireSession: falha passageira, tentando de novo', error.message || error);
+            await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+            ({ data: { session }, error } = await supabaseClient.auth.getSession());
+        }
+        if (error && erroAuthPassageiro(error)) {
+            irPara('entrar.html');   // sessão continua guardada: o Entrar reconecta quando a rede/limite voltar
+            return null;
+        }
         if (error) {
             console.warn('requireSession auth error:', error.message || error);
             await limparSessaoERedirecionar();
@@ -465,7 +482,7 @@ const ADMIN_MODO_PAGINAS_OK = new Set(['admin', 'chat', 'perfil']);
  * Retorna true se redirecionou (caller deve abortar).
  */
 function enforceAdminModoPagina(perfil, paginaAtiva) {
-    // 20261009za: apps só-gestor (/gestor/) e só-chat (/chat/) NUNCA mandam para o painel admin.
+    // 20261009zc: apps só-gestor (/gestor/) e só-chat (/chat/) NUNCA mandam para o painel admin.
     // Antes, admin em modo monitoramento abrindo o Gestor Minera ia para irPara('admin.html'), que no
     // /gestor/ vira o próprio /gestor/ → recarregava sem parar ("Carregando..." ↔ nome, logo vazio).
     if (window.MINERA_GESTOR_APP === true || window.MINERA_CHAT_APP === true) return false;

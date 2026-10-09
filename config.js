@@ -37,7 +37,63 @@ const TURNSTILE_SITEKEY = (MINERA_TESTE ? MINERA_TURNSTILE.teste : MINERA_TURNST
 
 const SUPABASE_URL = MINERA_DB_ATUAL.url;
 const SUPABASE_ANON_KEY = MINERA_DB_ATUAL.anon;
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* ---- Relógio do aparelho errado (20261009zcb) ----
+ * O Supabase devolve a sessão com expires_at = hora do SERVIDOR + 1 h. O supabase-js compara com Date.now() do
+ * aparelho: celular com hora/fuso manual adiantado ~1 h (ex.: fuso de Manaus com a hora de Belém digitada à mão)
+ * achava o token SEMPRE vencido → refresh a cada chamada (300 refresh em 11 min nos logs) → 429 do Supabase →
+ * supabase-js apagava a sessão → volta para o Entrar (loop no iPhone 11 em 09/10).
+ * Correção: toda resposta do Auth com sessão passa a ter expires_at = hora DO APARELHO + expires_in (o servidor
+ * continua validando o JWT pela hora dele) e um 429 no refresh vira 503 (= "tente de novo", sem apagar a sessão:
+ * no 429 o refresh token não foi gasto). O link do e-mail (#access_token...&expires_at=) recebe o mesmo ajuste. */
+var MINERA_RELOGIO = { desvioMs: 0, ajustes: 0, refresh429: 0 };
+function mineraDesvioDoJwt(at) {
+    try {
+        var b = String(at || '').split('.')[1]; if (!b) return null;
+        var j = JSON.parse(atob(b.replace(/-/g, '+').replace(/_/g, '/')));
+        return j && j.iat ? Date.now() - j.iat * 1000 : null;
+    } catch (e) { return null; }
+}
+function mineraAvisoRelogio(desvio) {
+    if (desvio === null || Math.abs(desvio) < 10 * 60 * 1000) return;
+    MINERA_RELOGIO.desvioMs = desvio;
+    try { console.warn('Minera: relógio do aparelho ' + (desvio > 0 ? 'adiantado' : 'atrasado') + ' ~' + Math.round(Math.abs(desvio) / 60000) + ' min (sessão ajustada)'); } catch (e) { /* ignore */ }
+}
+function mineraAuthFetch(input, init) {
+    var url = '';
+    try { url = typeof input === 'string' ? input : ((input && input.url) || String(input)); } catch (e) { url = ''; }
+    var p = fetch(input, init);
+    if (!/\/auth\/v1\/(token|verify)(\?|$)/.test(url)) return p;
+    var ehRefresh = /grant_type=refresh_token/.test(url);
+    return p.then(function (r) {
+        try {
+            if (r.status === 429 && ehRefresh) {
+                MINERA_RELOGIO.refresh429++;
+                return r.text().then(function (t) { return new Response(t, { status: 503, statusText: 'Service Unavailable (429)', headers: r.headers }); });
+            }
+            if (!r.ok || !/json/i.test(r.headers.get('content-type') || '')) return r;
+            return r.clone().json().then(function (j) {
+                if (!j || !j.access_token || !j.expires_in) return r;
+                mineraAvisoRelogio(mineraDesvioDoJwt(j.access_token));
+                var local = Math.round(Date.now() / 1000) + Number(j.expires_in);
+                if (j.expires_at && Math.abs(j.expires_at - local) < 120) return r;   // relógio certo: resposta intacta
+                j.expires_at = local; MINERA_RELOGIO.ajustes++;
+                return new Response(JSON.stringify(j), { status: r.status, statusText: r.statusText, headers: r.headers });
+            }).catch(function () { return r; });
+        } catch (e) { return r; }
+    });
+}
+(function ajustarHashDaSessao() {
+    try {
+        var h = location.hash || '';
+        if (!/access_token=/.test(h) || !/expires_in=/.test(h)) return;
+        var q = new URLSearchParams(h.replace(/^#/, ''));
+        var ein = parseInt(q.get('expires_in'), 10); if (!ein) return;
+        mineraAvisoRelogio(mineraDesvioDoJwt(q.get('access_token')));
+        q.set('expires_at', String(Math.round(Date.now() / 1000) + ein));
+        history.replaceState(history.state, '', location.pathname + location.search + '#' + q.toString());
+    } catch (e) { /* ignore */ }
+})();
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { fetch: mineraAuthFetch } });
 
 /* Base do app derivada em tempo de execução a partir do endereço deste config.js:
  * '/' em https://minerapara.com.br (e Netlify/servidor local na raiz), '/minera-app/' no antigo
