@@ -96,8 +96,9 @@
             ctxTodos.forEach(function (c) { try { if (c.state === 'running') { c.suspend(); ctxPausados.push(c); } } catch (e) { /* ignore */ } });
             try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) { /* ignore */ }
         } else {
-            // 'playback' → 'auto' "chacoalha" o Safari de volta para o som normal (sem modo ligação)
-            try { if (navigator.audioSession) { navigator.audioSession.type = 'playback'; navigator.audioSession.type = 'auto'; } } catch (e) { /* ignore */ }
+            // só 'auto' ('playback' registraria a página como player na tela bloqueada)
+            try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) { /* ignore */ }
+            limparMediaSession();
             try { if (audioPre && (!C || C.audio !== audioPre)) { audioPre.remove(); } } catch (e) { /* ignore */ }
             audioPre = null;
             var vol = ctxPausados; ctxPausados = [];
@@ -129,9 +130,12 @@
     function wavDe(tipo) {
         if (wavCache[tipo]) return wavCache[tipo];
         var T = {
-            toque: [[[440, 480], 0.4], [[], 0.2], [[440, 480], 0.4], [[], 2.0]],
-            chamando: [[[425], 1.0], [[], 4.0]],
-            ocupado: [[[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.25], [[425], 0.25], [[], 0.2]],
+            // TODOS com no máximo 0,9 s: o WebKit só mostra o player "Tocando agora" (tela bloqueada /
+            // Central de Controle) para áudio com MAIS de 0,95 s ("You've got mail", MediaElementSession).
+            // A repetição (toque a cada 3 s, chamando a cada 5 s) é feita por timer, sem loop.
+            toque: [[[440, 480], 0.4], [[], 0.1], [[440, 480], 0.38]],
+            chamando: [[[425], 0.9]],
+            ocupado: [[[425], 0.25], [[], 0.25]],
             fim: [[[480], 0.18], [[], 0.04], [[380], 0.25]],
             silencio: [[[], 0.05]]
         };
@@ -140,28 +144,54 @@
     }
     var somEl = null, somTipo = '';
     function elSom() {
-        if (!somEl) { somEl = document.createElement('audio'); somEl.setAttribute('playsinline', ''); somEl.preload = 'auto'; somEl.id = 'chamada-som'; }
+        if (!somEl) { somEl = document.createElement('audio'); somEl.setAttribute('playsinline', ''); somEl.preload = 'auto'; somEl.id = 'chamada-som'; semPlayer(somEl); }
         return somEl;
     }
     // iPhone: destrava o <audio> do toque no 1º toque na tela (sem AudioContext)
     function destravar() { try { var a = elSom(); a.src = wavDe('silencio'); a.loop = false; var p = a.play(); if (p && p.then) p.then(function () { if (!somTipo) a.pause(); }).catch(function () {}); } catch (e) { /* ignore */ } }
     document.addEventListener('pointerdown', function d1() { destravar(); document.removeEventListener('pointerdown', d1, true); }, true);
 
-    var vibT = null;
+    /** Nada de player na tela bloqueada: sem AirPlay/transmissão, sem controles, Media Session vazia. */
+    function semPlayer(el) {
+        try { el.disableRemotePlayback = true; el.setAttribute('disableremoteplayback', ''); el.setAttribute('x-webkit-airplay', 'deny'); el.controls = false; el.removeAttribute('controls'); } catch (e) { /* ignore */ }
+    }
+    function limparMediaSession() {
+        try {
+            var ms = navigator.mediaSession; if (!ms) return;
+            ms.metadata = null;
+            ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack', 'seekto', 'skipad'].forEach(function (a) { try { ms.setActionHandler(a, null); } catch (e) { /* ação não suportada */ } });
+            try { ms.playbackState = 'none'; } catch (e) { /* ignore */ }
+            try { if (ms.setPositionState) ms.setPositionState(); } catch (e) { /* ignore */ }
+        } catch (e) { /* ignore */ }
+    }
+    var vibT = null, repT = null;
     function pararSom() {
-        somTipo = ''; clearInterval(vibT); vibT = null;
-        try { if (somEl) { somEl.pause(); somEl.loop = false; somEl.removeAttribute('src'); somEl.load(); } } catch (e) { /* ignore */ }
+        somTipo = ''; clearInterval(vibT); vibT = null; clearInterval(repT); repT = null;
+        try { if (somEl) { somEl.onended = null; somEl.pause(); somEl.loop = false; somEl.removeAttribute('src'); somEl.load(); } } catch (e) { /* ignore */ }
         try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) { /* ignore */ }
+    }
+    /** Fim da ligação: joga fora o elemento do toque (some do "Tocando agora"). */
+    function descartarSom() {
+        pararSom();
+        try { if (somEl) { somEl.remove(); } } catch (e) { /* ignore */ }
+        somEl = null;
+        limparMediaSession();
     }
     /** 'toque' (recebendo), 'chamando' (425 Hz 1 s / 4 s, padrão BR), 'ocupado', 'fim' */
     function tocar(tipo) {
         pararSom();
         try {
             var a = elSom(); somTipo = tipo;
-            a.loop = (tipo === 'toque' || tipo === 'chamando');
+            a.loop = false;
             a.src = wavDe(tipo); a.currentTime = 0;
-            var p = a.play(); if (p && p.catch) p.catch(function () { /* sem toque na tela ainda: só vibra */ });
-            if (tipo === 'fim' || tipo === 'ocupado') a.onended = function () { if (somTipo === tipo) pararSom(); };
+            var toca = function () { if (somTipo !== tipo) return; try { a.currentTime = 0; var p = a.play(); if (p && p.catch) p.catch(function () { /* sem toque na tela ainda: só vibra */ }); } catch (e) { /* ignore */ } };
+            toca();
+            var cada = { toque: 3000, chamando: 5000, ocupado: 500 }[tipo];
+            if (cada) {
+                var vezes = 0;
+                repT = setInterval(function () { if (tipo === 'ocupado' && ++vezes >= 6) { pararSom(); return; } toca(); }, cada);
+            }
+            if (tipo === 'fim') a.onended = function () { if (somTipo === tipo) pararSom(); };
         } catch (e) { /* ignore */ }
         if (tipo === 'toque') {
             var vib = function () { try { if (navigator.vibrate) navigator.vibrate([400, 200, 400]); } catch (e) { /* ignore */ } };
@@ -171,26 +201,39 @@
 
     /* ---------------- tela ---------------- */
     var CSS = '' +
+        '.ch-tela,.ch-trava{--ch-amarelo:#F5A623;--ch-escuro:#1a1205}' +
         '.ch-tela{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:space-between;' +
-        'padding:calc(28px + env(safe-area-inset-top)) 20px calc(34px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#0f2a1f 0%,#0b1712 70%);color:#f2f7f4;font-family:inherit;text-align:center}' +
+        'padding:calc(28px + env(safe-area-inset-top)) 20px calc(34px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#2b1f08 0%,#0f0c06 72%);color:#fbf6ec;font-family:inherit;text-align:center}' +
         '.ch-tela.oculto{display:none}' +
         '.ch-topo{font-size:13px;opacity:.75;letter-spacing:.2px}' +
         '.ch-meio{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4vh}' +
-        '.ch-av{width:112px;height:112px;border-radius:50%;background:#1f6f4a;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;box-shadow:0 0 0 0 rgba(46,204,113,.5)}' +
+        '.ch-av{width:112px;height:112px;border-radius:50%;background:var(--ch-amarelo);color:var(--ch-escuro);display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;box-shadow:0 0 0 0 rgba(245,166,35,.5)}' +
         '.ch-tela[data-fase=tocando] .ch-av,.ch-tela[data-fase=chamando] .ch-av{animation:chPulso 1.6s infinite}' +
-        '@keyframes chPulso{0%{box-shadow:0 0 0 0 rgba(46,204,113,.55)}70%{box-shadow:0 0 0 26px rgba(46,204,113,0)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}' +
+        '@keyframes chPulso{0%{box-shadow:0 0 0 0 rgba(245,166,35,.55)}70%{box-shadow:0 0 0 26px rgba(245,166,35,0)}100%{box-shadow:0 0 0 0 rgba(245,166,35,0)}}' +
         '.ch-nome{font-size:26px;font-weight:700;max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
         '.ch-status{font-size:16px;opacity:.85;min-height:22px;font-variant-numeric:tabular-nums}' +
         '.ch-acoes,.ch-entrada{display:flex;gap:26px;align-items:flex-start;justify-content:center;width:100%}' +
         '.ch-b{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;color:inherit;font:inherit;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
         '.ch-b .ch-c{width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.14);transition:transform .1s}' +
         '.ch-b:active .ch-c{transform:scale(.94)}' +
-        '.ch-b[aria-pressed=true] .ch-c{background:#f2f7f4;color:#0b1712}' +
-        '.ch-b.ch-verm .ch-c{background:#e5484d;color:#fff}.ch-b.ch-verde .ch-c{background:#2fbf71;color:#fff}' +
+        '.ch-b[aria-pressed=true] .ch-c{background:var(--ch-amarelo);color:var(--ch-escuro)}' +
+        '.ch-b.ch-verm .ch-c{background:#e5484d;color:#fff}.ch-b.ch-amarelo .ch-c{background:var(--ch-amarelo);color:var(--ch-escuro)}' +
         '.ch-b svg{width:30px;height:30px}' +
+        '.ch-b .ch-l{max-width:98px;line-height:1.2}' +
+        '.ch-tela .ch-b,.ch-tela .ch-b:hover,.ch-tela .ch-b:active{background:none;box-shadow:none;padding:0;border-radius:0}.ch-tela .ch-travar:hover{background:rgba(255,255,255,.1)}' +
         '.ch-tela[data-papel=entrada][data-fase=tocando] .ch-acoes{display:none}' +
         '.ch-tela:not([data-fase=tocando]) .ch-entrada,.ch-tela[data-papel=saida] .ch-entrada{display:none}' +
         '.ch-tela[data-fase=fim] .ch-acoes{opacity:.35;pointer-events:none}' +
+        '.ch-travar{margin-top:14px;background:rgba(255,255,255,.1);color:inherit;border:0;border-radius:18px;padding:8px 16px;font:inherit;font-size:14px;display:none}' +
+        '.ch-tela[data-fase=conectada] .ch-travar{display:inline-block}' +
+        '.ch-trava{position:fixed;inset:0;z-index:2147483600;background:#000;color:#b5a88f;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;' +
+        'padding:0 22px calc(48px + env(safe-area-inset-bottom));touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:contain}' +
+        '.ch-trava.oculto{display:none}.ch-trava-meio{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin-top:32vh}' +
+        '.ch-trava-t{font-size:15px;opacity:.7}.ch-trava-cron{font-size:34px;color:#f1d9a6;font-variant-numeric:tabular-nums}.ch-trava-nome{font-size:14px;opacity:.55}' +
+        '.ch-trava-trilho{position:relative;width:min(88vw,340px);height:62px;border-radius:31px;background:rgba(255,255,255,.08);display:flex;align-items:center}' +
+        '.ch-trava-dica{position:absolute;left:0;right:0;text-align:center;font-size:14px;opacity:.6;pointer-events:none}' +
+        '.ch-trava-trilho.segurando{background:rgba(245,166,35,.22);transition:background 1.5s}' +
+        '.ch-trava-alca{position:relative;z-index:1;margin-left:4px;width:54px;height:54px;border-radius:50%;background:var(--ch-amarelo);color:var(--ch-escuro);display:flex;align-items:center;justify-content:center;font-size:24px;touch-action:none;cursor:grab}' +
         '.ch-saida{margin-top:10px;font-size:13px;opacity:.75;max-width:86vw;min-height:1em}.ch-tela[data-fase=tocando] .ch-saida{display:none}' +
         '.bubble.bubble-chamada{align-self:center;max-width:86%;margin:6px auto;padding:7px 14px;border-radius:16px;background:rgba(127,127,127,.14);color:inherit;font-size:13.5px;display:flex;gap:8px;align-items:center;cursor:pointer;box-shadow:none}' +
         '.bubble.bubble-chamada::before,.bubble.bubble-chamada::after{display:none!important}' +
@@ -200,6 +243,7 @@
         mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
         micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/></svg>',
         falante: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
+        falanteOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>',
         fone: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/></svg>',
         desligar: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1a1 1 0 0 1-.56.9c-.98.49-1.87 1.12-2.66 1.85a1 1 0 0 1-1.41-.02L.29 13.08a1 1 0 0 1 0-1.41C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67a1 1 0 0 1 0 1.41l-2.48 2.48a1 1 0 0 1-1.41.02 11.3 11.3 0 0 0-2.66-1.85 1 1 0 0 1-.56-.9v-3.1A15 15 0 0 0 12 9z"/></svg>'
     };
@@ -210,23 +254,24 @@
         d.id = 'chamada-tela'; d.className = 'ch-tela oculto'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', 'Ligação de voz');
         d.innerHTML =
             '<div class="ch-topo">🔒 Ligação de voz · criptografada</div>' +
-            '<div class="ch-meio"><div class="ch-av" id="ch-av">?</div><div class="ch-nome" id="ch-nome">—</div><div class="ch-status" id="ch-status" aria-live="polite"></div><div class="ch-saida" id="ch-saida"></div></div>' +
+            '<div class="ch-meio"><div class="ch-av" id="ch-av">?</div><div class="ch-nome" id="ch-nome">—</div><div class="ch-status" id="ch-status" aria-live="polite"></div><div class="ch-saida" id="ch-saida">🔊 Ligação em viva-voz</div><button type="button" class="ch-travar" id="ch-btn-travar">🔒 Travar tela</button></div>' +
             '<div style="width:100%">' +
             '<div class="ch-acoes">' +
-            '<button type="button" class="ch-b" id="ch-btn-mudo" aria-pressed="false"><span class="ch-c">' + IC.mic + '</span><span>Mudo</span></button>' +
+            '<button type="button" class="ch-b" id="ch-btn-mudo" aria-pressed="false" aria-label="Silenciar microfone"><span class="ch-c">' + IC.mic + '</span><span class="ch-l">Silenciar microfone</span></button>' +
             '<button type="button" class="ch-b ch-verm" id="ch-btn-desligar"><span class="ch-c">' + IC.desligar + '</span><span>Desligar</span></button>' +
-            '<button type="button" class="ch-b" id="ch-btn-falante" aria-pressed="false"><span class="ch-c">' + IC.falante + '</span><span>Alto-falante</span></button>' +
+            '<button type="button" class="ch-b" id="ch-btn-som" aria-pressed="false" aria-label="Silenciar alto-falante"><span class="ch-c">' + IC.falante + '</span><span class="ch-l">Silenciar som</span></button>' +
             '</div>' +
             '<div class="ch-entrada">' +
             '<button type="button" class="ch-b ch-verm" id="ch-btn-recusar"><span class="ch-c">' + IC.desligar + '</span><span>Recusar</span></button>' +
-            '<button type="button" class="ch-b ch-verde" id="ch-btn-atender"><span class="ch-c">' + IC.fone + '</span><span>Atender</span></button>' +
+            '<button type="button" class="ch-b ch-amarelo" id="ch-btn-atender"><span class="ch-c">' + IC.fone + '</span><span>Atender</span></button>' +
             '</div></div>';
         document.body.appendChild(d);
         $('ch-btn-desligar').addEventListener('click', function () { desligar('desligou'); });
         $('ch-btn-recusar').addEventListener('click', function () { desligar('recusou'); });
         $('ch-btn-atender').addEventListener('click', atender);
         $('ch-btn-mudo').addEventListener('click', alternarMudo);
-        $('ch-btn-falante').addEventListener('click', alternarFalante);
+        $('ch-btn-som').addEventListener('click', alternarSom);
+        $('ch-btn-travar').addEventListener('click', function () { travar('botão'); });
         return d;
     }
     function tela(fase, status) {
@@ -234,7 +279,7 @@
         if (C) { d.setAttribute('data-papel', C.papel); $('ch-nome').textContent = C.peerNome || 'Contato'; $('ch-av').textContent = iniciais(C.peerNome); }
         if (fase) d.setAttribute('data-fase', fase);
         if (status != null) $('ch-status').textContent = status;
-        if ((fase === 'chamando' || fase === 'tocando') && $('ch-saida')) { $('ch-saida').textContent = ''; if ($('ch-btn-falante')) { $('ch-btn-falante').style.display = ''; $('ch-btn-falante').setAttribute('aria-pressed', 'false'); } }
+        if (fase === 'chamando' || fase === 'tocando') { mostrarSom(); var bm = $('ch-btn-mudo'); if (bm && !(C && C.mudo)) { bm.setAttribute('aria-pressed', 'false'); bm.querySelector('.ch-c').innerHTML = IC.mic; bm.querySelector('.ch-l').textContent = 'Silenciar microfone'; } }
         d.classList.remove('oculto');
     }
     function esconderTela() { var d = $('chamada-tela'); if (d) d.classList.add('oculto'); }
@@ -272,7 +317,7 @@
         C = {
             id: row.id, row: row, papel: papel, peerId: peerId, peerNome: peerNome, fase: papel === 'saida' ? 'chamando' : 'tocando',
             pc: null, stream: null, audio: null, ch: null, chSt: 'CLOSED', locVer: 0, remVer: 0, remSdp: '', candsLocais: [], candsRem: new Set(),
-            filaCands: [], fila: Promise.resolve(), timers: {}, ice: null, icePromise: null, mudo: false, falante: false,
+            filaCands: [], fila: Promise.resolve(), timers: {}, ice: null, icePromise: null, mudo: false, somMudo: false,
             conectadaEm: 0, semConexaoDesde: 0, reiniciando: false, atendiAqui: papel === 'saida', fim: false, token: null
         };
         guardarToken();
@@ -295,9 +340,6 @@
         try { var st = s.getAudioTracks()[0].getSettings(); log('mic', JSON.stringify(st)); C && (C.micCfg = st); } catch (e) { /* ignore */ }
         // 'play-and-record' DEPOIS do microfone (Safari re-roteia; antes do getUserMedia às vezes pega o mic errado)
         try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) { /* ignore */ }
-        // iPhone: já escolhe o OUVIDO no <audio> da ligação logo após ligar o microfone
-        // (o Safari conta o microfone recém-ligado como gesto para setSinkId)
-        if (IOS) { try { prepararAudio(); await lerSaidas(); aplicarSaida(audioPre, false); } catch (e) { /* ignore */ } }
         todosStreams.push(s);
         return s;
     }
@@ -382,15 +424,6 @@
         var pc = new RTCPeerConnection(conf);
         C.pc = pc;
         C.stream.getAudioTracks().forEach(function (t) { t.enabled = !C.mudo; pc.addTrack(t, C.stream); });
-        // 2ª trilha de áudio MUDA no mesmo stream: no iPhone (iOS 26.x) setSinkId() só troca a saída
-        // (ouvido/alto-falante) quando o stream WebRTC recebido tem 2+ trilhas — bug WebKit 320087,
-        // corrigido no WebKit 318149@main (29/07/2026). Custa ~1 kbps de silêncio; quem recebe ignora.
-        try {
-            if (CFG.trilhaMuda !== false && C.stream.getAudioTracks()[0]) {
-                var muda = C.stream.getAudioTracks()[0].clone(); muda.enabled = false;
-                pc.addTrack(muda, C.stream); C.trilhaMuda = muda;
-            }
-        } catch (e) { /* ignore */ }
         pc.onicecandidate = function (e) {
             if (!C || C.pc !== pc) return;
             if (e.candidate) {
@@ -411,7 +444,7 @@
             if (!e.streams || !e.streams[0]) { try { if (novoSrc.getTracks().indexOf(e.track) < 0) novoSrc.addTrack(e.track); } catch (er) { /* ignore */ } }
             if (a.srcObject !== novoSrc) a.srcObject = novoSrc;
             var p = a.play(); if (p && p.catch) p.catch(function () { /* autoplay: toque na tela libera */ });
-            if (IOS && !C.roteado) { C.roteado = true; rotear(); setTimeout(function () { if (C && C.audio === a && !C.fim) rotear(); }, 1200); }
+            a.muted = !!C.somMudo;
         };
         var onEstado = function () {
             if (!C || C.pc !== pc) return;
@@ -435,6 +468,9 @@
         }
         C.fase = 'conectada';
         tela('conectada', fmt((Date.now() - C.conectadaEm) / 1000));
+        limparMediaSession();
+        manterTelaAcesa(true);
+        travaAgendar();
     }
     function caiu(falhou) {
         if (!C || C.fim || !C.conectadaEm && !falhou) return;
@@ -630,10 +666,84 @@
         try { if (c.ch && sb()) sb().removeChannel(c.ch); } catch (e) { /* ignore */ }
         c.ch = null;
         guardaSaida(false);
+        travaFim();
         if (texto) { tela('fim', texto); if (!/Ocupado/.test(texto)) tocar('fim'); }
+        setTimeout(function () { if (!C || C === c) descartarSom(); }, Math.max(3500, (msTela || 1200) + 600));
         setTimeout(function () { if (C === c) { C = null; esconderTela(); } }, msTela || 1200);
         if (!texto) { C = null; setTimeout(function () { if (!C) esconderTela(); }, msTela || 0); }
     }
+
+    /* ---------------- trava de bolso (sem sensor de proximidade na web) ----------------
+     * Ligação conectada + tela de toque: 3 s sem tocar → tela preta que engole todo toque.
+     * Destrava só de propósito: arrastar a alça até o fim OU segurar a alça 1,5 s.
+     * Ligação é sempre em viva-voz; a trava evita toques acidentais de mão/orelha. Botão "Travar tela" trava na hora.
+     * Obs.: o indicador de microfone do iOS (Dynamic Island, topo) é do sistema — nenhum site consegue bloquear;
+     * por isso o topo da trava fica vazio. */
+    var TRAVA_MS = 3000, TRAVA_SEGURAR_MS = 1500;
+    function telaDeToque() { return IOS || (navigator.maxTouchPoints || 0) > 0 || ('ontouchstart' in window); }
+    function travaEl() {
+        var t = $('ch-trava'); if (t) return t;
+        t = document.createElement('div'); t.id = 'ch-trava'; t.className = 'ch-trava oculto'; t.setAttribute('role', 'dialog'); t.setAttribute('aria-label', 'Tela travada');
+        t.innerHTML = '<div class="ch-trava-meio"><div class="ch-trava-t">🔒 Tela travada</div><div class="ch-trava-cron" id="ch-trava-cron">0:00</div><div class="ch-trava-nome" id="ch-trava-nome"></div></div>' +
+            '<div class="ch-trava-trilho" id="ch-trava-trilho"><span class="ch-trava-dica">deslize para destravar  →</span><div class="ch-trava-alca" id="ch-trava-alca" aria-label="Destravar">🔓</div></div>';
+        document.body.appendChild(t);
+        // engole TUDO (toque, clique, arrasto, zoom, menu) fora da alça
+        var engole = function (e) { if (e.target && e.target.id === 'ch-trava-alca') return; e.preventDefault(); e.stopPropagation(); };
+        ['touchstart', 'touchmove', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu', 'gesturestart', 'wheel'].forEach(function (ev) { t.addEventListener(ev, engole, { capture: true, passive: false }); });
+        var alca = $('ch-trava-alca'), trilho = $('ch-trava-trilho'), x0 = 0, dx = 0, segT = null, ativo = false;
+        var max = function () { return Math.max(40, trilho.clientWidth - alca.offsetWidth - 8); };
+        var volta = function () { ativo = false; clearTimeout(segT); alca.style.transition = 'transform .2s'; alca.style.transform = 'translateX(0)'; trilho.classList.remove('segurando'); };
+        alca.addEventListener('pointerdown', function (e) {
+            e.preventDefault(); e.stopPropagation(); ativo = true; x0 = e.clientX; dx = 0; alca.style.transition = 'none';
+            try { alca.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+            trilho.classList.add('segurando');
+            clearTimeout(segT); segT = setTimeout(function () { if (ativo && Math.abs(dx) < 12) { volta(); destravar2('segurou'); } }, TRAVA_SEGURAR_MS);
+        });
+        alca.addEventListener('pointermove', function (e) {
+            if (!ativo) return; e.preventDefault(); e.stopPropagation();
+            dx = Math.max(0, Math.min(max(), e.clientX - x0)); alca.style.transform = 'translateX(' + dx + 'px)';
+            if (dx > 12) { clearTimeout(segT); trilho.classList.remove('segurando'); }
+        });
+        var solta = function (e) { if (!ativo) return; e.preventDefault(); e.stopPropagation(); var ok = dx >= max() * 0.85; volta(); if (ok) destravar2('deslizou'); };
+        alca.addEventListener('pointerup', solta); alca.addEventListener('pointercancel', function () { volta(); });
+        ['touchstart', 'touchmove', 'touchend', 'click'].forEach(function (ev) { alca.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); }, { passive: false }); });
+        return t;
+    }
+    function travada() { var t = $('ch-trava'); return !!(t && !t.classList.contains('oculto')); }
+    function travar(motivo) {
+        if (!C || C.fim) return;
+        var t = travaEl(); clearTimer('trava');
+        $('ch-trava-nome').textContent = C.peerNome || '';
+        $('ch-trava-cron').textContent = C.conectadaEm ? fmt((Date.now() - C.conectadaEm) / 1000) : '';
+        t.classList.remove('oculto'); C.travas = (C.travas || 0) + 1; log('trava', motivo);
+        timer('travaCron', function () { if (C && C.conectadaEm && travada()) $('ch-trava-cron').textContent = fmt((Date.now() - C.conectadaEm) / 1000); }, 1000, true);
+    }
+    function destravar2(como) {
+        var t = $('ch-trava'); if (t) t.classList.add('oculto');
+        clearTimer('travaCron'); log('destrava', como);
+        if (C) C.destravas = (C.destravas || 0) + 1;
+        travaAgendar();
+    }
+    function travaAgendar() {
+        clearTimer('trava');
+        if (!C || C.fim || C.fase !== 'conectada' || travada() || !telaDeToque()) return;
+        timer('trava', function () { if (C && !C.fim && C.fase === 'conectada' && telaDeToque()) travar('3s sem toque'); }, TRAVA_MS);
+    }
+    function travaFim() { clearTimer('trava'); clearTimer('travaCron'); var t = $('ch-trava'); if (t) t.classList.add('oculto'); manterTelaAcesa(false); }
+    // qualquer toque na tela da ligação adia a trava
+    document.addEventListener('pointerdown', function (e) { if (C && !C.fim && !travada() && e.target && e.target.closest && e.target.closest('#chamada-tela')) travaAgendar(); }, true);
+    // Wake Lock pode falhar se a página ainda não estava visível ao conectar → tenta de novo a cada toque na ligação
+    document.addEventListener('pointerdown', function () { if (C && !C.fim && C.fase === 'conectada' && !wake) manterTelaAcesa(true); }, true);
+
+    // Wake Lock: a tela não apaga sozinha durante a ligação (no iPhone, tela apagada pode pausar o microfone do app web)
+    var wake = null;
+    async function manterTelaAcesa(ligar) {
+        try {
+            if (ligar) { if (!wake && navigator.wakeLock && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', function () { wake = null; }); } }
+            else if (wake) { var w = wake; wake = null; await w.release(); }
+        } catch (e) { wake = null; }
+    }
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && C && !C.fim && C.fase === 'conectada') manterTelaAcesa(true); });
 
     function alternarMudo() {
         if (!C) return;
@@ -641,92 +751,34 @@
         if (C.stream) C.stream.getAudioTracks().forEach(function (t) { t.enabled = !C.mudo; });
         var b = $('ch-btn-mudo'); b.setAttribute('aria-pressed', C.mudo ? 'true' : 'false');
         b.querySelector('.ch-c').innerHTML = C.mudo ? IC.micOff : IC.mic;
+        b.querySelector('.ch-l').textContent = C.mudo ? 'Ativar microfone' : 'Silenciar microfone';
+        b.setAttribute('aria-label', C.mudo ? 'Ativar microfone' : 'Silenciar microfone');
     }
-    /* Saída do som (ouvido × alto-falante).
-     * iPhone iOS 26+: Safari tem setSinkId (Speaker Selection API). Escolher o RECEPTOR no <audio> da ligação
-     *   tira o "DefaultToSpeaker" da sessão → som no ouvido (o iOS liga o sensor de proximidade nesse modo).
-     *   Precisa de gesto (toque) ou microfone recém-ligado; por isso a lista de saídas fica em cache e o
-     *   botão chama setSinkId na hora do toque. Com 1 só trilha WebRTC o iOS 26.x ignora (bug 320087) →
-     *   mandamos 2 trilhas (ver criarPC).
-     * iPhone iOS ≤ 18 (sem setSinkId): o WebKit força alto-falante em toda ligação (DefaultToSpeaker desde 2017,
-     *   changeset 218148) e não há API para mudar → aviso "use fone" e botão escondido.
-     * Android/desktop: setSinkId entre alto-falante e padrão (como antes). */
-    var saidasCache = [], audioPre = null;
+    /* Ligação SEMPRE em viva-voz (decisão do dono): sem troca ouvido/alto-falante, sem setSinkId.
+     * "Silenciar alto-falante" só liga/desliga o som do outro lado (audio.muted) neste aparelho. */
+    var audioPre = null;
     function prepararAudio() {
         if (audioPre && audioPre.isConnected) return audioPre;
         document.querySelectorAll('audio#chamada-audio').forEach(function (v) { try { v.pause(); v.srcObject = null; v.remove(); } catch (er) { /* ignore */ } });
-        var a = document.createElement('audio'); a.id = 'chamada-audio'; a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none';
+        var a = document.createElement('audio'); a.id = 'chamada-audio'; a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none'; semPlayer(a);
         document.body.appendChild(a); audioPre = a;
         return a;
     }
-    function ehFalante(d) { return /speaker|alto-?falante|viva-?voz|altavoz|haut-parleur|lautsprecher/i.test(d.label || ''); }
-    function ehFone(d) { return /bluetooth|airpods|beats|headphone|headset|fone de ouvido|auricular|wired|usb|carplay/i.test(d.label || ''); }
-    function ehReceptor(d) { return /receiver|receptor|earpiece|auscultador|handset|iphone/i.test(d.label || '') && !ehFalante(d); }
-    async function lerSaidas() {
-        try { saidasCache = (await navigator.mediaDevices.enumerateDevices()).filter(function (d) { return d.kind === 'audiooutput'; }); } catch (e) { /* ignore */ }
-        return saidasCache;
+    function mostrarSom() {
+        var b = $('ch-btn-som'); if (!b) return;
+        var mudo = !!(C && C.somMudo);
+        b.setAttribute('aria-pressed', mudo ? 'true' : 'false');
+        b.querySelector('.ch-c').innerHTML = mudo ? IC.falanteOff : IC.falante;
+        b.querySelector('.ch-l').textContent = mudo ? 'Ativar som' : 'Silenciar som';
+        b.setAttribute('aria-label', mudo ? 'Ativar som do alto-falante' : 'Silenciar alto-falante');
     }
-    function alvoSaida(falante) {
-        var ds = saidasCache, sem = function (d) { return d.deviceId && d.deviceId !== 'default'; };
-        if (falante) { var f = ds.find(ehFalante); return f ? f.deviceId : ''; }
-        var o = ds.find(function (d) { return sem(d) && ehFone(d); }) || ds.find(function (d) { return sem(d) && ehReceptor(d); }) || ds.find(function (d) { return sem(d) && !ehFalante(d); });
-        return o ? o.deviceId : null;
-    }
-    function podeEscolherSaida(a) { return !!(a && a.setSinkId) && alvoSaida(false) != null; }
-    function mostrarSaida() {
-        var b = $('ch-btn-falante'), t = $('ch-saida'); if (!b || !t || !C) return;
-        var a = C.audio || audioPre;
-        if (IOS && !(a && a.setSinkId)) { b.style.display = 'none'; t.textContent = 'iPhone com iOS antigo: o som sai no alto-falante (limitação da Apple). Use fone de ouvido.'; return; }
-        if (IOS && !podeEscolherSaida(a)) { b.style.display = 'none'; t.textContent = ''; return; }
-        b.style.display = '';
-        t.textContent = IOS ? (C.falante ? '🔊 Alto-falante' : '📱 Som no ouvido — encoste o celular na orelha') : '';
-    }
-    /** Chamada SÍNCRONA dentro do toque (gesto) — não pode ter await antes do setSinkId. */
-    function aplicarSaida(a, falante) {
-        if (!a || !a.setSinkId) return null;
-        var id = alvoSaida(falante);
-        if (id == null) return null;
-        try {
-            var p = a.setSinkId(id);
-            log('saida', falante ? 'alto-falante' : 'ouvido', id ? id.slice(0, 8) : '(padrão)');
-            return p && p.then ? p.then(function () { return true; }, function (e) { log('setSinkId', e && e.message); return false; }) : Promise.resolve(true);
-        } catch (e) { log('setSinkId', e && e.message); return Promise.resolve(false); }
-    }
-    async function rotear() {
-        if (!C || !(C.audio || audioPre)) return false;
-        var a = C.audio || audioPre;
-        if (IOS) {
-            if (!saidasCache.length) await lerSaidas();
-            var r = await (aplicarSaida(a, C.falante) || Promise.resolve(false));
-            if (!r && !C.falante) { await lerSaidas(); r = await (aplicarSaida(a, false) || Promise.resolve(false)); }
-            mostrarSaida();
-            return !!r;
-        }
-        if (!a.setSinkId) return false;
-        try {
-            var ds = await lerSaidas();
-            var alvo = C.falante ? ds.find(ehFalante) : ds.find(function (d) { return /earpiece|receiver|fone|communications/i.test(d.label + ' ' + d.deviceId); });
-            await a.setSinkId(alvo ? alvo.deviceId : 'default');
-            a.volume = 1;
-            return true;
-        } catch (e) { log('setSinkId', e && e.message); return false; }
-    }
-    function alternarFalante() {
+    function alternarSom() {
         if (!C) return;
-        C.falante = !C.falante;
-        $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false');
+        C.somMudo = !C.somMudo;
         var a = C.audio || audioPre;
-        if (IOS) {
-            // setSinkId JÁ, dentro do toque; o Safari 26.0 às vezes só troca na 2ª vez → repete logo depois
-            var p = aplicarSaida(a, C.falante);
-            mostrarSaida();
-            if (p) p.then(function () { setTimeout(function () { if (C && (C.audio || audioPre) === a) aplicarSaida(a, C.falante); }, 400); });
-            else { C.falante = !C.falante; $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false'); mostrarSaida(); }
-            return;
-        }
-        rotear();
+        if (a) { a.muted = C.somMudo; if (!C.somMudo) { var p = a.play(); if (p && p.catch) p.catch(function () {}); } }
+        mostrarSom();
     }
-    try { navigator.mediaDevices && navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener('devicechange', function () { lerSaidas().then(function () { if (IOS && C && C.audio && !C.fim) rotear(); }); }); } catch (e) { /* ignore */ }
 
     // sair da página no meio da ligação: avisa o servidor (keepalive) e pergunta antes
     function antesDeSair(e) { if (C && !C.fim) { e.preventDefault(); e.returnValue = ''; return ''; } }
@@ -839,8 +891,12 @@
                 audiosRemotos: [].filter.call(document.querySelectorAll('audio,video'), function (v) { return !!v.srcObject; }).length,
                 micTocandoLocal: [].some.call(document.querySelectorAll('audio,video'), function (v) { var ids = todosStreams.reduce(function (a, s) { return a.concat(s.getTracks().map(function (t) { return t.id; })); }, []); return !!(v.srcObject && v.srcObject.getTracks && v.srcObject.getTracks().some(function (t) { return ids.indexOf(t.id) >= 0; })); }),
                 toque: { tipo: somTipo, tocando: !!(somEl && !somEl.paused && somEl.src) },
-                falanteVisivel: !!($('ch-btn-falante') && $('ch-btn-falante').style.display !== 'none'),
+                somMudo: !!(C && C.somMudo), audioMudo: (function () { var v = document.getElementById('chamada-audio'); return v ? v.muted : null; })(),
                 ios: IOS,
+                travada: travada(), travas: C ? (C.travas || 0) : 0, destravas: C ? (C.destravas || 0) : 0, telaAcesa: !!wake,
+                somEl: somEl ? { dur: somEl.duration, loop: somEl.loop, src: !!somEl.getAttribute('src') } : null,
+                audiosNoDom: document.querySelectorAll('audio').length,
+                mediaSession: navigator.mediaSession ? { meta: navigator.mediaSession.metadata, estado: navigator.mediaSession.playbackState } : null,
                 saidaTexto: $('ch-saida') ? $('ch-saida').textContent : '',
                 trilhasRecebidas: (function () { var v = document.getElementById('chamada-audio'); return v && v.srcObject ? v.srcObject.getAudioTracks().length : 0; })(),
                 trilhasEnviadas: C && C.pc ? C.pc.getSenders().filter(function (x) { return x.track; }).length : 0

@@ -5,20 +5,20 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261009o';
+const CACHE = 'minera-shell-20261009q';
 const PRECACHE = [
-  './style.css?v=20261009o',
-  './chat-realtime.js?v=20261009o',
-  './avatar.js?v=20261009o',
-  './avatar-editor.js?v=20261009o',
-  './nav.js?v=20261009o',
-  './config.js?v=20261009o',
-  './seguranca.js?v=20261009o',
-  './pwa.js?v=20261009o',
-  './lightbox.js?v=20261009o',
-  './gestor.css?v=20261009o',
-  './gestor-calc.js?v=20261009o',
-  './gestor.js?v=20261009o',
+  './style.css?v=20261009q',
+  './chat-realtime.js?v=20261009q',
+  './avatar.js?v=20261009q',
+  './avatar-editor.js?v=20261009q',
+  './nav.js?v=20261009q',
+  './config.js?v=20261009q',
+  './seguranca.js?v=20261009q',
+  './pwa.js?v=20261009q',
+  './lightbox.js?v=20261009q',
+  './gestor.css?v=20261009q',
+  './gestor-calc.js?v=20261009q',
+  './gestor.js?v=20261009q',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',

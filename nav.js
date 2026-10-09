@@ -760,7 +760,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261009o';
+    const src = root + 'logo-escavadeira.png?v=20261009q';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1847,6 +1847,30 @@ const MineraApoio = (function () {
         return null;
     }
     function pendente() { return ss(K_MOSTRAR) === '1'; }
+    // "Não mostrar novamente": por usuário, no aparelho (localStorage) E na conta (user_metadata do
+    // Supabase Auth → vale em outro celular / reinstalação). O ✕ e "Agora não" continuam como antes.
+    const K_NUNCA = 'minera_apoio_nunca_';
+    async function nuncaMais(uid) {
+        if (!uid) return false;
+        try { if (localStorage.getItem(K_NUNCA + uid) === '1') return true; } catch (e) { /* ignore */ }
+        try {
+            const r = await supabaseClient.auth.getSession();
+            const u = r && r.data && r.data.session && r.data.session.user;
+            if (u && u.id === uid && u.user_metadata && u.user_metadata.minera_apoio_nunca === true) {
+                try { localStorage.setItem(K_NUNCA + uid, '1'); } catch (e) { /* ignore */ }
+                return true;
+            }
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+    function marcarNunca(uid) {
+        if (!uid) return;
+        try { localStorage.setItem(K_NUNCA + uid, '1'); } catch (e) { /* ignore */ }
+        try {
+            const p = supabaseClient.auth.updateUser({ data: { minera_apoio_nunca: true } });
+            if (p && p.catch) p.catch(function () { /* fica só no aparelho */ });
+        } catch (e) { /* ignore */ }
+    }
     function concluir() { ss(K_MOSTRAR, null); ss(K_VISTO, '1'); }
     function paginaAdiavel() {
         const p = (location.pathname || '').toLowerCase();
@@ -1872,7 +1896,7 @@ const MineraApoio = (function () {
         document.removeEventListener('keydown', onKey, true);
     }
     function onKey(e) { if (e.key === 'Escape') fechar(); }
-    function mostrar(pix) {
+    function mostrar(pix, uid) {
         if (document.getElementById('apoio-pix-modal')) return;
         const chave = String(pix.chave_pix || '').trim();
         const el = document.createElement('div');
@@ -1888,6 +1912,7 @@ const MineraApoio = (function () {
             (pix.titular ? '<small>' + escA(pix.titular) + '</small>' : '') + '</div>' +
             '<button type="button" class="apm-copiar">📋 Copiar chave Pix</button>' +
             '<button type="button" class="apm-depois" data-apm-close="1">Agora não</button>' +
+            '<button type="button" class="apm-nunca">Não mostrar novamente</button>' +
             '</div>';
         // Primeiros 450 ms: não recebe toques (um toque já em andamento não cai no card)
         el.classList.add('apm-armando');
@@ -1902,6 +1927,11 @@ const MineraApoio = (function () {
             if (typeof toastMsg === 'function') toastMsg(ok ? 'Chave Pix copiada' : 'Não deu para copiar — segure a chave para copiar');
             if (ok) setTimeout(fechar, 600);
         });
+        el.querySelector('.apm-nunca').addEventListener('click', () => {
+            marcarNunca(uid);
+            fechar();
+            if (typeof toastMsg === 'function') toastMsg('Pronto — este aviso não aparece mais. A chave Pix continua no Perfil.');
+        });
         document.addEventListener('keydown', onKey, true);
         setTimeout(() => { const x = el.querySelector('.apm-copiar'); try { x.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }, 50);
     }
@@ -1909,6 +1939,7 @@ const MineraApoio = (function () {
         if (rodando || !pendente() || !perfil) return;
         // Admin (usuário admin ou modo monitoramento): nunca
         if ((typeof ehAdmin === 'function' && ehAdmin(perfil)) || document.body.classList.contains('modo-ui-admin') || document.body.classList.contains('pagina-admin')) { concluir(); return; }
+        if (await nuncaMais(perfil.auth_id)) { concluir(); return; }
         if (paginaAdiavel()) return; // fica pendente para a próxima página da sessão
         rodando = true;
         try {
@@ -1930,7 +1961,8 @@ const MineraApoio = (function () {
             if (document.getElementById('notif-lembrete')) return;
             const pc = document.getElementById('notif-perm-card');
             if (pc) pc.remove();
-            mostrar(pix);
+            if (await nuncaMais(perfil.auth_id)) { concluir(); return; }
+            mostrar(pix, perfil.auth_id);
         } catch (e) {
             console.warn('apoio pix', e);
         } finally {

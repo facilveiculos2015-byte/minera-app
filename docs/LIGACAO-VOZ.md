@@ -76,3 +76,19 @@ Correção (chamada.js):
 - setSinkId precisa de gesto (LiveKit #1635: "funciona sempre" quando chamado no toque) ou microfone recém-ligado (W3C WebRTC WG 16/09/2025, Youenn). Lista de saídas em cache; botão chama setSinkId sem await antes; repete após 400 ms (Safari 26.0: "switching from speaker to receiver does not work the first time").
 - audioSession.type: 'play-and-record' DEPOIS do getUserMedia; no fim 'playback'→'auto' (StackOverflow 79401143 / bug 282939). audioSession sozinho NÃO tira o DefaultToSpeaker (código do WebKit).
 - <video playsinline> no lugar de <audio>, volume/muted: sem efeito na rota (rota é da sessão; volume é só leitura no iOS).
+
+## 20261009p — Trava de bolso, player da tela de bloqueio, cores, card Pix
+
+**Problemas no teste do Jhon (prod 20261009o, iPhone):**
+1. Sensor de proximidade não apaga a tela → nenhum app web (Safari/PWA) tem acesso ao sensor de proximidade; só app nativo (CallKit/AVAudioSession .voiceChat).
+2. A orelha toca no indicador de microfone da Dynamic Island → aparece "Gravação de Áudio — Parar gravação?". A Dynamic Island é do sistema: **nenhuma página consegue bloqueá-la nem capturar esse toque**.
+3. Tela de bloqueio mostrava um player "Chat Minera" 0:00 (play, ±10 s, AirPlay). Causa: o WebKit põe no "Tocando agora" qualquer `<audio>` com duração > ~0,95 s (os toques WAV tinham 1–6 s em loop) e o "chute" de `audioSession.type='playback'` ao fim da ligação.
+
+**Correções:**
+- **Trava de bolso**: com a ligação conectada (aparelho de toque), após 3 s sem toque a tela vira uma camada preta "🔒 Tela travada" com cronômetro; ela engole todos os toques (Silenciar microfone/Desligar/Silenciar som não são acionados sem querer). Destrava só arrastando a alça 🔓 até o fim ou segurando a alça por 1,5 s. Botão "🔒 Travar tela" trava na hora. A parte de cima fica vazia (longe da Dynamic Island). Wake Lock mantém a tela acesa durante a ligação quando suportado.
+- **Sem player na tela de bloqueio**: toques ≤ 0,9 s, repetidos por timer (sem loop); `disableRemotePlayback`, `x-webkit-airplay="deny"`, sem controles; `navigator.mediaSession.metadata=null`, handlers nulos, `playbackState='none'`; elemento do toque removido ao fim; `audioSession.type` volta para `'auto'` (sem `'playback'`). Áudio remoto só via `srcObject`.
+- **Decisão do dono (09/10/2026): ligação SEMPRE em viva-voz** em todos os aparelhos. Removidos: troca ouvido/alto-falante, `setSinkId`, 2ª trilha muda (bug WebKit 320087) e os avisos "Som no ouvido"/"iOS antigo". Na tela: "🔊 Ligação em viva-voz". Botões: "Silenciar microfone" (↔ "Ativar microfone"), Desligar (vermelho), "Silenciar som" (↔ "Ativar som"; `audio.muted` do som do outro lado, ícone alto-falante × cortado). A trava de bolso agora trava sozinha sempre (3 s sem toque).
+- **Cores**: tela de ligação (tocando, chamando, conectada) e trava de bolso usam o amarelo da marca `#F5A623` (`--accent-color`), texto escuro sobre amarelo; Desligar/Recusar continuam vermelhos.
+- **Card "Apoie o Minera Pará" (Pix)**: novo botão "Não mostrar novamente" → grava `minera_apoio_nunca_<auth_id>` no aparelho e `user_metadata.minera_apoio_nunca=true` na conta (vale em outro aparelho/reinstalação). "Agora não"/✕ mantêm o comportamento anterior. A lógica está no nav.js, carregado no app principal, Chat Minera e Gestor (o card só aparece nas páginas do app principal).
+
+Testes: `qa2/chamada/chamada.js` (cenário 8 = trava de bolso + tela de bloqueio) e `qa2/apoio/apoio.js` (7/7).
