@@ -166,6 +166,8 @@ const MC = window.MineraCaptcha || {
 };
 const MSG_CAPTCHA_ESPERA = 'Espere a verificação “Não sou um robô” terminar e tente de novo.';
 let capEntrar = null, capCadastrar = null, capReenviar = null;
+/** Versão dos Termos de Uso/Privacidade aceita no cadastro (igual à de termos.html). */
+const TERMOS_VERSAO = '2026-10-09';
 /** Faz UMA chamada protegida do supabase.auth com token novo e renova o quadrinho depois (token só vale 1 vez).
  *  Devolve { espera: true } se ainda não há token (não chama o Supabase). */
 async function comCaptcha(cap, fn) {
@@ -491,6 +493,19 @@ document.addEventListener('DOMContentLoaded', () => {
         aoMudar: () => reenvioAtualiza('btn-reenviar-login')
     });
     capCadastrar = MC.criar(document.getElementById('cap-cadastrar'), { acao: 'signup', botoes: () => [qs('#form-cadastrar button[type=submit]')] });
+    // Termos de Uso + Política de Privacidade: "Criar conta" só libera com a caixinha marcada (junto com o captcha)
+    {
+        const btnCad = qs('#form-cadastrar button[type=submit]'), chkT = document.getElementById('cad-termos');
+        if (btnCad && chkT) {
+            btnCad._mcapTrava = () => !chkT.checked;
+            const sincT = () => {
+                try { if (capCadastrar && capCadastrar.sincronizar) capCadastrar.sincronizar(); } catch (e) { /* ignore */ }
+                if (!chkT.checked) btnCad.disabled = true;
+                else if (!btnCad.hasAttribute('data-captcha-espera')) btnCad.disabled = false;
+            };
+            chkT.addEventListener('change', sincT); sincT();
+        }
+    }
     capReenviar = MC.criar(document.getElementById('cap-reenviar'), {
         acao: 'resend',
         botoes: () => [qs('#btn-reenviar-confirmacao')],
@@ -640,6 +655,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('cad-email').value.trim();
         const password = document.getElementById('cad-senha').value;
         if (!mineraSenhaOk(password)) { msg(MINERA_SENHA_MSG + '.', false); return; }
+        const chkTermos = document.getElementById('cad-termos');
+        if (chkTermos && !chkTermos.checked) { msg('Para criar a conta, marque que leu e concorda com os Termos de Uso e a Política de Privacidade.', false); return; }
         const papeis = lerPapeisCadastro();
         // Código de indicação digitado (opcional) → minera_ref (validação real no servidor: processar_indicacao)
         const refEl = document.getElementById('cad-ref');
@@ -664,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (/^[A-Z0-9_-]{3,20}$/.test(salvo)) refCodigo = salvo;
             }
             const meta = { nome, papeis, apelido };
+            if (chkTermos && chkTermos.checked) { meta.termos_aceitos_em = new Date().toISOString(); meta.termos_versao = TERMOS_VERSAO; }
             if (refCodigo) meta.ref_codigo = refCodigo; // indicação aplicada no 1º login (pode confirmar em outro aparelho)
             const r = await comCaptcha(capCadastrar, (tk) => supabaseClient.auth.signUp({
                 email,

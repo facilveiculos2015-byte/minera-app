@@ -40,9 +40,10 @@
         semConexaoMs: 25000,
         // anti-eco "meio-duplex" (viva-voz): 'ios' = só no iPhone/iPad | 'sempre' | false
         antiEco: 'ios',
-        ecoLigaEm: 0.035,          // nível do outro lado (0..1, RTP audio-level) que abafa nosso mic (~ -29 dBov)
-        ecoSoltaAbaixo: 0.02,      // abaixo disso por ecoSegurarMs → mic volta (~ -34 dBov)
-        ecoSegurarMs: 300,
+        ecoLigaEm: 0.08,           // nível do outro lado (0..1, RTP audio-level) que abafa nosso mic (~ -22 dBov: só voz claramente alta)
+        ecoAtaqueMs: 100,          // o outro precisa ficar alto por ~100 ms seguidos antes de abafar
+        ecoSoltaAbaixo: 0.045,     // abaixo disso por ecoSegurarMs → mic volta (~ -27 dBov)
+        ecoSegurarMs: 180,
         ecoMinhaVoz: 0.08,         // se EU estava falando acima disso, não abafo (quem fala primeiro fica com a vez)
         ecoMinhaVezMs: 600,        // ...nos últimos 600 ms (cobre a pausa entre palavras + atraso da rede do eco)
         opusKbps: 32
@@ -762,7 +763,7 @@
     }
     function antiEcoIniciar() {
         if (!C || C.eco || !antiEcoAtivo()) return;
-        var E = C.eco = { abafadas: 0, msAbafado: 0, ultimoAlto: 0, meuAlto: 0, rem: 0, meu: null, ini: 0, ocupado: false };
+        var E = C.eco = { abafadas: 0, msAbafado: 0, ultimoAlto: 0, meuAlto: 0, rem: 0, meu: null, ini: 0, ocupado: false, altoDesde: 0 };
         C.timers.eco = setInterval(function () {
             if (!C || C.eco !== E || C.fase !== 'conectada' || !C.pc) return;
             var agora = Date.now(), r = nivelRemoto(); E.rem = r;
@@ -770,10 +771,10 @@
                 E.ocupado = true;
                 nivelMeu().then(function (v) { E.ocupado = false; if (v != null) { E.meu = v; if (v >= CFG.ecoMinhaVoz && !C.abafado) E.meuAlto = Date.now(); } });
             }
-            if (r >= CFG.ecoLigaEm) E.ultimoAlto = agora;
+            if (r >= CFG.ecoLigaEm) { E.ultimoAlto = agora; if (!E.altoDesde) E.altoDesde = agora; } else if (r < CFG.ecoSoltaAbaixo || !C.abafado) E.altoDesde = 0;
             if (!C.abafado) {
                 var euFalando = agora - E.meuAlto < CFG.ecoMinhaVezMs;
-                if (r >= CFG.ecoLigaEm && !euFalando && !C.mudo) { C.abafado = true; E.abafadas++; E.ini = agora; aplicarMic(); }
+                if (r >= CFG.ecoLigaEm && E.altoDesde && agora - E.altoDesde >= CFG.ecoAtaqueMs && !euFalando && !C.mudo) { C.abafado = true; E.abafadas++; E.ini = agora; aplicarMic(); }
             } else if (r < CFG.ecoSoltaAbaixo && agora - E.ultimoAlto >= CFG.ecoSegurarMs) {
                 C.abafado = false; E.msAbafado += agora - E.ini; aplicarMic();
             }
