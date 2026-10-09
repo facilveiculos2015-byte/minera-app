@@ -830,6 +830,9 @@ function bindSeguranca(session) {
 
     // 1) senha do app (Supabase Auth): confirma a atual, grava a nova, derruba os outros aparelhos
     const fS = document.getElementById('form-seg-senha');
+    // Conferir a senha atual = signInWithPassword → precisa do "Não sou um robô" quando o captcha está ligado (captcha.js)
+    const MCp = window.MineraCaptcha || null;
+    const capSeg = MCp ? MCp.criar(document.getElementById('cap-seg-senha'), { acao: 'reauth', botoes: () => [document.getElementById('btn-seg-senha-salvar')] }) : null;
     if (fS) fS.addEventListener('submit', async (ev) => {
         ev.preventDefault();
         const atual = document.getElementById('seg-senha-atual').value;
@@ -841,10 +844,15 @@ function bindSeguranca(session) {
         if (n1 !== n2) { segMsg('seg-senha-msg', 'As duas novas senhas não são iguais.', false); return; }
         if (n1 === atual) { segMsg('seg-senha-msg', 'A nova senha precisa ser diferente da atual.', false); return; }
         if (!email) { segMsg('seg-senha-msg', 'Não achei o e-mail da conta. Saia e entre de novo.', false); return; }
+        if (capSeg && !capSeg.pronto()) { segMsg('seg-senha-msg', 'Espere a verificação “Não sou um robô” terminar e tente de novo.', false); return; }
         const btn = document.getElementById('btn-seg-senha-salvar'); btn.disabled = true;
         segMsg('seg-senha-msg', 'Conferindo a senha atual…', true);
         try {
-            const re = await supabaseClient.auth.signInWithPassword({ email, password: atual });
+            const tk = capSeg ? capSeg.pegar() : '';
+            let re;
+            try { re = await supabaseClient.auth.signInWithPassword({ email, password: atual, options: MCp ? MCp.opcoes(null, tk) : {} }); }
+            finally { if (capSeg) capSeg.liberar(); }
+            if (re.error && MCp && MCp.ehErro(re.error)) { segMsg('seg-senha-msg', MCp.MSG, false); return; }
             if (re.error) { segMsg('seg-senha-msg', /invalid/i.test(re.error.message || '') ? 'Senha atual incorreta.' : segTraduzirErroSenha(re.error), false); return; }
             segMsg('seg-senha-msg', 'Salvando a nova senha…', true);
             const up = await supabaseClient.auth.updateUser({ password: n1 });
@@ -859,7 +867,7 @@ function bindSeguranca(session) {
             if (typeof toastMsg === 'function') toastMsg('Senha alterada');
         } catch (e) {
             segMsg('seg-senha-msg', segTraduzirErroSenha(e), false);
-        } finally { btn.disabled = false; }
+        } finally { btn.disabled = false; if (capSeg) capSeg.sincronizar(); }
     });
 
     // 2) senha do Banco (Minera Bank / caixa_saldos.pin_hash) — exige a atual

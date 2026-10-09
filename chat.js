@@ -601,7 +601,7 @@ async function sincronizarConversa() {
     } catch (e) { /* offline: tenta no próximo ciclo */ } finally { syncando = false; }
 }
 
-/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261008l). */
+/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261009b). */
 let atualizandoManual = false, atualizarOkT = null;
 async function atualizarConversaManual() {
     const btn = $('btn-chat-atualizar');
@@ -1063,7 +1063,7 @@ function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(po
 /* ============================ áudio estilo WhatsApp ============================ */
 // Segurar = grava enquanto segura (solta envia; deslize ← ou "Cancelar" descarta).
 // Segurar e arrastar ↑ = trava (barra com Cancelar e ➤ enviar). Nunca trava sozinho.
-// 20261008l: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
+// 20261009b: o microfone é pedido UMA vez — o mesmo stream é reaproveitado entre gravações
 // (trilha desligada entre uma e outra) e só é solto quando o app sai da tela ou fica 10 min parado.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;

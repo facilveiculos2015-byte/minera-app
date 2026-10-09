@@ -159,6 +159,21 @@ async function upsertUsuarioPerfil(user, nome, papeis, apelido) {
 /* ===== Confirmação de e-mail (Supabase Auth "Confirm email" ligado) =====
  * Cadastro sem sessão: mostra o cartão "Enviamos um link…". O perfil (usuarios), o apelido e a indicação
  * só podem ser gravados com sessão (RLS) → são feitos no 1º login / na volta do link (finalizarCadastroSeNecessario). */
+/* CAPTCHA (Cloudflare Turnstile, captcha.js). Sem chave no config.js = desligado (tudo como antes). */
+const MC = window.MineraCaptcha || {
+    ativo: false, MSG: '', ehErro: () => false, opcoes: (b) => Object.assign({}, b || {}),
+    criar: () => ({ ativo: false, pegar: () => '', liberar() {}, pronto: () => true, sincronizar() {} })
+};
+const MSG_CAPTCHA_ESPERA = 'Espere a verificação “Não sou um robô” terminar e tente de novo.';
+let capEntrar = null, capCadastrar = null, capReenviar = null;
+/** Faz UMA chamada protegida do supabase.auth com token novo e renova o quadrinho depois (token só vale 1 vez).
+ *  Devolve { espera: true } se ainda não há token (não chama o Supabase). */
+async function comCaptcha(cap, fn) {
+    const t = cap ? cap.pegar() : '';
+    if (t === null) return { espera: true, data: null, error: null };
+    try { return await fn(t); } finally { if (cap) cap.liberar(); }
+}
+
 const MSG_CONFIRMAR_EMAIL = 'Confirme seu e-mail: enviamos um link para a sua caixa de entrada (veja também o spam).';
 const REENVIO_ESPERA_S = 60;
 
@@ -222,9 +237,10 @@ function segundosParaReenviar(email) {
 }
 
 /** Botão "Reenviar e-mail de confirmação" com espera de 60 s (contador no próprio botão). */
-function prepararBotaoReenvio(btn, getEmail, mostrar) {
+function prepararBotaoReenvio(btn, getEmail, mostrar, cap) {
     if (!btn) return;
     const rotulo = 'Reenviar e-mail de confirmação';
+    btn._mcapTrava = () => segundosParaReenviar(getEmail()) > 0;
     function atualizar() {
         const falta = segundosParaReenviar(getEmail());
         if (falta > 0) {
@@ -233,10 +249,11 @@ function prepararBotaoReenvio(btn, getEmail, mostrar) {
             clearTimeout(btn._reenvioT);
             btn._reenvioT = setTimeout(atualizar, 1000);
         } else {
-            btn.disabled = false;
+            btn.disabled = !!(btn._reenvioCap && !btn._reenvioCap.pronto());
             btn.textContent = rotulo;
         }
     }
+    btn._reenvioCap = cap || null;
     btn._atualizarReenvio = atualizar;
     if (!btn._reenvioBound) {
         btn._reenvioBound = true;
@@ -244,16 +261,23 @@ function prepararBotaoReenvio(btn, getEmail, mostrar) {
             const email = String(getEmail() || '').trim();
             if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { mostrar('Digite o seu e-mail no campo E-mail.', false); return; }
             if (segundosParaReenviar(email) > 0) { atualizar(); return; }
+            const capR = btn._reenvioCap;
+            if (capR && !capR.pronto()) { mostrar(MSG_CAPTCHA_ESPERA, false); return; }
             btn.disabled = true;
             btn.textContent = 'Enviando...';
-            marcarReenvio(email);
             try {
-                const { error } = await supabaseClient.auth.resend({
+                const r = await comCaptcha(capR, (tk) => supabaseClient.auth.resend({
                     type: 'signup',
                     email,
-                    options: { emailRedirectTo: urlRetornoConfirmacao() }
-                });
-                if (error) {
+                    options: MC.opcoes({ emailRedirectTo: urlRetornoConfirmacao() }, tk)
+                }));
+                const error = r.error;
+                if (r.espera) {
+                    mostrar(MSG_CAPTCHA_ESPERA, false);
+                } else if (error && MC.ehErro(error)) {
+                    mostrar(MC.MSG, false); // captcha recusado: não conta a espera de 60 s
+                } else if (error) {
+                    marcarReenvio(email);
                     const t = String(error.code || '') + ' ' + String(error.message || '') + ' ' + String(error.status || '');
                     if (/rate|429|security purposes|after \d+ seconds|over_email/i.test(t)) {
                         mostrar('Muitos pedidos em pouco tempo. Espere alguns minutos e tente de novo.', false);
@@ -261,9 +285,11 @@ function prepararBotaoReenvio(btn, getEmail, mostrar) {
                         mostrar('Não deu para reenviar agora. Tente de novo em alguns minutos.', false);
                     }
                 } else {
+                    marcarReenvio(email);
                     mostrar('Pronto! Enviamos um novo link para ' + email + '. Veja a caixa de entrada e o spam.', true);
                 }
             } catch (err) {
+                marcarReenvio(email);
                 mostrar('Sem conexão. Confira a internet e tente de novo.', false);
             }
             atualizar();
@@ -290,7 +316,7 @@ function mostrarCartaoConfirmarEmail(email) {
         if (!cm) return;
         cm.textContent = t;
         cm.className = 'msg ' + (ok ? 'ok' : 'erro');
-    });
+    }, capReenviar);
     try { card.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ }
 }
 
@@ -302,7 +328,7 @@ function mostrarReenvioLogin() {
     const b = document.getElementById('btn-reenviar-login');
     if (!b) return;
     b.classList.remove('oculto');
-    prepararBotaoReenvio(b, () => (document.getElementById('login-email') || {}).value || '', msg);
+    prepararBotaoReenvio(b, () => (document.getElementById('login-email') || {}).value || '', msg, capEntrar);
 }
 
 /**
@@ -455,6 +481,22 @@ function entrarModoRecuperacao() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Quadrinhos "Não sou um robô" (só com TURNSTILE_SITEKEY no config.js): Entrar/Esqueci/Reenviar do login,
+    // Criar conta e Reenviar do cartão "Confirme seu e-mail". Botões ficam desligados até a verificação passar.
+    const qs = (s) => document.querySelector(s);
+    const reenvioAtualiza = (id) => { const b = document.getElementById(id); if (b && b._atualizarReenvio) b._atualizarReenvio(); };
+    capEntrar = MC.criar(document.getElementById('cap-entrar'), {
+        acao: 'login',
+        botoes: () => [qs('#form-entrar button[type=submit]'), qs('#btn-esqueci'), qs('#btn-reenviar-login')],
+        aoMudar: () => reenvioAtualiza('btn-reenviar-login')
+    });
+    capCadastrar = MC.criar(document.getElementById('cap-cadastrar'), { acao: 'signup', botoes: () => [qs('#form-cadastrar button[type=submit]')] });
+    capReenviar = MC.criar(document.getElementById('cap-reenviar'), {
+        acao: 'resend',
+        botoes: () => [qs('#btn-reenviar-confirmacao')],
+        aoMudar: () => reenvioAtualiza('btn-reenviar-confirmacao')
+    });
+
     document.getElementById('tab-entrar').addEventListener('click', () => mostrarAba('entrar'));
     document.getElementById('tab-cadastrar').addEventListener('click', () => mostrarAba('cadastrar'));
 
@@ -485,13 +527,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('login-email').focus();
             return;
         }
+        if (capEntrar && !capEntrar.pronto()) { msg(MSG_CAPTCHA_ESPERA, false); return; }
         msg('Enviando e-mail de recuperação...', true);
         try {
             const root = (typeof APP_ROOT !== 'undefined' ? APP_ROOT : (/^\/minera-app(\/|$)/.test(location.pathname) ? '/minera-app/' : '/'));
             const redirectTo = window.location.origin + root + 'index.html';
-            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+            const r = await comCaptcha(capEntrar, (tk) => supabaseClient.auth.resetPasswordForEmail(email, MC.opcoes({ redirectTo }, tk)));
+            if (r.espera) { msg(MSG_CAPTCHA_ESPERA, false); return; }
+            const error = r.error;
             if (error) {
-                msg('Erro: ' + error.message, false);
+                msg(MC.ehErro(error) ? MC.MSG : ('Erro: ' + error.message), false);
                 return;
             }
             msg('Se este e-mail existir, enviamos um link para redefinir a senha. Confira a caixa de entrada.', true);
@@ -535,13 +580,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('form-entrar').addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (capEntrar && !capEntrar.pronto()) { msg(MSG_CAPTCHA_ESPERA, false); return; }
         msg('Entrando...', true);
         esconderReenvioLogin();
         limparVoltaEmail();
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-senha').value;
         try {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            const r = await comCaptcha(capEntrar, (tk) => supabaseClient.auth.signInWithPassword({ email, password, options: MC.opcoes(null, tk) }));
+            if (r.espera) { msg(MSG_CAPTCHA_ESPERA, false); return; }
+            const { data, error } = r;
+            if (error && MC.ehErro(error)) { msg(MC.MSG, false); return; }
             if (error && emailEhNaoConfirmado(error)) {
                 msg(MSG_CONFIRMAR_EMAIL, false);
                 mostrarReenvioLogin();
@@ -583,6 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MSG_EMAIL_JA_TEM_CONTA = 'Esse e-mail já tem conta no Minera Pará. Toque em Entrar ou em Esqueci minha senha.';
     document.getElementById('form-cadastrar').addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (capCadastrar && !capCadastrar.pronto()) { msg(MSG_CAPTCHA_ESPERA, false); return; }
         msg('Criando conta...', true);
         const nome = document.getElementById('cad-nome').value.trim();
         const apelidoEl = document.getElementById('cad-apelido');
@@ -615,14 +665,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const meta = { nome, papeis, apelido };
             if (refCodigo) meta.ref_codigo = refCodigo; // indicação aplicada no 1º login (pode confirmar em outro aparelho)
-            const { data, error } = await supabaseClient.auth.signUp({
+            const r = await comCaptcha(capCadastrar, (tk) => supabaseClient.auth.signUp({
                 email,
                 password,
-                options: {
+                options: MC.opcoes({
                     data: meta,
                     emailRedirectTo: urlRetornoConfirmacao()
-                }
-            });
+                }, tk)
+            }));
+            if (r.espera) { msg(MSG_CAPTCHA_ESPERA, false); return; }
+            const { data, error } = r;
+            if (error && MC.ehErro(error)) { msg(MC.MSG, false); return; }
             // E-mail que já tem conta: com "Confirm email" ligado o Supabase NÃO devolve erro, devolve um usuário com
             // identities = [] (e não manda e-mail nem cria nada); com ele desligado devolve 'User already registered'.
             const jaExiste = (error && /already registered|already exists|user_already_exists|email_exists/i.test(String(error.code || '') + ' ' + String(error.message || ''))) ||

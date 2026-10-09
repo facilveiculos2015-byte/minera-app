@@ -761,6 +761,14 @@ function fecharSaibaMais() {
 }
 
 function bindPinUI() {
+    // "Esqueci a senha da Caixa": confirmar login (signInWithPassword) e OTP (signInWithOtp) precisam do
+    // "Não sou um robô" quando o captcha está ligado (captcha.js). Um quadrinho só para os dois botões.
+    const MCf = window.MineraCaptcha || null;
+    const capPin = MCf ? MCf.criar(document.getElementById('cap-forgot-pin'), {
+        acao: 'reauth', botoes: () => [document.getElementById('btn-reauth-pin'), document.getElementById('btn-otp-pin')]
+    }) : null;
+    const capEspera = () => { if (capPin && !capPin.pronto()) { setMsg('pin-forgot-msg', 'Espere a verificação “Não sou um robô” terminar e tente de novo.', false); return true; } return false; };
+    const capErro = (e) => !!(MCf && MCf.ehErro(e));
     document.getElementById('btn-set-pin').addEventListener('click', async () => {
         const a = document.getElementById('pin-novo').value;
         const b = document.getElementById('pin-novo2').value;
@@ -817,8 +825,14 @@ function bindPinUI() {
             setMsg('pin-forgot-msg', 'Informe a senha de login.', false);
             return;
         }
+        if (capEspera()) return;
         try {
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+            const tk = capPin ? capPin.pegar() : '';
+            let res;
+            try { res = await supabaseClient.auth.signInWithPassword({ email, password: pass, options: MCf ? MCf.opcoes(null, tk) : {} }); }
+            finally { if (capPin) capPin.liberar(); }
+            const error = res.error;
+            if (error && capErro(error)) { setMsg('pin-forgot-msg', MCf.MSG, false); return; }
             if (error) throw error;
             forgotVerified = true;
             document.getElementById('forgot-new-pin-block').classList.remove('oculto');
@@ -831,11 +845,18 @@ function bindPinUI() {
     document.getElementById('btn-otp-pin').addEventListener('click', async () => {
         const email = userEmail();
         if (!email) { setMsg('pin-forgot-msg', 'E-mail da sessão indisponível.', false); return; }
+        if (capEspera()) return;
         try {
-            const { error } = await supabaseClient.auth.signInWithOtp({
-                email,
-                options: { shouldCreateUser: false }
-            });
+            const tk = capPin ? capPin.pegar() : '';
+            let res;
+            try {
+                res = await supabaseClient.auth.signInWithOtp({
+                    email,
+                    options: MCf ? MCf.opcoes({ shouldCreateUser: false }, tk) : { shouldCreateUser: false }
+                });
+            } finally { if (capPin) capPin.liberar(); }
+            const error = res.error;
+            if (error && capErro(error)) { setMsg('pin-forgot-msg', MCf.MSG, false); return; }
             if (error) throw error;
             document.getElementById('otp-pin-block').classList.remove('oculto');
             setMsg('pin-forgot-msg', 'OTP enviado para ' + email + '. Digite o código abaixo.', true);

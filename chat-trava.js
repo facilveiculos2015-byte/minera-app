@@ -106,6 +106,7 @@
             '<label class="ct-lbl" for="ct-senha">Senha</label>' +
             '<input type="password" id="ct-senha" class="ct-senha" autocomplete="current-password" enterkeyhint="go">' +
             '<p class="ct-err oculto" id="ct-err" role="alert"></p>' +
+            '<div id="ct-cap" class="cap-host"></div>' +
             '<button type="button" class="ct-ok" id="ct-ok">Desbloquear</button>' +
             '<button type="button" class="ct-sair" id="ct-sair">Sair da conta</button>' +
             '</div>';
@@ -116,21 +117,33 @@
         var inp = el.querySelector('#ct-senha');
         var err = el.querySelector('#ct-err');
         var btn = el.querySelector('#ct-ok');
+        // Conferir a senha = signInWithPassword → "Não sou um robô" quando o captcha está ligado (captcha.js)
+        var MCt = window.MineraCaptcha || null;
+        var cap = MCt ? MCt.criar(el.querySelector('#ct-cap'), { acao: 'reauth', botoes: function () { return [btn]; } }) : null;
         async function tentar() {
             var senha = (inp.value || '').trim();
             err.classList.add('oculto'); err.textContent = '';
             if (!senha) { err.textContent = 'Digite a senha.'; err.classList.remove('oculto'); return; }
             if (Date.now() < esperaAte) { err.textContent = 'Muitas tentativas. Espere ' + Math.ceil((esperaAte - Date.now()) / 1000) + ' s.'; err.classList.remove('oculto'); return; }
+            if (cap && !cap.pronto()) { err.textContent = 'Espere a verificação “Não sou um robô” terminar e tente de novo.'; err.classList.remove('oculto'); return; }
             btn.disabled = true; btn.textContent = 'Verificando…';
             try {
                 var em = email || (await emailAtual());
-                var r = await supabaseClient.auth.signInWithPassword({ email: em, password: senha });
+                var tk = cap ? cap.pegar() : '';
+                var r;
+                try { r = await supabaseClient.auth.signInWithPassword({ email: em, password: senha, options: MCt ? MCt.opcoes(null, tk) : {} }); }
+                finally { if (cap) cap.liberar(); }
+                if (r.error && MCt && MCt.ehErro(r.error)) {
+                    err.textContent = MCt.MSG; err.classList.remove('oculto');
+                    btn.textContent = 'Desbloquear'; if (cap) cap.sincronizar(); else btn.disabled = false;
+                    return;
+                }
                 if (r.error) {
                     falhas++;
                     if (falhas >= 5) { esperaAte = Date.now() + 30000; falhas = 0; }
                     err.textContent = /Invalid login credentials|invalid_credentials/i.test(String(r.error.message || '')) ? 'Senha incorreta.' : (r.error.message || 'Não deu para desbloquear.');
                     err.classList.remove('oculto');
-                    btn.disabled = false; btn.textContent = 'Desbloquear';
+                    btn.disabled = false; btn.textContent = 'Desbloquear'; if (cap) cap.sincronizar();
                     return;
                 }
                 desbloquear(uid);
@@ -138,7 +151,7 @@
             } catch (e) {
                 err.textContent = 'Falha: ' + (e && e.message ? e.message : e);
                 err.classList.remove('oculto');
-                btn.disabled = false; btn.textContent = 'Desbloquear';
+                btn.disabled = false; btn.textContent = 'Desbloquear'; if (cap) cap.sincronizar();
             }
         }
         btn.addEventListener('click', tentar);

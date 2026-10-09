@@ -24,6 +24,17 @@ const MINERA_SUPERAPP = false;
 const MINERA_DB_ATUAL = (MINERA_TESTE && MINERA_DB.teste) ? MINERA_DB.teste : MINERA_DB.producao;
 const MINERA_DB_COMPARTILHADO = MINERA_TESTE && MINERA_DB_ATUAL === MINERA_DB.producao;
 
+/* CAPTCHA (Cloudflare Turnstile) nas telas de conta — chave PÚBLICA (site key) por ambiente.
+ * Vazio = captcha desligado no app (tudo igual a antes). Só ligar "CAPTCHA protection" no Supabase DEPOIS que o
+ * app com a chave estiver no ar — senão ninguém consegue entrar/criar conta.
+ * Hostnames cadastrados no widget da Cloudflare: minerapara.com.br, www.minerapara.com.br, facilveiculos2015-byte.github.io
+ * (em localhost/netlify a chave real NÃO funciona; os testes automáticos trocam pela chave de teste 1x00000000000000000000AA). */
+const MINERA_TURNSTILE = {
+    producao: '0x4AAAAAAFR6C-Nx4Ebq4-8h',
+    teste: '0x4AAAAAAFR6C-Nx4Ebq4-8h'
+};
+const TURNSTILE_SITEKEY = (MINERA_TESTE ? MINERA_TURNSTILE.teste : MINERA_TURNSTILE.producao) || '';
+
 const SUPABASE_URL = MINERA_DB_ATUAL.url;
 const SUPABASE_ANON_KEY = MINERA_DB_ATUAL.anon;
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
