@@ -94,9 +94,12 @@
         if (ligado) {
             ctxPausados = [];
             ctxTodos.forEach(function (c) { try { if (c.state === 'running') { c.suspend(); ctxPausados.push(c); } } catch (e) { /* ignore */ } });
-            try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) { /* ignore */ }
-        } else {
             try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) { /* ignore */ }
+        } else {
+            // 'playback' → 'auto' "chacoalha" o Safari de volta para o som normal (sem modo ligação)
+            try { if (navigator.audioSession) { navigator.audioSession.type = 'playback'; navigator.audioSession.type = 'auto'; } } catch (e) { /* ignore */ }
+            try { if (audioPre && (!C || C.audio !== audioPre)) { audioPre.remove(); } } catch (e) { /* ignore */ }
+            audioPre = null;
             var vol = ctxPausados; ctxPausados = [];
             setTimeout(function () { vol.forEach(function (c) { try { if (c.state === 'suspended') c.resume().catch(function () {}); } catch (e) { /* ignore */ } }); }, 1500);
         }
@@ -188,6 +191,7 @@
         '.ch-tela[data-papel=entrada][data-fase=tocando] .ch-acoes{display:none}' +
         '.ch-tela:not([data-fase=tocando]) .ch-entrada,.ch-tela[data-papel=saida] .ch-entrada{display:none}' +
         '.ch-tela[data-fase=fim] .ch-acoes{opacity:.35;pointer-events:none}' +
+        '.ch-saida{margin-top:10px;font-size:13px;opacity:.75;max-width:86vw;min-height:1em}.ch-tela[data-fase=tocando] .ch-saida{display:none}' +
         '.bubble.bubble-chamada{align-self:center;max-width:86%;margin:6px auto;padding:7px 14px;border-radius:16px;background:rgba(127,127,127,.14);color:inherit;font-size:13.5px;display:flex;gap:8px;align-items:center;cursor:pointer;box-shadow:none}' +
         '.bubble.bubble-chamada::before,.bubble.bubble-chamada::after{display:none!important}' +
         '.bubble.bubble-chamada.perdida .bc-ic{color:#e5484d}.bubble.bubble-chamada .bc-h{opacity:.6;font-size:12px}' +
@@ -206,7 +210,7 @@
         d.id = 'chamada-tela'; d.className = 'ch-tela oculto'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', 'Ligação de voz');
         d.innerHTML =
             '<div class="ch-topo">🔒 Ligação de voz · criptografada</div>' +
-            '<div class="ch-meio"><div class="ch-av" id="ch-av">?</div><div class="ch-nome" id="ch-nome">—</div><div class="ch-status" id="ch-status" aria-live="polite"></div></div>' +
+            '<div class="ch-meio"><div class="ch-av" id="ch-av">?</div><div class="ch-nome" id="ch-nome">—</div><div class="ch-status" id="ch-status" aria-live="polite"></div><div class="ch-saida" id="ch-saida"></div></div>' +
             '<div style="width:100%">' +
             '<div class="ch-acoes">' +
             '<button type="button" class="ch-b" id="ch-btn-mudo" aria-pressed="false"><span class="ch-c">' + IC.mic + '</span><span>Mudo</span></button>' +
@@ -230,6 +234,7 @@
         if (C) { d.setAttribute('data-papel', C.papel); $('ch-nome').textContent = C.peerNome || 'Contato'; $('ch-av').textContent = iniciais(C.peerNome); }
         if (fase) d.setAttribute('data-fase', fase);
         if (status != null) $('ch-status').textContent = status;
+        if ((fase === 'chamando' || fase === 'tocando') && $('ch-saida')) { $('ch-saida').textContent = ''; if ($('ch-btn-falante')) { $('ch-btn-falante').style.display = ''; $('ch-btn-falante').setAttribute('aria-pressed', 'false'); } }
         d.classList.remove('oculto');
     }
     function esconderTela() { var d = $('chamada-tela'); if (d) d.classList.add('oculto'); }
@@ -279,7 +284,7 @@
 
     async function pegarMic() {
         pararSom();
-        audioDaChamada(true);    // iPhone: sessão 'play-and-record' + nenhum AudioContext tocando
+        audioDaChamada(true);    // nenhum AudioContext tocando (eco)
         var s;
         try {
             s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true }, channelCount: { ideal: 1 } }, video: false });
@@ -288,6 +293,11 @@
             throw e;
         }
         try { var st = s.getAudioTracks()[0].getSettings(); log('mic', JSON.stringify(st)); C && (C.micCfg = st); } catch (e) { /* ignore */ }
+        // 'play-and-record' DEPOIS do microfone (Safari re-roteia; antes do getUserMedia às vezes pega o mic errado)
+        try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch (e) { /* ignore */ }
+        // iPhone: já escolhe o OUVIDO no <audio> da ligação logo após ligar o microfone
+        // (o Safari conta o microfone recém-ligado como gesto para setSinkId)
+        if (IOS) { try { prepararAudio(); await lerSaidas(); aplicarSaida(audioPre, false); } catch (e) { /* ignore */ } }
         todosStreams.push(s);
         return s;
     }
@@ -372,6 +382,15 @@
         var pc = new RTCPeerConnection(conf);
         C.pc = pc;
         C.stream.getAudioTracks().forEach(function (t) { t.enabled = !C.mudo; pc.addTrack(t, C.stream); });
+        // 2ª trilha de áudio MUDA no mesmo stream: no iPhone (iOS 26.x) setSinkId() só troca a saída
+        // (ouvido/alto-falante) quando o stream WebRTC recebido tem 2+ trilhas — bug WebKit 320087,
+        // corrigido no WebKit 318149@main (29/07/2026). Custa ~1 kbps de silêncio; quem recebe ignora.
+        try {
+            if (CFG.trilhaMuda !== false && C.stream.getAudioTracks()[0]) {
+                var muda = C.stream.getAudioTracks()[0].clone(); muda.enabled = false;
+                pc.addTrack(muda, C.stream); C.trilhaMuda = muda;
+            }
+        } catch (e) { /* ignore */ }
         pc.onicecandidate = function (e) {
             if (!C || C.pc !== pc) return;
             if (e.candidate) {
@@ -387,14 +406,12 @@
             if (!C || C.pc !== pc) return;
             var a = C.audio;
             // UM só elemento para o som do outro lado (nunca o nosso microfone); remove sobras de outra ligação
-            if (!a) {
-                document.querySelectorAll('audio#chamada-audio').forEach(function (v) { try { v.pause(); v.srcObject = null; v.remove(); } catch (er) { /* ignore */ } });
-                a = document.createElement('audio'); a.id = 'chamada-audio'; a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none'; document.body.appendChild(a); C.audio = a;
-            }
-            var novoSrc = (e.streams && e.streams[0]) || new MediaStream([e.track]);
+            if (!a) { a = prepararAudio(); C.audio = a; }
+            var novoSrc = (e.streams && e.streams[0]) || C.remStream || (C.remStream = new MediaStream());
+            if (!e.streams || !e.streams[0]) { try { if (novoSrc.getTracks().indexOf(e.track) < 0) novoSrc.addTrack(e.track); } catch (er) { /* ignore */ } }
             if (a.srcObject !== novoSrc) a.srcObject = novoSrc;
             var p = a.play(); if (p && p.catch) p.catch(function () { /* autoplay: toque na tela libera */ });
-            if (IOS && !C.roteado) { C.roteado = true; rotear(); }
+            if (IOS && !C.roteado) { C.roteado = true; rotear(); setTimeout(function () { if (C && C.audio === a && !C.fim) rotear(); }, 1200); }
         };
         var onEstado = function () {
             if (!C || C.pc !== pc) return;
@@ -625,43 +642,91 @@
         var b = $('ch-btn-mudo'); b.setAttribute('aria-pressed', C.mudo ? 'true' : 'false');
         b.querySelector('.ch-c').innerHTML = C.mudo ? IC.micOff : IC.mic;
     }
-    /* Saída do som. iPhone (iOS 26+): setSinkId no <audio> da ligação escolhe a saída da SESSÃO —
-     * aparelho escolhido "receptor" = som no ouvido (e o sensor de proximidade apaga a tela);
-     * setSinkId('') = padrão do Safari em ligação = alto-falante. iPhone sem setSinkId/saídas
-     * (iOS < 26): o Safari sempre usa o alto-falante e não deixa trocar → botão escondido.
+    /* Saída do som (ouvido × alto-falante).
+     * iPhone iOS 26+: Safari tem setSinkId (Speaker Selection API). Escolher o RECEPTOR no <audio> da ligação
+     *   tira o "DefaultToSpeaker" da sessão → som no ouvido (o iOS liga o sensor de proximidade nesse modo).
+     *   Precisa de gesto (toque) ou microfone recém-ligado; por isso a lista de saídas fica em cache e o
+     *   botão chama setSinkId na hora do toque. Com 1 só trilha WebRTC o iOS 26.x ignora (bug 320087) →
+     *   mandamos 2 trilhas (ver criarPC).
+     * iPhone iOS ≤ 18 (sem setSinkId): o WebKit força alto-falante em toda ligação (DefaultToSpeaker desde 2017,
+     *   changeset 218148) e não há API para mudar → aviso "use fone" e botão escondido.
      * Android/desktop: setSinkId entre alto-falante e padrão (como antes). */
-    function ehFalante(d) { return /speaker|alto-?falante|viva-?voz|altavoz|haut-parleur/i.test(d.label || ''); }
-    async function saidas() {
-        try { return (await navigator.mediaDevices.enumerateDevices()).filter(function (d) { return d.kind === 'audiooutput'; }); } catch (e) { return []; }
+    var saidasCache = [], audioPre = null;
+    function prepararAudio() {
+        if (audioPre && audioPre.isConnected) return audioPre;
+        document.querySelectorAll('audio#chamada-audio').forEach(function (v) { try { v.pause(); v.srcObject = null; v.remove(); } catch (er) { /* ignore */ } });
+        var a = document.createElement('audio'); a.id = 'chamada-audio'; a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none';
+        document.body.appendChild(a); audioPre = a;
+        return a;
+    }
+    function ehFalante(d) { return /speaker|alto-?falante|viva-?voz|altavoz|haut-parleur|lautsprecher/i.test(d.label || ''); }
+    function ehFone(d) { return /bluetooth|airpods|beats|headphone|headset|fone de ouvido|auricular|wired|usb|carplay/i.test(d.label || ''); }
+    function ehReceptor(d) { return /receiver|receptor|earpiece|auscultador|handset|iphone/i.test(d.label || '') && !ehFalante(d); }
+    async function lerSaidas() {
+        try { saidasCache = (await navigator.mediaDevices.enumerateDevices()).filter(function (d) { return d.kind === 'audiooutput'; }); } catch (e) { /* ignore */ }
+        return saidasCache;
+    }
+    function alvoSaida(falante) {
+        var ds = saidasCache, sem = function (d) { return d.deviceId && d.deviceId !== 'default'; };
+        if (falante) { var f = ds.find(ehFalante); return f ? f.deviceId : ''; }
+        var o = ds.find(function (d) { return sem(d) && ehFone(d); }) || ds.find(function (d) { return sem(d) && ehReceptor(d); }) || ds.find(function (d) { return sem(d) && !ehFalante(d); });
+        return o ? o.deviceId : null;
+    }
+    function podeEscolherSaida(a) { return !!(a && a.setSinkId) && alvoSaida(false) != null; }
+    function mostrarSaida() {
+        var b = $('ch-btn-falante'), t = $('ch-saida'); if (!b || !t || !C) return;
+        var a = C.audio || audioPre;
+        if (IOS && !(a && a.setSinkId)) { b.style.display = 'none'; t.textContent = 'iPhone com iOS antigo: o som sai no alto-falante (limitação da Apple). Use fone de ouvido.'; return; }
+        if (IOS && !podeEscolherSaida(a)) { b.style.display = 'none'; t.textContent = ''; return; }
+        b.style.display = '';
+        t.textContent = IOS ? (C.falante ? '🔊 Alto-falante' : '📱 Som no ouvido — encoste o celular na orelha') : '';
+    }
+    /** Chamada SÍNCRONA dentro do toque (gesto) — não pode ter await antes do setSinkId. */
+    function aplicarSaida(a, falante) {
+        if (!a || !a.setSinkId) return null;
+        var id = alvoSaida(falante);
+        if (id == null) return null;
+        try {
+            var p = a.setSinkId(id);
+            log('saida', falante ? 'alto-falante' : 'ouvido', id ? id.slice(0, 8) : '(padrão)');
+            return p && p.then ? p.then(function () { return true; }, function (e) { log('setSinkId', e && e.message); return false; }) : Promise.resolve(true);
+        } catch (e) { log('setSinkId', e && e.message); return Promise.resolve(false); }
     }
     async function rotear() {
-        if (!C || !C.audio) return false;
-        var a = C.audio, b = $('ch-btn-falante');
-        if (!a.setSinkId) { if (IOS && b) b.style.display = 'none'; return false; }
-        var ds = await saidas();
+        if (!C || !(C.audio || audioPre)) return false;
+        var a = C.audio || audioPre;
+        if (IOS) {
+            if (!saidasCache.length) await lerSaidas();
+            var r = await (aplicarSaida(a, C.falante) || Promise.resolve(false));
+            if (!r && !C.falante) { await lerSaidas(); r = await (aplicarSaida(a, false) || Promise.resolve(false)); }
+            mostrarSaida();
+            return !!r;
+        }
+        if (!a.setSinkId) return false;
         try {
-            if (IOS) {
-                var ouvido = ds.find(function (d) { return d.deviceId && d.deviceId !== 'default' && !ehFalante(d); });
-                var falante = ds.find(ehFalante);
-                if (!ouvido) { if (b) b.style.display = 'none'; return false; }   // sem como escolher
-                if (b) b.style.display = '';
-                await a.setSinkId(C.falante ? (falante ? falante.deviceId : '') : ouvido.deviceId);
-                log('saida', C.falante ? 'alto-falante' : ouvido.label);
-            } else {
-                var alvo = C.falante ? ds.find(ehFalante) : ds.find(function (d) { return /earpiece|receiver|fone|communications/i.test(d.label + ' ' + d.deviceId); });
-                await a.setSinkId(alvo ? alvo.deviceId : 'default');
-            }
+            var ds = await lerSaidas();
+            var alvo = C.falante ? ds.find(ehFalante) : ds.find(function (d) { return /earpiece|receiver|fone|communications/i.test(d.label + ' ' + d.deviceId); });
+            await a.setSinkId(alvo ? alvo.deviceId : 'default');
             a.volume = 1;
             return true;
         } catch (e) { log('setSinkId', e && e.message); return false; }
     }
-    async function alternarFalante() {
+    function alternarFalante() {
         if (!C) return;
         C.falante = !C.falante;
         $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false');
-        if (!(await rotear()) && IOS) { C.falante = !C.falante; $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false'); }
+        var a = C.audio || audioPre;
+        if (IOS) {
+            // setSinkId JÁ, dentro do toque; o Safari 26.0 às vezes só troca na 2ª vez → repete logo depois
+            var p = aplicarSaida(a, C.falante);
+            mostrarSaida();
+            if (p) p.then(function () { setTimeout(function () { if (C && (C.audio || audioPre) === a) aplicarSaida(a, C.falante); }, 400); });
+            else { C.falante = !C.falante; $('ch-btn-falante').setAttribute('aria-pressed', C.falante ? 'true' : 'false'); mostrarSaida(); }
+            return;
+        }
+        rotear();
     }
-    try { navigator.mediaDevices && navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener('devicechange', function () { if (IOS && C && C.audio && !C.fim) rotear(); }); } catch (e) { /* ignore */ }
+    try { navigator.mediaDevices && navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener('devicechange', function () { lerSaidas().then(function () { if (IOS && C && C.audio && !C.fim) rotear(); }); }); } catch (e) { /* ignore */ }
 
     // sair da página no meio da ligação: avisa o servidor (keepalive) e pergunta antes
     function antesDeSair(e) { if (C && !C.fim) { e.preventDefault(); e.returnValue = ''; return ''; } }
@@ -775,7 +840,10 @@
                 micTocandoLocal: [].some.call(document.querySelectorAll('audio,video'), function (v) { var ids = todosStreams.reduce(function (a, s) { return a.concat(s.getTracks().map(function (t) { return t.id; })); }, []); return !!(v.srcObject && v.srcObject.getTracks && v.srcObject.getTracks().some(function (t) { return ids.indexOf(t.id) >= 0; })); }),
                 toque: { tipo: somTipo, tocando: !!(somEl && !somEl.paused && somEl.src) },
                 falanteVisivel: !!($('ch-btn-falante') && $('ch-btn-falante').style.display !== 'none'),
-                ios: IOS
+                ios: IOS,
+                saidaTexto: $('ch-saida') ? $('ch-saida').textContent : '',
+                trilhasRecebidas: (function () { var v = document.getElementById('chamada-audio'); return v && v.srcObject ? v.srcObject.getAudioTracks().length : 0; })(),
+                trilhasEnviadas: C && C.pc ? C.pc.getSenders().filter(function (x) { return x.track; }).length : 0
             };
         }
     };

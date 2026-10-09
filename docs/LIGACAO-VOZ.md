@@ -68,3 +68,11 @@ Correção (chamada.js):
 - iPhone com setSinkId (iOS 26+): o <audio> da ligação vai para o RECEPTOR (ouvido → sensor de proximidade); botão Alto-falante alterna;
   iPhone sem setSinkId (iOS < 26): o Safari não deixa escolher → botão Alto-falante escondido (som no alto-falante, limitação do iOS);
 - getUserMedia com echoCancellation/noiseSuppression/autoGainControl + mono; 1 só <audio> remoto; microfone nunca tocado localmente.
+
+## iPhone: ouvido × alto-falante (09/10/2026, build 20261009n) — pesquisa
+- WebKit põe AVAudioSessionCategoryOptionDefaultToSpeaker em PlayAndRecord desde 2017 (changeset 218148, bug 173276) → iOS ≤ 18: sempre alto-falante, sem API (setSinkId não existe no iOS < 26).
+- WebKit commit 19888c4 ("Prepare AVAudioSessionCaptureDeviceManager for speaker selection"): DefaultToSpeaker só sai quando o RECEPTOR é a saída preferida (setPreferredSpeakerID ← setSinkId do <audio> que toca trilha WebRTC, RemoteAudioMediaStreamTrackRendererInternalUnitManager::setLastDeviceUsed). Safari 26: "Speaker Selection API on iOS and iPadOS".
+- Bug WebKit 320087 (Zoom, iOS 26.5): setSinkId resolve mas não troca com 1 trilha WebRTC; funciona com 2. Corrigido em 318149@main (29/07/2026) — mixed source "default" sobrescrevia o speaker. Contorno: enviamos 2ª trilha (clone mudo do mic).
+- setSinkId precisa de gesto (LiveKit #1635: "funciona sempre" quando chamado no toque) ou microfone recém-ligado (W3C WebRTC WG 16/09/2025, Youenn). Lista de saídas em cache; botão chama setSinkId sem await antes; repete após 400 ms (Safari 26.0: "switching from speaker to receiver does not work the first time").
+- audioSession.type: 'play-and-record' DEPOIS do getUserMedia; no fim 'playback'→'auto' (StackOverflow 79401143 / bug 282939). audioSession sozinho NÃO tira o DefaultToSpeaker (código do WebKit).
+- <video playsinline> no lugar de <audio>, volume/muted: sem efeito na rota (rota é da sessão; volume é só leitura no iOS).

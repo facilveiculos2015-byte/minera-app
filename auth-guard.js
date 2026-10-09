@@ -465,7 +465,7 @@ const ADMIN_MODO_PAGINAS_OK = new Set(['admin', 'chat', 'perfil']);
  * Retorna true se redirecionou (caller deve abortar).
  */
 function enforceAdminModoPagina(perfil, paginaAtiva) {
-    // 20261009m: apps só-gestor (/gestor/) e só-chat (/chat/) NUNCA mandam para o painel admin.
+    // 20261009o: apps só-gestor (/gestor/) e só-chat (/chat/) NUNCA mandam para o painel admin.
     // Antes, admin em modo monitoramento abrindo o Gestor Minera ia para irPara('admin.html'), que no
     // /gestor/ vira o próprio /gestor/ → recarregava sem parar ("Carregando..." ↔ nome, logo vazio).
     if (window.MINERA_GESTOR_APP === true || window.MINERA_CHAT_APP === true) return false;
