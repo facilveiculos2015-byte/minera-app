@@ -5,20 +5,20 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261009b';
+const CACHE = 'minera-shell-20261009d';
 const PRECACHE = [
-  './style.css?v=20261009b',
-  './chat-realtime.js?v=20261009b',
-  './avatar.js?v=20261009b',
-  './avatar-editor.js?v=20261009b',
-  './nav.js?v=20261009b',
-  './config.js?v=20261009b',
-  './seguranca.js?v=20261009b',
-  './pwa.js?v=20261009b',
-  './lightbox.js?v=20261009b',
-  './gestor.css?v=20261009b',
-  './gestor-calc.js?v=20261009b',
-  './gestor.js?v=20261009b',
+  './style.css?v=20261009d',
+  './chat-realtime.js?v=20261009d',
+  './avatar.js?v=20261009d',
+  './avatar-editor.js?v=20261009d',
+  './nav.js?v=20261009d',
+  './config.js?v=20261009d',
+  './seguranca.js?v=20261009d',
+  './pwa.js?v=20261009d',
+  './lightbox.js?v=20261009d',
+  './gestor.css?v=20261009d',
+  './gestor-calc.js?v=20261009d',
+  './gestor.js?v=20261009d',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -204,7 +204,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       // App aberto e na tela: o próprio app já avisa (toast + "pim") → não duplica (menos no iPhone, que exige a notificação)
-      if (!PUSH_SEMPRE_MOSTRA && list.some((c) => c.visibilityState === 'visible' && c.focused !== false)) return;
+      // (janela do /gestor/ não conta: o modo só-gestor não mostra aviso de mensagem)
+      if (!PUSH_SEMPRE_MOSTRA && list.some((c) => c.visibilityState === 'visible' && c.focused !== false && !/\/gestor\//.test(c.url || ''))) return;
       return mostrar();
     }).catch(() => mostrar())
   );

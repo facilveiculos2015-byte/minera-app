@@ -11,6 +11,15 @@
 // tentativas, e devolve o motivo exato se não achar.
 // Inscrições expiradas (404/410) são apagadas (melhor esforço).
 //
+// v3 (SQL 61, 09/10/2026): com { reserva: true } cada inscrição vem com
+// g (aparelho) e r (ordem: 1 = principal, 2/3 = reservas). Por aparelho a
+// função tenta a principal; se falhar (404/410/erro) tenta a próxima — UM
+// aviso por aparelho e nunca zero (antes, um 'chat' velho/apagado engolia o
+// aviso do app). Sem g/r (SQL 57/58) manda para todas, como antes.
+// Mesmo 'tag' (conversa) em todas: o aparelho junta avisos repetidos.
+// Segurança mantida: segredo x-push-secret (Verify JWT desligado de propósito,
+// quem chama é o gatilho), só servidores de push reais, máx. 1000 por chamada.
+//
 // Segredos (supabase secrets set ...): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
 // VAPID_SUBJECT (mailto:...), PUSH_HOOK_SECRET.  SUPABASE_URL e
 // SUPABASE_SERVICE_ROLE_KEY já existem no ambiente das Edge Functions.
@@ -64,7 +73,7 @@ async function lerMensagem(id: number): Promise<{ m: Record<string, any> | null;
   return { m: null, motivo: [...new Set(motivos)].join(" | ").slice(0, 400) };
 }
 
-type Sub = { id: number; endpoint: string; p256dh: string; auth: string };
+type Sub = { id: number; endpoint: string; p256dh: string; auth: string; g?: string; r?: number; o?: string };
 
 // Só serviços de push reais (evita a função fazer POST para qualquer URL).
 const PUSH_HOSTS = /^(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/i;
@@ -72,32 +81,58 @@ function endpointOk(e: string): boolean {
   try { const u = new URL(e); return u.protocol === "https:" && PUSH_HOSTS.test(u.hostname); } catch { return false; }
 }
 
-async function enviarPara(subs: Sub[], payload: string, tag: string) {
-  let enviados = 0, removidos = 0, falhas = 0;
+type Resultado = { ok: boolean; removida: boolean; erro: string };
+
+/** Envia para UMA inscrição. 404/410 = inscrição morta → apaga do banco. */
+async function enviarUma(s: Sub, payload: string, tag: string): Promise<Resultado> {
+  if (!s || !s.endpoint || !s.p256dh || !s.auth || !endpointOk(s.endpoint)) return { ok: false, removida: false, erro: "" };
+  try {
+    await webpush.sendNotification(
+      { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+      payload,
+      { TTL: 86400, urgency: "high", topic: tag.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) },
+    );
+    return { ok: true, removida: false, erro: "" };
+  } catch (e) {
+    const code = (e as { statusCode?: number })?.statusCode ?? 0;
+    const host = (() => { try { return new URL(s.endpoint).host; } catch { return "?"; } })();
+    if (code === 404 || code === 410) {
+      try { await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint); } catch { /* melhor esforço */ }
+      return { ok: false, removida: true, erro: host + " " + code };
+    }
+    console.warn("push falhou", host, code, (e as Error)?.message);
+    return { ok: false, removida: false, erro: host + " " + code + " " + String((e as Error)?.message ?? "").slice(0, 80) };
+  }
+}
+
+/**
+ * Sem g/r: manda para todas (v2). Com g/r (SQL 61): por aparelho, em ordem,
+ * para na 1ª que der certo; se a principal falhar, usa a reserva.
+ */
+async function enviarPara(subs: Sub[], payload: string, tag: string, comReserva = false) {
+  let enviados = 0, removidos = 0, falhas = 0, reserva = 0;
   const erros: string[] = [];
-  await Promise.all(subs.map(async (s) => {
-    if (!s || !s.endpoint || !s.p256dh || !s.auth || !endpointOk(s.endpoint)) return;
-    try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        payload,
-        { TTL: 86400, urgency: "high", topic: tag.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) },
-      );
-      enviados++;
-    } catch (e) {
-      const code = (e as { statusCode?: number })?.statusCode ?? 0;
-      if (code === 404 || code === 410) {
-        try { await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint); } catch { /* melhor esforço */ }
-        removidos++;
-      } else {
-        falhas++;
-        const host = (() => { try { return new URL(s.endpoint).host; } catch { return "?"; } })();
-        erros.push(host + " " + code + " " + String((e as Error)?.message ?? "").slice(0, 80));
-        console.warn("push falhou", host, code, (e as Error)?.message);
-      }
+  const conta = (r: Resultado) => {
+    if (r.ok) enviados++;
+    else if (r.removida) removidos++;
+    else if (r.erro) falhas++;
+    if (r.erro) erros.push(r.erro);
+  };
+  const grupos = new Map<string, Sub[]>();
+  subs.forEach((s, i) => {
+    const g = comReserva && s && typeof s.g === "string" && s.g ? "g:" + s.g : "i:" + i;
+    if (!grupos.has(g)) grupos.set(g, []);
+    grupos.get(g)!.push(s);
+  });
+  await Promise.all([...grupos.values()].map(async (lista) => {
+    lista.sort((a, b) => (Number(a?.r) || 99) - (Number(b?.r) || 99));
+    for (let k = 0; k < Math.min(lista.length, 3); k++) {
+      const r = await enviarUma(lista[k], payload, tag);
+      conta(r);
+      if (r.ok) { if (k > 0) reserva++; break; }
     }
   }));
-  return { enviados, removidos, falhas, erros: erros.slice(0, 3) };
+  return { enviados, removidos, falhas, reserva, aparelhos: grupos.size, erros: erros.slice(0, 3) };
 }
 
 function iguais(a: string, b: string): boolean {
@@ -154,8 +189,8 @@ Deno.serve(async (req) => {
     const subs = ((Array.isArray(corpo.subs) ? corpo.subs : []) as unknown as Sub[]).slice(0, 1000);
     if (!subs.length) return resp({ ok: true, v: 2, id, enviados: 0, inscricoes: 0 });
     const payload = JSON.stringify({ title: "Minera Pará — " + title, body, url, tag });
-    const r = await enviarPara(subs, payload, tag);
-    return resp({ ok: true, v: 2, id, inscricoes: subs.length, ...r });
+    const r = await enviarPara(subs, payload, tag, corpo.reserva === true);
+    return resp({ ok: true, v: corpo.reserva === true ? 3 : 2, id, inscricoes: subs.length, ...r });
   }
 
   // ---------- v1: só { id } (SQL 54) ----------

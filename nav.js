@@ -758,7 +758,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261009b';
+    const src = root + 'logo-escavadeira.png?v=20261009d';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
@@ -1399,6 +1399,7 @@ const MineraNotif = (function () {
             hiddenAt = 0;
             sincronizarLeituras(false).then(poll, poll);
             marcarEntregue(800);
+            if (window.MineraPush) MineraPush.assinar(false); // voltou ao app: confirma a inscrição (no máx. 1x/10 min)
         });
     }
 
@@ -1549,7 +1550,8 @@ window.MineraNotifPerm = MineraNotifPerm;
  * Inscreve o aparelho (pushManager + chave VAPID pública) e salva no Supabase
  * (RPC push_registrar do SQL 54). O envio é feito pela Edge Function send-push.
  * Permissão: só pelo toque em "Ativar" (card do Início, Perfil ou faixa do Chat).
- * Com permissão já concedida, inscreve em silêncio (1x por dia revalida).
+ * Com permissão já concedida, inscreve em silêncio a cada abertura (no máx. 1x a cada 10 min).
+ * NUNCA pede permissão sozinho (a pergunta é feita uma vez, pelo toque em Ativar).
  */
 const MineraPush = (function () {
     const VAPID_PUBLIC = 'BA3WbzFwrxGnhfbagt-1xzbkXZulf9VpYfDWLhQTWxowrxeIuN7x5cTR6u-LjFjxCqgEmu_6-6hIxK8YvN2-wQU';
@@ -1585,12 +1587,27 @@ const MineraPush = (function () {
             return r && r.data && r.data.session && r.data.session.user ? r.data.session.user.id : null;
         } catch (e) { return null; }
     }
-    /* Chat Minera (/chat/) e app completo no MESMO aparelho: um aviso só por mensagem.
-     * O Chat Minera instalado assume os avisos (toque abre a conversa nele) e o app completo deixa de se inscrever.
-     * minera_push_chat_<uid> = endpoint do Chat Minera neste aparelho (localStorage é o mesmo no Android). */
-    const K_CHAT = 'minera_push_chat_';
+    /* Chat Minera (/chat/) e app completo no MESMO aparelho: um aviso só por mensagem — quem decide é o
+     * SERVIDOR (SQL 61): ele agrupa as inscrições por aparelho e manda para a principal, com a outra de
+     * reserva (se a do Chat Minera falhar — ícone apagado, inscrição vencida — o app completo recebe).
+     * Por isso o app NÃO desinscreve mais o outro (antes o Chat Minera desligava o app e, se o Chat
+     * sumisse, o celular ficava sem aviso nenhum).
+     * minera_aparelho_id = id aleatório do aparelho (no Android o app e o Chat Minera dividem o mesmo). */
+    const K_AP = 'minera_aparelho_id';
+    const REVALIDA_MS = 10 * 60 * 1000; // regrava no banco ao abrir/voltar ao app (no máx. 1x a cada 10 min)
     function chatApp() { return window.MINERA_CHAT_APP === true; }
     function raiz() { return location.origin + (typeof APP_ROOT === 'string' ? APP_ROOT : '/'); }
+    function aparelhoId() {
+        try {
+            let id = localStorage.getItem(K_AP) || '';
+            if (!/^[A-Za-z0-9-]{8,64}$/.test(id)) {
+                id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+                    : Array.from((window.crypto || {}).getRandomValues ? crypto.getRandomValues(new Uint8Array(16)) : [], (b) => b.toString(16).padStart(2, '0')).join('') || String(Date.now()) + 'x' + Math.random().toString(36).slice(2, 10);
+                localStorage.setItem(K_AP, id);
+            }
+            return id;
+        } catch (e) { return ''; }
+    }
     async function regDe(url, ehChat) {
         try {
             const r = await navigator.serviceWorker.getRegistration(url);
@@ -1599,11 +1616,6 @@ const MineraPush = (function () {
         } catch (e) { return null; }
     }
     async function subDe(reg) { try { return reg && reg.pushManager ? await reg.pushManager.getSubscription() : null; } catch (e) { return null; } }
-    async function largar(sub) {
-        if (!sub) return;
-        try { await supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); } catch (e) { /* ignore */ }
-        try { await sub.unsubscribe(); } catch (e) { /* ignore */ }
-    }
     /** Texto curto quando o aviso com o app fechado não dá no iPhone (vazio se não for o caso). */
     function dicaIOS() {
         if (!ehIOS()) return '';
@@ -1624,18 +1636,8 @@ const MineraPush = (function () {
                 const uid = await uidAtual();
                 if (!uid) return false;
                 const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('sw timeout')), 8000))]);
-                if (chatApp()) {
-                    // /chat/ aberto no navegador (não instalado) e o app completo já recebe os avisos aqui: não duplica
-                    if (!standalone() && await subDe(await regDe(raiz(), false))) return true;
-                } else {
-                    let epChat = '';
-                    try { epChat = localStorage.getItem(K_CHAT + uid) || ''; } catch (e) { /* ignore */ }
-                    if (epChat) {
-                        const sc = await subDe(await regDe(raiz() + 'chat/', true));
-                        if (sc && sc.endpoint === epChat) { await largar(await subDe(reg)); return true; } // o Chat Minera deste aparelho já avisa
-                        try { localStorage.removeItem(K_CHAT + uid); } catch (e) { /* ignore */ }
-                    }
-                }
+                // /chat/ aberto no navegador (não instalado) e o app completo já se inscreveu aqui: não cria outra
+                if (chatApp() && !standalone() && await subDe(await regDe(raiz(), false))) return true;
                 const chave = b64ParaBytes(VAPID_PUBLIC);
                 let sub = await reg.pushManager.getSubscription();
                 if (sub && sub.options && sub.options.applicationServerKey && !bytesIguais(sub.options.applicationServerKey, chave)) {
@@ -1645,28 +1647,24 @@ const MineraPush = (function () {
                 if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave });
                 const j = sub.toJSON();
                 const kReg = K_REG + (chatApp() ? 'chat_' : '') + uid;
-                const origem = chatApp() ? 'chat' : 'app'; // SQL 58: o servidor manda só para o Chat Minera se ele existir (um aviso só)
-                const marca = uid + '|' + origem + '|' + j.endpoint + '|' + new Date().toISOString().slice(0, 10);
-                let antes = '';
-                try { antes = localStorage.getItem(kReg) || ''; } catch (e) { /* ignore */ }
-                if (!force && antes === marca) {
-                    if (chatApp()) await largar(await subDe(await regDe(raiz(), false)));
-                    return true;
-                }
+                const origem = chatApp() ? 'chat' : 'app'; // SQL 58/61: o servidor escolhe UM por aparelho (com reserva)
+                const ap = aparelhoId();
+                const marca = uid + '|' + origem + '|' + ap + '|' + j.endpoint;
+                // Regrava SEMPRE ao abrir (atualizado_em = "aberto agora": o servidor prefere o app usado por último
+                // e recria a linha se ela sumiu do banco). Só pula se gravou a mesma coisa há menos de 10 min.
+                let antes = null;
+                try { antes = JSON.parse(localStorage.getItem(kReg) || 'null'); } catch (e) { antes = null; }
+                if (!force && antes && antes.m === marca && Date.now() - Number(antes.t || 0) < REVALIDA_MS) return true;
                 const args = {
                     p_endpoint: j.endpoint, p_p256dh: j.keys && j.keys.p256dh, p_auth: j.keys && j.keys.auth,
                     p_ua: (navigator.userAgent || '').slice(0, 300)
                 };
-                let { error } = await supabaseClient.rpc('push_registrar', Object.assign({ p_origem: origem }, args));
-                if (error && (error.code === 'PGRST202' || /p_origem|function/i.test(error.message || ''))) {
-                    ({ error } = await supabaseClient.rpc('push_registrar', args)); // SQL 58 ainda não aplicado
-                }
+                const semFuncao = (er) => er && (er.code === 'PGRST202' || /p_aparelho|p_origem|function/i.test(er.message || ''));
+                let { error } = await supabaseClient.rpc('push_registrar', Object.assign({ p_origem: origem, p_aparelho: ap }, args));
+                if (semFuncao(error)) ({ error } = await supabaseClient.rpc('push_registrar', Object.assign({ p_origem: origem }, args))); // SQL 61 ainda não aplicado
+                if (semFuncao(error)) ({ error } = await supabaseClient.rpc('push_registrar', args)); // SQL 58 ainda não aplicado
                 if (error) { console.warn('push_registrar', error.message || error); return false; } // SQL 54 ainda não aplicado
-                try { localStorage.setItem(kReg, marca); } catch (e) { /* ignore */ }
-                if (chatApp()) {
-                    try { localStorage.setItem(K_CHAT + uid, j.endpoint); } catch (e) { /* ignore */ }
-                    await largar(await subDe(await regDe(raiz(), false))); // um aviso por aparelho: o Chat Minera assume
-                }
+                try { localStorage.setItem(kReg, JSON.stringify({ m: marca, t: Date.now() })); } catch (e) { /* ignore */ }
                 return true;
             } catch (e) {
                 console.warn('MineraPush', e && e.message ? e.message : e);
