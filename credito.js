@@ -13,7 +13,7 @@
     var css = '.mp-credito{display:block;margin:28px auto 10px;padding:0 16px;max-width:520px;text-align:center;' +
         'font-size:11px;line-height:1.45;font-weight:400;letter-spacing:.2px;color:inherit;opacity:.42;' +
         '-webkit-user-select:none;user-select:none;pointer-events:none;background:none;border:0;box-shadow:none}' +
-        '.mp-credito .mp-credito-sep{margin:0 6px}.mp-credito a{color:inherit;text-decoration:underline;pointer-events:auto;padding:6px 2px}' +
+        '.mp-credito .mp-credito-sep{margin:0 6px}.mp-credito-txt,.mp-credito a{white-space:nowrap}.mp-credito a{color:inherit;text-decoration:underline;pointer-events:auto;padding:6px 2px}' +
         '.chat-contacts-pane .mp-credito{margin:18px auto 12px}' +
         'body.chat-thread-open .mp-credito,#chamada-tela .mp-credito{display:none!important}' +
         '.lp-foot .mp-credito{margin:14px auto 0;opacity:.55}';
