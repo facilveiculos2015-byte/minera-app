@@ -623,7 +623,7 @@ async function sincronizarConversa() {
     } catch (e) { /* offline: tenta no próximo ciclo */ } finally { syncando = false; }
 }
 
-/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261009q). */
+/** Botão ↻ do topo: recarrega as mensagens da conversa aberta sem sair da tela (build 20261009s). */
 let atualizandoManual = false, atualizarOkT = null;
 async function atualizarConversaManual() {
     const btn = $('btn-chat-atualizar');
@@ -1085,7 +1085,7 @@ function tecladoMobile() { return !!(window.matchMedia && window.matchMedia('(po
 /* ============================ áudio estilo WhatsApp ============================ */
 // Segurar = grava enquanto segura (solta envia; deslize ← ou "Cancelar" descarta).
 // Segurar e arrastar ↑ = trava (barra com Cancelar e ➤ enviar). Nunca trava sozinho.
-// 20261009q: o microfone fica aberto SÓ durante a gravação e é solto na hora (enviar, cancelar,
+// 20261009s: o microfone fica aberto SÓ durante a gravação e é solto na hora (enviar, cancelar,
 // erro, sair da conversa/tela) — sem indicador laranja do iPhone depois do envio.
 // Onda ao vivo pelo nível do microfone (ChatAudio.visualizar); os níveis viram os picos da mensagem.
 let gravando = false, mediaRecorder = null, audioChunks = [], audioTimerInterval = null, audioSeconds = 0;
@@ -1143,7 +1143,7 @@ function onRecordingReady(blob) {
     enviarAudioGravado(file, audioPicos, dur);
 }
 let audioRecDur = 0;
-// Antes (20261009q) o stream ficava aberto entre gravações com a trilha "desligada" (enabled=false)
+// Antes (20261009s) o stream ficava aberto entre gravações com a trilha "desligada" (enabled=false)
 // para não pedir permissão de novo: no iPhone isso mantinha o indicador laranja do mic aceso até
 // sair do chat, e um stream aberto quando o app é suspenso faz o iOS perguntar a permissão de novo.
 // Agora: nenhum stream fica guardado. A permissão continua sendo reaproveitada pelo próprio WebKit

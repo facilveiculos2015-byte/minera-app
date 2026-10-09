@@ -3,7 +3,7 @@
  * Mesmas defesas contra cache HTTP do app: HTML e version.json sempre da rede (no-store),
  * JS/CSS/imagens revalidados (no-cache). Não recebe Web Push (os avisos do chat vão pelo app/Chat Minera).
  */
-const CACHE = 'minera-gestor-20261009q';
+const CACHE = 'minera-gestor-20261009s';
 
 function isHtmlRequest(req) {
   if (req.mode === 'navigate' || req.destination === 'document') return true;

@@ -201,7 +201,7 @@
 
     /* ---------------- tela ---------------- */
     var CSS = '' +
-        '.ch-tela,.ch-trava{--ch-amarelo:#F5A623;--ch-escuro:#1a1205}' +
+        '.ch-tela{--ch-amarelo:#F5A623;--ch-escuro:#1a1205}' +
         '.ch-tela{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:space-between;' +
         'padding:calc(28px + env(safe-area-inset-top)) 20px calc(34px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#2b1f08 0%,#0f0c06 72%);color:#fbf6ec;font-family:inherit;text-align:center}' +
         '.ch-tela.oculto{display:none}' +
@@ -220,20 +220,10 @@
         '.ch-b.ch-verm .ch-c{background:#e5484d;color:#fff}.ch-b.ch-amarelo .ch-c{background:var(--ch-amarelo);color:var(--ch-escuro)}' +
         '.ch-b svg{width:30px;height:30px}' +
         '.ch-b .ch-l{max-width:98px;line-height:1.2}' +
-        '.ch-tela .ch-b,.ch-tela .ch-b:hover,.ch-tela .ch-b:active{background:none;box-shadow:none;padding:0;border-radius:0}.ch-tela .ch-travar:hover{background:rgba(255,255,255,.1)}' +
+        '.ch-tela .ch-b,.ch-tela .ch-b:hover,.ch-tela .ch-b:active{background:none;box-shadow:none;padding:0;border-radius:0}' +
         '.ch-tela[data-papel=entrada][data-fase=tocando] .ch-acoes{display:none}' +
         '.ch-tela:not([data-fase=tocando]) .ch-entrada,.ch-tela[data-papel=saida] .ch-entrada{display:none}' +
         '.ch-tela[data-fase=fim] .ch-acoes{opacity:.35;pointer-events:none}' +
-        '.ch-travar{margin-top:14px;background:rgba(255,255,255,.1);color:inherit;border:0;border-radius:18px;padding:8px 16px;font:inherit;font-size:14px;display:none}' +
-        '.ch-tela[data-fase=conectada] .ch-travar{display:inline-block}' +
-        '.ch-trava{position:fixed;inset:0;z-index:2147483600;background:#000;color:#b5a88f;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;' +
-        'padding:0 22px calc(48px + env(safe-area-inset-bottom));touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:contain}' +
-        '.ch-trava.oculto{display:none}.ch-trava-meio{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin-top:32vh}' +
-        '.ch-trava-t{font-size:15px;opacity:.7}.ch-trava-cron{font-size:34px;color:#f1d9a6;font-variant-numeric:tabular-nums}.ch-trava-nome{font-size:14px;opacity:.55}' +
-        '.ch-trava-trilho{position:relative;width:min(88vw,340px);height:62px;border-radius:31px;background:rgba(255,255,255,.08);display:flex;align-items:center}' +
-        '.ch-trava-dica{position:absolute;left:0;right:0;text-align:center;font-size:14px;opacity:.6;pointer-events:none}' +
-        '.ch-trava-trilho.segurando{background:rgba(245,166,35,.22);transition:background 1.5s}' +
-        '.ch-trava-alca{position:relative;z-index:1;margin-left:4px;width:54px;height:54px;border-radius:50%;background:var(--ch-amarelo);color:var(--ch-escuro);display:flex;align-items:center;justify-content:center;font-size:24px;touch-action:none;cursor:grab}' +
         '.ch-saida{margin-top:10px;font-size:13px;opacity:.75;max-width:86vw;min-height:1em}.ch-tela[data-fase=tocando] .ch-saida{display:none}' +
         '.bubble.bubble-chamada{align-self:center;max-width:86%;margin:6px auto;padding:7px 14px;border-radius:16px;background:rgba(127,127,127,.14);color:inherit;font-size:13.5px;display:flex;gap:8px;align-items:center;cursor:pointer;box-shadow:none}' +
         '.bubble.bubble-chamada::before,.bubble.bubble-chamada::after{display:none!important}' +
@@ -254,7 +244,7 @@
         d.id = 'chamada-tela'; d.className = 'ch-tela oculto'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', 'Ligação de voz');
         d.innerHTML =
             '<div class="ch-topo">🔒 Ligação de voz · criptografada</div>' +
-            '<div class="ch-meio"><div class="ch-av" id="ch-av">?</div><div class="ch-nome" id="ch-nome">—</div><div class="ch-status" id="ch-status" aria-live="polite"></div><div class="ch-saida" id="ch-saida">🔊 Ligação em viva-voz</div><button type="button" class="ch-travar" id="ch-btn-travar">🔒 Travar tela</button></div>' +
+            '<div class="ch-meio"><div class="ch-av" id="ch-av">?</div><div class="ch-nome" id="ch-nome">—</div><div class="ch-status" id="ch-status" aria-live="polite"></div><div class="ch-saida" id="ch-saida">🔊 Ligação em viva-voz</div></div>' +
             '<div style="width:100%">' +
             '<div class="ch-acoes">' +
             '<button type="button" class="ch-b" id="ch-btn-mudo" aria-pressed="false" aria-label="Silenciar microfone"><span class="ch-c">' + IC.mic + '</span><span class="ch-l">Silenciar microfone</span></button>' +
@@ -271,7 +261,6 @@
         $('ch-btn-atender').addEventListener('click', atender);
         $('ch-btn-mudo').addEventListener('click', alternarMudo);
         $('ch-btn-som').addEventListener('click', alternarSom);
-        $('ch-btn-travar').addEventListener('click', function () { travar('botão'); });
         return d;
     }
     function tela(fase, status) {
@@ -470,7 +459,6 @@
         tela('conectada', fmt((Date.now() - C.conectadaEm) / 1000));
         limparMediaSession();
         manterTelaAcesa(true);
-        travaAgendar();
     }
     function caiu(falhou) {
         if (!C || C.fim || !C.conectadaEm && !falhou) return;
@@ -666,72 +654,13 @@
         try { if (c.ch && sb()) sb().removeChannel(c.ch); } catch (e) { /* ignore */ }
         c.ch = null;
         guardaSaida(false);
-        travaFim();
+        manterTelaAcesa(false);
         if (texto) { tela('fim', texto); if (!/Ocupado/.test(texto)) tocar('fim'); }
         setTimeout(function () { if (!C || C === c) descartarSom(); }, Math.max(3500, (msTela || 1200) + 600));
         setTimeout(function () { if (C === c) { C = null; esconderTela(); } }, msTela || 1200);
         if (!texto) { C = null; setTimeout(function () { if (!C) esconderTela(); }, msTela || 0); }
     }
 
-    /* ---------------- trava de bolso (sem sensor de proximidade na web) ----------------
-     * Ligação conectada + tela de toque: 3 s sem tocar → tela preta que engole todo toque.
-     * Destrava só de propósito: arrastar a alça até o fim OU segurar a alça 1,5 s.
-     * Ligação é sempre em viva-voz; a trava evita toques acidentais de mão/orelha. Botão "Travar tela" trava na hora.
-     * Obs.: o indicador de microfone do iOS (Dynamic Island, topo) é do sistema — nenhum site consegue bloquear;
-     * por isso o topo da trava fica vazio. */
-    var TRAVA_MS = 3000, TRAVA_SEGURAR_MS = 1500;
-    function telaDeToque() { return IOS || (navigator.maxTouchPoints || 0) > 0 || ('ontouchstart' in window); }
-    function travaEl() {
-        var t = $('ch-trava'); if (t) return t;
-        t = document.createElement('div'); t.id = 'ch-trava'; t.className = 'ch-trava oculto'; t.setAttribute('role', 'dialog'); t.setAttribute('aria-label', 'Tela travada');
-        t.innerHTML = '<div class="ch-trava-meio"><div class="ch-trava-t">🔒 Tela travada</div><div class="ch-trava-cron" id="ch-trava-cron">0:00</div><div class="ch-trava-nome" id="ch-trava-nome"></div></div>' +
-            '<div class="ch-trava-trilho" id="ch-trava-trilho"><span class="ch-trava-dica">deslize para destravar  →</span><div class="ch-trava-alca" id="ch-trava-alca" aria-label="Destravar">🔓</div></div>';
-        document.body.appendChild(t);
-        // engole TUDO (toque, clique, arrasto, zoom, menu) fora da alça
-        var engole = function (e) { if (e.target && e.target.id === 'ch-trava-alca') return; e.preventDefault(); e.stopPropagation(); };
-        ['touchstart', 'touchmove', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu', 'gesturestart', 'wheel'].forEach(function (ev) { t.addEventListener(ev, engole, { capture: true, passive: false }); });
-        var alca = $('ch-trava-alca'), trilho = $('ch-trava-trilho'), x0 = 0, dx = 0, segT = null, ativo = false;
-        var max = function () { return Math.max(40, trilho.clientWidth - alca.offsetWidth - 8); };
-        var volta = function () { ativo = false; clearTimeout(segT); alca.style.transition = 'transform .2s'; alca.style.transform = 'translateX(0)'; trilho.classList.remove('segurando'); };
-        alca.addEventListener('pointerdown', function (e) {
-            e.preventDefault(); e.stopPropagation(); ativo = true; x0 = e.clientX; dx = 0; alca.style.transition = 'none';
-            try { alca.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
-            trilho.classList.add('segurando');
-            clearTimeout(segT); segT = setTimeout(function () { if (ativo && Math.abs(dx) < 12) { volta(); destravar2('segurou'); } }, TRAVA_SEGURAR_MS);
-        });
-        alca.addEventListener('pointermove', function (e) {
-            if (!ativo) return; e.preventDefault(); e.stopPropagation();
-            dx = Math.max(0, Math.min(max(), e.clientX - x0)); alca.style.transform = 'translateX(' + dx + 'px)';
-            if (dx > 12) { clearTimeout(segT); trilho.classList.remove('segurando'); }
-        });
-        var solta = function (e) { if (!ativo) return; e.preventDefault(); e.stopPropagation(); var ok = dx >= max() * 0.85; volta(); if (ok) destravar2('deslizou'); };
-        alca.addEventListener('pointerup', solta); alca.addEventListener('pointercancel', function () { volta(); });
-        ['touchstart', 'touchmove', 'touchend', 'click'].forEach(function (ev) { alca.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); }, { passive: false }); });
-        return t;
-    }
-    function travada() { var t = $('ch-trava'); return !!(t && !t.classList.contains('oculto')); }
-    function travar(motivo) {
-        if (!C || C.fim) return;
-        var t = travaEl(); clearTimer('trava');
-        $('ch-trava-nome').textContent = C.peerNome || '';
-        $('ch-trava-cron').textContent = C.conectadaEm ? fmt((Date.now() - C.conectadaEm) / 1000) : '';
-        t.classList.remove('oculto'); C.travas = (C.travas || 0) + 1; log('trava', motivo);
-        timer('travaCron', function () { if (C && C.conectadaEm && travada()) $('ch-trava-cron').textContent = fmt((Date.now() - C.conectadaEm) / 1000); }, 1000, true);
-    }
-    function destravar2(como) {
-        var t = $('ch-trava'); if (t) t.classList.add('oculto');
-        clearTimer('travaCron'); log('destrava', como);
-        if (C) C.destravas = (C.destravas || 0) + 1;
-        travaAgendar();
-    }
-    function travaAgendar() {
-        clearTimer('trava');
-        if (!C || C.fim || C.fase !== 'conectada' || travada() || !telaDeToque()) return;
-        timer('trava', function () { if (C && !C.fim && C.fase === 'conectada' && telaDeToque()) travar('3s sem toque'); }, TRAVA_MS);
-    }
-    function travaFim() { clearTimer('trava'); clearTimer('travaCron'); var t = $('ch-trava'); if (t) t.classList.add('oculto'); manterTelaAcesa(false); }
-    // qualquer toque na tela da ligação adia a trava
-    document.addEventListener('pointerdown', function (e) { if (C && !C.fim && !travada() && e.target && e.target.closest && e.target.closest('#chamada-tela')) travaAgendar(); }, true);
     // Wake Lock pode falhar se a página ainda não estava visível ao conectar → tenta de novo a cada toque na ligação
     document.addEventListener('pointerdown', function () { if (C && !C.fim && C.fase === 'conectada' && !wake) manterTelaAcesa(true); }, true);
 
@@ -893,7 +822,7 @@
                 toque: { tipo: somTipo, tocando: !!(somEl && !somEl.paused && somEl.src) },
                 somMudo: !!(C && C.somMudo), audioMudo: (function () { var v = document.getElementById('chamada-audio'); return v ? v.muted : null; })(),
                 ios: IOS,
-                travada: travada(), travas: C ? (C.travas || 0) : 0, destravas: C ? (C.destravas || 0) : 0, telaAcesa: !!wake,
+                travaNoDom: !!document.getElementById('ch-trava') || !!document.getElementById('ch-btn-travar'), telaAcesa: !!wake,
                 somEl: somEl ? { dur: somEl.duration, loop: somEl.loop, src: !!somEl.getAttribute('src') } : null,
                 audiosNoDom: document.querySelectorAll('audio').length,
                 mediaSession: navigator.mediaSession ? { meta: navigator.mediaSession.metadata, estado: navigator.mediaSession.playbackState } : null,

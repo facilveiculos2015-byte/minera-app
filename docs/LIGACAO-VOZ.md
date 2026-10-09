@@ -92,3 +92,6 @@ Correção (chamada.js):
 - **Card "Apoie o Minera Pará" (Pix)**: novo botão "Não mostrar novamente" → grava `minera_apoio_nunca_<auth_id>` no aparelho e `user_metadata.minera_apoio_nunca=true` na conta (vale em outro aparelho/reinstalação). "Agora não"/✕ mantêm o comportamento anterior. A lógica está no nav.js, carregado no app principal, Chat Minera e Gestor (o card só aparece nas páginas do app principal).
 
 Testes: `qa2/chamada/chamada.js` (cenário 8 = trava de bolso + tela de bloqueio) e `qa2/apoio/apoio.js` (7/7).
+
+## 20261009r — Trava de bolso REMOVIDA (decisão do dono)
+Sai por completo: trava automática após 3 s, botão "Travar tela", camada preta e alça de destravar. Continua: viva-voz sempre, 3 botões (Silenciar microfone / Desligar / Silenciar som), tema amarelo, sem player na tela de bloqueio, card Pix com "Não mostrar novamente". O Wake Lock (tela não apaga sozinha durante a ligação) foi mantido: é inofensivo (só pede para a tela ficar acesa enquanto a ligação está conectada, é solto ao desligar; onde não existe é ignorado) e evita que o iPhone apague a tela e pause o microfone do app web. Testes: qa2/chamada 77/77, qa2/apoio 7/7.
