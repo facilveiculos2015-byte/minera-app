@@ -13,7 +13,7 @@
     var css = '.mp-credito{display:block;margin:28px auto 10px;padding:0 16px;max-width:520px;text-align:center;' +
         'font-size:11px;line-height:1.45;font-weight:400;letter-spacing:.2px;color:inherit;opacity:.42;' +
         '-webkit-user-select:none;user-select:none;pointer-events:none;background:none;border:0;box-shadow:none}' +
-        '.mp-credito .mp-credito-sep{margin:0 6px}.mp-credito-txt,.mp-credito a{white-space:nowrap}.mp-credito a{color:inherit;text-decoration:underline;pointer-events:auto;padding:6px 2px}' +
+        '.mp-credito .mp-credito-sep{margin:0 6px}.mp-credito-txt,.mp-credito-termos{white-space:nowrap}.mp-credito a{color:inherit;text-decoration:underline;pointer-events:auto;padding:6px 2px}' +
         '.chat-contacts-pane .mp-credito{margin:18px auto 12px}' +
         'body.chat-thread-open .mp-credito,#chamada-tela .mp-credito{display:none!important}' +
         '.lp-foot .mp-credito{margin:14px auto 0;opacity:.55}';
@@ -36,7 +36,10 @@
         if (!/termos\.html$/.test(location.pathname)) {
             var sep = document.createElement('span'); sep.className = 'mp-credito-sep'; sep.textContent = '·'; sep.setAttribute('aria-hidden', 'true');
             var l = document.createElement('a'); l.href = TERMOS_URL; l.textContent = 'Termos de Uso';
-            p.appendChild(sep); p.appendChild(l);
+            // espaço = ponto de quebra: em tela estreita "· Termos de Uso" desce inteiro p/ a linha de baixo
+            var g = document.createElement('span'); g.className = 'mp-credito-termos';
+            g.appendChild(sep); g.appendChild(l);
+            p.appendChild(document.createTextNode(' ')); p.appendChild(g);
         }
     }
     function montar() {
