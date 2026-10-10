@@ -37,7 +37,7 @@ const TURNSTILE_SITEKEY = (MINERA_TESTE ? MINERA_TURNSTILE.teste : MINERA_TURNST
 
 const SUPABASE_URL = MINERA_DB_ATUAL.url;
 const SUPABASE_ANON_KEY = MINERA_DB_ATUAL.anon;
-/* ---- Relógio do aparelho errado (20261009zcb) ----
+/* ---- Relógio do aparelho errado (20261009zeb) ----
  * O Supabase devolve a sessão com expires_at = hora do SERVIDOR + 1 h. O supabase-js compara com Date.now() do
  * aparelho: celular com hora/fuso manual adiantado ~1 h (ex.: fuso de Manaus com a hora de Belém digitada à mão)
  * achava o token SEMPRE vencido → refresh a cada chamada (300 refresh em 11 min nos logs) → 429 do Supabase →

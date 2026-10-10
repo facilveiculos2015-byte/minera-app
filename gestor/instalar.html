@@ -9,14 +9,14 @@
     <base href="../">
     <script>window.MINERA_GESTOR_APP = true; window.MINERA_INSTALADOR = true;</script>
     <title>Gestor Minera na tela inicial</title>
-    <link rel="icon" type="image/png" href="gestor/icon-192.png?v=20261009zc">
-    <link rel="apple-touch-icon" href="gestor/apple-touch-icon.png?v=20261009zc">
+    <link rel="icon" type="image/png" href="gestor/icon-192.png?v=20261009ze">
+    <link rel="apple-touch-icon" href="gestor/apple-touch-icon.png?v=20261009ze">
     <link rel="manifest" href="gestor/manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Gestor Minera">
-    <link rel="stylesheet" href="style.css?v=20261009zc">
+    <link rel="stylesheet" href="style.css?v=20261009ze">
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
     <style>
         body.chat-instalar { min-height: 100dvh; display: flex; justify-content: center; padding: 0; }
@@ -48,7 +48,7 @@
 <body class="gestor-app chat-instalar">
     <main class="ci-wrap">
         <a class="ci-voltar" href="gestor.html" id="ci-voltar">← Voltar</a>
-        <img class="ci-ico" src="gestor/icon-192.png?v=20261009zc" alt="Ícone do Gestor Minera" width="104" height="104">
+        <img class="ci-ico" src="gestor/icon-192.png?v=20261009ze" alt="Ícone do Gestor Minera" width="104" height="104">
         <h1>Gestor na tela inicial</h1>
         <p class="ci-sub">Coloque o <strong>Gestor Minera</strong> na tela inicial do celular e abra o seu Gestor Financeiro num toque, sem abrir o site. É o mesmo gestor do Minera Pará: mesma conta, mesmos lançamentos.</p>
 
@@ -71,18 +71,24 @@
             <button type="button" class="ci-go ci-ja" id="ci-ja">Já coloquei na tela inicial ✓</button>
         </section>
         <section id="ci-fora" hidden>
-            <p class="ci-fora-txt">Você está dentro do app <strong>Minera Pará</strong> instalado. Para colocar o <strong>Gestor Minera</strong> na tela inicial, abra este endereço no navegador (<strong>Chrome</strong> no Android, <strong>Safari</strong> no iPhone):</p>
+            <p class="ci-fora-txt" id="ci-fora-txt">Você está dentro do app <strong>Minera Pará</strong> instalado. Para colocar o <strong>Gestor Minera</strong> na tela inicial, abra este endereço no navegador (<strong>Chrome</strong> no Android, <strong>Safari</strong> no iPhone):</p>
+            <ol class="ci-steps" id="ci-fora-passos" hidden style="margin-bottom:12px">
+                <li><span class="ci-n">1</span><span>Toque em <strong>Abrir no Chrome</strong> (o endereço já é copiado)</span></li>
+                <li><span class="ci-n">2</span><span>No Chrome, toque em <strong>Instalar</strong><br><small class="ci-hint" style="margin:0">ou no menu <strong>⋮</strong> → <strong>Instalar app</strong> / <strong>Adicionar à tela inicial</strong></small></span></li>
+                <li><span class="ci-n">3</span><span>Abra o <strong class="ci-nome">app novo</strong> pelo ícone e entre na sua conta</span></li>
+            </ol>
             <input type="text" class="ci-link" id="ci-link" readonly aria-label="Endereço do instalador">
             <a class="ci-go" id="ci-chrome" href="#" hidden style="margin-top:12px">Abrir no Chrome</a>
             <a class="ci-go" id="ci-safari" href="#" hidden style="margin-top:12px">Abrir no Safari</a>
             <button type="button" class="ci-abrir" id="ci-copiar">Copiar endereço</button>
             <p class="ci-hint" id="ci-fora-dica" hidden>Se o Safari não abriu sozinho: toque em <strong>Copiar endereço</strong>, abra o <strong>Safari</strong> e cole na barra de endereço.</p>
+            <p class="ci-hint" id="ci-fora-dica-android" hidden><strong>O Chrome não abriu?</strong> O endereço já está copiado: abra o app <strong>Chrome</strong> pelo ícone, toque na barra de endereço, cole e abra. Lá vai aparecer o botão <strong>Instalar</strong>.</p>
         </section>
 
         <a class="ci-abrir" id="ci-abrir" href="gestor/">Abrir gestor</a>
     </main>
-    <script src="pwa.js?v=20261009zc"></script>
-    <script src="app-atalho.js?v=20261009zc"></script>
+    <script src="pwa.js?v=20261009ze"></script>
+    <script src="app-atalho.js?v=20261009ze"></script>
     <script>
     (function instaladorApp() {
         // Mesmo instalador para o Chat Minera (/chat/) e o Gestor Minera (/gestor/, gerado por scripts/gestor-app-sync.mjs)
@@ -101,10 +107,15 @@
             At.marcar(APP.id);
         }
         function $(id) { return document.getElementById(id); }
-        var prompt = null, decidido = false;
+        var abrirTxt = ($('ci-abrir') || {}).textContent || '';
+        var prompt = null, decidido = false, emFora = false, bipCedo = null;
+        // beforeinstallprompt = prova de que ESTA janela consegue instalar (aba normal do Chrome/Samsung Internet).
+        // Mesmo se a detecção achar que está "dentro do app" (referrer/marca herdada do app Android), o botão Instalar aparece.
+        window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); bipCedo = e; if (emFora) virarInstalavel(); });
         var ua = navigator.userAgent || '';
         var ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         var android = /Android/i.test(ua);
+        var samsung = /SamsungBrowser/i.test(ua);
         var standalone = (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches)) || navigator.standalone === true;
         var janela = At.janela(); // app instalado desta janela: '' / 'main' (Minera Pará) / 'chat' / 'gestor'
         if (!standalone && janela === 'main' && window.MineraPwa && MineraPwa.isTwa && MineraPwa.isTwa()) standalone = true;
@@ -159,8 +170,16 @@
             function abrirNavegador() {
                 if (!naveg) return;
                 saiu = false;
-                setTimeout(function () { if (!saiu) mostrar('ci-fora-dica', true); }, 2500);
+                setTimeout(function () { if (!saiu) mostrar(android ? 'ci-fora-dica-android' : 'ci-fora-dica', true); }, 2500);
                 location.href = naveg;
+            }
+            function copiar(cb) {
+                var feito = false, b = $('ci-copiar');
+                function ok() { if (feito) return; feito = true; b.textContent = '✓ Endereço copiado'; b.classList.add('ci-copiado'); if (cb) cb(); }
+                try { $('ci-link').select(); if (document.execCommand('copy')) ok(); } catch (e) { /* ignore */ }
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, function () { /* já tentou execCommand */ });
+                } catch (e) { /* ignore */ }
             }
             if (ios) {
                 // botão principal leva ao Safari (o "Abrir gestor/chat" daqui ficaria preso dentro do app)
@@ -169,21 +188,25 @@
                 $('ci-abrir').hidden = true;
                 $('ci-copiar').textContent = 'Copiar endereço e abrir o Safari';
             } else if (android) {
+                // Android: passo a passo; "Abrir no Chrome" copia o endereço e tenta abrir uma aba do Chrome
+                // (dentro do app Android/WebAPK o Chrome às vezes reabre o próprio app → a dica de colar aparece)
+                $('ci-fora-txt').innerHTML = 'Você está dentro do app <strong>Minera Pará</strong>. O Android só instala o <strong>' + APP.nome + '</strong> a partir do <strong>Chrome</strong>:';
+                [].forEach.call(document.querySelectorAll('.ci-nome'), function (el) { el.textContent = APP.nome; });
+                mostrar('ci-fora-passos', true);
                 var ch = $('ci-chrome');
                 ch.href = naveg;
                 ch.hidden = false;
+                ch.addEventListener('click', function (e) { e.preventDefault(); copiar(); abrirNavegador(); });
+                $('ci-abrir').textContent = 'Agora não — abrir aqui mesmo';
             }
             $('ci-copiar').addEventListener('click', function () {
-                var b = this, feito = false;
-                function ok() { if (feito) return; feito = true; b.textContent = '✓ Endereço copiado'; b.classList.add('ci-copiado'); }
-                try { $('ci-link').select(); if (document.execCommand('copy')) ok(); } catch (e) { /* ignore */ }
-                try {
-                    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, function () { /* já tentou execCommand */ });
-                } catch (e) { /* ignore */ }
+                copiar();
                 // iPhone: copiou → já abre o Safari (não depende da resposta da área de transferência)
                 if (ios) setTimeout(abrirNavegador, 300);
             });
             mostrar('ci-fora', true);
+            emFora = true;
+            if (bipCedo) virarInstalavel();
             return;
         }
         if (standalone) { marcarInstalado(); pronto('✓ Você já está no ' + APP.nome + '.'); return; }
@@ -196,8 +219,17 @@
             $('ci-ja').addEventListener('click', function () { marcarInstalado(); pronto('✓ Combinado! O ' + APP.nome + ' está na sua tela inicial.'); });
             return;
         }
+        function virarInstalavel() {
+            // estava no modo "dentro do app", mas esta aba instala de verdade: troca para o botão Instalar
+            emFora = false;
+            mostrar('ci-fora', false); $('ci-abrir').hidden = false; $('ci-abrir').textContent = abrirTxt;
+            iniciarAndroid();
+        }
+        var androidIniciado = false;
+        function iniciarAndroid() {
+        if (androidIniciado) return; androidIniciado = true;
         mostrar('ci-android', true);
-        window.addEventListener('beforeinstallprompt', function (e) {
+        function aoPrompt(e) {
             e.preventDefault();
             prompt = e; decidido = true;
             try { localStorage.removeItem(K); } catch (e2) { /* ignore */ }
@@ -205,7 +237,9 @@
             mostrar('ci-pronto', false); mostrar('ci-android', true); mostrar('ci-android-dica', false);
             var b = $('ci-instalar'); b.hidden = false; b.disabled = false; b.textContent = 'Instalar';
             abrirPrimario(false);
-        });
+        }
+        window.addEventListener('beforeinstallprompt', aoPrompt);
+        if (bipCedo) aoPrompt(bipCedo);
         window.addEventListener('appinstalled', function () {
             marcarInstalado();
             prompt = null;
@@ -234,6 +268,9 @@
             if (marca) pronto();
         });
         setTimeout(function () { if (!prompt && !decidido) semSuporte(); }, 3500);
+        }
+        if (samsung) $('ci-android-dica').innerHTML = 'Se o botão Instalar não aparecer: no <strong>Samsung Internet</strong>, toque em <strong>≡</strong> e depois em <strong>Adicionar página a</strong> → <strong>Tela inicial</strong>. Ou abra no <strong>Chrome</strong>.';
+        iniciarAndroid();
     })();
     </script>
 </body>
