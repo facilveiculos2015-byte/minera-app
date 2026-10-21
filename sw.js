@@ -5,21 +5,21 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261021a';
+const CACHE = 'minera-shell-20261021b';
 const PRECACHE = [
-  './style.css?v=20261021a',
-  './chat-realtime.js?v=20261021a',
-  './avatar.js?v=20261021a',
-  './avatar-editor.js?v=20261021a',
-  './nav.js?v=20261021a',
-  './config.js?v=20261021a',
-  './seguranca.js?v=20261021a',
-  './pwa.js?v=20261021a',
-  './credito.js?v=20261021a',
-  './lightbox.js?v=20261021a',
-  './gestor.css?v=20261021a',
-  './gestor-calc.js?v=20261021a',
-  './gestor.js?v=20261021a',
+  './style.css?v=20261021b',
+  './chat-realtime.js?v=20261021b',
+  './avatar.js?v=20261021b',
+  './avatar-editor.js?v=20261021b',
+  './nav.js?v=20261021b',
+  './config.js?v=20261021b',
+  './seguranca.js?v=20261021b',
+  './pwa.js?v=20261021b',
+  './credito.js?v=20261021b',
+  './lightbox.js?v=20261021b',
+  './gestor.css?v=20261021b',
+  './gestor-calc.js?v=20261021b',
+  './gestor.js?v=20261021b',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -72,7 +72,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE && !k.startsWith('mbanco-')).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -172,7 +172,7 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       // janelas do Chat Minera (/chat/, app instalado à parte) têm o próprio SW: não navega elas para o app completo
-      const same = list.filter((c) => c.url && c.url.indexOf(scope) === 0 && c.url.indexOf(scope + 'chat/') !== 0 && c.url.indexOf(scope + 'gestor/') !== 0);
+      const same = list.filter((c) => c.url && c.url.indexOf(scope) === 0 && c.url.indexOf(scope + 'chat/') !== 0 && c.url.indexOf(scope + 'gestor/') !== 0 && c.url.indexOf(scope + 'banco/') !== 0);
       const cli = same.find((c) => c.focused) || same[0];
       if (cli) {
         const nav = ('navigate' in cli) ? cli.navigate(target).catch(() => cli) : Promise.resolve(cli);
