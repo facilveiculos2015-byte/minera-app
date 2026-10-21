@@ -6,14 +6,14 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Perfil</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261009ze">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261009ze">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261021a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261021a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261009ze">
+    <link rel="stylesheet" href="style.css?v=20261021a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -61,6 +61,16 @@
                 <a class="btn-ok" href="gestor.html#nova-carrada">🚛 Nova carrada</a>
                 <a class="btn-ok" href="gestor.html#nova-despesa">➖ Nova despesa</a>
                 <a class="gestor-abrir" href="gestor.html">Abrir gestor ›</a>
+            </div>
+        </section>
+
+        <!-- 🏦 MineraBank (app próprio em /banco/, login próprio; opt-in na tela inicial como o Chat/Gestor Minera) -->
+        <section class="card card-gestor card-minerabank" id="card-minerabank" aria-labelledby="minerabank-titulo">
+            <h2 id="minerabank-titulo">🏦 MineraBank</h2>
+            <p class="sub">Sua conta digital MineraBank: Pix, cartão, extrato e mais. O banco tem login próprio (cadastro e senha do MineraBank).</p>
+            <div class="gestor-acoes">
+                <a class="btn-ok" href="banco/" id="btn-abrir-minerabank">Abrir MineraBank</a>
+                <a class="app-atalho-btn gf-atalho" data-app-atalho="banco" href="banco/instalar.html" hidden>📲 Colocar o MineraBank na tela inicial</a>
             </div>
         </section>
 
@@ -228,20 +238,21 @@
         </section>
 
     </div>
-    <script src="config.js?v=20261009ze"></script>
-    <script src="captcha.js?v=20261009ze"></script>
-    <script src="seguranca.js?v=20261009ze"></script>
-    <script src="auth-guard.js?v=20261009ze"></script>
-    <script src="suporte.js?v=20261009ze"></script>
-    <script src="chat-realtime.js?v=20261009ze"></script>
-    <script src="avatar.js?v=20261009ze"></script>
-    <script src="nav.js?v=20261009ze"></script>
-    <script src="chat-trava.js?v=20261009ze"></script>
-    <script src="pix-brcode.js?v=20261009ze"></script>
-    <script src="anuncios-acoes.js?v=20261009ze"></script>
-    <script src="avatar-editor.js?v=20261009ze"></script>
-    <script src="banners.js?v=20261009ze"></script>
-    <script src="perfil.js?v=20261009ze"></script>
-    <script src="pwa.js?v=20261009ze"></script>
+    <script src="config.js?v=20261021a"></script>
+    <script src="captcha.js?v=20261021a"></script>
+    <script src="seguranca.js?v=20261021a"></script>
+    <script src="auth-guard.js?v=20261021a"></script>
+    <script src="suporte.js?v=20261021a"></script>
+    <script src="chat-realtime.js?v=20261021a"></script>
+    <script src="avatar.js?v=20261021a"></script>
+    <script src="nav.js?v=20261021a"></script>
+    <script src="chat-trava.js?v=20261021a"></script>
+    <script src="pix-brcode.js?v=20261021a"></script>
+    <script src="anuncios-acoes.js?v=20261021a"></script>
+    <script src="avatar-editor.js?v=20261021a"></script>
+    <script src="banners.js?v=20261021a"></script>
+    <script src="perfil.js?v=20261021a"></script>
+    <script src="pwa.js?v=20261021a"></script>
+    <script src="app-atalho.js?v=20261021a"></script>
 </body>
 </html>
