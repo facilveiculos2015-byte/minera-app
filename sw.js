@@ -5,21 +5,21 @@
  *  - JS/CSS/demais: cache 'no-cache' (revalida com ETag → atualiza na hora)
  *  - version.json: nunca cacheado (checagem de build do pwa.js)
  */
-const CACHE = 'minera-shell-20261021b';
+const CACHE = 'minera-shell-20261029a';
 const PRECACHE = [
-  './style.css?v=20261021b',
-  './chat-realtime.js?v=20261021b',
-  './avatar.js?v=20261021b',
-  './avatar-editor.js?v=20261021b',
-  './nav.js?v=20261021b',
-  './config.js?v=20261021b',
-  './seguranca.js?v=20261021b',
-  './pwa.js?v=20261021b',
-  './credito.js?v=20261021b',
-  './lightbox.js?v=20261021b',
-  './gestor.css?v=20261021b',
-  './gestor-calc.js?v=20261021b',
-  './gestor.js?v=20261021b',
+  './style.css?v=20261029a',
+  './chat-realtime.js?v=20261029a',
+  './avatar.js?v=20261029a',
+  './avatar-editor.js?v=20261029a',
+  './nav.js?v=20261029a',
+  './config.js?v=20261029a',
+  './seguranca.js?v=20261029a',
+  './pwa.js?v=20261029a',
+  './credito.js?v=20261029a',
+  './lightbox.js?v=20261029a',
+  './gestor.css?v=20261029a',
+  './gestor-calc.js?v=20261029a',
+  './gestor.js?v=20261029a',
   './logo-escavadeira.png',
   './icon-192.png',
   './icon-512.png',
@@ -72,7 +72,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE && !k.startsWith('mbanco-')).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });

@@ -1,4 +1,4 @@
-/* Gestor financeiro (só anotação — NÃO é o Minera Bank).
+/* Gestor financeiro (só anotação; não movimenta dinheiro).
  * Carradas (lucro por carrada) + despesas c/ foto de comprovante.
  * Offline: cache em localStorage + fila (outbox) de upserts por id gerado no celular;
  * fotos pendentes ficam no IndexedDB até subir p/ o bucket privado gestor-docs/{uid}/. */

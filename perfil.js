@@ -870,7 +870,7 @@ function bindSeguranca(session) {
         } finally { btn.disabled = false; if (capSeg) capSeg.sincronizar(); }
     });
 
-    // 2) senha do Banco (Minera Bank / caixa_saldos.pin_hash) — exige a atual
+    // 2) senha do Banco (caixa_saldos.pin_hash; formulário retirado) — exige a atual
     const fB = document.getElementById('form-seg-banco');
     if (fB) fB.addEventListener('submit', async (ev) => {
         ev.preventDefault();

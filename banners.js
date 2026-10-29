@@ -263,18 +263,18 @@
             document.dispatchEvent(new CustomEvent('minera:banners-mudou'));
             fechar();
         });
-        // Pagar com saldo do Banco (SQL 57) — só aparece se o saldo cobre o valor
+        // Pagar com saldo (SQL 57) — só aparece se o saldo cobre o valor
         try {
             const meu = await uid();
             const sr = meu ? await sb().from('caixa_saldos').select('saldo').eq('auth_id', meu).maybeSingle() : null;
             const saldo = sr && !sr.error && sr.data ? Number(sr.data.saldo) || 0 : 0;
             const sbx = $('bp-saldo-box');
             if (sbx && m.isConnected && saldo + 1e-9 >= valor && !b.comprovante_em) {
-                sbx.innerHTML = '<button type="button" class="btn-ok bp-pagar-saldo" id="bp-pagar-saldo">💳 Pagar com saldo do Banco (' + esc(brl(saldo)) + ')</button>' +
+                sbx.innerHTML = '<button type="button" class="btn-ok bp-pagar-saldo" id="bp-pagar-saldo">💳 Pagar com saldo (' + esc(brl(saldo)) + ')</button>' +
                     '<p class="bp-sub" style="text-align:center">ou pague por Pix abaixo</p>';
                 $('bp-pagar-saldo').addEventListener('click', async (ev) => {
                     const bt = ev.currentTarget;
-                    if (!confirm('Pagar ' + brl(valor) + ' do saldo do Banco pelo banner #' + b.id + '?')) return;
+                    if (!confirm('Pagar ' + brl(valor) + ' do saldo pelo banner #' + b.id + '?')) return;
                     bt.disabled = true;
                     const r = await sb().rpc('banner_pagar_com_saldo', { p_id: b.id });
                     if (r.error) { bt.disabled = false; $('bp-msg').textContent = r.error.message; return; }

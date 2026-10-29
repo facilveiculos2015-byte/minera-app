@@ -2063,7 +2063,7 @@ function bindBankFlagAdmin() {
                 by_auth_id: uid
             }]);
             if (e2) console.warn('bank log', e2);
-            setBankFlagMsg(enabled ? 'Minera Bank liberado.' : 'Minera Bank pausado para usuários.', true);
+            setBankFlagMsg(enabled ? 'Caixa interno liberado.' : 'Caixa interno pausado.', true);
             carregarBankFlagAdmin();
         } catch (e) {
             setBankFlagMsg((e.message || String(e)) + ' (SQL 35?)', false);
@@ -2211,7 +2211,7 @@ function buildGrokSystemContext() {
         'Contexto Minera Pará (admin)',
         'App: Minera Pará',
         'Tela admin atual: ' + screen,
-        'Minera Bank flag: ' + (bankOn ? 'ON' : 'OFF'),
+        'Caixa interno flag: ' + (bankOn ? 'ON' : 'OFF'),
         'Admin e-mail: ' + email,
         'Instrução do admin:',
         ((document.getElementById('grok-input') || {}).value || '').trim() || '(vazio)'

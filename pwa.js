@@ -8,12 +8,12 @@
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1');
 
-  var ASSET_V = '20261021b';
+  var ASSET_V = '20261029a';
   // Chat Minera (app só-chat instalável em /chat/): service worker e instalação próprios
   var CHAT_APP = window.MINERA_CHAT_APP === true;
   // Gestor Minera (app só-gestor instalável em /gestor/): idem, com o service worker do /gestor/
   var GESTOR_APP = window.MINERA_GESTOR_APP === true;
-  // MineraBank (app instalável em /banco/): service worker próprio do /banco/
+  // app antigo em /banco/ (retirado; sw.js lá só se desregistra): service worker próprio do /banco/
   var BANCO_APP = window.MINERA_BANCO_APP === true;
   var RELOAD_FLAG = 'minera_reloaded_' + ASSET_V;
 

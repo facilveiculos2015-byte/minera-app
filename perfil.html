@@ -6,14 +6,14 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Perfil</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261021b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261021b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261029a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261029a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261021b">
+    <link rel="stylesheet" href="style.css?v=20261029a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -52,10 +52,10 @@
             <div id="meus-anuncios-lista" class="loading" aria-live="polite">Carregando...</div>
         </section>
 
-        <!-- 📒 Gestor financeiro (só anotação; NÃO é o Minera Bank) → gestor.html -->
+        <!-- 📒 Gestor financeiro (só anotação) → gestor.html -->
         <section class="card card-gestor" id="card-gestor" aria-labelledby="gestor-titulo">
             <h2 id="gestor-titulo">📒 Gestor financeiro</h2>
-            <p class="sub">Anote suas carradas e despesas e veja o lucro de cada carrada. Só anotação — não mexe no seu dinheiro do Minera Bank.</p>
+            <p class="sub">Anote suas carradas e despesas e veja o lucro de cada carrada. Só anotação, para seu controle.</p>
             <p class="gestor-resumo oculto" id="gestor-resumo"></p>
             <div class="gestor-acoes">
                 <a class="btn-ok" href="gestor.html#nova-carrada">🚛 Nova carrada</a>
@@ -64,13 +64,12 @@
             </div>
         </section>
 
-        <!-- 🏦 MineraBank (app próprio em /banco/, login próprio; opt-in na tela inicial como o Chat/Gestor Minera) -->
-        <section class="card card-gestor card-minerabank" id="card-minerabank" aria-labelledby="minerabank-titulo">
-            <h2 id="minerabank-titulo">🏦 MineraBank</h2>
-            <p class="sub">Sua conta digital MineraBank: Pix, cartão, extrato e mais. O banco tem login próprio (cadastro e senha do MineraBank).</p>
+        <!-- 🤝 Parceira financeira: Cred Carajás (substitui o antigo banco interno) -->
+        <section class="card card-gestor card-parceiro" id="card-parceiro" aria-labelledby="parceiro-titulo">
+            <h2 id="parceiro-titulo"><img src="media/credcarajas-logo.png" alt="" width="28" height="28" style="vertical-align:middle;border-radius:7px"> Cred Carajás — parceira financeira</h2>
+            <p class="sub">Crédito e financiamento para mineradores e cooperativas, com análise da Cred Carajás.</p>
             <div class="gestor-acoes">
-                <a class="btn-ok" href="banco/" id="btn-abrir-minerabank">Abrir MineraBank</a>
-                <a class="app-atalho-btn gf-atalho" data-app-atalho="banco" href="banco/instalar.html" hidden>📲 Colocar o MineraBank na tela inicial</a>
+                <a class="btn-ok" href="parceiro.html" id="btn-abrir-parceiro">Conhecer a parceira</a>
             </div>
         </section>
 
@@ -108,7 +107,7 @@
                 <p id="perfil-msg" class="msg"></p>
             </section>
 
-            <!-- Segurança: senha do app, senha do Banco, outros aparelhos -->
+            <!-- Segurança: senha do app, outros aparelhos -->
             <section class="perfil-config-sec" id="card-seguranca">
                 <h2>Senhas e segurança</h2>
                 <p class="sub seg-aviso">Conta: <strong id="seg-conta-email" class="selecionavel">…</strong><br>Cada pessoa precisa do <b>próprio e-mail</b>. Quem souber sua senha entra como você, com sua foto e suas mensagens.</p>
@@ -124,19 +123,6 @@
                     <div id="cap-seg-senha" class="cap-host"></div>
                     <button type="submit" class="btn-ok seg-salvar" id="btn-seg-senha-salvar">Salvar nova senha</button>
                     <p id="seg-senha-msg" class="msg" role="status"></p>
-                </form>
-                <button type="button" class="seg-abrir" id="btn-seg-banco" aria-expanded="false" aria-controls="form-seg-banco"><span aria-hidden="true">🏦</span> Alterar senha do Banco <span class="seg-chev" aria-hidden="true">›</span></button>
-                <form id="form-seg-banco" class="seg-form oculto" novalidate>
-                    <p class="sub">É a senha que abre o Minera Bank (diferente da senha de login).</p>
-                    <label for="seg-banco-atual">Senha atual do Banco</label>
-                    <input type="password" id="seg-banco-atual" autocomplete="off" placeholder="Senha que você usa no Banco">
-                    <label for="seg-banco-nova">Nova senha do Banco</label>
-                    <input type="password" id="seg-banco-nova" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres">
-                    <label for="seg-banco-nova2">Repita a nova senha do Banco</label>
-                    <input type="password" id="seg-banco-nova2" autocomplete="new-password" minlength="6" placeholder="Igual à de cima">
-                    <button type="submit" class="btn-ok seg-salvar" id="btn-seg-banco-salvar">Salvar senha do Banco</button>
-                    <p id="seg-banco-msg" class="msg" role="status"></p>
-                    <a class="seg-link" href="financeiro.html#card-caixa">Esqueci a senha do Banco ›</a>
                 </form>
                 <button type="button" class="seg-abrir seg-perigo" id="btn-seg-outros"><span aria-hidden="true">📵</span> Desconectar os outros aparelhos</button>
                 <p id="seg-outros-msg" class="msg" role="status"></p>
@@ -238,21 +224,21 @@
         </section>
 
     </div>
-    <script src="config.js?v=20261021b"></script>
-    <script src="captcha.js?v=20261021b"></script>
-    <script src="seguranca.js?v=20261021b"></script>
-    <script src="auth-guard.js?v=20261021b"></script>
-    <script src="suporte.js?v=20261021b"></script>
-    <script src="chat-realtime.js?v=20261021b"></script>
-    <script src="avatar.js?v=20261021b"></script>
-    <script src="nav.js?v=20261021b"></script>
-    <script src="chat-trava.js?v=20261021b"></script>
-    <script src="pix-brcode.js?v=20261021b"></script>
-    <script src="anuncios-acoes.js?v=20261021b"></script>
-    <script src="avatar-editor.js?v=20261021b"></script>
-    <script src="banners.js?v=20261021b"></script>
-    <script src="perfil.js?v=20261021b"></script>
-    <script src="pwa.js?v=20261021b"></script>
-    <script src="app-atalho.js?v=20261021b"></script>
+    <script src="config.js?v=20261029a"></script>
+    <script src="captcha.js?v=20261029a"></script>
+    <script src="seguranca.js?v=20261029a"></script>
+    <script src="auth-guard.js?v=20261029a"></script>
+    <script src="suporte.js?v=20261029a"></script>
+    <script src="chat-realtime.js?v=20261029a"></script>
+    <script src="avatar.js?v=20261029a"></script>
+    <script src="nav.js?v=20261029a"></script>
+    <script src="chat-trava.js?v=20261029a"></script>
+    <script src="pix-brcode.js?v=20261029a"></script>
+    <script src="anuncios-acoes.js?v=20261029a"></script>
+    <script src="avatar-editor.js?v=20261029a"></script>
+    <script src="banners.js?v=20261029a"></script>
+    <script src="perfil.js?v=20261029a"></script>
+    <script src="pwa.js?v=20261029a"></script>
+    <script src="app-atalho.js?v=20261029a"></script>
 </body>
 </html>

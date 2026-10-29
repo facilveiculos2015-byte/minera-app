@@ -20,7 +20,7 @@ const FAQ_INTENTS = [
     {
         id: 'pix',
         keys: ['pix', 'pagamento', 'pagar', 'qr', 'comprovante', 'nubank', 'comissao pix', 'comissão pix'],
-        reply: '💠 **Pix** — A chave Pix do app fica no **Perfil** (QR / Copia e Cola). Use para a **vaquinha voluntária** (qualquer valor, sem obrigação) e para depósitos do Minera Bank (o admin confirma o crédito).'
+        reply: '💠 **Pix** — A chave Pix do app fica no **Perfil** (QR / Copia e Cola). Use para a **vaquinha voluntária** (qualquer valor, sem obrigação).'
     },
     {
         id: 'comissao',
@@ -30,7 +30,7 @@ const FAQ_INTENTS = [
     {
         id: 'caixa',
         keys: ['caixa', 'depositar', 'deposito', 'depósito', 'sacar', 'saque', 'emprestimo', 'empréstimo', 'saldo', 'yield', 'pin'],
-        reply: '🏦 **Minera Bank** — Ícone de banco no header. Você pode **depositar** (Pix + comprovante), **sacar** (informe chave destino) e solicitar **empréstimo** (análise do admin). Há PIN próprio do Caixa e yield configurável até 5% a.m. conforme cotação/config.'
+        reply: '🤝 **Cred Carajás** — Crédito e financiamento agora ficam com a nossa parceira financeira **Cred Carajás** (para mineradores e cooperativas, sujeito a análise). Toque em **Cred Carajás** na tela inicial ou no header.'
     },
     {
         id: 'chat',
@@ -764,7 +764,7 @@ async function montarCardFamilia(container, perfil, where) {
     return perfil;
 }
 
-/* ---------- Bônus de indicação (SQL 57): R$ 10 no Banco por amigo ---------- */
+/* ---------- Bônus de indicação (SQL 57): R$ 10 por amigo ---------- */
 async function renderBonusIndicacao() {
     const boxes = Array.from(document.querySelectorAll('.ib-box[data-ib]'));
     if (!boxes.length || typeof supabaseClient === 'undefined' || !supabaseClient) return null;
@@ -794,7 +794,7 @@ async function renderBonusIndicacao() {
         b.innerHTML = '<p class="ib-titulo">🎁 ' + suporteEsc(titulo) + '</p>' +
             (full
                 ? '<div class="ib-total"><span class="sub">Bônus recebido:</span><strong class="ib-total-val">' + suporteEsc(brl(r.total)) + '</strong></div>' +
-                  '<p class="sub">O bônus cai no saldo do seu Banco.</p>' +
+                  '<p class="sub">O bônus cai no seu saldo do app.</p>' +
                   '<p class="sub" style="margin-top:8px"><strong>Amigos convidados (' + amigos.length + ')</strong></p>' + lista
                 : '');
         b.hidden = false;

@@ -1094,7 +1094,7 @@ window.addEventListener('beforeunload', () => {
         btn._boundBanco = true;
         btn.addEventListener('click', () => {
             const root = (typeof APP_ROOT === 'string') ? APP_ROOT : '';
-            location.href = root + 'financeiro.html';
+            location.href = root + 'parceiro.html';
         });
     }
 })();

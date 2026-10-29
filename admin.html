@@ -6,14 +6,14 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Minera Pará - Admin</title>
-    <link rel="icon" type="image/png" href="icon-192.png?v=20261021b">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261021b">
+    <link rel="icon" type="image/png" href="icon-192.png?v=20261029a">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261029a">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F5A623">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Minera Pará">
-    <link rel="stylesheet" href="style.css?v=20261021b">
+    <link rel="stylesheet" href="style.css?v=20261029a">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>(function(){try{var t=localStorage.getItem('minera_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
@@ -37,7 +37,7 @@
             <button type="button" class="admin-tab" data-tab="usuarios" role="tab" aria-selected="false">Usuários</button>
             <button type="button" class="admin-tab" data-tab="chat" role="tab" aria-selected="false">Chat</button>
             <button type="button" class="admin-tab" data-tab="alertas" role="tab" aria-selected="false">Alertas <span class="badge badge-atrasado oculto" id="badge-admin-alertas">0</span></button>
-            <button type="button" class="admin-tab" data-tab="promos" role="tab" aria-selected="false">Banners/Bank</button>
+            <button type="button" class="admin-tab" data-tab="promos" role="tab" aria-selected="false">Banners/Caixa</button>
             <button type="button" class="admin-tab" data-tab="banners" role="tab" aria-selected="false">Banners pagos <span class="badge badge-pendente oculto" id="badge-banners-pend">0</span></button>
         </nav>
 
@@ -255,9 +255,9 @@
                 <p id="share-flags-msg" class="msg"></p>
             </section>
             <section class="card">
-                <h2>Minera Bank — disponibilidade</h2>
+                <h2>Caixa interno (legado) — disponibilidade</h2>
                 <p class="sub">Kill switch: pausa depósito, saque, Pix e crédito. Extrato próprio continua legível.</p>
-                <label class="check-row"><input type="checkbox" id="flag-bank-enabled" checked> Minera Bank disponível</label>
+                <label class="check-row"><input type="checkbox" id="flag-bank-enabled" checked> Caixa interno disponível</label>
                 <label for="flag-bank-motivo">Motivo (opcional, interno)</label>
                 <textarea id="flag-bank-motivo" rows="2" placeholder="Ex.: manutenção preventiva"></textarea>
                 <button type="button" class="btn-ok" id="btn-salvar-bank-flag">Salvar flag + log</button>
@@ -299,17 +299,17 @@
             </div>
         </div>
     </div>
-    <script src="config.js?v=20261021b"></script>
-    <script src="seguranca.js?v=20261021b"></script>
-    <script src="auth-guard.js?v=20261021b"></script>
-    <script src="suporte.js?v=20261021b"></script>
-    <script src="chat-realtime.js?v=20261021b"></script>
-    <script src="avatar.js?v=20261021b"></script>
-    <script src="nav.js?v=20261021b"></script>
-    <script src="pix-brcode.js?v=20261021b"></script>
-    <script src="banners.js?v=20261021b"></script>
-    <script src="admin.js?v=20261021b"></script>
-    <script src="admin-banners.js?v=20261021b"></script>
-    <script src="pwa.js?v=20261021b"></script>
+    <script src="config.js?v=20261029a"></script>
+    <script src="seguranca.js?v=20261029a"></script>
+    <script src="auth-guard.js?v=20261029a"></script>
+    <script src="suporte.js?v=20261029a"></script>
+    <script src="chat-realtime.js?v=20261029a"></script>
+    <script src="avatar.js?v=20261029a"></script>
+    <script src="nav.js?v=20261029a"></script>
+    <script src="pix-brcode.js?v=20261029a"></script>
+    <script src="banners.js?v=20261029a"></script>
+    <script src="admin.js?v=20261029a"></script>
+    <script src="admin-banners.js?v=20261029a"></script>
+    <script src="pwa.js?v=20261029a"></script>
 </body>
 </html>

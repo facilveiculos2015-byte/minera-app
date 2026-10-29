@@ -368,16 +368,16 @@ function garantirHeaderCaixaBtn() {
         header.appendChild(actions);
     }
     let btn = document.getElementById('btn-caixa-bank');
-    const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'financeiro.html';
+    const href = (typeof APP_ROOT === 'string' ? APP_ROOT : '') + 'parceiro.html';
     if (!btn) {
         btn = document.createElement('a');
         btn.id = 'btn-caixa-bank';
         btn.className = 'btn-caixa-bank';
-        btn.title = 'Bank Minera — Minera Bank';
-        btn.setAttribute('aria-label', 'Bank Minera — Minera Bank');
+        btn.title = 'Cred Carajás — parceira financeira';
+        btn.setAttribute('aria-label', 'Cred Carajás — parceira financeira');
         btn.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">' +
             '<path fill="currentColor" d="M12 3L2 9v2h20V9L12 3zm1 6H11v2h2V9zm-4 0H7v2h2V9zm8 0h-2v2h2V9zM4 13v7h3v-5h2v5h2v-5h2v5h2v-5h2v5h3v-7H4z"/></svg>' +
-            '<span class="btn-caixa-bank-label">Bank Minera</span>';
+            '<span class="btn-caixa-bank-label">Cred Carajás</span>';
         const notif = document.getElementById('btn-notif');
         const sair = document.getElementById('btn-sair');
         if (notif && notif.parentNode === actions) actions.insertBefore(btn, notif);
@@ -385,12 +385,12 @@ function garantirHeaderCaixaBtn() {
         else actions.insertBefore(btn, actions.firstChild);
     }
     btn.href = href;
-    btn.title = 'Bank Minera — Minera Bank';
-    btn.setAttribute('aria-label', 'Bank Minera — Minera Bank');
+    btn.title = 'Cred Carajás — parceira financeira';
+    btn.setAttribute('aria-label', 'Cred Carajás — parceira financeira');
     if (!btn.querySelector('.btn-caixa-bank-label')) {
         const label = document.createElement('span');
         label.className = 'btn-caixa-bank-label';
-        label.textContent = 'Bank Minera';
+        label.textContent = 'Cred Carajás';
         btn.appendChild(label);
     }
 }
@@ -760,7 +760,7 @@ function montarNav(paginaAtiva, perfil) {
 /** Logo escavadeira ao lado do título Minera Pará (toda página autenticada) */
 function garantirBrandLogo() {
     const root = (typeof APP_ROOT === 'string' ? APP_ROOT : '');
-    const src = root + 'logo-escavadeira.png?v=20261021b';
+    const src = root + 'logo-escavadeira.png?v=20261029a';
     document.querySelectorAll('header.header-row h1, header.auth-header h1').forEach(h1 => {
         // Already wrapped in brand-row with logo
         const existingRow = h1.closest('.brand-row');
